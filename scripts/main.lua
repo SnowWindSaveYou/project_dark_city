@@ -17,8 +17,9 @@ local CameraButton = require "CameraButton"
 local TitleScreen = require "TitleScreen"
 local GameOver    = require "GameOver"
 local ShopPopup    = require "ShopPopup"
-local CardManager  = require "CardManager"
-local HandPanel    = require "HandPanel"
+local CardManager      = require "CardManager"
+local HandPanel        = require "HandPanel"
+local DateTransition   = require "DateTransition"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -222,6 +223,9 @@ function Start()
         end
     end)
 
+    -- 日期转场初始化
+    DateTransition.init(vg)
+
     -- 事件
     SubscribeToEvent(vg, "NanoVGRender", "HandleNanoVGRender")
     SubscribeToEvent("Update", "HandleUpdate")
@@ -234,9 +238,11 @@ function Start()
     gamePhase = "title"
     demoState = "idle"
     TitleScreen.show(function()
-        -- 标题画面关闭后开始游戏
+        -- 标题画面关闭后: 播放第一天日期转场，然后开始游戏
         gamePhase = "playing"
-        startDeal()
+        DateTransition.play(dayCount, function()
+            startDeal()
+        end)
     end)
 
     print("[Main] Initialization complete")
@@ -347,10 +353,7 @@ function advanceDay()
     -- 每日基础收入
     ResourceBar.change("money", 10)
 
-    -- 日结过渡
-    local t = Theme.current
-    VFX.showTransition("第 " .. dayCount .. " 天结束", t.accent.r, t.accent.g, t.accent.b)
-
+    -- 日结过渡: P4 风格日期转场
     demoState = "dealing"
     hoveredCard = nil
 
@@ -363,23 +366,22 @@ function advanceDay()
     HandPanel.hide()
     CameraButton.hide()
 
-    local dummy = { t = 0 }
-    Tween.to(dummy, { t = 1 }, 0.8, {
-        tag = "daytransition",
-        onComplete = function()
-            Board.undealAll(board, function()
-                dayCount = dayCount + 1
+    -- 先收牌，然后播放日期转场
+    Board.undealAll(board, function()
+        dayCount = dayCount + 1
 
-                -- 胜利检查
-                if checkVictory() then return end
+        -- 胜利检查
+        if checkVictory() then return end
 
-                local locs = CardManager.preSelectLocations()
-                Board.generateCards(board, locs)
-                recalcLayout()
-                startDeal()
-            end)
-        end
-    })
+        -- 播放 P4 日期转场
+        DateTransition.play(dayCount, function()
+            -- 转场结束后重新发牌
+            local locs = CardManager.preSelectLocations()
+            Board.generateCards(board, locs)
+            recalcLayout()
+            startDeal()
+        end)
+    end)
 end
 
 -- ============================================================================
@@ -920,6 +922,9 @@ local function handleClick(inputX, inputY)
     local lx = inputX / dpr
     local ly = inputY / dpr
 
+    -- 日期转场期间阻止交互
+    if DateTransition.isActive() then return end
+
     -- 标题画面最优先
     if TitleScreen.isActive() then
         TitleScreen.handleClick()
@@ -990,6 +995,9 @@ end
 ---@param eventData KeyDownEventData
 function HandleKeyDown(eventType, eventData)
     local key = eventData:GetInt("Key")
+
+    -- 日期转场期间阻止按键
+    if DateTransition.isActive() then return end
 
     -- 标题画面
     if TitleScreen.isActive() then
@@ -1095,6 +1103,7 @@ function HandleUpdate(eventType, eventData)
 
     Tween.update(dt)
     VFX.updateAll(dt)
+    DateTransition.update(dt)
     Board.update(board, dt)
     Token.update(token, dt)
     ResourceBar.update(dt)
@@ -1158,6 +1167,9 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 结算画面 (覆盖游戏内容) ===
     GameOver.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === P4 日期转场 (覆盖游戏内容，在标题画面下) ===
+    DateTransition.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 标题画面 (最顶层) ===
     TitleScreen.draw(vg, logicalW, logicalH, gameTime)
