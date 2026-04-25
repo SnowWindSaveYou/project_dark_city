@@ -7,6 +7,7 @@
 local Tween = require "lib.Tween"
 local Theme = require "Theme"
 local CardManager = require "CardManager"
+local ShopPopup   = require "ShopPopup"
 
 local M = {}
 
@@ -34,6 +35,11 @@ local CHECK_SIZE    = 12        -- 勾选框尺寸
 local NOTE_W        = 78
 local NOTE_H        = 44
 
+-- 道具工具栏
+local TOOLBAR_H     = 32        -- 工具栏高度
+local TOOLBAR_ICON  = 24        -- 图标区尺寸
+local TOOLBAR_GAP   = 6         -- 图标间距
+
 -- 结束今天按钮
 local BTN_H         = 26
 local BTN_MARGIN    = 6
@@ -42,11 +48,19 @@ local BTN_MARGIN    = 6
 -- 动态高度 (根据日程数量调整)
 -- ---------------------------------------------------------------------------
 
---- 内容区高度：超过3条日程时按条目数扩展
+--- 工具栏实际高度 (有消耗品才占空间)
+local function getToolbarH()
+    local items = ShopPopup.getConsumableOrder()
+    if #items == 0 then return 0 end
+    return TOOLBAR_H
+end
+
+--- 内容区高度：超过3条日程时按条目数扩展 + 工具栏
 local function getBodyH()
     local count = #CardManager.getSchedules()
-    if count <= 3 then return BASE_BODY_H end
-    return BASE_BODY_H + (count - 3) * ITEM_H
+    local base = BASE_BODY_H
+    if count > 3 then base = BASE_BODY_H + (count - 3) * ITEM_H end
+    return base + getToolbarH()
 end
 
 --- 笔记本总高
@@ -63,11 +77,13 @@ local state = {
     panelY   = 0,       -- 面板顶部 Y (动画驱动)
     alpha    = 0,
     hoverIndex = 0,
-    hoverEndDay = false,  -- 结束今天按钮 hover
+    hoverEndDay = false,    -- 结束今天按钮 hover
+    hoverToolbar = nil,     -- 工具栏 hover 的 consumable key
 }
 
 -- 外部注入的回调
 local onEndDayCallback = nil
+local onUseExorcismCallback = nil  -- 驱魔香特殊回调 (F4)
 
 -- ---------------------------------------------------------------------------
 -- 布局
@@ -147,12 +163,34 @@ function M.setEndDayCallback(fn)
     onEndDayCallback = fn
 end
 
+--- 注入"使用驱魔香"回调 (由 main.lua 调用, F4)
+function M.setUseExorcismCallback(fn)
+    onUseExorcismCallback = fn
+end
+
 --- 获取"结束今天"按钮的矩形区域 (在溢出区域上方，保证可见)
 local function getEndDayBtnRect(px, py, pw)
     local btnW = pw - SPINE_W - PAGE_PAD * 2
     local btnX = px + SPINE_W + PAGE_PAD
     local btnY = py + TAB_H + getBodyH() - OVERFLOW - BTN_H - BTN_MARGIN
     return btnX, btnY, btnW, BTN_H
+end
+
+--- 获取工具栏 Y 位置 (结束今天按钮上方)
+local function getToolbarY(py)
+    local _, btnY, _, _ = getEndDayBtnRect(0, py, 200) -- px/pw 不影响 Y
+    return btnY - getToolbarH()
+end
+
+--- 获取工具栏中某个图标的矩形 (用于碰撞检测)
+local function getToolbarItemRect(px, py, pw, idx, totalCount)
+    local toolbarY = getToolbarY(py)
+    local contentW = pw - SPINE_W - PAGE_PAD * 2
+    local totalItemW = totalCount * TOOLBAR_ICON + (totalCount - 1) * TOOLBAR_GAP
+    local startX = px + SPINE_W + PAGE_PAD + (contentW - totalItemW) / 2
+    local ix = startX + (idx - 1) * (TOOLBAR_ICON + TOOLBAR_GAP)
+    local iy = toolbarY + (TOOLBAR_H - TOOLBAR_ICON) / 2
+    return ix, iy, TOOLBAR_ICON, TOOLBAR_ICON
 end
 
 -- ---------------------------------------------------------------------------
@@ -179,6 +217,32 @@ function M.handleClick(lx, ly, logicalW, logicalH)
     -- 折叠状态下标签栏以下不可能被点到（在屏幕外），直接返回
     if not state.expanded then
         return false
+    end
+
+    -- 展开状态下点击道具工具栏
+    local consumables = ShopPopup.getConsumableOrder()
+    if #consumables > 0 then
+        for idx, entry in ipairs(consumables) do
+            local ix, iy, iw, ih = getToolbarItemRect(px, py, pw, idx, #consumables)
+            if lx >= ix and lx <= ix + iw and ly >= iy and ly <= iy + ih then
+                if entry.key == "exorcism" then
+                    -- 驱魔香：调用外部回调 (F4)
+                    if onUseExorcismCallback then
+                        onUseExorcismCallback()
+                    end
+                else
+                    -- 普通消耗品：直接使用
+                    local ok = ShopPopup.useConsumable(entry.key)
+                    if ok then
+                        local VFX = require "lib.VFX"
+                        local t = Theme.current
+                        VFX.spawnBanner(entry.info.icon .. " 使用了" .. entry.info.label,
+                            t.safe.r, t.safe.g, t.safe.b, 18, 0.7)
+                    end
+                end
+                return true
+            end
+        end
     end
 
     -- 展开状态下点击"结束今天"按钮
@@ -217,6 +281,7 @@ function M.updateHover(lx, ly, dt, logicalW, logicalH)
     if not state.visible or state.alpha < 0.1 or not state.expanded then
         state.hoverIndex = 0
         state.hoverEndDay = false
+        state.hoverToolbar = nil
         return
     end
 
@@ -228,6 +293,17 @@ function M.updateHover(lx, ly, dt, logicalW, logicalH)
         local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
         if lx >= bx and lx <= bx + bw and ly >= by and ly <= by + bh then
             state.hoverEndDay = true
+        end
+    end
+
+    -- 工具栏 hover
+    state.hoverToolbar = nil
+    local consumables = ShopPopup.getConsumableOrder()
+    for idx, entry in ipairs(consumables) do
+        local ix, iy, iw, ih = getToolbarItemRect(px, py, pw, idx, #consumables)
+        if lx >= ix and lx <= ix + iw and ly >= iy and ly <= iy + ih then
+            state.hoverToolbar = entry.key
+            break
         end
     end
 
@@ -318,6 +394,7 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     M.drawLines(vg, px, py, pw, ph, t)
     M.drawScheduleItems(vg, px, py, pw, t, gameTime)
     M.drawRumorNote(vg, px, py, pw, t, gameTime)
+    M.drawToolbar(vg, px, py, pw, t, gameTime)
     M.drawEndDayBtn(vg, px, py, pw, t)
 
     nvgRestore(vg)
@@ -531,64 +608,206 @@ function M.drawRumorNote(vg, px, py, pw, t, gameTime)
     local rumors = CardManager.getRumors()
     if #rumors == 0 then return end
 
-    local rumor = rumors[1]
+    -- 日程区高度（不含工具栏）
+    local count = #CardManager.getSchedules()
+    local schedH = BASE_BODY_H
+    if count > 3 then schedH = BASE_BODY_H + (count - 3) * ITEM_H end
 
-    -- 便签位置：右侧，垂直居中于内容区
+    -- 便签基准位置：右侧，垂直居中于日程区
     local noteX = px + pw - NOTE_W - PAGE_PAD + 2
-    local noteY = py + TAB_H + (getBodyH() - NOTE_H) / 2
+    local noteBaseY = py + TAB_H + (schedH - NOTE_H) / 2
 
-    nvgSave(vg)
-    nvgTranslate(vg, noteX + NOTE_W / 2, noteY + NOTE_H / 2)
-    nvgRotate(vg, 2.0 * math.pi / 180)
-    nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+    -- 多条传闻堆叠：底层先画 (微偏移)，顶层最后画
+    local maxShow = math.min(#rumors, 3)  -- 最多堆叠3张
 
-    -- 阴影
+    for idx = maxShow, 1, -1 do
+        local rumor = rumors[idx]
+        local stackOffset = (idx - 1) * 4  -- 每层偏移4px
+        local rotDeg = 2.0 + (idx - 1) * 1.5 * ((idx % 2 == 0) and -1 or 1)
+
+        nvgSave(vg)
+        nvgTranslate(vg, noteX + NOTE_W / 2 + stackOffset, noteBaseY + NOTE_H / 2 + stackOffset)
+        nvgRotate(vg, rotDeg * math.pi / 180)
+        nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+
+        -- 底层便签半透明
+        local layerAlpha = (idx == 1) and 1.0 or (0.7 - (idx - 2) * 0.15)
+        nvgGlobalAlpha(vg, state.alpha * layerAlpha)
+
+        -- 阴影
+        nvgBeginPath(vg)
+        nvgRect(vg, 2, 2, NOTE_W, NOTE_H)
+        nvgFillColor(vg, nvgRGBA(80, 60, 40, 25))
+        nvgFill(vg)
+
+        -- 底色
+        local noteColor = rumor.isSafe
+            and nvgRGBA(228, 242, 228, 240)
+            or  nvgRGBA(248, 232, 218, 240)
+        nvgBeginPath(vg)
+        nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+        nvgFillColor(vg, noteColor)
+        nvgFill(vg)
+
+        -- 边框
+        nvgBeginPath(vg)
+        nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+        nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 70))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
+
+        -- 胶带
+        nvgBeginPath(vg)
+        nvgRect(vg, NOTE_W / 2 - 16, -3, 32, 7)
+        nvgFillColor(vg, nvgRGBA(210, 205, 190, 80))
+        nvgFill(vg)
+
+        -- 图标 + 状态
+        nvgFontFace(vg, "sans")
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+
+        nvgFontSize(vg, 15)
+        nvgFillColor(vg, Theme.rgba(t.textPrimary))
+        nvgText(vg, NOTE_W / 2, 12, rumor.icon, nil)
+
+        nvgFontSize(vg, 10)
+        local sc = rumor.isSafe and t.safe or t.danger
+        nvgFillColor(vg, Theme.rgba(sc))
+        nvgText(vg, NOTE_W / 2, 26, rumor.isSafe and "✓ 安全" or "⚠ 危险", nil)
+
+        -- 传闻文字
+        nvgFontSize(vg, 7.5)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
+        nvgText(vg, NOTE_W / 2, 38, rumor.text, nil)
+
+        nvgRestore(vg)
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 道具工具栏 (日程区下方，横排小图标)
+-- ---------------------------------------------------------------------------
+
+function M.drawToolbar(vg, px, py, pw, t, gameTime)
+    local consumables = ShopPopup.getConsumableOrder()
+    if #consumables == 0 then return end
+
+    local toolbarY = getToolbarY(py)
+
+    -- 虚线分隔 (工具栏上方)
+    local dashX = px + SPINE_W + PAGE_PAD
+    local dashEndX = px + pw - PAGE_PAD
+    local dashLineY = toolbarY + 2
     nvgBeginPath(vg)
-    nvgRect(vg, 2, 2, NOTE_W, NOTE_H)
-    nvgFillColor(vg, nvgRGBA(80, 60, 40, 25))
-    nvgFill(vg)
-
-    -- 底色
-    local noteColor = rumor.isSafe
-        and nvgRGBA(228, 242, 228, 240)
-        or  nvgRGBA(248, 232, 218, 240)
-    nvgBeginPath(vg)
-    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-    nvgFillColor(vg, noteColor)
-    nvgFill(vg)
-
-    -- 边框
-    nvgBeginPath(vg)
-    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-    nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 70))
-    nvgStrokeWidth(vg, 0.8)
+    local dx = dashX
+    while dx < dashEndX do
+        nvgMoveTo(vg, dx, dashLineY)
+        nvgLineTo(vg, math.min(dx + 3, dashEndX), dashLineY)
+        dx = dx + 7
+    end
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 60))
+    nvgStrokeWidth(vg, 0.5)
     nvgStroke(vg)
 
-    -- 胶带
-    nvgBeginPath(vg)
-    nvgRect(vg, NOTE_W / 2 - 16, -3, 32, 7)
-    nvgFillColor(vg, nvgRGBA(210, 205, 190, 80))
-    nvgFill(vg)
-
-    -- 图标 + 状态
+    -- "背包" 小标签
     nvgFontFace(vg, "sans")
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFontSize(vg, 8)
+    nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 120))
+    nvgText(vg, dashX, dashLineY + 2, "🎒 道具", nil)
 
-    nvgFontSize(vg, 15)
-    nvgFillColor(vg, Theme.rgba(t.textPrimary))
-    nvgText(vg, NOTE_W / 2, 12, rumor.icon, nil)
+    -- 图标列表
+    local count = #consumables
+    for idx, entry in ipairs(consumables) do
+        local ix, iy, iw, ih = getToolbarItemRect(px, py, pw, idx, count)
+        local isHovered = (state.hoverToolbar == entry.key)
+        local cx = ix + iw / 2
+        local cy = iy + ih / 2
 
-    nvgFontSize(vg, 10)
-    local sc = rumor.isSafe and t.safe or t.danger
-    nvgFillColor(vg, Theme.rgba(sc))
-    nvgText(vg, NOTE_W / 2, 26, rumor.isSafe and "✓ 安全" or "⚠ 危险", nil)
+        -- hover 底色
+        if isHovered then
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, ix - 2, iy - 2, iw + 4, ih + 4, 4)
+            nvgFillColor(vg, nvgRGBA(75, 163, 227, 30))
+            nvgFill(vg)
+        end
 
-    -- 传闻文字
-    nvgFontSize(vg, 7.5)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
-    nvgText(vg, NOTE_W / 2, 38, rumor.text, nil)
+        -- 图标背景圆
+        nvgBeginPath(vg)
+        nvgCircle(vg, cx, cy, iw / 2)
+        local bgAlpha = isHovered and 50 or 30
+        nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, bgAlpha))
+        nvgFill(vg)
 
-    nvgRestore(vg)
+        -- 图标
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 14)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(t.textPrimary))
+        nvgText(vg, cx, cy, entry.info.icon, nil)
+
+        -- 数量角标
+        if entry.count > 1 then
+            local badgeX = ix + iw - 1
+            local badgeY = iy + 2
+            nvgBeginPath(vg)
+            nvgCircle(vg, badgeX, badgeY, 5)
+            nvgFillColor(vg, Theme.rgbaA(t.info, 200))
+            nvgFill(vg)
+            nvgFontSize(vg, 7)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+            nvgText(vg, badgeX, badgeY, tostring(entry.count), nil)
+        end
+
+        -- hover 时显示效果提示
+        if isHovered then
+            -- 构建效果文本
+            local resNames = { san = "理智", order = "秩序", film = "胶卷" }
+            local parts = {}
+            for _, eff in ipairs(entry.info.effects) do
+                local rn = resNames[eff[1]] or eff[1]
+                if eff[1] == "exorcism" then
+                    parts[#parts + 1] = "驱除当前怪物"
+                else
+                    local sign = eff[2] > 0 and "+" or ""
+                    parts[#parts + 1] = rn .. sign .. eff[2]
+                end
+            end
+            local tip = entry.info.label .. ": " .. table.concat(parts, ", ")
+
+            -- 气泡背景 (笔记本纸色 + 边框)
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 9)
+            local tw = nvgTextBounds(vg, 0, 0, tip, nil)
+            local tipX = cx
+            local tipY = iy - 4
+            local padX, padY = 6, 3
+            local bx = tipX - tw / 2 - padX
+            local by = tipY - 9 - padY
+            local bw = tw + padX * 2
+            local bh = 10 + padY * 2
+            -- 阴影
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx + 1, by + 1, bw, bh, 3)
+            nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, 40))
+            nvgFill(vg)
+            -- 填充
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx, by, bw, bh, 3)
+            nvgFillColor(vg, Theme.rgbaA(t.notebookPaper, 245))
+            nvgFill(vg)
+            -- 边框
+            nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 120))
+            nvgStrokeWidth(vg, 0.5)
+            nvgStroke(vg)
+
+            -- 文字
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_BOTTOM)
+            nvgFillColor(vg, Theme.rgba(t.textPrimary))
+            nvgText(vg, tipX, tipY, tip, nil)
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -642,6 +861,7 @@ function M.reset()
     state.alpha    = 0
     state.hoverIndex = 0
     state.hoverEndDay = false
+    state.hoverToolbar = nil
 end
 
 return M

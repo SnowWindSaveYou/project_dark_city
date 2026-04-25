@@ -338,6 +338,50 @@ function M.getRumors()
     return state.rumors
 end
 
+--- 添加额外传闻 (线索事件触发)
+--- 从棋盘上随机选一个未被传闻覆盖的地点，生成一条新传闻
+---@param board table 棋盘数据
+---@return boolean success 是否成功添加
+function M.addRumor(board)
+    if not board or not board.cards then return false end
+
+    -- 已有传闻的地点集合
+    local coveredLocs = {}
+    for _, r in ipairs(state.rumors) do
+        coveredLocs[r.location] = true
+    end
+
+    -- 从棋盘收集未覆盖的地点
+    local candidates = {}
+    for row = 1, 5 do
+        if board.cards[row] then
+            for col = 1, 5 do
+                local card = board.cards[row][col]
+                if card and card.location and card.location ~= "home"
+                    and not card.faceUp and not coveredLocs[card.location] then
+                    candidates[#candidates + 1] = card
+                end
+            end
+        end
+    end
+
+    if #candidates == 0 then
+        print("[CardManager] addRumor: no available locations")
+        return false
+    end
+
+    -- 随机选一张
+    local pick = candidates[math.random(1, #candidates)]
+    local isSafe = (pick.type == "safe" or pick.type == "reward" or pick.type == "plot" or pick.type == "clue")
+    local rumor = createRumor(pick.location, isSafe)
+    if not rumor then return false end
+
+    state.rumors[#state.rumors + 1] = rumor
+    print(string.format("[CardManager] addRumor: %s (%s) → total %d rumors",
+        rumor.label, isSafe and "safe" or "danger", #state.rumors))
+    return true
+end
+
 --- 查询指定地点是否有传闻
 ---@param location string
 ---@return table|nil rumor { isSafe = bool, text = string }

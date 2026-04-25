@@ -1,6 +1,7 @@
 -- ============================================================================
--- Token.lua - 玩家棋子 (chibi 风格)
--- 纯 NanoVG 矢量绘制的可爱棋子，Balatro 风格移动动效
+-- Token.lua - 玩家棋子 (贴图表情版)
+-- 15 种表情贴图 + 呼吸/弹跳/挤压/翻面动效
+-- 放置在卡牌中心，叠加半透明阴影增加可见度
 -- ============================================================================
 
 local Tween = require "lib.Tween"
@@ -11,8 +12,39 @@ local M = {}
 -- ---------------------------------------------------------------------------
 -- 常量
 -- ---------------------------------------------------------------------------
-M.SIZE = 20          -- 基础尺寸半径
-M.BODY_H = 14       -- 身体高度
+M.SIZE = 20          -- 基础尺寸半径 (兼容旧引用)
+M.BODY_H = 14       -- 身体高度 (兼容旧引用)
+
+-- 精灵渲染尺寸 (逻辑像素) — 适配卡牌内显示
+local SPRITE_W = 40
+local SPRITE_H = math.floor(SPRITE_W * (768 / 515) + 0.5)  -- ≈ 60
+
+-- 躺尸图是横版 768x515，需要特殊宽高
+local DEAD_W = math.floor(SPRITE_H * (768 / 515) + 0.5)    -- ≈ 89
+local DEAD_H = SPRITE_H                                      -- 60
+
+
+
+-- ---------------------------------------------------------------------------
+-- 表情映射
+-- ---------------------------------------------------------------------------
+local EMOTIONS = {
+    default    = "image/主角chibi恐怖风v5_20260425143954.png",
+    happy      = "image/主角_开心_20260425144434.png",
+    scared     = "image/主角_惊恐v3_20260425145053.png",
+    surprised  = "image/主角_惊讶_20260425152052.png",
+    nervous    = "image/主角_紧张_20260425152033.png",
+    angry      = "image/主角_愤怒_20260425152036.png",
+    determined = "image/主角_坚定_20260425152030.png",
+    relieved   = "image/主角_释然_20260425152041.png",
+    sleepy     = "image/主角_困倦_20260425152033.png",
+    confused   = "image/主角_疑惑v5_20260425150409.png",
+    sad        = "image/主角_伤心_20260425144628.png",
+    dead       = "image/主角_躺尸_20260425154955.png",
+    disgusted  = "image/主角_厌恶_20260425152036.png",
+    dazed      = "image/主角_呆滞_20260425144455.png",
+    running    = "image/主角_奔跑v3_20260425153021.png",
+}
 
 -- ---------------------------------------------------------------------------
 -- 构造
@@ -20,19 +52,113 @@ M.BODY_H = 14       -- 身体高度
 
 function M.new()
     return {
-        x = 0, y = 0,          -- 当前位置 (逻辑像素)
+        x = 0, y = 0,
         targetRow = 1,
         targetCol = 1,
         scaleX = 1.0,
         scaleY = 1.0,
-        alpha = 0,              -- 初始隐藏
-        bounceY = 0,            -- 弹跳偏移
-        squashX = 1.0,          -- 挤压 X
-        squashY = 1.0,          -- 挤压 Y
+        alpha = 0,
+        bounceY = 0,
+        squashX = 1.0,
+        squashY = 1.0,
         isMoving = false,
         visible = false,
-        idleTimer = 0,          -- idle 呼吸动画
+        idleTimer = 0,
+
+        -- 表情系统
+        emotion = "default",
+        pendingEmotion = nil,   -- 翻面动画中途待切换的表情
+        imageHandles = {},      -- 由 loadImages() 填充
     }
+end
+
+-- ---------------------------------------------------------------------------
+-- 图片资源管理
+-- ---------------------------------------------------------------------------
+
+--- 一次性加载全部表情贴图 (在 Start() 中调用)
+---@param vg userdata NanoVG context
+---@return table handles  表情名 → nvg image handle
+function M.loadImages(vg)
+    local handles = {}
+    local loaded, failed = 0, 0
+    for key, path in pairs(EMOTIONS) do
+        -- 同路径不重复加载 (happy 和 default 共享)
+        local existing = nil
+        for k2, p2 in pairs(EMOTIONS) do
+            if p2 == path and handles[k2] then
+                existing = handles[k2]
+                break
+            end
+        end
+        if existing then
+            handles[key] = existing
+            loaded = loaded + 1
+        else
+            local h = nvgCreateImage(vg, path, 0)
+            if h and h > 0 then
+                handles[key] = h
+                loaded = loaded + 1
+            else
+                print("[Token] ERROR: Failed to load " .. path)
+                failed = failed + 1
+            end
+        end
+    end
+    print("[Token] Loaded " .. loaded .. " emotions, " .. failed .. " failed")
+    return handles
+end
+
+--- 清理图片资源 (在 Stop() 中调用)
+---@param vg userdata
+---@param token table
+function M.cleanup(vg, token)
+    if not token or not token.imageHandles then return end
+    -- 收集去重 (同句柄只删一次)
+    local deleted = {}
+    for _, handle in pairs(token.imageHandles) do
+        if handle and handle > 0 and not deleted[handle] then
+            nvgDeleteImage(vg, handle)
+            deleted[handle] = true
+        end
+    end
+    token.imageHandles = {}
+    print("[Token] Cleaned up " .. #deleted .. " image handles")
+end
+
+-- ---------------------------------------------------------------------------
+-- 表情切换 (带翻面动效)
+-- ---------------------------------------------------------------------------
+
+--- 切换表情
+---@param token table
+---@param emotion string 表情名
+function M.setEmotion(token, emotion)
+    if not token.imageHandles[emotion] then
+        emotion = "default"
+    end
+    if token.emotion == emotion then return end
+
+    -- 移动中直接切换，不做翻面
+    if token.isMoving then
+        token.emotion = emotion
+        return
+    end
+
+    -- 翻面动效：压扁 → 切图 → 展开
+    token.pendingEmotion = emotion
+    Tween.to(token, { squashX = 0.0 }, 0.07, {
+        easing = Tween.Easing.easeInQuad,
+        tag = "tokenflip",
+        onComplete = function()
+            token.emotion = token.pendingEmotion or emotion
+            token.pendingEmotion = nil
+            Tween.to(token, { squashX = 1.0 }, 0.09, {
+                easing = Tween.Easing.easeOutBack,
+                tag = "tokenflip",
+            })
+        end
+    })
 end
 
 -- ---------------------------------------------------------------------------
@@ -41,7 +167,7 @@ end
 
 function M.show(token, x, y)
     token.x = x
-    token.y = y + 30   -- 从下方弹入
+    token.y = y + 30
     token.visible = true
     Tween.to(token, { x = x, y = y, alpha = 1.0, scaleX = 1.0, scaleY = 1.0 }, 0.4, {
         easing = Tween.Easing.easeOutBack,
@@ -67,7 +193,6 @@ function M.moveTo(token, targetX, targetY, onComplete)
         easing = Tween.Easing.easeOutQuad,
         tag = "tokenmove",
         onComplete = function()
-            -- 弹起
             Tween.to(token, { squashX = 0.85, squashY = 1.15 }, 0.06, {
                 easing = Tween.Easing.easeOutQuad,
                 tag = "tokenmove",
@@ -75,14 +200,14 @@ function M.moveTo(token, targetX, targetY, onComplete)
         end
     })
 
-    -- 主移动 (含弧形: bounceY 先升后降)
+    -- 主移动
     Tween.to(token, { x = targetX, y = targetY }, duration, {
         delay = 0.06,
         easing = Tween.Easing.easeInOutCubic,
         tag = "tokenmove",
     })
 
-    -- 弧形跳跃 (Y 偏移)
+    -- 弧形跳跃
     local jumpHeight = math.min(40, dist * 0.3 + 15)
     Tween.to(token, { bounceY = -jumpHeight }, duration * 0.45, {
         delay = 0.06,
@@ -96,12 +221,11 @@ function M.moveTo(token, targetX, targetY, onComplete)
         end
     })
 
-    -- 落地 (延迟到主移动完成)
+    -- 落地
     Tween.to(token, { squashX = 1.0, squashY = 1.0 }, 0.01, {
         delay = duration + 0.06,
         tag = "tokenmove",
         onComplete = function()
-            -- 落地挤压
             Tween.to(token, { squashX = 1.25, squashY = 0.75 }, 0.06, {
                 easing = Tween.Easing.easeOutQuad,
                 tag = "tokenmove",
@@ -130,129 +254,67 @@ function M.update(token, dt)
 end
 
 -- ---------------------------------------------------------------------------
--- 渲染: 可爱棋子
+-- 渲染: 贴图精灵
 -- ---------------------------------------------------------------------------
 
 function M.draw(vg, token, gameTime)
     if not token.visible or token.alpha <= 0.01 then return end
 
-    local t = Theme.current
-    local sz = M.SIZE
+    local imgHandle = token.imageHandles[token.emotion]
+        or token.imageHandles["default"]
+    if not imgHandle or imgHandle <= 0 then return end
 
-    -- idle 呼吸
+    -- 判断是否为躺尸 (横版图)
+    local isDead = (token.emotion == "dead")
+    local sw = isDead and DEAD_W or SPRITE_W
+    local sh = isDead and DEAD_H or SPRITE_H
+
+    -- idle 呼吸 (非移动时轻微上下浮动)
     local breathe = 0
     if not token.isMoving then
-        breathe = math.sin(gameTime * 2.5) * 2.0
+        breathe = math.sin(gameTime * 2.5) * 1.5
+    end
+
+    -- 呼吸缩放 (微幅)
+    local breatheScale = 1.0
+    if not token.isMoving then
+        breatheScale = 1.0 + math.sin(gameTime * 2.5) * 0.02
     end
 
     nvgSave(vg)
-    nvgTranslate(vg, token.x, token.y + token.bounceY + breathe)
-    nvgScale(vg, token.scaleX * token.squashX, token.scaleY * token.squashY)
+
+    -- 定位到卡牌中心
+    local cx = token.x
+    local cy = token.y + token.bounceY + breathe
+    nvgTranslate(vg, cx, cy)
     nvgGlobalAlpha(vg, token.alpha)
 
-    -- === 身体 (梯形/裙摆) ===
-    local bodyW = sz * 0.7
-    local bodyH = M.BODY_H
-    local bodyTop = 2
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, -bodyW * 0.5, bodyTop)
-    nvgLineTo(vg, -bodyW * 0.7, bodyTop + bodyH)
-    nvgLineTo(vg, bodyW * 0.7, bodyTop + bodyH)
-    nvgLineTo(vg, bodyW * 0.5, bodyTop)
-    nvgClosePath(vg)
+    -- === 精灵贴图 (居中) ===
+    nvgScale(vg,
+        token.scaleX * token.squashX * breatheScale,
+        token.scaleY * token.squashY * breatheScale)
 
-    -- 身体渐变 (校服深蓝)
-    local bodyPaint = nvgLinearGradient(vg, 0, bodyTop, 0, bodyTop + bodyH,
-        nvgRGBA(45, 60, 85, 255),
-        nvgRGBA(35, 48, 70, 255))
-    nvgFillPaint(vg, bodyPaint)
-    nvgFill(vg)
+    local imgX = -sw / 2
+    local imgY = -sh / 2
 
-    -- === 头部 (圆) ===
-    local headR = sz * 0.52
-    local headY = -headR + 4
+    -- 角色阴影: 同图偏移 + 放大 + 低透明度
+    local shScale = 1.08
+    local shOff = 2
+    local shW = sw * shScale
+    local shH = sh * shScale
+    local shX = -shW / 2 + shOff
+    local shY = -shH / 2 + shOff
+    local shadowPaint = nvgImagePattern(vg, shX, shY, shW, shH, 0, imgHandle, 0.3)
     nvgBeginPath(vg)
-    nvgCircle(vg, 0, headY, headR)
-
-    -- 头部填充 (肤色)
-    nvgFillColor(vg, nvgRGBA(255, 228, 205, 255))
-    nvgFill(vg)
-
-    -- === 头发 (半圆 + 刘海) ===
-    local hairColor = t.accent
-    nvgBeginPath(vg)
-    nvgArc(vg, 0, headY, headR + 1, -math.pi, 0, NVG_CW)
-    nvgClosePath(vg)
-    nvgFillColor(vg, Theme.rgba(hairColor))
-    nvgFill(vg)
-
-    -- 刘海 (小三角)
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, -headR * 0.6, headY - headR * 0.3)
-    nvgLineTo(vg, -headR * 0.1, headY + headR * 0.1)
-    nvgLineTo(vg, headR * 0.1, headY - headR * 0.4)
-    nvgLineTo(vg, headR * 0.5, headY + headR * 0.05)
-    nvgLineTo(vg, headR * 0.7, headY - headR * 0.35)
-    nvgLineTo(vg, headR + 1, headY)
-    nvgLineTo(vg, -headR - 1, headY)
-    nvgClosePath(vg)
-    nvgFillColor(vg, Theme.rgba(hairColor))
-    nvgFill(vg)
-
-    -- === 眼睛 ===
-    local eyeY = headY + 1
-    local eyeSpacing = headR * 0.35
-    local eyeR = 2.5
-
-    -- 左眼
-    nvgBeginPath(vg)
-    nvgCircle(vg, -eyeSpacing, eyeY, eyeR)
-    nvgFillColor(vg, nvgRGBA(40, 50, 65, 255))
-    nvgFill(vg)
-    -- 左眼高光
-    nvgBeginPath(vg)
-    nvgCircle(vg, -eyeSpacing + 1, eyeY - 1, 1.0)
-    nvgFillColor(vg, nvgRGBA(255, 255, 255, 200))
-    nvgFill(vg)
-
-    -- 右眼
-    nvgBeginPath(vg)
-    nvgCircle(vg, eyeSpacing, eyeY, eyeR)
-    nvgFillColor(vg, nvgRGBA(40, 50, 65, 255))
-    nvgFill(vg)
-    nvgBeginPath(vg)
-    nvgCircle(vg, eyeSpacing + 1, eyeY - 1, 1.0)
-    nvgFillColor(vg, nvgRGBA(255, 255, 255, 200))
-    nvgFill(vg)
-
-    -- === 嘴巴 ===
-    nvgBeginPath(vg)
-    nvgArc(vg, 0, eyeY + 4, 2.5, 0.2, math.pi - 0.2, NVG_CW)
-    nvgStrokeColor(vg, nvgRGBA(180, 100, 100, 180))
-    nvgStrokeWidth(vg, 1.0)
-    nvgStroke(vg)
-
-    -- === 腮红 ===
-    local blushAlpha = 0.25 + 0.1 * math.sin(gameTime * 1.5)
-    nvgBeginPath(vg)
-    nvgEllipse(vg, -eyeSpacing - 2, eyeY + 4, 3.5, 2.5)
-    nvgFillColor(vg, nvgRGBA(255, 150, 150, math.floor(blushAlpha * 255)))
-    nvgFill(vg)
-    nvgBeginPath(vg)
-    nvgEllipse(vg, eyeSpacing + 2, eyeY + 4, 3.5, 2.5)
-    nvgFillColor(vg, nvgRGBA(255, 150, 150, math.floor(blushAlpha * 255)))
-    nvgFill(vg)
-
-    -- === 底部阴影 ===
-    local shadowW = bodyW * 0.8
-    local shadowH = 3
-    local shadowY = bodyTop + bodyH + 2
-    local shadowPaint = nvgRadialGradient(vg, 0, shadowY, 0, shadowW,
-        nvgRGBA(0, 0, 0, 35),
-        nvgRGBA(0, 0, 0, 0))
-    nvgBeginPath(vg)
-    nvgEllipse(vg, 0, shadowY, shadowW, shadowH)
+    nvgRect(vg, shX, shY, shW, shH)
     nvgFillPaint(vg, shadowPaint)
+    nvgFill(vg)
+
+    -- 主贴图
+    local imgPaint = nvgImagePattern(vg, imgX, imgY, sw, sh, 0, imgHandle, 1.0)
+    nvgBeginPath(vg)
+    nvgRect(vg, imgX, imgY, sw, sh)
+    nvgFillPaint(vg, imgPaint)
     nvgFill(vg)
 
     nvgRestore(vg)

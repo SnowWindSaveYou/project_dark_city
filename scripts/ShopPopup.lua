@@ -17,20 +17,20 @@ local M = {}
 local ALL_GOODS = {
     -- 设计文档核心道具
     { icon = "☕", name = "咖啡",       price = 8,  effects = { { "san", 2 } },
-      desc = "恢复2点理智" },
+      desc = "恢复2点理智",    inventoryKey = "coffee" },
     { icon = "🎞️", name = "胶卷",       price = 10, effects = { { "film", 1 } },
       desc = "补充1个胶卷" },
     { icon = "🧿", name = "护身符",     price = 15, effects = { { "shield", 1 } },
-      desc = "抵消1次伤害" },
+      desc = "抵消1次伤害",    inventoryKey = "shield" },
     { icon = "🪔", name = "驱魔香",     price = 12, effects = { { "exorcism", 1 } },
-      desc = "免侦察驱除怪物" },
+      desc = "免侦察驱除怪物", inventoryKey = "exorcism" },
     { icon = "🗺️", name = "地图碎片",   price = 10, effects = { { "mapReveal", 1 } },
       desc = "揭示1张卡牌类型" },
-    -- 补给型道具 (用户提到"补充理智或秩序的道具也能加")
+    -- 补给型道具 (可存入背包)
     { icon = "💊", name = "镇定剂",     price = 12, effects = { { "san", 3 } },
-      desc = "恢复3点理智" },
+      desc = "恢复3点理智",    inventoryKey = "sedative" },
     { icon = "📜", name = "秩序手册",   price = 10, effects = { { "order", 2 } },
-      desc = "恢复2点秩序" },
+      desc = "恢复2点秩序",    inventoryKey = "orderManual" },
 }
 
 local SHOP_VARIANTS = {
@@ -83,12 +83,24 @@ local BTN_Y      = CARDS_Y + CARD_H + 10   -- 204
 local POPUP_H    = BTN_Y + BTN_H + 14      -- 246
 
 -- ---------------------------------------------------------------------------
--- 道具库存 (战术道具持久状态)
+-- 道具库存 (背包持久状态)
 -- ---------------------------------------------------------------------------
 
 local inventory = {
-    shield   = 0,   -- 护身符: 抵消1次伤害
-    exorcism = 0,   -- 驱魔香: 免费驱除1次怪物
+    shield      = 0,   -- 护身符: 抵消1次伤害
+    exorcism    = 0,   -- 驱魔香: 免费驱除1次怪物
+    coffee      = 0,   -- 咖啡: 恢复2点理智
+    sedative    = 0,   -- 镇定剂: 恢复3点理智
+    orderManual = 0,   -- 秩序手册: 恢复2点秩序
+}
+
+--- 可消耗道具元数据 (HandPanel 工具栏渲染用)
+--- order 决定工具栏排列顺序
+local CONSUMABLE_ITEMS = {
+    coffee      = { icon = "☕", label = "咖啡",     effects = { { "san", 2 } },   order = 1 },
+    sedative    = { icon = "💊", label = "镇定剂",   effects = { { "san", 3 } },   order = 2 },
+    orderManual = { icon = "📜", label = "秩序手册", effects = { { "order", 2 } }, order = 3 },
+    exorcism    = { icon = "🪔", label = "驱魔香",   effects = { { "exorcism", 1 } }, order = 4 },
 }
 
 --- 地图碎片回调 (由 main.lua 注入，购买时立即调用)
@@ -103,6 +115,13 @@ function M.getItem(key)
     return inventory[key] or 0
 end
 
+--- 增加道具 (任意 inventoryKey)
+function M.addItem(key, amount)
+    amount = amount or 1
+    inventory[key] = (inventory[key] or 0) + amount
+    print(string.format("[ShopPopup] AddItem %s +%d → %d", key, amount, inventory[key]))
+end
+
 --- 消耗道具 (返回是否消耗成功)
 function M.useItem(key)
     if (inventory[key] or 0) > 0 then
@@ -113,6 +132,44 @@ function M.useItem(key)
     return false
 end
 
+--- 使用消耗品并立即结算资源效果 (HandPanel 工具栏调用)
+--- 返回 true/false 表示是否使用成功
+function M.useConsumable(key)
+    local meta = CONSUMABLE_ITEMS[key]
+    if not meta then return false end
+    if not M.useItem(key) then return false end
+
+    -- 结算效果
+    for _, eff in ipairs(meta.effects) do
+        local resKey = eff[1]
+        local delta  = eff[2]
+        -- exorcism 效果由外部回调处理，这里只扣库存
+        if resKey ~= "exorcism" then
+            ResourceBar.change(resKey, delta)
+        end
+    end
+    return true
+end
+
+--- 获取消耗品元数据 (icon/label/effects/order)
+function M.getConsumableInfo(key)
+    return CONSUMABLE_ITEMS[key]
+end
+
+--- 获取所有消耗品的排序列表 (仅返回库存 > 0 的)
+--- 返回 { { key="coffee", info={...}, count=2 }, ... } 按 order 升序
+function M.getConsumableOrder()
+    local list = {}
+    for key, info in pairs(CONSUMABLE_ITEMS) do
+        local count = inventory[key] or 0
+        if count > 0 then
+            list[#list + 1] = { key = key, info = info, count = count }
+        end
+    end
+    table.sort(list, function(a, b) return a.info.order < b.info.order end)
+    return list
+end
+
 --- 注入地图碎片回调
 function M.setMapRevealCallback(fn)
     mapRevealCallback = fn
@@ -120,8 +177,9 @@ end
 
 --- 重置库存 (新游戏时调用)
 function M.resetInventory()
-    inventory.shield   = 0
-    inventory.exorcism = 0
+    for key in pairs(inventory) do
+        inventory[key] = 0
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -267,20 +325,21 @@ local function doPurchase(i)
     -- === 购买成功 ===
     card.sold = true
     ResourceBar.change("money", -item.price)
-    for _, eff in ipairs(item.effects) do
-        local key = eff[1]
-        if key == "shield" or key == "exorcism" then
-            -- 战术道具：加入库存
-            inventory[key] = (inventory[key] or 0) + eff[2]
-            print(string.format("[ShopPopup] Inventory %s = %d", key, inventory[key]))
-        elseif key == "mapReveal" then
-            -- 地图碎片：立即生效
-            if mapRevealCallback then
-                mapRevealCallback()
+
+    if item.inventoryKey then
+        -- 有 inventoryKey → 存入背包
+        M.addItem(item.inventoryKey, 1)
+    else
+        -- 无 inventoryKey → 立即生效 (胶卷、地图碎片等)
+        for _, eff in ipairs(item.effects) do
+            local key = eff[1]
+            if key == "mapReveal" then
+                if mapRevealCallback then
+                    mapRevealCallback()
+                end
+            else
+                ResourceBar.change(key, eff[2])
             end
-        else
-            -- 常规资源：直接改值
-            ResourceBar.change(key, eff[2])
         end
     end
 
@@ -306,15 +365,19 @@ local function doPurchase(i)
 
     -- 效果弹出文字
     local popText = ""
-    for _, eff in ipairs(item.effects) do
-        local key = eff[1]
-        local icon = RES_ICONS[key] or ""
-        if key == "shield" or key == "exorcism" then
-            popText = popText .. icon .. " 获得 "
-        elseif key == "mapReveal" then
-            popText = popText .. icon .. " 揭示 "
-        else
-            popText = popText .. icon .. "+" .. eff[2] .. " "
+    if item.inventoryKey then
+        -- 背包道具：显示"获得"
+        local icon = item.icon or ""
+        popText = icon .. " 获得 "
+    else
+        for _, eff in ipairs(item.effects) do
+            local key = eff[1]
+            local icon = RES_ICONS[key] or ""
+            if key == "mapReveal" then
+                popText = popText .. icon .. " 揭示 "
+            else
+                popText = popText .. icon .. "+" .. eff[2] .. " "
+            end
         end
     end
     VFX.spawnPopup(popText, wx, wy - CARD_H / 2 - 10,
@@ -514,13 +577,16 @@ local function drawCard(vg, idx, card, theme, shopColor, gameTime)
         -- 效果徽章 / 描述
         nvgFontSize(vg, 10)
         local effY = -hh + 60
-        if item.desc and (item.effects[1] and (item.effects[1][1] == "shield"
-            or item.effects[1][1] == "exorcism" or item.effects[1][1] == "mapReveal")) then
-            -- 战术道具：显示描述文字
+        if item.inventoryKey and item.desc then
+            -- 背包道具：显示描述文字
+            nvgFillColor(vg, Theme.rgbaA(theme.info, canAfford and 200 or 110))
+            nvgText(vg, 0, effY, item.desc, nil)
+        elseif item.desc and item.effects[1] and item.effects[1][1] == "mapReveal" then
+            -- 地图碎片等特殊即时道具：也显示描述
             nvgFillColor(vg, Theme.rgbaA(theme.info, canAfford and 200 or 110))
             nvgText(vg, 0, effY, item.desc, nil)
         else
-            -- 常规道具：显示数值效果
+            -- 常规道具 (胶卷等)：显示数值效果
             for _, eff in ipairs(item.effects) do
                 local icon = RES_ICONS[eff[1]] or ""
                 local label = icon .. " +" .. eff[2]

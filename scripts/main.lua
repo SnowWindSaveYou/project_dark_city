@@ -35,11 +35,15 @@ local logicalW, logicalH = 0, 0
 -- 游戏时间
 local gameTime = 0
 
+-- F4: 前置声明 (回调注入需要引用)
+local handleInventoryExorcism
+
 -- 模块实例
 ---@type BoardData
 local board = nil
 ---@type table token
 local token = nil
+local emotionHandles = nil  -- Token 表情贴图句柄 (全局共享)
 
 -- 交互状态
 -- idle | dealing | ready | flipping | moving | popup | photographing | exorcising
@@ -129,8 +133,10 @@ function Start()
     Board.generateCards(board, reqLocs)
     recalcLayout()
 
-    -- Token
+    -- Token + 表情贴图
+    emotionHandles = Token.loadImages(vg)
     token = Token.new()
+    token.imageHandles = emotionHandles
 
     -- 注入传闻查询到 Card (避免循环依赖)
     Card.setRumorQuery(function(location)
@@ -140,6 +146,11 @@ function Start()
     -- 注入"结束今天"回调到 HandPanel
     HandPanel.setEndDayCallback(function()
         advanceDay()
+    end)
+
+    -- 注入"使用驱魔香"回调到 HandPanel (F4)
+    HandPanel.setUseExorcismCallback(function()
+        handleInventoryExorcism()
     end)
 
     -- 注入"地图碎片"回调到 ShopPopup (购买后随机揭示一张未翻开卡牌)
@@ -254,7 +265,7 @@ function startDeal()
         local homeRow = board.homeRow
         local homeCol = board.homeCol
         local cx, cy = Board.cardPos(board, homeRow, homeCol)
-        Token.show(token, cx, cy - Card.HEIGHT / 2 - Token.SIZE)
+        Token.show(token, cx, cy)
         token.targetRow = homeRow
         token.targetCol = homeCol
 
@@ -388,6 +399,7 @@ local function checkDefeat()
             onComplete = function()
                 gamePhase = "gameover"
                 demoState = "idle"
+                Token.setEmotion(token, "dead")
                 CameraButton.hide()
                 VFX.triggerShake(8, 0.4, 20)
                 VFX.flashScreen(180, 30, 30, 0.5, 200)
@@ -408,6 +420,7 @@ checkVictory = function()
     if dayCount > MAX_DAYS then
         gamePhase = "gameover"
         demoState = "idle"
+        Token.setEmotion(token, "happy")
         VFX.flashScreen(255, 215, 100, 0.5, 180)
         GameOver.show(true, {
             daysSurvived  = MAX_DAYS,
@@ -447,8 +460,9 @@ function onGameRestart()
     Board.generateCards(board, locs)
     recalcLayout()
 
-    -- 重置 token
+    -- 重置 token (复用已加载的贴图句柄)
     token = Token.new()
+    token.imageHandles = emotionHandles
 
     -- 开始发牌
     startDeal()
@@ -463,6 +477,7 @@ local function onPopupDismissed(cardType, effects)
     if effects and #effects > 0 and (cardType == "monster" or cardType == "trap") then
         if ShopPopup.useItem("shield") then
             -- 抵消全部伤害
+            Token.setEmotion(token, "relieved")
             local tc = Theme.current
             VFX.spawnBanner("🧿 护身符抵消了伤害!", tc.safe.r, tc.safe.g, tc.safe.b, 18, 1.0)
             VFX.flashScreen(100, 180, 255, 0.3, 120)
@@ -481,7 +496,24 @@ local function onPopupDismissed(cardType, effects)
     -- 统计
     gameStats.cardsRevealed = gameStats.cardsRevealed + 1
 
-    -- 恢复交互
+    -- F7: 线索事件触发额外传闻
+    local gotRumor = false
+    if cardType == "clue" then
+        local added = CardManager.addRumor(board)
+        if added then
+            gotRumor = true
+            local tc2 = Theme.current
+            VFX.spawnBanner("📰 获得了新传闻!", tc2.rumor.r, tc2.rumor.g, tc2.rumor.b, 18, 0.8)
+        end
+    end
+
+    -- 恢复交互 — 正面事件显示开心
+    local positiveTypes = { clue = true, safe = true, home = true, landmark = true }
+    if positiveTypes[cardType] or gotRumor then
+        Token.setEmotion(token, "happy")
+    else
+        Token.setEmotion(token, "default")
+    end
     demoState = "ready"
     CameraButton.show()
     print("[Main] Popup dismissed, effects applied for: " .. tostring(cardType))
@@ -518,6 +550,14 @@ local function onCardFlipped(card, targetX, targetY)
     -- 粒子
     VFX.spawnBurst(targetX, targetY, 10, tc.r, tc.g, tc.b)
 
+    -- 表情切换
+    local emotionMap = {
+        monster = "scared", trap = "nervous", shop = "confused",
+        clue = "surprised", home = "relieved", landmark = "relieved",
+        safe = "relieved",
+    }
+    Token.setEmotion(token, emotionMap[card.type] or "default")
+
     -- === 安全区 (home/landmark): 不弹事件弹窗，直接安全通过 ===
     if card.type == "home" or card.type == "landmark" then
         local locInfo = Card.LOCATION_INFO[card.location]
@@ -548,6 +588,7 @@ local function onCardFlipped(card, targetX, targetY)
                 -- 商店卡：专用弹窗，购买时实时结算，关闭时仅恢复状态
                 ShopPopup.show(popCX, popCY, function()
                     gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+                    Token.setEmotion(token, "happy")
                     demoState = "ready"
                     print("[Main] ShopPopup dismissed")
                     checkDefeat()
@@ -594,6 +635,7 @@ local function onPhotographFlipped(card, targetX, targetY)
                     end
                 })
 
+                Token.setEmotion(token, "happy")
                 demoState = "ready"
                 CameraButton.show()
                 print("[Main] Photograph scouted: " .. tostring(_cardType) .. " at (" .. card.row .. "," .. card.col .. ")")
@@ -615,6 +657,7 @@ local function doPhotograph(card, row, col)
 
     demoState = "photographing"
     CameraButton.hide()
+    Token.setEmotion(token, "determined")
 
     -- 快门闪光 (白色)
     VFX.flashScreen(255, 255, 255, 0.3, 180)
@@ -643,6 +686,7 @@ local function doPhotograph(card, row, col)
                     onPhotographFlipped(c, targetX, targetY)
                 end)
             else
+                Token.setEmotion(token, "default")
                 demoState = "ready"
                 CameraButton.show()
             end
@@ -651,11 +695,15 @@ local function doPhotograph(card, row, col)
 end
 
 --- 执行驱除 (怪物 → 相片)
-local function doExorcise(card, row, col)
+local function doExorcise(card, row, col, freeExorcise)
     local targetX, targetY = Board.cardPos(board, row, col)
 
-    -- === 驱魔香检查：有驱魔香则免费，否则消耗胶卷 ===
-    if ShopPopup.useItem("exorcism") then
+    -- === 资源消耗 ===
+    if freeExorcise then
+        -- 从工具栏使用驱魔香，库存已在外部扣除
+        VFX.spawnBanner("🪔 驱魔香驱除!", Theme.current.safe.r, Theme.current.safe.g, Theme.current.safe.b, 16, 0.8)
+        print("[Main] Exorcise with incense (toolbar)")
+    elseif ShopPopup.useItem("exorcism") then
         VFX.spawnBanner("🪔 驱魔香免费驱除!", Theme.current.safe.r, Theme.current.safe.g, Theme.current.safe.b, 16, 0.8)
         print("[Main] Exorcise with incense (free)")
     else
@@ -666,6 +714,7 @@ local function doExorcise(card, row, col)
 
     demoState = "exorcising"
     CameraButton.hide()
+    Token.setEmotion(token, "angry")
 
     -- 紫色闪光
     local pc = Theme.color("plot")
@@ -693,12 +742,52 @@ local function doExorcise(card, row, col)
             Card.transformTo(card, "photo", function(c)
                 VFX.spawnBurst(targetX, targetY, 16, pc.r, pc.g, pc.b)
                 VFX.spawnBanner("驱除成功!", pc.r, pc.g, pc.b, 24, 1.0)
+                Token.setEmotion(token, "happy")
                 demoState = "ready"
                 CameraButton.show()
                 print("[Main] Exorcise complete at (" .. row .. "," .. col .. ")")
             end)
         end
     })
+end
+
+-- ---------------------------------------------------------------------------
+-- F4: 从工具栏使用驱魔香 (免侦察驱除当前格子怪物)
+-- ---------------------------------------------------------------------------
+
+handleInventoryExorcism = function()
+    if demoState ~= "ready" then return end
+
+    -- 扣库存
+    if not ShopPopup.useItem("exorcism") then
+        VFX.spawnBanner("没有驱魔香!", 220, 80, 80, 18, 0.7)
+        return
+    end
+
+    -- 当前所在格子
+    local row, col = token.targetRow, token.targetCol
+    local card = board.cards[row] and board.cards[row][col]
+
+    if not card then
+        -- 不该发生，退还
+        ShopPopup.addItem("exorcism", 1)
+        VFX.spawnBanner("无效位置", 180, 180, 180, 16, 0.6)
+        return
+    end
+
+    -- 检查当前格子是否有已翻开的怪物
+    if card.faceUp and card.type == "monster" then
+        -- 直接驱除 (freeExorcise = true，库存已扣)
+        doExorcise(card, row, col, true)
+    else
+        -- 当前格子不是已翻开的怪物 → 退还驱魔香
+        ShopPopup.addItem("exorcism", 1)
+        if not card.faceUp then
+            VFX.spawnBanner("需要先翻开卡牌!", 220, 160, 80, 16, 0.7)
+        else
+            VFX.spawnBanner("当前格子没有怪物", 180, 180, 180, 16, 0.6)
+        end
+    end
 end
 
 -- ============================================================================
@@ -718,7 +807,7 @@ local function handleNormalModeClick(lx, ly)
     if not card then return end
 
     local targetX, targetY = Board.cardPos(board, row, col)
-    local tokenTargetY = targetY - Card.HEIGHT / 2 - Token.SIZE
+    local tokenTargetY = targetY
     local isCurrent = (token.targetRow == row and token.targetCol == col)
 
     -- === 当前位置：翻牌 / 抖动 ===
@@ -747,6 +836,7 @@ local function handleNormalModeClick(lx, ly)
     CameraButton.hide()
     token.targetRow = row
     token.targetCol = col
+    Token.setEmotion(token, "running")
 
     Token.moveTo(token, targetX, tokenTargetY, function()
         -- 到达后：未翻开 → 翻牌+弹窗; 已翻开 → 检查日程后 ready
@@ -764,6 +854,7 @@ local function handleNormalModeClick(lx, ly)
                     VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
                 end
             end
+            Token.setEmotion(token, "default")
             demoState = "ready"
             CameraButton.show()
         end
@@ -777,21 +868,35 @@ local function handleCameraModeClick(lx, ly)
     local card, row, col = Board.hitTest(board, lx, ly)
     if not card then return end
 
-    -- 已侦察过的卡牌 → 重新查看相片 (不消耗胶卷，优先于胶卷检查)
-    -- 注意：相机模式进入时 scouted 卡牌已自动翻为 faceUp=true，所以不检查 faceUp
-    if card.scouted and not card.isFlipping then
+    -- 检查胶卷 (驱除和拍摄都需要，查看相片不需要)
+    local film = ResourceBar.get("film")
+
+    -- 已翻开的怪物 → 驱除 (优先于查看相片，解决 scouted 怪物的冲突)
+    if card.faceUp and card.type == "monster" and not card.isFlipping then
+        if film <= 0 then
+            CameraButton.shakeNoFilm()
+            VFX.spawnBanner("胶卷不足!", 220, 80, 80, 22, 0.8)
+            return
+        end
+        CameraButton.exitCameraMode(function()
+            doExorcise(card, row, col)
+        end)
+        return
+    end
+
+    -- 已侦察过的非怪物卡牌 → 重新查看相片 (不消耗胶卷)
+    if card.scouted and card.faceUp and not card.isFlipping then
         demoState = "popup"
         hoveredCard = nil
         local popCX = logicalW / 2
         local popCY = logicalH * 0.42
         EventPopup.showPhoto(card.type, popCX, popCY, function()
+            Token.setEmotion(token, "default")
             demoState = "ready"
         end, card.location)
         return
     end
 
-    -- 检查胶卷
-    local film = ResourceBar.get("film")
     if film <= 0 then
         CameraButton.shakeNoFilm()
         VFX.spawnBanner("胶卷不足!", 220, 80, 80, 22, 0.8)
@@ -802,11 +907,6 @@ local function handleCameraModeClick(lx, ly)
         -- 未翻开 → 拍摄 (远程翻牌预览)
         CameraButton.exitCameraMode(function()
             doPhotograph(card, row, col)
-        end)
-    elseif card.faceUp and card.type == "monster" then
-        -- 已翻开的怪物 → 驱除
-        CameraButton.exitCameraMode(function()
-            doExorcise(card, row, col)
         end)
     else
         -- 已翻开的非怪物 → 无法拍摄
