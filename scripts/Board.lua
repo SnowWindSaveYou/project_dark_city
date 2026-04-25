@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Board.lua - 5x5 棋盘布局与卡牌管理
--- 管理卡牌位置、发牌编排、碰撞检测
+-- 管理地点分配、事件分配、发牌编排、碰撞检测
 -- ============================================================================
 
 local Card = require "Card"
@@ -27,6 +27,8 @@ M.GAP  = 10          -- 卡牌间距
 ---@field totalH number 棋盘总高
 ---@field deckX number 牌堆位置 X (发牌起点)
 ---@field deckY number 牌堆位置 Y
+---@field homeRow number 家的行号
+---@field homeCol number 家的列号
 
 function M.new()
     return {
@@ -37,6 +39,8 @@ function M.new()
         totalH = 0,
         deckX = 0,
         deckY = 0,
+        homeRow = 3,
+        homeCol = 3,
         isDealt = false,
     }
 end
@@ -89,31 +93,174 @@ function M.cardPos(board, row, col)
 end
 
 -- ---------------------------------------------------------------------------
--- 生成卡牌 (随机类型填充)
+-- 工具: 随机取不重复位置
+-- ---------------------------------------------------------------------------
+
+local function randomPositions(count, exclude)
+    local positions = {}
+    for r = 1, M.ROWS do
+        for c = 1, M.COLS do
+            local skip = false
+            if exclude then
+                for _, ex in ipairs(exclude) do
+                    if ex[1] == r and ex[2] == c then skip = true; break end
+                end
+            end
+            if not skip then
+                positions[#positions + 1] = { r, c }
+            end
+        end
+    end
+    -- 洗牌
+    for i = #positions, 2, -1 do
+        local j = math.random(1, i)
+        positions[i], positions[j] = positions[j], positions[i]
+    end
+    local result = {}
+    for i = 1, math.min(count, #positions) do
+        result[i] = positions[i]
+    end
+    return result
+end
+
+-- ---------------------------------------------------------------------------
+-- 生成卡牌 (地点 + 事件双层系统)
 -- ---------------------------------------------------------------------------
 
 function M.generateCards(board)
     board.cards = {}
-    local types = Card.ALL_TYPES
-    local numTypes = #types
+    local usedPositions = {}
+
+    -- 1. 随机放置"家" (起始安全位置)
+    local homePos = randomPositions(1, nil)
+    board.homeRow = homePos[1][1]
+    board.homeCol = homePos[1][2]
+    usedPositions[#usedPositions + 1] = { board.homeRow, board.homeCol }
+
+    -- 2. 随机放置 1~2 个地标 (避开家)
+    local landmarkCount = math.random(1, 2)
+    local landmarkPositions = randomPositions(landmarkCount, usedPositions)
+    for _, pos in ipairs(landmarkPositions) do
+        usedPositions[#usedPositions + 1] = pos
+    end
+
+    -- 3. 随机放置 1 个商店 (避开已用位置)
+    local shopPositions = randomPositions(1, usedPositions)
+    for _, pos in ipairs(shopPositions) do
+        usedPositions[#usedPositions + 1] = pos
+    end
+
+    -- 4. 准备地点池 (洗牌后分配给普通格子)
+    local locationPool = {}
+    for _, loc in ipairs(Card.REGULAR_LOCATIONS) do
+        locationPool[#locationPool + 1] = loc
+        locationPool[#locationPool + 1] = loc  -- 每种地点放两份以覆盖 25 格
+    end
+    -- 再补充一些确保足够
+    for i = 1, 10 do
+        locationPool[#locationPool + 1] = Card.REGULAR_LOCATIONS[
+            math.random(1, #Card.REGULAR_LOCATIONS)
+        ]
+    end
+    -- 洗牌
+    for i = #locationPool, 2, -1 do
+        local j = math.random(1, i)
+        locationPool[i], locationPool[j] = locationPool[j], locationPool[i]
+    end
+    local locIdx = 1
+
+    -- 5. 准备事件池 (加权随机)
+    local eventWeights = {
+        { "safe",   30 },
+        { "monster", 20 },
+        { "trap",   15 },
+        { "reward", 15 },
+        { "plot",   10 },
+        { "clue",   10 },
+    }
+
+    local function randomEvent()
+        local total = 0
+        for _, w in ipairs(eventWeights) do total = total + w[2] end
+        local roll = math.random(1, total)
+        local acc = 0
+        for _, w in ipairs(eventWeights) do
+            acc = acc + w[2]
+            if roll <= acc then return w[1] end
+        end
+        return "safe"
+    end
+
+    -- 6. 填充棋盘
+    -- 先创建位置查找表
+    local specialMap = {}
+    specialMap[board.homeRow .. "," .. board.homeCol] = "home"
+    for _, pos in ipairs(landmarkPositions) do
+        specialMap[pos[1] .. "," .. pos[2]] = "landmark"
+    end
+    for _, pos in ipairs(shopPositions) do
+        specialMap[pos[1] .. "," .. pos[2]] = "shop"
+    end
+
+    -- 地标使用的地点 (教堂/警察局等 — 按设计文档)
+    local landmarkLocations = { "church", "library" }
+    local lmLocIdx = 1
 
     for row = 1, M.ROWS do
         board.cards[row] = {}
         for col = 1, M.COLS do
-            -- 中心是 landmark
-            local cardType
-            if row == 3 and col == 3 then
+            local key = row .. "," .. col
+            local special = specialMap[key]
+            local cardType, location
+
+            if special == "home" then
+                cardType = "home"
+                location = "home"
+            elseif special == "landmark" then
                 cardType = "landmark"
+                location = landmarkLocations[lmLocIdx] or "church"
+                lmLocIdx = lmLocIdx + 1
+            elseif special == "shop" then
+                cardType = "shop"
+                location = "convenience" -- 商店默认显示为便利店
             else
-                cardType = types[math.random(1, numTypes)]
+                -- 普通格子：随机地点 + 随机事件
+                cardType = randomEvent()
+                location = locationPool[locIdx]
+                locIdx = locIdx + 1
             end
-            local card = Card.new(cardType, row, col)
+
+            local card = Card.new(cardType, row, col, location)
             -- 初始位置在牌堆
             card.x = board.deckX
             card.y = board.deckY
             board.cards[row][col] = card
         end
     end
+
+    print(string.format("[Board] Generated: home=(%d,%d), landmarks=%d, shops=%d",
+        board.homeRow, board.homeCol, landmarkCount, #shopPositions))
+end
+
+-- ---------------------------------------------------------------------------
+-- 查询: 地标光环 (上下左右4格变安全)
+-- ---------------------------------------------------------------------------
+
+--- 检查指定位置是否在地标光环范围内
+---@return boolean
+function M.isInLandmarkAura(board, row, col)
+    -- 四邻方向
+    local dirs = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }
+    for _, d in ipairs(dirs) do
+        local nr, nc = row + d[1], col + d[2]
+        if nr >= 1 and nr <= M.ROWS and nc >= 1 and nc <= M.COLS then
+            local neighbor = board.cards[nr] and board.cards[nr][nc]
+            if neighbor and neighbor.type == "landmark" then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 -- ---------------------------------------------------------------------------
@@ -137,9 +284,7 @@ function M.dealAll(board, onComplete)
 
     -- 最后一张牌发完后回调
     if onComplete then
-        -- 粗略延迟: 最后一张的 delay + deal 动画时间
         local lastDelay = (totalCards - 1) * 0.06 + 0.5
-        -- 用一个简单的 timer 代替
         board._dealTimer = lastDelay
         board._dealCallback = onComplete
     end
@@ -189,18 +334,14 @@ function M.spiralOrder()
     local left, right = 1, M.COLS
 
     while top <= bottom and left <= right do
-        -- 从左到右
         for c = left, right do result[#result + 1] = { top, c } end
         top = top + 1
-        -- 从上到下
         for r = top, bottom do result[#result + 1] = { r, right } end
         right = right - 1
-        -- 从右到左
         if top <= bottom then
             for c = right, left, -1 do result[#result + 1] = { bottom, c } end
             bottom = bottom - 1
         end
-        -- 从下到上
         if left <= right then
             for r = bottom, top, -1 do result[#result + 1] = { r, left } end
             left = left + 1

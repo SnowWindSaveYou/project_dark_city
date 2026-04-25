@@ -1,5 +1,6 @@
 -- ============================================================================
 -- Card.lua - 卡牌数据、渲染与动画
+-- 双层卡牌系统: 地点层 (明牌) + 事件层 (暗牌, 翻开后显示)
 -- 纯 NanoVG 矢量绘制，Balatro 风格动效
 -- ============================================================================
 
@@ -15,15 +16,45 @@ M.WIDTH  = 64
 M.HEIGHT = 90
 M.RADIUS = 8
 
--- 卡牌类型列表（用于随机生成）
-M.ALL_TYPES = { "safe", "landmark", "shop", "monster", "trap", "reward", "plot", "clue" }
+-- ---------------------------------------------------------------------------
+-- 地点信息 (卡牌正面显示的都市地点)
+-- ---------------------------------------------------------------------------
+M.LOCATION_INFO = {
+    home        = { icon = "🏠", label = "家" },
+    company     = { icon = "🏢", label = "公司" },
+    school      = { icon = "🏫", label = "学校" },
+    convenience = { icon = "🏪", label = "便利店" },
+    park        = { icon = "🌳", label = "公园" },
+    church      = { icon = "⛪", label = "教堂" },
+    alley       = { icon = "🌙", label = "小巷" },
+    station     = { icon = "🚉", label = "车站" },
+    hospital    = { icon = "🏥", label = "医院" },
+    library     = { icon = "📚", label = "图书馆" },
+    bank        = { icon = "🏦", label = "银行" },
+}
+
+-- 可随机分配的普通地点 (不含 home/landmark/shop 等特殊位置)
+M.REGULAR_LOCATIONS = {
+    "company", "school", "convenience", "park", "church",
+    "alley", "station", "hospital", "library", "bank",
+}
+
+-- ---------------------------------------------------------------------------
+-- 事件类型 (翻开卡牌后显示的隐藏事件)
+-- ---------------------------------------------------------------------------
+-- 事件类型视觉信息由 Theme.cardTypeInfo() 提供
+M.EVENT_TYPES = { "safe", "monster", "trap", "reward", "plot", "clue" }
+
+-- 兼容旧代码的完整类型列表 (含特殊类型)
+M.ALL_TYPES = { "safe", "home", "landmark", "shop", "monster", "trap", "reward", "plot", "clue" }
 
 -- ---------------------------------------------------------------------------
 -- 构造
 -- ---------------------------------------------------------------------------
 
 ---@class CardData
----@field type string
+---@field type string       事件类型 (safe/monster/trap/reward/plot/clue/home/landmark/shop)
+---@field location string   地点类型 (home/company/school/convenience/park/church/alley/station/...)
 ---@field row number
 ---@field col number
 ---@field faceUp boolean
@@ -39,12 +70,13 @@ M.ALL_TYPES = { "safe", "landmark", "shop", "monster", "trap", "reward", "plot",
 ---@field isDealing boolean
 ---@field hoverT number 0-1 hover 过渡
 
-function M.new(cardType, row, col)
+function M.new(cardType, row, col, location)
     return {
         type = cardType or "safe",
+        location = location or "company",
         row = row or 1,
         col = col or 1,
-        faceUp = (cardType == "landmark"),  -- 地标正面朝上
+        faceUp = (cardType == "landmark"),  -- 地标正面朝上（显示事件层）
 
         -- 渲染属性
         x = 0, y = 0,
@@ -226,6 +258,19 @@ function M.transformTo(card, newType, onComplete)
 end
 
 -- ---------------------------------------------------------------------------
+-- 传闻角标 (外部注入查询函数，避免循环依赖)
+-- ---------------------------------------------------------------------------
+
+---@type fun(location: string): table|nil
+local rumorQueryFn = nil
+
+--- 设置传闻查询函数 (由 main.lua 注入)
+--- fn(location) → { isSafe = bool } | nil
+function M.setRumorQuery(fn)
+    rumorQueryFn = fn
+end
+
+-- ---------------------------------------------------------------------------
 -- 渲染
 -- ---------------------------------------------------------------------------
 
@@ -254,13 +299,14 @@ function M.draw(vg, card, gameTime)
     nvgFillPaint(vg, shadowPaint)
     nvgFill(vg)
 
-    -- 卡体
+    -- 卡体 — 两面都使用浅色底 (地点面和事件面都有内容)
     nvgBeginPath(vg)
     nvgRoundedRect(vg, -w / 2, -h / 2, w, h, r)
     if card.faceUp then
         nvgFillColor(vg, Theme.rgba(t.cardFace))
     else
-        nvgFillColor(vg, Theme.rgba(t.cardBack))
+        -- 地点面：用略带色调的浅底色，区别于翻开后的纯白
+        nvgFillColor(vg, Theme.rgba(t.cardLocationBg or t.cardFace))
     end
     nvgFill(vg)
 
@@ -268,7 +314,7 @@ function M.draw(vg, card, gameTime)
     if card.faceUp then
         M.drawFace(vg, card, w, h)
     else
-        M.drawBack(vg, card, w, h, gameTime)
+        M.drawLocation(vg, card, w, h, gameTime)
     end
 
     -- 边框 (hover 时高亮加粗)
@@ -313,7 +359,7 @@ function M.draw(vg, card, gameTime)
 end
 
 -- ---------------------------------------------------------------------------
--- 卡面 (正面)
+-- 卡面 (翻开后 — 显示事件类型)
 -- ---------------------------------------------------------------------------
 
 function M.drawFace(vg, card, w, h)
@@ -329,76 +375,88 @@ function M.drawFace(vg, card, w, h)
     nvgFillColor(vg, Theme.rgbaA(tc, 200))
     nvgFill(vg)
 
-    -- 图标 (emoji)
+    -- 事件图标 (emoji)
     nvgFontFace(vg, "sans")
     nvgFontSize(vg, t.fontSize.cardIcon)
     nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
     nvgFillColor(vg, Theme.rgba(t.textPrimary))
     nvgText(vg, 0, -4, info.icon, nil)
 
-    -- 标签
+    -- 事件标签
     nvgFontSize(vg, t.fontSize.cardLabel)
     nvgFillColor(vg, Theme.rgbaA(tc, 220))
     nvgText(vg, 0, h / 2 - 14, info.label, nil)
 end
 
 -- ---------------------------------------------------------------------------
--- 卡背 (反面) — 装饰图案
+-- 地点面 (未翻开 — 显示都市地点)
 -- ---------------------------------------------------------------------------
 
-function M.drawBack(vg, card, w, h, gameTime)
+function M.drawLocation(vg, card, w, h, gameTime)
     local t = Theme.current
     local hw, hh = w / 2, h / 2
 
-    -- 内边框
-    local inset = 5
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, -hw + inset, -hh + inset, w - inset * 2, h - inset * 2, M.RADIUS - 2)
-    nvgStrokeColor(vg, Theme.rgbaA(t.cardBackAlt, 120))
-    nvgStrokeWidth(vg, 1.0)
-    nvgStroke(vg)
-
-    -- 中心菱形装饰
-    local dSize = math.min(w, h) * 0.28
-    nvgSave(vg)
-    nvgRotate(vg, math.pi / 4)
-    nvgBeginPath(vg)
-    nvgRect(vg, -dSize / 2, -dSize / 2, dSize, dSize)
-    nvgStrokeColor(vg, Theme.rgbaA(t.cardBackAlt, 100))
-    nvgStrokeWidth(vg, 1.2)
-    nvgStroke(vg)
-    -- 内部小菱形
-    local dSmall = dSize * 0.5
-    nvgBeginPath(vg)
-    nvgRect(vg, -dSmall / 2, -dSmall / 2, dSmall, dSmall)
-    nvgFillColor(vg, Theme.rgbaA(t.cardBackAlt, 40))
-    nvgFill(vg)
-    nvgRestore(vg)
-
-    -- 四角小点
-    local cornerOff = 12
-    local dotR = 2.5
-    for _, pos in ipairs({
-        { -hw + cornerOff, -hh + cornerOff },
-        {  hw - cornerOff, -hh + cornerOff },
-        { -hw + cornerOff,  hh - cornerOff },
-        {  hw - cornerOff,  hh - cornerOff },
-    }) do
-        nvgBeginPath(vg)
-        nvgCircle(vg, pos[1], pos[2], dotR)
-        nvgFillColor(vg, Theme.rgbaA(t.cardBackAlt, 80))
-        nvgFill(vg)
+    local locInfo = M.LOCATION_INFO[card.location]
+    if not locInfo then
+        -- 兜底：显示默认图案
+        locInfo = { icon = "❓", label = "未知" }
     end
 
-    -- 微妙呼吸光 (idle 动画)
-    local breathe = 0.3 + 0.15 * math.sin(gameTime * 2.0 + card.row * 0.5 + card.col * 0.7)
-    local glowPaint = nvgRadialGradient(vg, 0, 0, 0, dSize * 1.2,
-        nvgRGBA(255, 255, 255, math.floor(breathe * 25)),
+    -- 地点图标 (大 emoji，卡片中上部)
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, t.fontSize.cardIcon)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgba(t.textPrimary))
+    nvgText(vg, 0, -8, locInfo.icon, nil)
+
+    -- 地点名称 (卡片下方)
+    nvgFontSize(vg, t.fontSize.cardLabel)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 200))
+    nvgText(vg, 0, h / 2 - 14, locInfo.label, nil)
+
+    -- 内边框装饰 (微弱边线，暗示可翻开)
+    local inset = 4
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw + inset, -hh + inset, w - inset * 2, h - inset * 2, M.RADIUS - 2)
+    nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 40))
+    nvgStrokeWidth(vg, 0.8)
+    nvgStroke(vg)
+
+    -- 微妙呼吸光 (暗示卡牌可交互)
+    local breathe = 0.2 + 0.1 * math.sin(gameTime * 2.0 + card.row * 0.5 + card.col * 0.7)
+    local glowPaint = nvgRadialGradient(vg, 0, -5, 0, 30,
+        nvgRGBA(255, 255, 255, math.floor(breathe * 20)),
         nvgRGBA(255, 255, 255, 0))
     nvgBeginPath(vg)
-    nvgCircle(vg, 0, 0, dSize * 1.2)
+    nvgCircle(vg, 0, -5, 30)
     nvgFillPaint(vg, glowPaint)
     nvgFill(vg)
+
+    -- 传闻角标 (右上角小圆点: 绿=安全, 红=危险)
+    if rumorQueryFn then
+        local rumor = rumorQueryFn(card.location)
+        if rumor then
+            local badgeR = 6
+            local bx = hw - 4
+            local by = -hh + 4
+            local pulse = 0.8 + 0.2 * math.sin(gameTime * 3.5)
+
+            -- 角标底色
+            local bc = rumor.isSafe and t.safe or t.danger
+            nvgBeginPath(vg)
+            nvgCircle(vg, bx, by, badgeR * pulse)
+            nvgFillColor(vg, Theme.rgbaA(bc, 200))
+            nvgFill(vg)
+
+            -- 角标图标
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 8)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+            nvgText(vg, bx, by, rumor.isSafe and "✓" or "!", nil)
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------

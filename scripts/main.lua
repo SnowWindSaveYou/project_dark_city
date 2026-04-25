@@ -16,7 +16,9 @@ local EventPopup  = require "EventPopup"
 local CameraButton = require "CameraButton"
 local TitleScreen = require "TitleScreen"
 local GameOver    = require "GameOver"
-local ShopPopup   = require "ShopPopup"
+local ShopPopup    = require "ShopPopup"
+local CardManager  = require "CardManager"
+local HandPanel    = require "HandPanel"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -129,6 +131,11 @@ function Start()
     -- Token
     token = Token.new()
 
+    -- 注入传闻查询到 Card (避免循环依赖)
+    Card.setRumorQuery(function(location)
+        return CardManager.getRumorFor(location)
+    end)
+
     -- 事件
     SubscribeToEvent(vg, "NanoVGRender", "HandleNanoVGRender")
     SubscribeToEvent("Update", "HandleUpdate")
@@ -168,13 +175,25 @@ function startDeal()
         demoState = "ready"
         print("[Main] Deal complete, Day " .. dayCount)
 
-        -- Token 出现在中心牌
-        local cx, cy = Board.cardPos(board, 3, 3)
+        -- Token 出现在"家"的位置
+        local homeRow = board.homeRow
+        local homeCol = board.homeCol
+        local cx, cy = Board.cardPos(board, homeRow, homeCol)
         Token.show(token, cx, cy - Card.HEIGHT / 2 - Token.SIZE)
-        token.targetRow = 3
-        token.targetCol = 3
+        token.targetRow = homeRow
+        token.targetCol = homeCol
 
-        -- 显示相机按钮
+        -- 家的卡牌默认翻开 (安全起始点)
+        local homeCard = board.cards[homeRow][homeCol]
+        if homeCard and not homeCard.faceUp then
+            homeCard.faceUp = true
+        end
+
+        -- 生成日程卡和传闻卡
+        CardManager.generateDaily(board)
+
+        -- 显示手牌面板和相机按钮
+        HandPanel.show(logicalH)
         CameraButton.show()
     end)
 end
@@ -198,10 +217,12 @@ function startRedeal()
     Tween.cancelTag("shoppopup")
     Tween.cancelTag("shoppopup_card")
     Tween.cancelTag("shoppopup_flash")
+    Tween.cancelTag("handpanel")
 
-    -- 隐藏 token 和相机按钮
+    -- 隐藏 token、手牌面板和相机按钮
     token.visible = false
     token.alpha = 0
+    HandPanel.hide()
     CameraButton.hide()
 
     Board.undealAll(board, function()
@@ -220,6 +241,9 @@ function advanceDay()
     if demoState ~= "ready" then return end
     if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
 
+    -- 日程卡日结算 (奖励/惩罚)
+    CardManager.settleDay()
+
     -- 日结过渡
     local t = Theme.current
     VFX.showTransition("第 " .. dayCount .. " 天结束", t.accent.r, t.accent.g, t.accent.b)
@@ -230,9 +254,10 @@ function advanceDay()
     Tween.cancelTag("cardflip")
     Tween.cancelTag("cardshake")
 
-    -- 隐藏 token 和相机按钮
+    -- 隐藏 token、手牌面板和相机按钮
     token.visible = false
     token.alpha = 0
+    HandPanel.hide()
     CameraButton.hide()
 
     local dummy = { t = 0 }
@@ -319,6 +344,10 @@ function onGameRestart()
     -- 重置资源
     ResourceBar.reset()
 
+    -- 重置日程/传闻/手牌面板
+    CardManager.reset()
+    HandPanel.reset()
+
     -- 重置棋盘
     Board.generateCards(board)
     recalcLayout()
@@ -360,6 +389,23 @@ end
 
 --- 普通翻牌回调 (移动到位后翻牌，或当前位置翻牌)
 local function onCardFlipped(card, targetX, targetY)
+    -- 地标光环：如果在光环范围内，怪物/陷阱自动变安全
+    if Board.isInLandmarkAura(board, card.row, card.col) then
+        if card.type == "monster" or card.type == "trap" then
+            card.type = "safe"
+            print("[Main] Landmark aura neutralized danger at (" .. card.row .. "," .. card.col .. ")")
+        end
+    end
+
+    -- 日程完成检测: 到达此地点，标记对应日程
+    if card.location then
+        local anyCompleted = CardManager.checkArrival(card.location)
+        if anyCompleted then
+            local sc = Theme.current.completed
+            VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
+        end
+    end
+
     local tc = Theme.cardTypeColor(card.type)
 
     -- 粒子
@@ -547,13 +593,21 @@ local function handleNormalModeClick(lx, ly)
     token.targetCol = col
 
     Token.moveTo(token, targetX, tokenTargetY, function()
-        -- 到达后：未翻开 → 翻牌+弹窗; 已翻开 → ready
+        -- 到达后：未翻开 → 翻牌+弹窗; 已翻开 → 检查日程后 ready
         if not card.faceUp and not card.isFlipping then
             demoState = "flipping"
             Card.flip(card, function(c)
                 onCardFlipped(c, targetX, targetY)
             end)
         else
+            -- 已翻开的卡：地点仍然有效，检查日程完成
+            if card.location then
+                local anyCompleted = CardManager.checkArrival(card.location)
+                if anyCompleted then
+                    local sc = Theme.current.completed
+                    VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
+                end
+            end
             demoState = "ready"
             CameraButton.show()
         end
@@ -618,6 +672,12 @@ local function handleClick(inputX, inputY)
     if EventPopup.isActive() then
         EventPopup.handleClick(lx, ly)
         return
+    end
+
+    -- 手牌面板点击 (标签栏总可点击；展开时优先消费全面板)
+    if HandPanel.isActive() then
+        local handConsumed = HandPanel.handleClick(lx, ly, logicalW, logicalH)
+        if handConsumed then return end
     end
 
     -- 相机按钮点击 (优先于棋盘)
@@ -716,10 +776,11 @@ local function updateHover(dt)
     -- 结算画面按钮 hover
     GameOver.updateHover(lx, ly, dt, logicalW, logicalH)
 
-    -- 弹窗/按钮 hover
+    -- 弹窗/按钮/面板 hover
     ShopPopup.updateHover(lx, ly, dt)
     EventPopup.updateHover(lx, ly, dt)
     CameraButton.updateHover(lx, ly, dt)
+    HandPanel.updateHover(lx, ly, dt, logicalW, logicalH)
 
     -- 非游戏阶段 或 非 ready 状态不追踪卡牌 hover
     if gamePhase ~= "playing" or demoState ~= "ready" then
@@ -809,6 +870,9 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 资源栏 ===
     ResourceBar.draw(vg, logicalW, logicalH)
+
+    -- === 手牌面板 ===
+    HandPanel.draw(vg, logicalW, logicalH, gameTime)
 
     -- === HUD ===
     drawHUD()

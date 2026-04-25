@@ -99,11 +99,12 @@ M.themes = {
         bgBottom    = hex("#C8E1F5"),       -- 天空蓝下部
 
         -- 卡牌
-        cardFace    = hex("#F5F0E8"),       -- 奶白纸色
-        cardBack    = hex("#4BA3E3"),       -- 明亮天蓝
-        cardBackAlt = hex("#3D8BC7"),       -- 卡背深色（花纹用）
-        cardBorder  = hex("#2A5C78"),       -- 深青边框
-        cardShadow  = rgb(30, 50, 70, 60), -- 阴影
+        cardFace      = hex("#F5F0E8"),       -- 奶白纸色 (翻开后/事件面)
+        cardLocationBg = hex("#E8EDF5"),      -- 地点面底色 (淡蓝灰，区别于翻开后)
+        cardBack      = hex("#4BA3E3"),       -- 明亮天蓝 (牌堆用)
+        cardBackAlt   = hex("#3D8BC7"),       -- 卡背深色（花纹用）
+        cardBorder    = hex("#2A5C78"),       -- 深青边框
+        cardShadow    = rgb(30, 50, 70, 60), -- 阴影
 
         -- 表面 / 面板
         panelBg     = rgb(255, 255, 255, 220),
@@ -122,6 +123,19 @@ M.themes = {
         info      = hex("#4BA3E3"),         -- 蓝(信息/线索)
         highlight = hex("#FFD685"),         -- 暖金(高光/奖励)
         plot      = hex("#9B7ED8"),         -- 紫(剧情)
+
+        -- 手牌系统 (日程卡/传闻卡) — 笔记本风格
+        schedule    = hex("#3A7CC0"),       -- 钢笔蓝(日程卡)
+        rumor       = hex("#C87D2A"),       -- 墨水棕(传闻卡)
+        completed   = hex("#5CAD6E"),       -- 绿(已完成标记)
+        deferred    = hex("#A0A8B4"),       -- 灰(已推迟)
+        -- 笔记本面板
+        notebookPaper  = hex("#FAF6EE"),    -- 米黄纸色
+        notebookLine   = hex("#C5D4E8"),    -- 淡蓝横线
+        notebookSpine  = hex("#8B6544"),    -- 牛皮书脊
+        notebookSpineH = hex("#A37B56"),    -- 书脊高光
+        notebookTab    = hex("#F0EBE1"),    -- 标签栏底色
+        notebookBorder = hex("#C4B8A4"),    -- 纸张边缘
 
         -- 相机模式
         cameraBtn       = hex("#FFD685"),   -- 相机按钮(暖金)
@@ -152,17 +166,18 @@ M.themes = {
             xl = 32,
         },
 
-        -- 卡牌场地类型视觉映射
+        -- 卡牌事件类型视觉映射 (翻开地区卡后显示的隐藏事件)
         cardTypes = {
-            safe     = { icon = "🏠", label = "安全",  colorKey = "safe" },
-            landmark = { icon = "⛪", label = "地标",  colorKey = "highlight" },
+            safe     = { icon = "✨", label = "安全",  colorKey = "safe" },
+            home     = { icon = "🏠", label = "家",    colorKey = "safe" },
+            landmark = { icon = "🏛️", label = "地标",  colorKey = "highlight" },
             shop     = { icon = "🛒", label = "商店",  colorKey = "info" },
             monster  = { icon = "👻", label = "怪物",  colorKey = "danger" },
             trap     = { icon = "⚡", label = "陷阱",  colorKey = "warning" },
             reward   = { icon = "💎", label = "奖励",  colorKey = "highlight" },
             plot     = { icon = "📖", label = "剧情",  colorKey = "plot" },
             clue     = { icon = "🔍", label = "线索",  colorKey = "info" },
-            photo    = { icon = "📸", label = "相片",  colorKey = "safe" },  -- 驱除后的安全格
+            photo    = { icon = "📸", label = "相片",  colorKey = "safe" },
         },
     },
 }
