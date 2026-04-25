@@ -1,0 +1,897 @@
+-- ============================================================================
+-- main.lua - 暗面都市 · 入口
+-- NanoVG Mode B (系统逻辑分辨率 + DPR)
+-- ============================================================================
+
+require "LuaScripts/Utilities/Sample"
+
+local Tween       = require "lib.Tween"
+local VFX         = require "lib.VFX"
+local Theme       = require "Theme"
+local Card        = require "Card"
+local Board       = require "Board"
+local Token       = require "Token"
+local ResourceBar = require "ResourceBar"
+local EventPopup  = require "EventPopup"
+local CameraButton = require "CameraButton"
+local TitleScreen = require "TitleScreen"
+local GameOver    = require "GameOver"
+local ShopPopup   = require "ShopPopup"
+
+-- ---------------------------------------------------------------------------
+-- 全局变量
+-- ---------------------------------------------------------------------------
+---@type userdata NanoVG context
+local vg = nil
+local fontSans = -1
+
+-- 分辨率 (Mode B)
+local physW, physH = 0, 0
+local dpr = 1.0
+local logicalW, logicalH = 0, 0
+
+-- 游戏时间
+local gameTime = 0
+
+-- 模块实例
+---@type BoardData
+local board = nil
+---@type table token
+local token = nil
+
+-- 交互状态
+-- idle | dealing | ready | flipping | moving | popup | photographing | exorcising
+local demoState = "idle"
+
+-- Hover 追踪
+local hoveredCard = nil
+
+-- 日期
+local dayCount = 1
+local MAX_DAYS = 3  -- 存活目标天数
+
+-- 游戏阶段: "title" | "playing" | "gameover"
+local gamePhase = "title"
+
+-- 统计
+local gameStats = {
+    cardsRevealed = 0,
+    monstersSlain = 0,
+    photosUsed    = 0,
+}
+
+-- ============================================================================
+-- 分辨率计算
+-- ============================================================================
+
+local function recalcResolution()
+    local graphics = GetGraphics()
+    physW = graphics:GetWidth()
+    physH = graphics:GetHeight()
+    dpr = graphics:GetDPR()
+    logicalW = physW / dpr
+    logicalH = physH / dpr
+    print(string.format("[Main] Resolution: %dx%d, DPR=%.1f, Logical=%.0fx%.0f",
+        physW, physH, dpr, logicalW, logicalH))
+end
+
+-- ============================================================================
+-- 布局
+-- ============================================================================
+
+local function recalcLayout()
+    if board then
+        local boardCX = logicalW * 0.45
+        local boardCY = logicalH * 0.48
+        Board.recalcLayout(board, boardCX, boardCY)
+    end
+    CameraButton.recalcLayout(logicalW, logicalH)
+end
+
+-- ============================================================================
+-- 初始化
+-- ============================================================================
+
+function Start()
+    SampleStart()
+    SampleInitMouseMode(MM_FREE)
+
+    -- NanoVG 上下文
+    vg = nvgCreate(1)
+    if not vg then
+        print("[Main] ERROR: Failed to create NanoVG context")
+        return
+    end
+    print("[Main] NanoVG context created")
+
+    -- 字体
+    fontSans = nvgCreateFont(vg, "sans", "Fonts/MiSans-Regular.ttf")
+    if fontSans == -1 then
+        print("[Main] ERROR: Failed to load font")
+    else
+        print("[Main] Font loaded: sans = " .. fontSans)
+    end
+
+    -- 分辨率
+    recalcResolution()
+
+    -- 主题
+    Theme.init("bright")
+
+    -- 资源
+    ResourceBar.init()
+
+    -- 棋盘
+    board = Board.new()
+    Board.generateCards(board)
+    recalcLayout()
+
+    -- Token
+    token = Token.new()
+
+    -- 事件
+    SubscribeToEvent(vg, "NanoVGRender", "HandleNanoVGRender")
+    SubscribeToEvent("Update", "HandleUpdate")
+    SubscribeToEvent("ScreenMode", "HandleScreenMode")
+    SubscribeToEvent("MouseButtonDown", "HandleMouseDown")
+    SubscribeToEvent("KeyDown", "HandleKeyDown")
+    SubscribeToEvent("TouchBegin", "HandleTouchBegin")
+
+    -- 显示标题画面 (不直接发牌)
+    gamePhase = "title"
+    demoState = "idle"
+    TitleScreen.show(function()
+        -- 标题画面关闭后开始游戏
+        gamePhase = "playing"
+        startDeal()
+    end)
+
+    print("[Main] Initialization complete")
+end
+
+function Stop()
+    if vg then
+        nvgDelete(vg)
+        vg = nil
+    end
+end
+
+-- ============================================================================
+-- 发牌 / 收牌 / 日期流程
+-- ============================================================================
+
+function startDeal()
+    demoState = "dealing"
+    VFX.spawnBanner("第 " .. dayCount .. " 天", 255, 255, 255, 28, 1.2)
+
+    Board.dealAll(board, function()
+        demoState = "ready"
+        print("[Main] Deal complete, Day " .. dayCount)
+
+        -- Token 出现在中心牌
+        local cx, cy = Board.cardPos(board, 3, 3)
+        Token.show(token, cx, cy - Card.HEIGHT / 2 - Token.SIZE)
+        token.targetRow = 3
+        token.targetCol = 3
+
+        -- 显示相机按钮
+        CameraButton.show()
+    end)
+end
+
+function startRedeal()
+    if gamePhase ~= "playing" then return end
+    if demoState == "dealing" then return end
+    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
+    demoState = "dealing"
+    hoveredCard = nil
+    Tween.cancelTag("cardflip")
+    Tween.cancelTag("carddeal")
+    Tween.cancelTag("cardshake")
+    Tween.cancelTag("cardtransform")
+    Tween.cancelTag("tokenmove")
+    Tween.cancelTag("token")
+    Tween.cancelTag("popup")
+    Tween.cancelTag("camerabtn")
+    Tween.cancelTag("cameramode")
+    Tween.cancelTag("camerabtn_shake")
+    Tween.cancelTag("shoppopup")
+    Tween.cancelTag("shoppopup_card")
+    Tween.cancelTag("shoppopup_flash")
+
+    -- 隐藏 token 和相机按钮
+    token.visible = false
+    token.alpha = 0
+    CameraButton.hide()
+
+    Board.undealAll(board, function()
+        -- 重新生成
+        Board.generateCards(board)
+        recalcLayout()
+        startDeal()
+    end)
+end
+
+-- 前向声明 (定义在"胜负判定"章节)
+local checkVictory
+
+function advanceDay()
+    if gamePhase ~= "playing" then return end
+    if demoState ~= "ready" then return end
+    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
+
+    -- 日结过渡
+    local t = Theme.current
+    VFX.showTransition("第 " .. dayCount .. " 天结束", t.accent.r, t.accent.g, t.accent.b)
+
+    demoState = "dealing"
+    hoveredCard = nil
+
+    Tween.cancelTag("cardflip")
+    Tween.cancelTag("cardshake")
+
+    -- 隐藏 token 和相机按钮
+    token.visible = false
+    token.alpha = 0
+    CameraButton.hide()
+
+    local dummy = { t = 0 }
+    Tween.to(dummy, { t = 1 }, 0.8, {
+        tag = "daytransition",
+        onComplete = function()
+            Board.undealAll(board, function()
+                dayCount = dayCount + 1
+
+                -- 胜利检查
+                if checkVictory() then return end
+
+                Board.generateCards(board)
+                recalcLayout()
+                startDeal()
+            end)
+        end
+    })
+end
+
+-- ============================================================================
+-- 胜负判定
+-- ============================================================================
+
+--- 检查资源是否触发失败
+local function checkDefeat()
+    if gamePhase ~= "playing" then return end
+    local san   = ResourceBar.get("san")
+    local order = ResourceBar.get("order")
+    if san <= 0 or order <= 0 then
+        -- 延迟一帧，等资源动画播完
+        local delay = { t = 0 }
+        Tween.to(delay, { t = 1 }, 0.8, {
+            tag = "gameover",
+            onComplete = function()
+                gamePhase = "gameover"
+                demoState = "idle"
+                CameraButton.hide()
+                VFX.triggerShake(8, 0.4, 20)
+                VFX.flashScreen(180, 30, 30, 0.5, 200)
+                GameOver.show(false, {
+                    daysSurvived  = dayCount,
+                    cardsRevealed = gameStats.cardsRevealed,
+                    monstersSlain = gameStats.monstersSlain,
+                    photosUsed    = gameStats.photosUsed,
+                }, onGameRestart)
+            end
+        })
+    end
+end
+
+--- 检查胜利：存活到第 MAX_DAYS 天结束
+checkVictory = function()
+    if gamePhase ~= "playing" then return false end
+    if dayCount > MAX_DAYS then
+        gamePhase = "gameover"
+        demoState = "idle"
+        VFX.flashScreen(255, 215, 100, 0.5, 180)
+        GameOver.show(true, {
+            daysSurvived  = MAX_DAYS,
+            cardsRevealed = gameStats.cardsRevealed,
+            monstersSlain = gameStats.monstersSlain,
+            photosUsed    = gameStats.photosUsed,
+        }, onGameRestart)
+        return true
+    end
+    return false
+end
+
+--- 重新开始回调 (GameOver 按钮)
+function onGameRestart()
+    -- 清理一切
+    Tween.cancelAll()
+    VFX.resetAll()
+    hoveredCard = nil
+
+    -- 重置状态
+    dayCount = 1
+    gamePhase = "playing"
+    gameStats.cardsRevealed = 0
+    gameStats.monstersSlain = 0
+    gameStats.photosUsed    = 0
+
+    -- 重置资源
+    ResourceBar.reset()
+
+    -- 重置棋盘
+    Board.generateCards(board)
+    recalcLayout()
+
+    -- 重置 token
+    token = Token.new()
+
+    -- 开始发牌
+    startDeal()
+end
+
+-- ============================================================================
+-- 弹窗关闭回调 — 在此时才执行资源结算
+-- ============================================================================
+
+local function onPopupDismissed(cardType, effects)
+    -- 资源结算
+    if effects then
+        for _, eff in ipairs(effects) do
+            ResourceBar.change(eff[1], eff[2])
+        end
+    end
+
+    -- 统计
+    gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+
+    -- 恢复交互
+    demoState = "ready"
+    CameraButton.show()
+    print("[Main] Popup dismissed, effects applied for: " .. tostring(cardType))
+
+    -- 败北检查 (资源结算后)
+    checkDefeat()
+end
+
+-- ============================================================================
+-- 翻牌完成 → 进入弹窗
+-- ============================================================================
+
+--- 普通翻牌回调 (移动到位后翻牌，或当前位置翻牌)
+local function onCardFlipped(card, targetX, targetY)
+    local tc = Theme.cardTypeColor(card.type)
+
+    -- 粒子
+    VFX.spawnBurst(targetX, targetY, 10, tc.r, tc.g, tc.b)
+    -- 屏幕震动
+    VFX.triggerShake(3, 0.15)
+
+    -- 延迟后弹出事件弹窗
+    demoState = "popup"
+    hoveredCard = nil
+
+    local popupDelay = { t = 0 }
+    Tween.to(popupDelay, { t = 1 }, 0.4, {
+        tag = "popup_delay",
+        onComplete = function()
+            local popCX = logicalW / 2
+            local popCY = logicalH * 0.42
+            if card.type == "shop" then
+                -- 商店卡：专用弹窗，购买时实时结算，关闭时仅恢复状态
+                ShopPopup.show(popCX, popCY, function()
+                    gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+                    demoState = "ready"
+                    print("[Main] ShopPopup dismissed")
+                    checkDefeat()
+                end)
+            else
+                EventPopup.show(card.type, popCX, popCY, onPopupDismissed)
+            end
+        end
+    })
+end
+
+--- 拍摄翻牌回调 (仅预览，不结算资源)
+local function onPhotographFlipped(card, targetX, targetY)
+    local tc = Theme.cardTypeColor(card.type)
+
+    VFX.spawnBurst(targetX, targetY, 8, tc.r, tc.g, tc.b)
+    VFX.triggerShake(2, 0.1)
+
+    -- 延迟后弹出预览弹窗 (不结算资源)
+    demoState = "popup"
+    hoveredCard = nil
+
+    local popupDelay = { t = 0 }
+    Tween.to(popupDelay, { t = 1 }, 0.4, {
+        tag = "popup_delay",
+        onComplete = function()
+            local popCX = logicalW / 2
+            local popCY = logicalH * 0.42
+            -- 预览弹窗：回调不传 effects，不结算
+            EventPopup.show(card.type, popCX, popCY, function(_cardType, _effects)
+                gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+                demoState = "ready"
+                CameraButton.show()
+                print("[Main] Photograph preview dismissed: " .. tostring(_cardType))
+            end)
+        end
+    })
+end
+
+-- ============================================================================
+-- 相机模式操作: 拍摄 / 驱除
+-- ============================================================================
+
+--- 执行拍摄 (远程翻牌，仅预览不结算资源)
+local function doPhotograph(card, row, col)
+    local targetX, targetY = Board.cardPos(board, row, col)
+
+    ResourceBar.change("film", -1)
+    gameStats.photosUsed = gameStats.photosUsed + 1
+
+    demoState = "photographing"
+    CameraButton.hide()
+
+    -- 快门闪光 (白色)
+    VFX.flashScreen(255, 255, 255, 0.3, 180)
+
+    -- Token 拍照姿势 (原地轻微跳跃)
+    local origY = token.y
+    Tween.to(token, { y = origY - 5 }, 0.1, {
+        easing = Tween.Easing.easeOutQuad,
+        tag = "tokenmove",
+        onComplete = function()
+            Tween.to(token, { y = origY }, 0.15, {
+                easing = Tween.Easing.easeInQuad,
+                tag = "tokenmove",
+            })
+        end
+    })
+
+    -- 延迟后翻牌
+    local delay = { t = 0 }
+    Tween.to(delay, { t = 1 }, 0.25, {
+        tag = "photograph",
+        onComplete = function()
+            if not card.faceUp and not card.isFlipping then
+                demoState = "flipping"
+                Card.flip(card, function(c)
+                    onPhotographFlipped(c, targetX, targetY)
+                end)
+            else
+                demoState = "ready"
+                CameraButton.show()
+            end
+        end
+    })
+end
+
+--- 执行驱除 (怪物 → 相片)
+local function doExorcise(card, row, col)
+    local targetX, targetY = Board.cardPos(board, row, col)
+
+    ResourceBar.change("film", -1)
+    gameStats.photosUsed    = gameStats.photosUsed + 1
+    gameStats.monstersSlain = gameStats.monstersSlain + 1
+
+    demoState = "exorcising"
+    CameraButton.hide()
+
+    -- 紫色闪光
+    local pc = Theme.color("plot")
+    VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
+    VFX.triggerShake(4, 0.2)
+
+    -- Token 拍照姿势
+    local origY = token.y
+    Tween.to(token, { y = origY - 6 }, 0.12, {
+        easing = Tween.Easing.easeOutQuad,
+        tag = "tokenmove",
+        onComplete = function()
+            Tween.to(token, { y = origY }, 0.18, {
+                easing = Tween.Easing.easeInQuad,
+                tag = "tokenmove",
+            })
+        end
+    })
+
+    -- 延迟后变形
+    local delay = { t = 0 }
+    Tween.to(delay, { t = 1 }, 0.3, {
+        tag = "exorcise",
+        onComplete = function()
+            Card.transformTo(card, "photo", function(c)
+                VFX.spawnBurst(targetX, targetY, 16, pc.r, pc.g, pc.b)
+                VFX.spawnBanner("驱除成功!", pc.r, pc.g, pc.b, 24, 1.0)
+                demoState = "ready"
+                CameraButton.show()
+                print("[Main] Exorcise complete at (" .. row .. "," .. col .. ")")
+            end)
+        end
+    })
+end
+
+-- ============================================================================
+-- 交互处理
+-- ============================================================================
+
+--- 普通模式点击处理 (直接移动)
+local function handleNormalModeClick(lx, ly)
+    local card, row, col = Board.hitTest(board, lx, ly)
+    if not card then return end
+
+    local targetX, targetY = Board.cardPos(board, row, col)
+    local tokenTargetY = targetY - Card.HEIGHT / 2 - Token.SIZE
+    local isCurrent = (token.targetRow == row and token.targetCol == col)
+
+    -- === 当前位置：翻牌 / 抖动 ===
+    if isCurrent then
+        if not card.faceUp and not card.isFlipping then
+            demoState = "flipping"
+            CameraButton.hide()
+            Card.flip(card, function(c)
+                onCardFlipped(c, targetX, targetY)
+            end)
+        else
+            Card.shake(card)
+        end
+        return
+    end
+
+    -- === 非当前位置：直接移动 ===
+    demoState = "moving"
+    CameraButton.hide()
+    token.targetRow = row
+    token.targetCol = col
+
+    Token.moveTo(token, targetX, tokenTargetY, function()
+        -- 到达后：未翻开 → 翻牌+弹窗; 已翻开 → ready
+        if not card.faceUp and not card.isFlipping then
+            demoState = "flipping"
+            Card.flip(card, function(c)
+                onCardFlipped(c, targetX, targetY)
+            end)
+        else
+            demoState = "ready"
+            CameraButton.show()
+        end
+    end)
+end
+
+--- 相机模式点击处理 (拍摄 / 驱除)
+local function handleCameraModeClick(lx, ly)
+    -- 点击相机按钮本身 → 由外层已处理 (退出相机模式)
+
+    local card, row, col = Board.hitTest(board, lx, ly)
+    if not card then return end
+
+    -- 检查胶卷
+    local film = ResourceBar.get("film")
+    if film <= 0 then
+        CameraButton.shakeNoFilm()
+        VFX.spawnBanner("胶卷不足!", 220, 80, 80, 22, 0.8)
+        return
+    end
+
+    if not card.faceUp and not card.isFlipping then
+        -- 未翻开 → 拍摄 (远程翻牌预览)
+        CameraButton.exitCameraMode(function()
+            doPhotograph(card, row, col)
+        end)
+    elseif card.faceUp and card.type == "monster" then
+        -- 已翻开的怪物 → 驱除
+        CameraButton.exitCameraMode(function()
+            doExorcise(card, row, col)
+        end)
+    else
+        -- 已翻开的非怪物 → 无法拍摄
+        Card.shake(card)
+        VFX.spawnBanner("无法拍摄", 180, 180, 180, 20, 0.6)
+    end
+end
+
+local function handleClick(inputX, inputY)
+    -- 转换到逻辑坐标 (Mode B)
+    local lx = inputX / dpr
+    local ly = inputY / dpr
+
+    -- 标题画面最优先
+    if TitleScreen.isActive() then
+        TitleScreen.handleClick()
+        return
+    end
+
+    -- 结算画面
+    if GameOver.isActive() then
+        GameOver.handleClick(lx, ly, logicalW, logicalH)
+        return
+    end
+
+    -- 弹窗优先处理
+    if ShopPopup.isActive() then
+        ShopPopup.handleClick(lx, ly)
+        return
+    end
+
+    if EventPopup.isActive() then
+        EventPopup.handleClick(lx, ly)
+        return
+    end
+
+    -- 相机按钮点击 (优先于棋盘)
+    local consumed, reason = CameraButton.handleClick(lx, ly)
+    if consumed then
+        if reason == "no_film" then
+            VFX.spawnBanner("胶卷不足!", 220, 80, 80, 22, 0.8)
+        end
+        return
+    end
+
+    if gamePhase ~= "playing" then return end
+    if demoState ~= "ready" then return end
+
+    -- 根据相机模式分流处理
+    if CameraButton.isActive() then
+        handleCameraModeClick(lx, ly)
+    else
+        handleNormalModeClick(lx, ly)
+    end
+end
+
+---@param eventType string
+---@param eventData MouseButtonDownEventData
+function HandleMouseDown(eventType, eventData)
+    local button = eventData:GetInt("Button")
+    if button ~= MOUSEB_LEFT then return end
+    local mousePos = input:GetMousePosition()
+    handleClick(mousePos.x, mousePos.y)
+end
+
+---@param eventType string
+---@param eventData TouchBeginEventData
+function HandleTouchBegin(eventType, eventData)
+    local tx = eventData:GetInt("X")
+    local ty = eventData:GetInt("Y")
+    handleClick(tx, ty)
+end
+
+---@param eventType string
+---@param eventData KeyDownEventData
+function HandleKeyDown(eventType, eventData)
+    local key = eventData:GetInt("Key")
+
+    -- 标题画面
+    if TitleScreen.isActive() then
+        TitleScreen.handleKey(key)
+        return
+    end
+
+    -- 结算画面
+    if GameOver.isActive() then
+        GameOver.handleKey(key)
+        return
+    end
+
+    -- 商店弹窗
+    if ShopPopup.isActive() then
+        ShopPopup.handleKey(key)
+        return
+    end
+
+    -- 事件弹窗
+    if EventPopup.isActive() then
+        if key == KEY_RETURN or key == KEY_SPACE then
+            EventPopup.dismiss()
+        end
+        return
+    end
+
+    -- 相机模式激活时，Escape 退出
+    if CameraButton.isActive() then
+        if key == KEY_ESCAPE then
+            CameraButton.exitCameraMode()
+        end
+        -- 相机模式中屏蔽其他按键
+        return
+    end
+
+    if gamePhase ~= "playing" then return end
+
+    if key == KEY_ESCAPE then
+        engine:Exit()
+    end
+end
+
+-- ============================================================================
+-- Hover 追踪
+-- ============================================================================
+
+local function updateHover(dt)
+    local mousePos = input:GetMousePosition()
+    local lx = mousePos.x / dpr
+    local ly = mousePos.y / dpr
+
+    -- 结算画面按钮 hover
+    GameOver.updateHover(lx, ly, dt, logicalW, logicalH)
+
+    -- 弹窗/按钮 hover
+    ShopPopup.updateHover(lx, ly, dt)
+    EventPopup.updateHover(lx, ly, dt)
+    CameraButton.updateHover(lx, ly, dt)
+
+    -- 非游戏阶段 或 非 ready 状态不追踪卡牌 hover
+    if gamePhase ~= "playing" or demoState ~= "ready" then
+        hoveredCard = nil
+    else
+        local card = Board.hitTest(board, lx, ly)
+        -- 相机模式下：仅高亮可操作目标 (未翻开 or 怪物)
+        if CameraButton.isActive() and card then
+            if card.faceUp and card.type ~= "monster" then
+                card = nil  -- 非可操作目标不高亮
+            end
+        end
+        hoveredCard = card
+    end
+
+    -- 平滑过渡所有卡牌的 hoverT
+    if not board or not board.cards then return end
+    for row = 1, Board.ROWS do
+        if board.cards[row] then
+            for col = 1, Board.COLS do
+                local card = board.cards[row][col]
+                if card then
+                    local target = (card == hoveredCard) and 1.0 or 0.0
+                    card.hoverT = card.hoverT + (target - card.hoverT) * math.min(1, dt * 12)
+                    if math.abs(card.hoverT - target) < 0.005 then
+                        card.hoverT = target
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- ============================================================================
+-- 更新
+-- ============================================================================
+
+---@param eventType string
+---@param eventData UpdateEventData
+function HandleUpdate(eventType, eventData)
+    local dt = eventData:GetFloat("TimeStep")
+    gameTime = gameTime + dt
+
+    Tween.update(dt)
+    VFX.updateAll(dt)
+    Board.update(board, dt)
+    Token.update(token, dt)
+    ResourceBar.update(dt)
+    CameraButton.update(dt)
+    updateHover(dt)
+end
+
+-- ============================================================================
+-- 渲染
+-- ============================================================================
+
+function HandleNanoVGRender(eventType, eventData)
+    if not vg then return end
+
+    VFX.setContext(vg, logicalW, logicalH, gameTime)
+
+    nvgBeginFrame(vg, logicalW, logicalH, dpr)
+
+    -- 屏幕抖动
+    local sx, sy = VFX.getShakeOffset()
+    if sx ~= 0 or sy ~= 0 then
+        nvgTranslate(vg, sx, sy)
+    end
+
+    -- === 背景渐变 ===
+    drawBackground()
+
+    -- === 棋盘 + 卡牌 ===
+    Board.draw(vg, board, gameTime)
+
+    -- === Token ===
+    Token.draw(vg, token, gameTime)
+
+    -- === 相机模式取景器叠加层 (在 Token 后, VFX 前) ===
+    CameraButton.drawOverlay(vg, logicalW, logicalH, gameTime)
+
+    -- === VFX 叠加层 ===
+    VFX.drawBurst()
+    VFX.drawPopups()
+    VFX.drawBanners()
+    VFX.drawTransition()
+
+    -- === 资源栏 ===
+    ResourceBar.draw(vg, logicalW, logicalH)
+
+    -- === HUD ===
+    drawHUD()
+
+    -- === 相机按钮 (HUD 后, Flash 前) ===
+    CameraButton.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 屏幕闪光 (覆盖所有内容) ===
+    VFX.drawFlash()
+
+    -- === 事件弹窗 / 商店弹窗 ===
+    EventPopup.draw(vg, logicalW, logicalH, gameTime)
+    ShopPopup.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 结算画面 (覆盖游戏内容) ===
+    GameOver.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 标题画面 (最顶层) ===
+    TitleScreen.draw(vg, logicalW, logicalH, gameTime)
+
+    nvgEndFrame(vg)
+end
+
+-- ============================================================================
+-- 背景
+-- ============================================================================
+
+function drawBackground()
+    local t = Theme.current
+
+    -- 天空渐变
+    nvgBeginPath(vg)
+    nvgRect(vg, -20, -20, logicalW + 40, logicalH + 40)
+    local bgPaint = nvgLinearGradient(vg, 0, 0, 0, logicalH,
+        Theme.rgba(t.bgTop), Theme.rgba(t.bgBottom))
+    nvgFillPaint(vg, bgPaint)
+    nvgFill(vg)
+
+    -- 装饰云朵
+    local cloudAlpha = 50
+    for i = 1, 4 do
+        local cx = (logicalW * 0.15 * i + gameTime * (5 + i * 2)) % (logicalW + 100) - 50
+        local cy = logicalH * (0.08 + i * 0.05)
+        local cw = 60 + i * 15
+        local ch = 18 + i * 4
+
+        nvgBeginPath(vg)
+        nvgEllipse(vg, cx, cy, cw, ch)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, cloudAlpha))
+        nvgFill(vg)
+
+        nvgBeginPath(vg)
+        nvgEllipse(vg, cx - cw * 0.3, cy - ch * 0.5, cw * 0.4, ch * 0.7)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, cloudAlpha - 10))
+        nvgFill(vg)
+        nvgBeginPath(vg)
+        nvgEllipse(vg, cx + cw * 0.25, cy - ch * 0.35, cw * 0.35, ch * 0.6)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, cloudAlpha - 15))
+        nvgFill(vg)
+    end
+end
+
+-- ============================================================================
+-- HUD
+-- ============================================================================
+
+function drawHUD()
+    local t = Theme.current
+
+    -- 天数/回合 (右上角)
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, t.fontSize.subtitle)
+    nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_TOP)
+    nvgFillColor(vg, Theme.rgba(t.textPrimary))
+    nvgText(vg, logicalW - 20, 16, "第 " .. dayCount .. " 天", nil)
+end
+
+-- ============================================================================
+-- 屏幕变化
+-- ============================================================================
+
+function HandleScreenMode(eventType, eventData)
+    recalcResolution()
+    recalcLayout()
+    print("[Main] Screen mode changed")
+end

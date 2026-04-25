@@ -1,0 +1,34 @@
+# 构建产物
+.build/
+dist/
+
+# 临时文件
+.tmp/
+
+# 日志
+logs/
+
+# 引擎只读资源（非用户代码，运行时由引擎提供）
+engine-docs/
+examples/
+templates/
+urhox-libs/
+schemas/
+lua-tools/
+.emmylua/
+
+# 引擎 CLI 工具
+.cli/
+
+# AI 工作流配置（skills 等）
+.agent/
+.claude/
+
+# 项目配置（引擎自动生成）
+.project/
+
+# Lua LSP 配置（自动生成）
+scripts/.luarc.json
+
+# meta 文件（引擎自动生成）
+*.meta
