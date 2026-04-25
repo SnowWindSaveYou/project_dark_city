@@ -20,12 +20,18 @@ M.RADIUS = 8
 -- 地点信息 (卡牌正面显示的都市地点)
 -- ---------------------------------------------------------------------------
 M.LOCATION_INFO = {
+    -- 特殊地点
     home        = { icon = "🏠", label = "家" },
+    -- 商店地点 (便利店 = 商店)
+    convenience = { icon = "🏪", label = "便利店" },
+    -- 地标地点 (有祛邪光环的庇护所)
+    church      = { icon = "⛪", label = "教堂" },
+    police      = { icon = "🚔", label = "警察局" },
+    shrine      = { icon = "⛩️", label = "神社" },
+    -- 普通地点
     company     = { icon = "🏢", label = "公司" },
     school      = { icon = "🏫", label = "学校" },
-    convenience = { icon = "🏪", label = "便利店" },
     park        = { icon = "🌳", label = "公园" },
-    church      = { icon = "⛪", label = "教堂" },
     alley       = { icon = "🌙", label = "小巷" },
     station     = { icon = "🚉", label = "车站" },
     hospital    = { icon = "🏥", label = "医院" },
@@ -33,11 +39,14 @@ M.LOCATION_INFO = {
     bank        = { icon = "🏦", label = "银行" },
 }
 
--- 可随机分配的普通地点 (不含 home/landmark/shop 等特殊位置)
+-- 可随机分配的普通地点 (不含 home/landmark/shop)
 M.REGULAR_LOCATIONS = {
-    "company", "school", "convenience", "park", "church",
+    "company", "school", "park",
     "alley", "station", "hospital", "library", "bank",
 }
+
+-- 地标可用地点 (有祛邪力量的场所)
+M.LANDMARK_LOCATIONS = { "church", "police", "shrine" }
 
 -- ---------------------------------------------------------------------------
 -- 事件类型 (翻开卡牌后显示的隐藏事件)
@@ -47,6 +56,90 @@ M.EVENT_TYPES = { "safe", "monster", "trap", "reward", "plot", "clue" }
 
 -- 兼容旧代码的完整类型列表 (含特殊类型)
 M.ALL_TYPES = { "safe", "home", "landmark", "shop", "monster", "trap", "reward", "plot", "clue" }
+
+-- ---------------------------------------------------------------------------
+-- 暗面世界映射: 地点 → 翻开后显示的暗面名称
+-- 翻开卡牌 = 进入都市的另一侧世界，看到该地点的暗面版本
+-- ---------------------------------------------------------------------------
+M.DARKSIDE_INFO = {
+    -- 地点 → { [事件类型] = { icon, label } }
+    company = {
+        safe    = { icon = "🏢", label = "空荡办公室" },
+        monster = { icon = "🕴️", label = "影子上司" },
+        trap    = { icon = "📋", label = "无尽加班令" },
+        reward  = { icon = "💼", label = "遗落的公文包" },
+        plot    = { icon = "🖥️", label = "异常邮件" },
+        clue    = { icon = "📂", label = "机密档案" },
+    },
+    school = {
+        safe    = { icon = "🏫", label = "安静教室" },
+        monster = { icon = "👤", label = "无面教师" },
+        trap    = { icon = "🔔", label = "永不下课" },
+        reward  = { icon = "📒", label = "旧笔记本" },
+        plot    = { icon = "🎒", label = "无主书包" },
+        clue    = { icon = "📝", label = "黑板留言" },
+    },
+    park = {
+        safe    = { icon = "🌳", label = "寂静长椅" },
+        monster = { icon = "🌑", label = "树影低语" },
+        trap    = { icon = "🕸️", label = "缠绕藤蔓" },
+        reward  = { icon = "🍃", label = "净化之风" },
+        plot    = { icon = "🗿", label = "奇怪雕像" },
+        clue    = { icon = "🪶", label = "地上羽毛" },
+    },
+    alley = {
+        safe    = { icon = "🌙", label = "寂静小巷" },
+        monster = { icon = "👁️", label = "墙缝窥视" },
+        trap    = { icon = "🕳️", label = "地面塌陷" },
+        reward  = { icon = "📦", label = "角落包裹" },
+        plot    = { icon = "🚪", label = "不存在的门" },
+        clue    = { icon = "✍️", label = "涂鸦暗号" },
+    },
+    station = {
+        safe    = { icon = "🚉", label = "末班列车" },
+        monster = { icon = "🚇", label = "不停靠的车" },
+        trap    = { icon = "🌀", label = "循环站台" },
+        reward  = { icon = "🎫", label = "神秘车票" },
+        plot    = { icon = "📻", label = "广播异响" },
+        clue    = { icon = "🗺️", label = "失落线路图" },
+    },
+    hospital = {
+        safe    = { icon = "🏥", label = "空病房" },
+        monster = { icon = "💉", label = "游走护士" },
+        trap    = { icon = "🩺", label = "错误诊断" },
+        reward  = { icon = "💊", label = "遗留药品" },
+        plot    = { icon = "📋", label = "诡异病历" },
+        clue    = { icon = "🔬", label = "实验记录" },
+    },
+    library = {
+        safe    = { icon = "📚", label = "安静角落" },
+        monster = { icon = "📖", label = "自翻的书" },
+        trap    = { icon = "🔇", label = "沉默诅咒" },
+        reward  = { icon = "📜", label = "古老卷轴" },
+        plot    = { icon = "📕", label = "禁书" },
+        clue    = { icon = "🔖", label = "夹页纸条" },
+    },
+    bank = {
+        safe    = { icon = "🏦", label = "空金库" },
+        monster = { icon = "🎭", label = "面具柜员" },
+        trap    = { icon = "🔒", label = "锁死的门" },
+        reward  = { icon = "💰", label = "无主存款" },
+        plot    = { icon = "🏧", label = "异常终端" },
+        clue    = { icon = "🧾", label = "可疑账单" },
+    },
+}
+
+--- 获取暗面显示信息 (地点+事件类型 → 暗面名称)
+---@param location string
+---@param eventType string
+---@return table { icon, label } 或 nil
+function M.getDarksideInfo(location, eventType)
+    local locMap = M.DARKSIDE_INFO[location]
+    if locMap and locMap[eventType] then
+        return locMap[eventType]
+    end
+    return nil
+end
 
 -- ---------------------------------------------------------------------------
 -- 构造
@@ -92,6 +185,7 @@ function M.new(cardType, row, col, location)
         isDealing = false,
         hoverT = 0,
         shakeX = 0,         -- 无效操作抖动偏移
+        scouted = false,    -- 被拍摄侦察过 (看到了事件类型，但未实际触发)
     }
 end
 
@@ -317,6 +411,34 @@ function M.draw(vg, card, gameTime)
         M.drawLocation(vg, card, w, h, gameTime)
     end
 
+    -- 侦察标记 (左下角 📷 徽章，两面都显示)
+    if card.scouted then
+        local sInfo = Theme.cardTypeInfo(card.type)
+        local stc = Theme.cardTypeColor(card.type)
+        local hw, hh = w / 2, h / 2
+        local bx = -hw + 4
+        local by = hh - 4
+        local badgeR = 7
+
+        nvgBeginPath(vg)
+        nvgCircle(vg, bx, by, badgeR)
+        nvgFillColor(vg, Theme.rgbaA(stc, 160))
+        nvgFill(vg)
+
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 8)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 230))
+        nvgText(vg, bx, by, "📷", nil)
+
+        if sInfo then
+            nvgFontSize(vg, 7)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_BOTTOM)
+            nvgFillColor(vg, Theme.rgbaA(stc, 180))
+            nvgText(vg, 0, hh - 2, sInfo.label, nil)
+        end
+    end
+
     -- 边框 (hover 时高亮加粗)
     nvgBeginPath(vg)
     nvgRoundedRect(vg, -w / 2, -h / 2, w, h, r)
@@ -369,23 +491,36 @@ function M.drawFace(vg, card, w, h)
 
     local tc = Theme.cardTypeColor(card.type)
 
+    -- 地标/家/商店：显示地点本身的信息，而非暗面事件
+    local displayIcon, displayLabel
+    if card.type == "landmark" or card.type == "home" or card.type == "shop" then
+        local locInfo = M.LOCATION_INFO[card.location]
+        displayIcon  = locInfo and locInfo.icon  or info.icon
+        displayLabel = locInfo and locInfo.label or info.label
+    else
+        -- 普通事件卡：尝试获取暗面世界版本的显示信息
+        local darkInfo = M.getDarksideInfo(card.location, card.type)
+        displayIcon  = darkInfo and darkInfo.icon  or info.icon
+        displayLabel = darkInfo and darkInfo.label or info.label
+    end
+
     -- 顶部色条
     nvgBeginPath(vg)
     nvgRoundedRect(vg, -w / 2 + 3, -h / 2 + 3, w - 6, 6, 3)
     nvgFillColor(vg, Theme.rgbaA(tc, 200))
     nvgFill(vg)
 
-    -- 事件图标 (emoji)
+    -- 暗面图标
     nvgFontFace(vg, "sans")
     nvgFontSize(vg, t.fontSize.cardIcon)
     nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
     nvgFillColor(vg, Theme.rgba(t.textPrimary))
-    nvgText(vg, 0, -4, info.icon, nil)
+    nvgText(vg, 0, -4, displayIcon, nil)
 
-    -- 事件标签
+    -- 暗面标签
     nvgFontSize(vg, t.fontSize.cardLabel)
     nvgFillColor(vg, Theme.rgbaA(tc, 220))
-    nvgText(vg, 0, h / 2 - 14, info.label, nil)
+    nvgText(vg, 0, h / 2 - 14, displayLabel, nil)
 end
 
 -- ---------------------------------------------------------------------------
@@ -457,6 +592,31 @@ function M.drawLocation(vg, card, w, h, gameTime)
             nvgText(vg, bx, by, rumor.isSafe and "✓" or "!", nil)
         end
     end
+
+    -- 地图碎片揭示标记 (左上角显示事件类型图标)
+    if card.revealed then
+        local info = Theme.cardTypeInfo(card.type)
+        if info then
+            local tc = Theme.cardTypeColor(card.type)
+            local bx = -hw + 4
+            local by = -hh + 4
+            local badgeR = 7
+
+            -- 底圆
+            nvgBeginPath(vg)
+            nvgCircle(vg, bx, by, badgeR)
+            nvgFillColor(vg, Theme.rgbaA(tc, 180))
+            nvgFill(vg)
+
+            -- 类型图标
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 9)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+            nvgText(vg, bx, by, info.icon, nil)
+        end
+    end
+
 end
 
 -- ---------------------------------------------------------------------------

@@ -22,6 +22,22 @@ local BRACKET_MARGIN = 20   -- 取景器角标边距
 local SCANLINE_SPEED = 60   -- 扫描线速度 px/s
 
 -- ---------------------------------------------------------------------------
+-- 外部回调 (进入/退出相机模式时触发)
+-- ---------------------------------------------------------------------------
+local onEnterCallback = nil
+local onExitCallback  = nil
+
+--- 注入进入相机模式回调 (main.lua 用来翻开已侦察卡牌)
+function M.setOnEnterCallback(fn)
+    onEnterCallback = fn
+end
+
+--- 注入退出相机模式回调 (main.lua 用来翻回已侦察卡牌)
+function M.setOnExitCallback(fn)
+    onExitCallback = fn
+end
+
+-- ---------------------------------------------------------------------------
 -- 状态
 -- ---------------------------------------------------------------------------
 
@@ -132,6 +148,9 @@ function M.enterCameraMode()
         tag = "cameramode",
     })
 
+    -- 通知外部 (翻开已侦察卡牌)
+    if onEnterCallback then onEnterCallback() end
+
     print("[CameraButton] Enter camera mode")
 end
 
@@ -149,6 +168,9 @@ function M.exitCameraMode(onComplete)
         easing = Tween.Easing.easeInQuad,
         tag = "cameramode",
     })
+
+    -- 通知外部 (翻回已侦察卡牌)
+    if onExitCallback then onExitCallback() end
 
     -- 取景器渐出
     Tween.to(state, { overlayAlpha = 0 }, 0.25, {
@@ -223,12 +245,8 @@ function M.handleClick(lx, ly)
             -- 退出相机模式
             M.exitCameraMode()
         else
-            -- 检查胶卷
-            local film = ResourceBar.get("film")
-            if film <= 0 then
-                M.shakeNoFilm()
-                return true, "no_film"
-            end
+            -- 允许无胶卷进入相机模式 (可查看已侦察卡牌)
+            -- 实际拍摄时 handleCameraModeClick 会检查胶卷
             M.enterCameraMode()
         end
         return true, nil

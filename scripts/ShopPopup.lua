@@ -15,14 +15,22 @@ local M = {}
 -- ---------------------------------------------------------------------------
 
 local ALL_GOODS = {
-    { icon = "💊", name = "镇定剂",     price = 15, effects = { { "san", 20 } } },
-    { icon = "📜", name = "秩序手册",   price = 12, effects = { { "order", 15 } } },
-    { icon = "🎞️", name = "胶卷补充",   price = 20, effects = { { "film", 2 } } },
-    { icon = "🔋", name = "能量饮料",   price = 8,  effects = { { "san", 10 } } },
-    { icon = "🗺️", name = "城市地图",   price = 10, effects = { { "order", 10 } } },
-    { icon = "📷", name = "一次性相机", price = 25, effects = { { "film", 3 } } },
-    { icon = "🧿", name = "护身符",     price = 18, effects = { { "san", 10 }, { "order", 10 } } },
-    { icon = "🎒", name = "补给背包",   price = 30, effects = { { "san", 15 }, { "film", 1 } } },
+    -- 设计文档核心道具
+    { icon = "☕", name = "咖啡",       price = 8,  effects = { { "san", 2 } },
+      desc = "恢复2点理智" },
+    { icon = "🎞️", name = "胶卷",       price = 10, effects = { { "film", 1 } },
+      desc = "补充1个胶卷" },
+    { icon = "🧿", name = "护身符",     price = 15, effects = { { "shield", 1 } },
+      desc = "抵消1次伤害" },
+    { icon = "🪔", name = "驱魔香",     price = 12, effects = { { "exorcism", 1 } },
+      desc = "免侦察驱除怪物" },
+    { icon = "🗺️", name = "地图碎片",   price = 10, effects = { { "mapReveal", 1 } },
+      desc = "揭示1张卡牌类型" },
+    -- 补给型道具 (用户提到"补充理智或秩序的道具也能加")
+    { icon = "💊", name = "镇定剂",     price = 12, effects = { { "san", 3 } },
+      desc = "恢复3点理智" },
+    { icon = "📜", name = "秩序手册",   price = 10, effects = { { "order", 2 } },
+      desc = "恢复2点秩序" },
 }
 
 local SHOP_VARIANTS = {
@@ -32,10 +40,13 @@ local SHOP_VARIANTS = {
 }
 
 local RES_ICONS = {
-    san   = "🧠",
-    order = "⚖️",
-    film  = "🎞️",
-    money = "💰",
+    san       = "🧠",
+    order     = "⚖️",
+    film      = "🎞️",
+    money     = "💰",
+    shield    = "🧿",
+    exorcism  = "🪔",
+    mapReveal = "🗺️",
 }
 
 -- ---------------------------------------------------------------------------
@@ -70,6 +81,48 @@ local DIVIDER_Y  = 76
 local CARDS_Y    = 84
 local BTN_Y      = CARDS_Y + CARD_H + 10   -- 204
 local POPUP_H    = BTN_Y + BTN_H + 14      -- 246
+
+-- ---------------------------------------------------------------------------
+-- 道具库存 (战术道具持久状态)
+-- ---------------------------------------------------------------------------
+
+local inventory = {
+    shield   = 0,   -- 护身符: 抵消1次伤害
+    exorcism = 0,   -- 驱魔香: 免费驱除1次怪物
+}
+
+--- 地图碎片回调 (由 main.lua 注入，购买时立即调用)
+local mapRevealCallback = nil
+
+-- ---------------------------------------------------------------------------
+-- 道具查询/消耗 API
+-- ---------------------------------------------------------------------------
+
+--- 查询道具数量
+function M.getItem(key)
+    return inventory[key] or 0
+end
+
+--- 消耗道具 (返回是否消耗成功)
+function M.useItem(key)
+    if (inventory[key] or 0) > 0 then
+        inventory[key] = inventory[key] - 1
+        print(string.format("[ShopPopup] Used item: %s, remaining: %d", key, inventory[key]))
+        return true
+    end
+    return false
+end
+
+--- 注入地图碎片回调
+function M.setMapRevealCallback(fn)
+    mapRevealCallback = fn
+end
+
+--- 重置库存 (新游戏时调用)
+function M.resetInventory()
+    inventory.shield   = 0
+    inventory.exorcism = 0
+end
 
 -- ---------------------------------------------------------------------------
 -- 状态
@@ -215,7 +268,20 @@ local function doPurchase(i)
     card.sold = true
     ResourceBar.change("money", -item.price)
     for _, eff in ipairs(item.effects) do
-        ResourceBar.change(eff[1], eff[2])
+        local key = eff[1]
+        if key == "shield" or key == "exorcism" then
+            -- 战术道具：加入库存
+            inventory[key] = (inventory[key] or 0) + eff[2]
+            print(string.format("[ShopPopup] Inventory %s = %d", key, inventory[key]))
+        elseif key == "mapReveal" then
+            -- 地图碎片：立即生效
+            if mapRevealCallback then
+                mapRevealCallback()
+            end
+        else
+            -- 常规资源：直接改值
+            ResourceBar.change(key, eff[2])
+        end
     end
 
     -- 脉冲: 放大 → 弹回
@@ -241,8 +307,15 @@ local function doPurchase(i)
     -- 效果弹出文字
     local popText = ""
     for _, eff in ipairs(item.effects) do
-        local icon = RES_ICONS[eff[1]] or ""
-        popText = popText .. icon .. "+" .. eff[2] .. " "
+        local key = eff[1]
+        local icon = RES_ICONS[key] or ""
+        if key == "shield" or key == "exorcism" then
+            popText = popText .. icon .. " 获得 "
+        elseif key == "mapReveal" then
+            popText = popText .. icon .. " 揭示 "
+        else
+            popText = popText .. icon .. "+" .. eff[2] .. " "
+        end
     end
     VFX.spawnPopup(popText, wx, wy - CARD_H / 2 - 10,
         t.safe.r, t.safe.g, t.safe.b, 0.8)
@@ -438,15 +511,23 @@ local function drawCard(vg, idx, card, theme, shopColor, gameTime)
         nvgFillColor(vg, nvgRGBA(theme.textPrimary.r, theme.textPrimary.g, theme.textPrimary.b, alpha))
         nvgText(vg, 0, -hh + 42, item.name, nil)
 
-        -- 效果徽章
+        -- 效果徽章 / 描述
         nvgFontSize(vg, 10)
         local effY = -hh + 60
-        for _, eff in ipairs(item.effects) do
-            local icon = RES_ICONS[eff[1]] or ""
-            local label = icon .. " +" .. eff[2]
-            nvgFillColor(vg, Theme.rgbaA(theme.safe, canAfford and 200 or 110))
-            nvgText(vg, 0, effY, label, nil)
-            effY = effY + 14
+        if item.desc and (item.effects[1] and (item.effects[1][1] == "shield"
+            or item.effects[1][1] == "exorcism" or item.effects[1][1] == "mapReveal")) then
+            -- 战术道具：显示描述文字
+            nvgFillColor(vg, Theme.rgbaA(theme.info, canAfford and 200 or 110))
+            nvgText(vg, 0, effY, item.desc, nil)
+        else
+            -- 常规道具：显示数值效果
+            for _, eff in ipairs(item.effects) do
+                local icon = RES_ICONS[eff[1]] or ""
+                local label = icon .. " +" .. eff[2]
+                nvgFillColor(vg, Theme.rgbaA(theme.safe, canAfford and 200 or 110))
+                nvgText(vg, 0, effY, label, nil)
+                effY = effY + 14
+            end
         end
 
         -- 价格 (底部)

@@ -7,6 +7,7 @@
 
 local Tween = require "lib.Tween"
 local Theme = require "Theme"
+local Card  = require "Card"
 
 local M = {}
 
@@ -65,13 +66,13 @@ M.templates = {
 -- ---------------------------------------------------------------------------
 
 M.cardEffects = {
-    safe     = { { "san", 5 } },
+    safe     = { { "san", 1 } },
     landmark = {},
-    shop     = { { "money", -10 } },
-    monster  = { { "san", -15 }, { "order", -5 } },
-    trap     = { { "san", -10 }, { "order", -10 } },
-    reward   = { { "money", 20 }, { "film", 1 } },
-    plot     = { { "order", 10 } },
+    shop     = {},
+    monster  = { { "san", -2 }, { "order", -1 } },
+    trap     = { { "san", -1 }, { "order", -1 } },
+    reward   = { { "money", 15 }, { "film", 1 } },
+    plot     = { { "order", 1 } },
     clue     = { { "film", 1 } },
     photo    = {},  -- 相片：安全格，无资源效果
 }
@@ -98,6 +99,7 @@ local resourceMeta = {
 ---@field cx number 弹窗中心 X（逻辑坐标）
 ---@field cy number 弹窗中心 Y
 ---@field onDismiss function|nil 关闭后回调
+---@field isPhoto boolean 是否为相片预览模式
 
 local state = {
     active = false,
@@ -108,11 +110,14 @@ local state = {
     effects = {},
     cx = 0, cy = 0,
     onDismiss = nil,
+    isPhoto = false,       -- 相片预览模式 (拍立得风格)
+    photoLocation = nil,   -- 相片对应的地点
 
     -- 动画参数
     overlayAlpha = 0,
     popupScale = 0,
     popupAlpha = 0,
+    photoRotation = 0,     -- 相片微倾角度 (度)
 
     -- 内容逐行入场进度 (0~1 each)
     iconT      = 0,
@@ -144,7 +149,8 @@ local BTN_R     = 8
 ---@param cx number 弹窗出现的中心 X（逻辑坐标）
 ---@param cy number 弹窗出现的中心 Y
 ---@param onDismiss function|nil 关闭后的回调（资源结算等）
-function M.show(cardType, cx, cy, onDismiss)
+---@param location string|nil 地点类型，用于显示暗面世界名称
+function M.show(cardType, cx, cy, onDismiss, location)
     -- 随机选取文案
     local pool = M.templates[cardType]
     if not pool or #pool == 0 then
@@ -152,10 +158,14 @@ function M.show(cardType, cx, cy, onDismiss)
     end
     local tmpl = pool[math.random(1, #pool)]
 
+    -- 暗面世界标题：优先使用地点+事件类型对应的暗面名称
+    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local displayTitle = darkInfo and darkInfo.label or tmpl.title
+
     state.active = true
     state.phase = "enter"
     state.cardType = cardType
-    state.title = tmpl.title
+    state.title = displayTitle
     state.desc = tmpl.desc
     state.effects = M.cardEffects[cardType] or {}
     state.cx = cx
@@ -215,6 +225,87 @@ function M.show(cardType, cx, cy, onDismiss)
 end
 
 -- ---------------------------------------------------------------------------
+-- 打开相片预览弹窗 (拍立得/底片风格，仅预览不结算)
+-- ---------------------------------------------------------------------------
+
+--- 打开相片预览弹窗
+---@param cardType string 卡牌事件类型
+---@param cx number 弹窗中心 X
+---@param cy number 弹窗中心 Y
+---@param onDismiss function|nil 关闭后回调
+---@param location string|nil 地点类型
+function M.showPhoto(cardType, cx, cy, onDismiss, location)
+    -- 随机选取文案
+    local pool = M.templates[cardType]
+    if not pool or #pool == 0 then
+        pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
+    end
+    local tmpl = pool[math.random(1, #pool)]
+
+    -- 暗面世界标题
+    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local displayTitle = darkInfo and darkInfo.label or tmpl.title
+
+    state.active = true
+    state.phase = "enter"
+    state.cardType = cardType
+    state.title = displayTitle
+    state.desc = tmpl.desc
+    state.effects = {}  -- 相片预览不显示资源变化
+    state.cx = cx
+    state.cy = cy
+    state.onDismiss = onDismiss
+    state.isPhoto = true
+    state.photoLocation = location
+
+    -- 重置动画值
+    state.overlayAlpha = 0
+    state.popupScale = 0.2
+    state.popupAlpha = 0
+    state.photoRotation = math.random(-6, 6)  -- 随机微倾
+    state.iconT = 0
+    state.titleT = 0
+    state.descT = 0
+    state.effectsT = 0
+    state.buttonT = 0
+    state.btnHoverT = 0
+
+    -- 相片入场：快速弹入 + 轻微弹跳
+    Tween.to(state, { overlayAlpha = 0.5, popupScale = 1.0, popupAlpha = 1.0 }, 0.3, {
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+    })
+
+    -- 内容入场 (相片模式更快)
+    local base = 0.08
+    Tween.to(state, { iconT = 1 }, 0.25, {
+        delay = base,
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+    })
+    Tween.to(state, { titleT = 1 }, 0.25, {
+        delay = base + 0.06,
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+    })
+    Tween.to(state, { descT = 1 }, 0.25, {
+        delay = base + 0.12,
+        easing = Tween.Easing.easeOutCubic,
+        tag = "popup",
+    })
+    Tween.to(state, { buttonT = 1 }, 0.25, {
+        delay = base + 0.18,
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+        onComplete = function()
+            state.phase = "idle"
+        end
+    })
+
+    print(string.format("[EventPopup] ShowPhoto: %s - %s", cardType, displayTitle))
+end
+
+-- ---------------------------------------------------------------------------
 -- 关闭弹窗
 -- ---------------------------------------------------------------------------
 
@@ -235,6 +326,9 @@ function M.dismiss()
         onComplete = function()
             state.active = false
             state.phase = "done"
+            local wasPhoto = state.isPhoto
+            state.isPhoto = false
+            state.photoLocation = nil
             if state.onDismiss then
                 state.onDismiss(state.cardType, state.effects)
             end
@@ -285,6 +379,12 @@ function M.handleClick(lx, ly)
         return true
     end
 
+    -- 相片模式: 点击任意处关闭
+    if state.isPhoto then
+        M.dismiss()
+        return true
+    end
+
     if M.hitTestButton(lx, ly) then
         M.dismiss()
         return true
@@ -319,6 +419,13 @@ end
 
 function M.draw(vg, logicalW, logicalH, gameTime)
     if not state.active then return end
+
+    -- 分流：相片模式用专用渲染
+    if state.isPhoto then
+        M.drawPhoto(vg, logicalW, logicalH, gameTime)
+        return
+    end
+
     local t = Theme.current
 
     -- === 遮罩层 ===
@@ -534,6 +641,228 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     end
 
     nvgRestore(vg)  -- 弹窗整体 transform
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染: 相片预览模式 (拍立得风格)
+-- ---------------------------------------------------------------------------
+
+-- 相片尺寸 (拍立得比例: 宽略窄, 底部留白多)
+local PHOTO_W       = 200
+local PHOTO_H       = 260
+local PHOTO_BORDER  = 10      -- 上/左/右白边
+local PHOTO_BOTTOM  = 40      -- 底部白边 (拍立得特征)
+local PHOTO_R       = 3       -- 相片圆角 (很小, 偏硬朗)
+local PHOTO_IMG_R   = 2       -- 内部照片区圆角
+
+function M.drawPhoto(vg, logicalW, logicalH, gameTime)
+    local t = Theme.current
+    local tc = Theme.cardTypeColor(state.cardType)
+    local info = Theme.cardTypeInfo(state.cardType)
+
+    -- === 遮罩层 (比普通弹窗更暗) ===
+    if state.overlayAlpha > 0.01 then
+        nvgBeginPath(vg)
+        nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
+        nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(state.overlayAlpha * 255)))
+        nvgFill(vg)
+    end
+
+    -- === 相片主体 ===
+    nvgSave(vg)
+    nvgTranslate(vg, state.cx, state.cy)
+    nvgRotate(vg, state.photoRotation * math.pi / 180)  -- 微倾
+    nvgScale(vg, state.popupScale, state.popupScale)
+    nvgGlobalAlpha(vg, state.popupAlpha)
+
+    local hw = PHOTO_W / 2
+    local hh = PHOTO_H / 2
+
+    -- 阴影 (更柔和, 偏暖)
+    local shadowP = nvgBoxGradient(vg, -hw + 1, -hh + 3, PHOTO_W, PHOTO_H, PHOTO_R, 20,
+        nvgRGBA(30, 20, 10, 90), nvgRGBA(0, 0, 0, 0))
+    nvgBeginPath(vg)
+    nvgRect(vg, -hw - 25, -hh - 20, PHOTO_W + 50, PHOTO_H + 45)
+    nvgFillPaint(vg, shadowP)
+    nvgFill(vg)
+
+    -- 相片白底 (略带暖白, 模拟相纸)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, PHOTO_W, PHOTO_H, PHOTO_R)
+    nvgFillColor(vg, nvgRGBA(252, 250, 245, 250))
+    nvgFill(vg)
+
+    -- 相片边框 (极细, 模拟纸张边缘)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, PHOTO_W, PHOTO_H, PHOTO_R)
+    nvgStrokeColor(vg, nvgRGBA(210, 200, 185, 120))
+    nvgStrokeWidth(vg, 0.8)
+    nvgStroke(vg)
+
+    -- === 内部照片区 (深色背景, 模拟冲印画面) ===
+    local imgX = -hw + PHOTO_BORDER
+    local imgY = -hh + PHOTO_BORDER
+    local imgW = PHOTO_W - PHOTO_BORDER * 2
+    local imgH = PHOTO_H - PHOTO_BORDER - PHOTO_BOTTOM
+
+    -- 照片底色 (暗蓝灰, 像夜间拍摄)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
+    nvgFillColor(vg, nvgRGBA(25, 30, 40, 240))
+    nvgFill(vg)
+
+    -- 照片内氛围渐变 (事件类型颜色从中心扩散)
+    local atmosPaint = nvgRadialGradient(vg,
+        imgX + imgW / 2, imgY + imgH * 0.4,
+        10, imgW * 0.6,
+        nvgRGBA(tc.r, tc.g, tc.b, 50),
+        nvgRGBA(tc.r, tc.g, tc.b, 0))
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
+    nvgFillPaint(vg, atmosPaint)
+    nvgFill(vg)
+
+    -- === 照片内容 ===
+    local imgCX = imgX + imgW / 2
+    local imgCY = imgY + imgH / 2
+
+    -- 事件图标 (大号, 居中)
+    if state.iconT > 0.01 then
+        nvgSave(vg)
+        local iconScale = state.iconT
+        nvgTranslate(vg, imgCX, imgCY - 18)
+        nvgScale(vg, iconScale, iconScale)
+        nvgGlobalAlpha(vg, state.popupAlpha * state.iconT)
+
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 42)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 230))
+        nvgText(vg, 0, 0, info and info.icon or "❓", nil)
+        nvgRestore(vg)
+    end
+
+    -- 事件标题 (图标下方, 白色)
+    if state.titleT > 0.01 then
+        nvgSave(vg)
+        local titleOff = (1 - state.titleT) * 10
+        nvgGlobalAlpha(vg, state.popupAlpha * state.titleT)
+
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 16)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_TOP)
+        nvgFillColor(vg, nvgRGBA(tc.r, tc.g, tc.b, 230))
+        nvgText(vg, imgCX, imgCY + 14 + titleOff, state.title, nil)
+        nvgRestore(vg)
+    end
+
+    -- 描述 (照片区下部, 浅色小字)
+    if state.descT > 0.01 then
+        nvgSave(vg)
+        local descOff = (1 - state.descT) * 8
+        nvgGlobalAlpha(vg, state.popupAlpha * state.descT)
+
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+        nvgFillColor(vg, nvgRGBA(200, 200, 210, 180))
+
+        local textPad = 10
+        local descY = imgCY + 36 + descOff
+        nvgTextBox(vg, imgX + textPad, descY, imgW - textPad * 2, state.desc, nil)
+        nvgRestore(vg)
+    end
+
+    -- 照片区四角暗角 (模拟镜头暗角)
+    local vigPaint = nvgBoxGradient(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R, imgW * 0.35,
+        nvgRGBA(0, 0, 0, 0), nvgRGBA(0, 0, 0, 80))
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
+    nvgFillPaint(vg, vigPaint)
+    nvgFill(vg)
+
+    -- 胶片颗粒模拟 (随机小点)
+    nvgSave(vg)
+    nvgScissor(vg, imgX, imgY, imgW, imgH)
+    for i = 1, 12 do
+        local gx = imgX + math.sin(gameTime * 0.7 + i * 47.3) * imgW * 0.5 + imgW * 0.5
+        local gy = imgY + math.cos(gameTime * 0.5 + i * 31.7) * imgH * 0.5 + imgH * 0.5
+        local gr = 0.5 + math.sin(i * 17.1) * 0.3
+        nvgBeginPath(vg)
+        nvgCircle(vg, gx, gy, gr)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 15 + math.floor(math.sin(i * 7.3) * 10)))
+        nvgFill(vg)
+    end
+    nvgResetScissor(vg)
+    nvgRestore(vg)
+
+    -- 照片区内边框 (模拟冲印边缘)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
+    nvgStrokeColor(vg, nvgRGBA(0, 0, 0, 40))
+    nvgStrokeWidth(vg, 0.6)
+    nvgStroke(vg)
+
+    -- === 底部白边区域 (拍立得签名区) ===
+    local bottomY = imgY + imgH + 6
+
+    -- 📷 图标 + 地点名 (手写感)
+    if state.buttonT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT)
+
+        -- 地点图标和名称
+        local locInfo = state.photoLocation and Card.LOCATION_INFO[state.photoLocation]
+        local locLabel = locInfo and (locInfo.icon .. " " .. locInfo.label) or ""
+
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 12)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(80, 75, 65, 200))
+        nvgText(vg, -hw + PHOTO_BORDER + 2, bottomY + 10, locLabel, nil)
+
+        -- 右下角 "📷 侦察" 标记
+        nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(150, 140, 125, 160))
+        nvgText(vg, hw - PHOTO_BORDER - 2, bottomY + 10, "📷 侦察", nil)
+
+        nvgRestore(vg)
+    end
+
+    -- === 顶部小胶带装饰 (模拟贴在桌上的效果) ===
+    nvgSave(vg)
+    nvgGlobalAlpha(vg, state.popupAlpha * 0.6)
+    local tapeW = 36
+    local tapeH = 10
+    local tapeX = -tapeW / 2
+    local tapeY = -hh - tapeH / 2
+    nvgBeginPath(vg)
+    nvgRect(vg, tapeX, tapeY, tapeW, tapeH)
+    nvgFillColor(vg, nvgRGBA(220, 210, 180, 160))
+    nvgFill(vg)
+    -- 胶带纹理线
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, tapeX, tapeY + tapeH * 0.5)
+    nvgLineTo(vg, tapeX + tapeW, tapeY + tapeH * 0.5)
+    nvgStrokeColor(vg, nvgRGBA(200, 190, 165, 60))
+    nvgStrokeWidth(vg, 0.5)
+    nvgStroke(vg)
+    nvgRestore(vg)
+
+    -- === 点击关闭提示 (底部) ===
+    if state.buttonT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT * 0.5)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_TOP)
+        nvgFillColor(vg, nvgRGBA(180, 170, 155, 180))
+        nvgText(vg, 0, hh + 8, "点击任意处关闭", nil)
+        nvgRestore(vg)
+    end
+
+    nvgRestore(vg)  -- 相片整体 transform
 end
 
 return M

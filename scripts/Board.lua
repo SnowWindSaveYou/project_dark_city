@@ -127,7 +127,8 @@ end
 -- 生成卡牌 (地点 + 事件双层系统)
 -- ---------------------------------------------------------------------------
 
-function M.generateCards(board)
+--- @param requiredLocations string[]|nil 必须出现在棋盘上的地点列表 (由 CardManager.preSelectLocations 提供)
+function M.generateCards(board, requiredLocations)
     board.cards = {}
     local usedPositions = {}
 
@@ -150,14 +151,23 @@ function M.generateCards(board)
         usedPositions[#usedPositions + 1] = pos
     end
 
-    -- 4. 准备地点池 (洗牌后分配给普通格子)
+    -- 4. 准备地点池 (优先放入日程所需地点，再随机填充)
+    local normalSlots = M.ROWS * M.COLS - #usedPositions
     local locationPool = {}
-    for _, loc in ipairs(Card.REGULAR_LOCATIONS) do
-        locationPool[#locationPool + 1] = loc
-        locationPool[#locationPool + 1] = loc  -- 每种地点放两份以覆盖 25 格
+    local usedInPool = {}
+
+    -- 4a. 先放入必须出现的地点 (日程预选)
+    if requiredLocations then
+        for _, loc in ipairs(requiredLocations) do
+            if not usedInPool[loc] then
+                locationPool[#locationPool + 1] = loc
+                usedInPool[loc] = true
+            end
+        end
     end
-    -- 再补充一些确保足够
-    for i = 1, 10 do
+
+    -- 4b. 用随机地点填充到所需数量
+    while #locationPool < normalSlots do
         locationPool[#locationPool + 1] = Card.REGULAR_LOCATIONS[
             math.random(1, #Card.REGULAR_LOCATIONS)
         ]
@@ -202,8 +212,16 @@ function M.generateCards(board)
         specialMap[pos[1] .. "," .. pos[2]] = "shop"
     end
 
-    -- 地标使用的地点 (教堂/警察局等 — 按设计文档)
-    local landmarkLocations = { "church", "library" }
+    -- 地标使用的地点 (有祛邪力量的场所 — 教堂/警察局/神社)
+    local landmarkLocations = {}
+    for i, loc in ipairs(Card.LANDMARK_LOCATIONS) do
+        landmarkLocations[i] = loc
+    end
+    -- 洗牌，让地标地点随机化
+    for i = #landmarkLocations, 2, -1 do
+        local j = math.random(1, i)
+        landmarkLocations[i], landmarkLocations[j] = landmarkLocations[j], landmarkLocations[i]
+    end
     local lmLocIdx = 1
 
     for row = 1, M.ROWS do

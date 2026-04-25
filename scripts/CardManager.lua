@@ -12,16 +12,21 @@ local M = {}
 -- 日程卡模板 (根据地点生成描述)
 -- ---------------------------------------------------------------------------
 local SCHEDULE_TEMPLATES = {
-    company     = { verb = "去公司上班",     reward = { "money", 15 } },
-    school      = { verb = "去学校上课",     reward = { "money", 10 } },
+    -- 普通地点 (可作为日程目标)
+    company     = { verb = "去公司上班",     reward = { "money", 10 } },
+    school      = { verb = "去学校上课",     reward = { "money",  8 } },
+    park        = { verb = "去公园散步",     reward = { "san",    1 } },
+    alley       = { verb = "穿过小巷",       reward = { "money",  8 } },
+    station     = { verb = "去车站接人",     reward = { "money",  6 } },
+    hospital    = { verb = "去医院看病",     reward = { "san",    1 } },
+    library     = { verb = "去图书馆学习",   reward = { "order",  1 } },
+    bank        = { verb = "去银行办事",     reward = { "money", 12 } },
+    -- 商店地点
     convenience = { verb = "去便利店购物",   reward = { "money",  5 } },
-    park        = { verb = "去公园散步",     reward = { "san",    2 } },
-    church      = { verb = "去教堂祈祷",     reward = { "san",    3 } },
-    alley       = { verb = "穿过小巷",       reward = { "money", 12 } },
-    station     = { verb = "去车站接人",     reward = { "money", 10 } },
-    hospital    = { verb = "去医院看病",     reward = { "san",    2 } },
-    library     = { verb = "去图书馆学习",   reward = { "order",  2 } },
-    bank        = { verb = "去银行办事",     reward = { "money", 20 } },
+    -- 地标地点 (也可作为日程目标，且走到地标区域是安全的)
+    church      = { verb = "去教堂祈祷",     reward = { "san",    1 } },
+    police      = { verb = "去警察局报案",   reward = { "order",  1 } },
+    shrine      = { verb = "去神社参拜",     reward = { "san",    1 } },
 }
 
 -- ---------------------------------------------------------------------------
@@ -117,55 +122,91 @@ local function createRumor(location, isSafe)
     }
 end
 
+--- 预选今天日程所需的地点 (在 Board.generateCards 之前调用)
+--- 返回地点列表，Board 需保证这些地点出现在棋盘上
+---@return string[] requiredLocations
+function M.preSelectLocations()
+    -- 收集所有可用的日程地点
+    local allLocs = {}
+    for loc, _ in pairs(SCHEDULE_TEMPLATES) do
+        allLocs[#allLocs + 1] = loc
+    end
+    -- 洗牌
+    for i = #allLocs, 2, -1 do
+        local j = math.random(1, i)
+        allLocs[i], allLocs[j] = allLocs[j], allLocs[i]
+    end
+
+    local required = {}
+    local used = {}
+
+    -- 昨天推迟的日程地点 (不占新日程名额，额外追加)
+    if state.deferredFromYesterday then
+        required[#required + 1] = state.deferredFromYesterday.location
+        used[state.deferredFromYesterday.location] = true
+    end
+
+    -- 始终选 3 个新地点 (推迟的不算在内)
+    local needed = 3
+    for _, loc in ipairs(allLocs) do
+        if needed <= 0 then break end
+        if not used[loc] then
+            required[#required + 1] = loc
+            used[loc] = true
+            needed = needed - 1
+        end
+    end
+
+    -- 缓存预选结果，generateDaily 时使用
+    state.preSelected = required
+    print(string.format("[CardManager] Pre-selected locations: %s", table.concat(required, ", ")))
+    return required
+end
+
 --- 每天开始时生成日程卡和传闻卡
+--- 日程地点优先使用 preSelectLocations() 预选的结果，保证日程目标一定在棋盘上
 ---@param board BoardData
 function M.generateDaily(board)
     -- 清空当天数据
     state.schedules = {}
     state.rumors = {}
 
-    -- 收集棋盘上的可用地点
-    local boardLocs = collectBoardLocations(board)
-    shuffle(boardLocs)
+    -- 使用预选地点生成日程卡 (由 preSelectLocations 在 Board.generateCards 前调用)
+    local preSelected = state.preSelected or {}
 
-    -- 加入前一天推迟的日程 (最多1张)
+    -- 加入前一天推迟的日程 (最多1张, 其地点已在 preSelected 中)
+    local deferredCount = 0
     if state.deferredFromYesterday then
-        -- 检查推迟的地点是否在今天的棋盘上
-        local found = false
-        for _, loc in ipairs(boardLocs) do
-            if loc.location == state.deferredFromYesterday.location then
-                found = true
-                break
-            end
-        end
-        if found then
-            state.deferredFromYesterday.status = "pending"
-            state.schedules[1] = state.deferredFromYesterday
-        end
+        state.deferredFromYesterday.status = "pending"
+        state.schedules[1] = state.deferredFromYesterday
         state.deferredFromYesterday = nil
+        deferredCount = 1
     end
 
-    -- 抽取 3 张日程卡 (从棋盘地点中选，避免重复)
+    -- 从预选地点中生成剩余日程卡 (3 个新日程 + 推迟的)
+    local maxSchedules = 3 + deferredCount
     local usedLocations = {}
     for _, s in ipairs(state.schedules) do
         usedLocations[s.location] = true
     end
 
-    local needed = 3 - #state.schedules
-    for _, loc in ipairs(boardLocs) do
-        if needed <= 0 then break end
-        if not usedLocations[loc.location] and SCHEDULE_TEMPLATES[loc.location] then
-            local sched = createSchedule(loc.location)
+    for _, loc in ipairs(preSelected) do
+        if #state.schedules >= maxSchedules then break end
+        if not usedLocations[loc] and SCHEDULE_TEMPLATES[loc] then
+            local sched = createSchedule(loc)
             if sched then
                 state.schedules[#state.schedules + 1] = sched
                 usedLocations[sched.location] = true
-                needed = needed - 1
             end
         end
     end
 
+    -- 清空预选缓存
+    state.preSelected = nil
+
     -- 生成 1 张传闻卡 (从棋盘地点中随机选一个，告知安全/危险)
-    -- 传闻的真实性取决于该地点的实际事件类型
+    local boardLocs = collectBoardLocations(board)
+    shuffle(boardLocs)
     for _, loc in ipairs(boardLocs) do
         local card = board.cards[loc.row] and board.cards[loc.row][loc.col]
         if card and card.location ~= "home" then
@@ -228,6 +269,19 @@ function M.deferSchedule(index)
     return true
 end
 
+--- 取消推迟指定索引的日程卡 (恢复为 pending)
+---@param index number 日程卡索引 (1-based)
+---@return boolean success
+function M.undeferSchedule(index)
+    local sched = state.schedules[index]
+    if not sched then return false end
+    if sched.status ~= "deferred" then return false end
+
+    sched.status = "pending"
+    print("[CardManager] Schedule undeferred: " .. sched.label)
+    return true
+end
+
 -- ---------------------------------------------------------------------------
 -- 日结算: 一天结束时调用
 -- ---------------------------------------------------------------------------
@@ -254,8 +308,8 @@ function M.settleDay()
             print("[CardManager] Deferred to tomorrow: " .. sched.label)
         else
             -- 未完成且未推迟: 扣秩序值
-            effects[#effects + 1] = { "order", -3 }
-            print("[CardManager] Penalty: order -3 for " .. sched.label)
+            effects[#effects + 1] = { "order", -1 }
+            print("[CardManager] Penalty: order -1 for " .. sched.label)
         end
     end
 

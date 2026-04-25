@@ -29,9 +29,9 @@ local resources = {}
 
 function M.init()
     resources = {
-        { key = "san",   icon = "🧠", label = "理智", value = 100, displayValue = 100, maxValue = 100,
+        { key = "san",   icon = "🧠", label = "理智", value = 10, displayValue = 10, maxValue = 10,
           colorKey = "info",      flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },
-        { key = "order", icon = "⚖️",  label = "秩序", value = 80,  displayValue = 80,  maxValue = 100,
+        { key = "order", icon = "⚖️",  label = "秩序", value = 10,  displayValue = 10,  maxValue = 10,
           colorKey = "safe",      flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },
         { key = "money", icon = "💰", label = "钱币", value = 50,  displayValue = 50,  maxValue = 999,
           colorKey = "warning",   flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },

@@ -125,7 +125,8 @@ function Start()
 
     -- 棋盘
     board = Board.new()
-    Board.generateCards(board)
+    local reqLocs = CardManager.preSelectLocations()
+    Board.generateCards(board, reqLocs)
     recalcLayout()
 
     -- Token
@@ -134,6 +135,80 @@ function Start()
     -- 注入传闻查询到 Card (避免循环依赖)
     Card.setRumorQuery(function(location)
         return CardManager.getRumorFor(location)
+    end)
+
+    -- 注入"结束今天"回调到 HandPanel
+    HandPanel.setEndDayCallback(function()
+        advanceDay()
+    end)
+
+    -- 注入"地图碎片"回调到 ShopPopup (购买后随机揭示一张未翻开卡牌)
+    ShopPopup.setMapRevealCallback(function()
+        if not board or not board.cards then return end
+        -- 收集所有未翻开的卡牌
+        local hidden = {}
+        for r = 1, Board.ROWS do
+            for c = 1, Board.COLS do
+                local cd = board.cards[r] and board.cards[r][c]
+                if cd and not cd.faceUp and not cd.isFlipping and not cd.revealed then
+                    hidden[#hidden + 1] = cd
+                end
+            end
+        end
+        if #hidden == 0 then
+            VFX.spawnBanner("没有可揭示的卡牌", 180, 180, 180, 16, 0.6)
+            return
+        end
+        -- 随机选一张，标记为"已揭示类型"
+        local pick = hidden[math.random(1, #hidden)]
+        pick.revealed = true  -- Card.draw 可用此标记显示类型提示
+        local cx, cy = Board.cardPos(board, pick.row, pick.col)
+        local tc = Theme.cardTypeColor(pick.type)
+        VFX.spawnBurst(cx, cy, 8, tc.r, tc.g, tc.b)
+        VFX.spawnBanner("🗺️ 揭示了一张卡牌!", tc.r, tc.g, tc.b, 18, 0.8)
+        print(string.format("[Main] Map revealed card at (%d,%d) type=%s", pick.row, pick.col, pick.type))
+    end)
+
+    -- 注入"相机模式"进入/退出回调 (自动翻开/翻回已侦察卡牌)
+    CameraButton.setOnEnterCallback(function()
+        if not board or not board.cards then return end
+        for r = 1, Board.ROWS do
+            for c = 1, Board.COLS do
+                local cd = board.cards[r] and board.cards[r][c]
+                if cd and cd.scouted and not cd.faceUp and not cd.isFlipping then
+                    -- 快速翻开动画 (scaleX 0 → 1)
+                    cd.faceUp = true
+                    cd.scaleX = 0
+                    Tween.to(cd, { scaleX = 1.0 }, 0.2, {
+                        easing = Tween.Easing.easeOutBack,
+                        tag = "cameramode",
+                    })
+                end
+            end
+        end
+    end)
+
+    CameraButton.setOnExitCallback(function()
+        if not board or not board.cards then return end
+        for r = 1, Board.ROWS do
+            for c = 1, Board.COLS do
+                local cd = board.cards[r] and board.cards[r][c]
+                if cd and cd.scouted and cd.faceUp and not cd.isFlipping then
+                    -- 快速翻回动画 (scaleX → 0 → 1)
+                    Tween.to(cd, { scaleX = 0 }, 0.1, {
+                        easing = Tween.Easing.easeInQuad,
+                        tag = "cameramode",
+                        onComplete = function()
+                            cd.faceUp = false
+                            Tween.to(cd, { scaleX = 1.0 }, 0.15, {
+                                easing = Tween.Easing.easeOutBack,
+                                tag = "cameramode",
+                            })
+                        end
+                    })
+                end
+            end
+        end
     end)
 
     -- 事件
@@ -227,7 +302,8 @@ function startRedeal()
 
     Board.undealAll(board, function()
         -- 重新生成
-        Board.generateCards(board)
+        local locs = CardManager.preSelectLocations()
+        Board.generateCards(board, locs)
         recalcLayout()
         startDeal()
     end)
@@ -241,8 +317,24 @@ function advanceDay()
     if demoState ~= "ready" then return end
     if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
 
+    -- 收起笔记本
+    HandPanel.hide()
+
     -- 日程卡日结算 (奖励/惩罚)
     CardManager.settleDay()
+
+    -- 每日结算: 回家恢复理智 +1, 秩序 +1
+    ResourceBar.change("san", 1)
+    ResourceBar.change("order", 1)
+
+    -- 每日重置: 胶卷恢复为 3
+    local currentFilm = ResourceBar.get("film")
+    if currentFilm < 3 then
+        ResourceBar.change("film", 3 - currentFilm)
+    end
+
+    -- 每日基础收入
+    ResourceBar.change("money", 10)
 
     -- 日结过渡
     local t = Theme.current
@@ -270,7 +362,8 @@ function advanceDay()
                 -- 胜利检查
                 if checkVictory() then return end
 
-                Board.generateCards(board)
+                local locs = CardManager.preSelectLocations()
+                Board.generateCards(board, locs)
                 recalcLayout()
                 startDeal()
             end)
@@ -344,12 +437,14 @@ function onGameRestart()
     -- 重置资源
     ResourceBar.reset()
 
-    -- 重置日程/传闻/手牌面板
+    -- 重置日程/传闻/手牌面板/道具库存
     CardManager.reset()
     HandPanel.reset()
+    ShopPopup.resetInventory()
 
     -- 重置棋盘
-    Board.generateCards(board)
+    local locs = CardManager.preSelectLocations()
+    Board.generateCards(board, locs)
     recalcLayout()
 
     -- 重置 token
@@ -364,6 +459,18 @@ end
 -- ============================================================================
 
 local function onPopupDismissed(cardType, effects)
+    -- === 护身符检查：monster/trap 伤害可被抵消 ===
+    if effects and #effects > 0 and (cardType == "monster" or cardType == "trap") then
+        if ShopPopup.useItem("shield") then
+            -- 抵消全部伤害
+            local tc = Theme.current
+            VFX.spawnBanner("🧿 护身符抵消了伤害!", tc.safe.r, tc.safe.g, tc.safe.b, 18, 1.0)
+            VFX.flashScreen(100, 180, 255, 0.3, 120)
+            effects = {}  -- 清空伤害效果
+            print("[Main] Shield absorbed damage from " .. cardType)
+        end
+    end
+
     -- 资源结算
     if effects then
         for _, eff in ipairs(effects) do
@@ -410,7 +517,21 @@ local function onCardFlipped(card, targetX, targetY)
 
     -- 粒子
     VFX.spawnBurst(targetX, targetY, 10, tc.r, tc.g, tc.b)
-    -- 屏幕震动
+
+    -- === 安全区 (home/landmark): 不弹事件弹窗，直接安全通过 ===
+    if card.type == "home" or card.type == "landmark" then
+        local locInfo = Card.LOCATION_INFO[card.location]
+        local safeName = locInfo and locInfo.label or "安全区"
+        local sc = Theme.current.safe
+        VFX.spawnBanner(safeName .. " · 安全", sc.r, sc.g, sc.b, 18, 0.8)
+        gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+        demoState = "ready"
+        CameraButton.show()
+        print("[Main] Safe zone: " .. card.type .. " at (" .. card.row .. "," .. card.col .. ")")
+        return
+    end
+
+    -- 屏幕震动 (仅非安全区)
     VFX.triggerShake(3, 0.15)
 
     -- 延迟后弹出事件弹窗
@@ -432,13 +553,13 @@ local function onCardFlipped(card, targetX, targetY)
                     checkDefeat()
                 end)
             else
-                EventPopup.show(card.type, popCX, popCY, onPopupDismissed)
+                EventPopup.show(card.type, popCX, popCY, onPopupDismissed, card.location)
             end
         end
     })
 end
 
---- 拍摄翻牌回调 (仅预览，不结算资源)
+--- 拍摄翻牌回调 (仅预览，不结算资源; 关闭弹窗后翻回并标记侦察)
 local function onPhotographFlipped(card, targetX, targetY)
     local tc = Theme.cardTypeColor(card.type)
 
@@ -455,13 +576,28 @@ local function onPhotographFlipped(card, targetX, targetY)
         onComplete = function()
             local popCX = logicalW / 2
             local popCY = logicalH * 0.42
-            -- 预览弹窗：回调不传 effects，不结算
-            EventPopup.show(card.type, popCX, popCY, function(_cardType, _effects)
+            -- 相片风格预览弹窗：不结算资源
+            EventPopup.showPhoto(card.type, popCX, popCY, function(_cardType, _effects)
                 gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+
+                -- 侦察完成：翻回卡牌 (scaleX 动画模拟翻回)
+                card.scouted = true
+                Tween.to(card, { scaleX = 0 }, 0.12, {
+                    easing = Tween.Easing.easeInQuad,
+                    tag = "cardflip",
+                    onComplete = function()
+                        card.faceUp = false  -- 翻回地点面
+                        Tween.to(card, { scaleX = 1.0 }, 0.2, {
+                            easing = Tween.Easing.easeOutBack,
+                            tag = "cardflip",
+                        })
+                    end
+                })
+
                 demoState = "ready"
                 CameraButton.show()
-                print("[Main] Photograph preview dismissed: " .. tostring(_cardType))
-            end)
+                print("[Main] Photograph scouted: " .. tostring(_cardType) .. " at (" .. card.row .. "," .. card.col .. ")")
+            end, card.location)
         end
     })
 end
@@ -518,7 +654,13 @@ end
 local function doExorcise(card, row, col)
     local targetX, targetY = Board.cardPos(board, row, col)
 
-    ResourceBar.change("film", -1)
+    -- === 驱魔香检查：有驱魔香则免费，否则消耗胶卷 ===
+    if ShopPopup.useItem("exorcism") then
+        VFX.spawnBanner("🪔 驱魔香免费驱除!", Theme.current.safe.r, Theme.current.safe.g, Theme.current.safe.b, 16, 0.8)
+        print("[Main] Exorcise with incense (free)")
+    else
+        ResourceBar.change("film", -1)
+    end
     gameStats.photosUsed    = gameStats.photosUsed + 1
     gameStats.monstersSlain = gameStats.monstersSlain + 1
 
@@ -563,7 +705,14 @@ end
 -- 交互处理
 -- ============================================================================
 
---- 普通模式点击处理 (直接移动)
+--- 检查两个格子是否相邻 (上下左右)
+local function isAdjacent(r1, c1, r2, c2)
+    local dr = math.abs(r1 - r2)
+    local dc = math.abs(c1 - c2)
+    return (dr + dc) == 1  -- 曼哈顿距离为1 = 相邻
+end
+
+--- 普通模式点击处理 (只能移动到相邻格子)
 local function handleNormalModeClick(lx, ly)
     local card, row, col = Board.hitTest(board, lx, ly)
     if not card then return end
@@ -586,7 +735,14 @@ local function handleNormalModeClick(lx, ly)
         return
     end
 
-    -- === 非当前位置：直接移动 ===
+    -- === 相邻检查：只能移动到上下左右相邻的格子 ===
+    if not isAdjacent(token.targetRow, token.targetCol, row, col) then
+        Card.shake(card)
+        VFX.spawnBanner("只能移动到相邻格子", 180, 180, 180, 16, 0.6)
+        return
+    end
+
+    -- === 相邻格子：移动 ===
     demoState = "moving"
     CameraButton.hide()
     token.targetRow = row
@@ -620,6 +776,19 @@ local function handleCameraModeClick(lx, ly)
 
     local card, row, col = Board.hitTest(board, lx, ly)
     if not card then return end
+
+    -- 已侦察过的卡牌 → 重新查看相片 (不消耗胶卷，优先于胶卷检查)
+    -- 注意：相机模式进入时 scouted 卡牌已自动翻为 faceUp=true，所以不检查 faceUp
+    if card.scouted and not card.isFlipping then
+        demoState = "popup"
+        hoveredCard = nil
+        local popCX = logicalW / 2
+        local popCY = logicalH * 0.42
+        EventPopup.showPhoto(card.type, popCX, popCY, function()
+            demoState = "ready"
+        end, card.location)
+        return
+    end
 
     -- 检查胶卷
     local film = ResourceBar.get("film")

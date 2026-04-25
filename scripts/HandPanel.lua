@@ -18,8 +18,7 @@ local TAG = "handpanel"
 -- 笔记本尺寸
 local SPINE_W       = 10        -- 书脊宽度
 local TAB_H         = 28        -- 标签栏高度
-local BODY_H        = 140       -- 内容区高度
-local FULL_H        = TAB_H + BODY_H   -- 笔记本总高 (168)
+local BASE_BODY_H   = 140       -- 基础内容区高度 (3条日程)
 local LINE_SPACING  = 18        -- 横线间距
 local MARGIN_BOTTOM = 8         -- 距屏幕底部
 local MARGIN_X      = 20        -- 左右边距
@@ -35,6 +34,26 @@ local CHECK_SIZE    = 12        -- 勾选框尺寸
 local NOTE_W        = 78
 local NOTE_H        = 44
 
+-- 结束今天按钮
+local BTN_H         = 26
+local BTN_MARGIN    = 6
+
+-- ---------------------------------------------------------------------------
+-- 动态高度 (根据日程数量调整)
+-- ---------------------------------------------------------------------------
+
+--- 内容区高度：超过3条日程时按条目数扩展
+local function getBodyH()
+    local count = #CardManager.getSchedules()
+    if count <= 3 then return BASE_BODY_H end
+    return BASE_BODY_H + (count - 3) * ITEM_H
+end
+
+--- 笔记本总高
+local function getFullH()
+    return TAB_H + getBodyH()
+end
+
 -- ---------------------------------------------------------------------------
 -- 状态
 -- ---------------------------------------------------------------------------
@@ -44,20 +63,24 @@ local state = {
     panelY   = 0,       -- 面板顶部 Y (动画驱动)
     alpha    = 0,
     hoverIndex = 0,
+    hoverEndDay = false,  -- 结束今天按钮 hover
 }
+
+-- 外部注入的回调
+local onEndDayCallback = nil
 
 -- ---------------------------------------------------------------------------
 -- 布局
 -- ---------------------------------------------------------------------------
 
---- 笔记本总是 FULL_H 高度；折叠时大部分滑到屏幕下方
+--- 笔记本总是 getFullH() 高度；折叠时大部分滑到屏幕下方
 --- 展开时底部溢出屏幕，营造笔记本延伸到屏幕外的效果
 local OVERFLOW = 24  -- 底部溢出屏幕的量
 
 local function getTargetY(logicalH)
     if state.expanded then
         -- 底部有一部分在屏幕外，像真实笔记本没完全拉出来
-        return logicalH - FULL_H + OVERFLOW
+        return logicalH - getFullH() + OVERFLOW
     else
         -- 仅标签栏露出
         return logicalH - TAB_H - MARGIN_BOTTOM
@@ -67,7 +90,7 @@ end
 local function getPanelRect(logicalW)
     local panelW = math.min(logicalW - MARGIN_X * 2, MAX_W)
     local panelX = (logicalW - panelW) / 2
-    return panelX, state.panelY, panelW, FULL_H
+    return panelX, state.panelY, panelW, getFullH()
 end
 
 -- ---------------------------------------------------------------------------
@@ -92,7 +115,7 @@ function M.hide()
     if not state.visible then return end
     Tween.cancelTag(TAG)
     -- 整本滑出屏幕
-    Tween.to(state, { panelY = state.panelY + FULL_H + 30, alpha = 0 }, 0.3, {
+    Tween.to(state, { panelY = state.panelY + getFullH() + 30, alpha = 0 }, 0.3, {
         easing = Tween.Easing.easeInQuad,
         tag = TAG,
         onComplete = function()
@@ -119,6 +142,19 @@ function M.isExpanded()
     return state.visible and state.expanded
 end
 
+--- 注入"结束今天"回调 (由 main.lua 调用)
+function M.setEndDayCallback(fn)
+    onEndDayCallback = fn
+end
+
+--- 获取"结束今天"按钮的矩形区域 (在溢出区域上方，保证可见)
+local function getEndDayBtnRect(px, py, pw)
+    local btnW = pw - SPINE_W - PAGE_PAD * 2
+    local btnX = px + SPINE_W + PAGE_PAD
+    local btnY = py + TAB_H + getBodyH() - OVERFLOW - BTN_H - BTN_MARGIN
+    return btnX, btnY, btnW, BTN_H
+end
+
 -- ---------------------------------------------------------------------------
 -- 交互
 -- ---------------------------------------------------------------------------
@@ -130,7 +166,7 @@ function M.handleClick(lx, ly, logicalW, logicalH)
 
     -- 点击不在面板范围内 → 不消费，让事件穿透到棋盘
     -- (玩家可以一边看任务一边点棋盘移动)
-    if lx < px or lx > px + pw or ly < py or ly > py + FULL_H then
+    if lx < px or lx > px + pw or ly < py or ly > py + getFullH() then
         return false
     end
 
@@ -143,6 +179,15 @@ function M.handleClick(lx, ly, logicalW, logicalH)
     -- 折叠状态下标签栏以下不可能被点到（在屏幕外），直接返回
     if not state.expanded then
         return false
+    end
+
+    -- 展开状态下点击"结束今天"按钮
+    if onEndDayCallback then
+        local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
+        if lx >= bx and lx <= bx + bw and ly >= by and ly <= by + bh then
+            onEndDayCallback()
+            return true
+        end
     end
 
     -- 展开状态下点击日程条目
@@ -158,6 +203,8 @@ function M.handleClick(lx, ly, logicalW, logicalH)
                 if not ok then
                     print("[HandPanel] Cannot defer: " .. tostring(reason))
                 end
+            elseif sched.status == "deferred" then
+                CardManager.undeferSchedule(i)
             end
             return true
         end
@@ -169,10 +216,22 @@ end
 function M.updateHover(lx, ly, dt, logicalW, logicalH)
     if not state.visible or state.alpha < 0.1 or not state.expanded then
         state.hoverIndex = 0
+        state.hoverEndDay = false
         return
     end
 
     local px, py, pw, _ = getPanelRect(logicalW)
+
+    -- "结束今天"按钮 hover
+    state.hoverEndDay = false
+    if onEndDayCallback then
+        local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
+        if lx >= bx and lx <= bx + bw and ly >= by and ly <= by + bh then
+            state.hoverEndDay = true
+        end
+    end
+
+    -- 日程条目 hover
     local schedules = CardManager.getSchedules()
     local contentX = px + SPINE_W + PAGE_PAD
     local contentY = py + TAB_H + 4
@@ -254,11 +313,12 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     -- === 内容区 (横线 + 日程 + 传闻) ===
     -- 使用 scissor 防止内容溢出到标签栏
     nvgSave(vg)
-    nvgIntersectScissor(vg, px + SPINE_W, py + TAB_H, pw - SPINE_W, BODY_H)
+    nvgIntersectScissor(vg, px + SPINE_W, py + TAB_H, pw - SPINE_W, getBodyH())
 
     M.drawLines(vg, px, py, pw, ph, t)
     M.drawScheduleItems(vg, px, py, pw, t, gameTime)
     M.drawRumorNote(vg, px, py, pw, t, gameTime)
+    M.drawEndDayBtn(vg, px, py, pw, t)
 
     nvgRestore(vg)
 
@@ -365,7 +425,7 @@ function M.drawScheduleItems(vg, px, py, pw, t, gameTime)
     for i, sched in ipairs(schedules) do
         local itemY = contentY + (i - 1) * ITEM_H
         local centerY = itemY + ITEM_H / 2
-        local isHovered = (state.hoverIndex == i and sched.status == "pending")
+        local isHovered = (state.hoverIndex == i and (sched.status == "pending" or sched.status == "deferred"))
 
         -- hover 高亮
         if isHovered then
@@ -452,8 +512,13 @@ function M.drawScheduleItems(vg, px, py, pw, t, gameTime)
         if isHovered then
             nvgFontSize(vg, 9)
             nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-            nvgFillColor(vg, Theme.rgbaA(t.schedule, 160))
-            nvgText(vg, rewardRightX - 40, centerY, "点击推迟", nil)
+            if sched.status == "deferred" then
+                nvgFillColor(vg, Theme.rgbaA(t.deferred, 160))
+                nvgText(vg, rewardRightX - 40, centerY, "点击取消", nil)
+            else
+                nvgFillColor(vg, Theme.rgbaA(t.schedule, 160))
+                nvgText(vg, rewardRightX - 40, centerY, "点击推迟", nil)
+            end
         end
     end
 end
@@ -470,7 +535,7 @@ function M.drawRumorNote(vg, px, py, pw, t, gameTime)
 
     -- 便签位置：右侧，垂直居中于内容区
     local noteX = px + pw - NOTE_W - PAGE_PAD + 2
-    local noteY = py + TAB_H + (BODY_H - NOTE_H) / 2
+    local noteY = py + TAB_H + (getBodyH() - NOTE_H) / 2
 
     nvgSave(vg)
     nvgTranslate(vg, noteX + NOTE_W / 2, noteY + NOTE_H / 2)
@@ -526,6 +591,49 @@ function M.drawRumorNote(vg, px, py, pw, t, gameTime)
     nvgRestore(vg)
 end
 
+-- ---------------------------------------------------------------------------
+-- "结束今天"按钮 (笔记本底部，像手写的一行字)
+-- ---------------------------------------------------------------------------
+
+function M.drawEndDayBtn(vg, px, py, pw, t)
+    if not onEndDayCallback then return end
+
+    local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
+    local centerY = by + bh / 2
+
+    -- hover 底色
+    if state.hoverEndDay then
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, bx, by, bw, bh, 3)
+        nvgFillColor(vg, nvgRGBA(180, 120, 80, 25))
+        nvgFill(vg)
+    end
+
+    -- 虚线分隔
+    local dashX = bx + 4
+    local dashEndX = bx + bw - 4
+    local dashY = by - 1
+    nvgBeginPath(vg)
+    local dx = dashX
+    while dx < dashEndX do
+        nvgMoveTo(vg, dx, dashY)
+        nvgLineTo(vg, math.min(dx + 4, dashEndX), dashY)
+        dx = dx + 8
+    end
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 80))
+    nvgStrokeWidth(vg, 0.6)
+    nvgStroke(vg)
+
+    -- 文字：像手写的笔记
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 12)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+
+    local alpha = state.hoverEndDay and 240 or 160
+    nvgFillColor(vg, nvgRGBA(140, 90, 50, alpha))
+    nvgText(vg, bx + bw / 2, centerY, "☾ 结束今天，回家休息", nil)
+end
+
 --- 重置
 function M.reset()
     Tween.cancelTag(TAG)
@@ -533,6 +641,7 @@ function M.reset()
     state.expanded = false
     state.alpha    = 0
     state.hoverIndex = 0
+    state.hoverEndDay = false
 end
 
 return M
