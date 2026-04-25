@@ -35,6 +35,13 @@ local logicalW, logicalH = 0, 0
 
 -- 游戏时间
 local gameTime = 0
+local frameDt  = 0  -- 当前帧 dt (供渲染函数使用)
+
+-- 背景图片 (明暗过渡)
+local bgBright = -1   -- 明亮版背景图句柄
+local bgDark   = -1   -- 暗色版背景图句柄
+local bgTransition = 0      -- 当前过渡进度 0=全亮 1=全暗
+local bgTransitionTarget = 0 -- 目标过渡值 (平滑过渡用)
 
 -- F4: 前置声明 (回调注入需要引用)
 local handleInventoryExorcism
@@ -118,6 +125,11 @@ function Start()
     else
         print("[Main] Font loaded: sans = " .. fontSans)
     end
+
+    -- 背景图片 (明暗过渡)
+    bgBright = nvgCreateImage(vg, "image/edited_上海高空俯瞰背景明亮版_20260425174843.png", 0)
+    bgDark   = nvgCreateImage(vg, "image/上海高空俯瞰背景_20260425174530.png", 0)
+    print("[Main] Background images loaded: bright=" .. bgBright .. " dark=" .. bgDark)
 
     -- 分辨率
     recalcResolution()
@@ -238,11 +250,9 @@ function Start()
     gamePhase = "title"
     demoState = "idle"
     TitleScreen.show(function()
-        -- 标题画面关闭后: 播放第一天日期转场，然后开始游戏
+        -- 标题画面关闭后: 第一天直接开始，不需要日期转场
         gamePhase = "playing"
-        DateTransition.play(dayCount, function()
-            startDeal()
-        end)
+        startDeal()
     end)
 
     print("[Main] Initialization complete")
@@ -284,8 +294,8 @@ function startDeal()
         -- 生成日程卡和传闻卡
         CardManager.generateDaily(board)
 
-        -- 显示手牌面板和相机按钮
-        HandPanel.show(logicalH)
+        -- 显示手牌面板和相机按钮 (showcase: 先展开展示日程，再自动折叠)
+        HandPanel.show(logicalH, { showcase = true })
         CameraButton.show()
     end)
 end
@@ -448,6 +458,10 @@ function onGameRestart()
     gameStats.cardsRevealed = 0
     gameStats.monstersSlain = 0
     gameStats.photosUsed    = 0
+
+    -- 重置背景过渡
+    bgTransition = 0
+    bgTransitionTarget = 0
 
     -- 重置资源
     ResourceBar.reset()
@@ -1100,6 +1114,7 @@ end
 function HandleUpdate(eventType, eventData)
     local dt = eventData:GetFloat("TimeStep")
     gameTime = gameTime + dt
+    frameDt = dt
 
     Tween.update(dt)
     VFX.updateAll(dt)
@@ -1182,36 +1197,63 @@ end
 -- ============================================================================
 
 function drawBackground()
-    local t = Theme.current
+    -- 计算 cover 模式的绘制区域 (保持图片比例，裁剪溢出)
+    local function coverRect(imgW, imgH, screenW, screenH)
+        local scaleX = screenW / imgW
+        local scaleY = screenH / imgH
+        local scale = math.max(scaleX, scaleY)
+        local drawW = imgW * scale
+        local drawH = imgH * scale
+        local drawX = (screenW - drawW) * 0.5
+        local drawY = (screenH - drawH) * 0.5
+        return drawX, drawY, drawW, drawH
+    end
 
-    -- 天空渐变
-    nvgBeginPath(vg)
-    nvgRect(vg, -20, -20, logicalW + 40, logicalH + 40)
-    local bgPaint = nvgLinearGradient(vg, 0, 0, 0, logicalH,
-        Theme.rgba(t.bgTop), Theme.rgba(t.bgBottom))
-    nvgFillPaint(vg, bgPaint)
-    nvgFill(vg)
+    -- 背景过渡: 根据翻牌进度平滑过渡
+    -- 翻开 8 张牌时完全变暗
+    local totalForFull = 8
+    bgTransitionTarget = math.min(gameStats.cardsRevealed / totalForFull, 1.0)
+    -- 平滑插值 (每帧缓动)
+    local speed = 2.0
+    local dt = frameDt
+    if bgTransition < bgTransitionTarget then
+        bgTransition = math.min(bgTransition + speed * dt, bgTransitionTarget)
+    elseif bgTransition > bgTransitionTarget then
+        bgTransition = math.max(bgTransition - speed * dt, bgTransitionTarget)
+    end
 
-    -- 装饰云朵
-    local cloudAlpha = 50
-    for i = 1, 4 do
-        local cx = (logicalW * 0.15 * i + gameTime * (5 + i * 2)) % (logicalW + 100) - 50
-        local cy = logicalH * (0.08 + i * 0.05)
-        local cw = 60 + i * 15
-        local ch = 18 + i * 4
+    -- 获取图片尺寸
+    local brightOk, brightW, brightH = pcall(nvgImageSize, vg, bgBright)
+    local darkOk, darkW, darkH = pcall(nvgImageSize, vg, bgDark)
 
+    if brightOk and brightW > 0 and darkOk and darkW > 0 then
+        local dx, dy, dw, dh = coverRect(darkW, darkH, logicalW, logicalH)
+        local bx, by, bw, bh = coverRect(brightW, brightH, logicalW, logicalH)
+
+        -- 1) 先绘制暗色背景 (始终完全不透明)
         nvgBeginPath(vg)
-        nvgEllipse(vg, cx, cy, cw, ch)
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, cloudAlpha))
+        nvgRect(vg, dx, dy, dw, dh)
+        local darkPaint = nvgImagePattern(vg, dx, dy, dw, dh, 0, bgDark, 1.0)
+        nvgFillPaint(vg, darkPaint)
         nvgFill(vg)
 
+        -- 2) 在上面叠加明亮背景，透明度 = 1 - 过渡进度
+        local brightAlpha = 1.0 - bgTransition
+        if brightAlpha > 0.001 then
+            nvgBeginPath(vg)
+            nvgRect(vg, bx, by, bw, bh)
+            local brightPaint = nvgImagePattern(vg, bx, by, bw, bh, 0, bgBright, brightAlpha)
+            nvgFillPaint(vg, brightPaint)
+            nvgFill(vg)
+        end
+    else
+        -- 图片加载失败，fallback 到纯色
+        local t = Theme.current
         nvgBeginPath(vg)
-        nvgEllipse(vg, cx - cw * 0.3, cy - ch * 0.5, cw * 0.4, ch * 0.7)
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, cloudAlpha - 10))
-        nvgFill(vg)
-        nvgBeginPath(vg)
-        nvgEllipse(vg, cx + cw * 0.25, cy - ch * 0.35, cw * 0.35, ch * 0.6)
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, cloudAlpha - 15))
+        nvgRect(vg, -20, -20, logicalW + 40, logicalH + 40)
+        local bgPaint = nvgLinearGradient(vg, 0, 0, 0, logicalH,
+            Theme.rgba(t.bgTop), Theme.rgba(t.bgBottom))
+        nvgFillPaint(vg, bgPaint)
         nvgFill(vg)
     end
 end

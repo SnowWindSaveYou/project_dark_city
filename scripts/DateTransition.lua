@@ -1,52 +1,65 @@
 -- ============================================================================
 -- DateTransition.lua - P4 风格日期转场 (多阶段动画序列)
--- Phase 1: 蓝色遮罩从左下向右上擦过遮住屏幕
+--
+-- 关键设计: 光带和日期线构成 X 形交叉!
+--   - 蓝色光带: +22° (左上→右下), 作为宽幅背景条纹
+--   - 日期排列线: -42° (左下→右上), 日期沿此线排列, 与光带交叉
+--
+-- Phase 1: 蓝色遮罩擦入
 -- Phase 2: 遮罩缩窄为对角光带 + 背景图淡入
--- Phase 3: 日期 UI 沿对角线从左下到右上逐个弹跳出现 + 白线延伸
--- Phase 4: 所有数字沿对角线弹性滚动一格 + 波纹特效
--- Phase 5: 光带右上滑出, UI 左下滑出(反向分离), 背景淡出
+-- Phase 3: 日期沿陡线逐个弹跳出现 + 白线延伸
+-- Phase 4: 弹性滚动 (前一天→当天) + 波纹
+-- Phase 5: 光带右上滑出, UI 左下滑出, 背景淡出
 -- ============================================================================
+
+local Weather = require "Weather"
 
 local M = {}
 
 -- ---------------------------------------------------------------------------
--- 角度 & 布局常量
+-- 双角度系统
 -- ---------------------------------------------------------------------------
 
-local BAND_ANGLE_DEG = -30
-local BAND_ANGLE_RAD = math.rad(BAND_ANGLE_DEG)
-local COS_A          = math.cos(BAND_ANGLE_RAD)
-local SIN_A          = math.sin(BAND_ANGLE_RAD)
--- 垂直于光带方向 (用于擦入运动): 旋转+90°
-local PERP_ANGLE_RAD = BAND_ANGLE_RAD + math.pi * 0.5
-local COS_P          = math.cos(PERP_ANGLE_RAD)
-local SIN_P          = math.sin(PERP_ANGLE_RAD)
+-- 光带角度 (左上→右下, 较平缓)
+local BAND_ANGLE_DEG  = 22
+local BAND_ANGLE_RAD  = math.rad(BAND_ANGLE_DEG)
+local BAND_COS        = math.cos(BAND_ANGLE_RAD)
+local BAND_SIN        = math.sin(BAND_ANGLE_RAD)
 
-local BAND_WIDTH_RATIO = 0.40            -- 最终光带宽度占屏高比
+-- 光带垂直方向 (用于擦入)
+local BAND_PERP_RAD   = BAND_ANGLE_RAD + math.pi * 0.5
+local BAND_PERP_COS   = math.cos(BAND_PERP_RAD)
+local BAND_PERP_SIN   = math.sin(BAND_PERP_RAD)
+
+-- 日期线角度 (左下→右上, 与光带交叉成 X 形!)
+local DATE_ANGLE_DEG  = -42
+local DATE_ANGLE_RAD  = math.rad(DATE_ANGLE_DEG)
+local DATE_COS        = math.cos(DATE_ANGLE_RAD)
+local DATE_SIN        = math.sin(DATE_ANGLE_RAD)
+
+local BAND_WIDTH_RATIO = 0.22            -- 光带宽度占屏高比
 local DATE_COUNT       = 8               -- 显示日期数
-local CURRENT_INDEX    = 4               -- 当前日在序列中的索引 (初始位置)
+local CURRENT_INDEX    = 4               -- 当前日在序列中的索引
 
 -- ---------------------------------------------------------------------------
 -- 动画时间轴
 -- ---------------------------------------------------------------------------
 
-local T_WIPE_START     = 0.0      -- Phase 1 开始: 蓝色遮罩擦入
-local T_WIPE_END       = 0.45     -- Phase 1 结束: 遮罩完全覆盖屏幕
-local T_SHRINK_END     = 0.90     -- Phase 2 结束: 遮罩缩为光带
-local T_POPUP_START    = 0.75     -- Phase 3 开始: 日期开始弹出 (与 Phase 2 重叠)
-local T_POPUP_STAGGER  = 0.07    -- 每个日期弹出间隔
-local T_POPUP_DUR      = 0.35    -- 单个日期弹出动画时长
+local T_WIPE_START     = 0.0
+local T_WIPE_END       = 0.45
+local T_SHRINK_END     = 0.90
+local T_POPUP_START    = 0.75
+local T_POPUP_STAGGER  = 0.07
+local T_POPUP_DUR      = 0.35
 
--- Phase 4: 滚动 + 波纹
-local T_SCROLL_START   = 1.60    -- 所有日期弹出完毕后，开始滚动
-local T_SCROLL_DUR     = 0.50    -- 弹性滚动时长
-local T_RIPPLE_START   = 2.10    -- 滚动结束后波纹开始
-local T_RIPPLE_DUR     = 0.65    -- 波纹扩散时长
+local T_SCROLL_START   = 1.60
+local T_SCROLL_DUR     = 0.50
+local T_RIPPLE_START   = 2.10
+local T_RIPPLE_DUR     = 0.65
 
--- Phase 5: 分离退出
-local T_EXIT_START     = 2.80    -- 退出开始
-local T_EXIT_DUR       = 0.50    -- 退出时长
-local T_BG_FADE_DUR    = 0.40    -- 背景淡出时长（从 T_EXIT_START 开始）
+local T_EXIT_START     = 2.80
+local T_EXIT_DUR       = 0.50
+local T_BG_FADE_DUR    = 0.40
 local TOTAL_DUR        = T_EXIT_START + T_EXIT_DUR
 
 -- ---------------------------------------------------------------------------
@@ -56,7 +69,6 @@ local TOTAL_DUR        = T_EXIT_START + T_EXIT_DUR
 local BASE_YEAR  = 2026
 local BASE_MONTH = 4
 local BASE_DAY   = 24
-local BASE_MOON_PHASE = 2
 
 local WEEKDAY_NAMES = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" }
 local MONTH_NAMES   = {
@@ -75,6 +87,7 @@ local state = {
     dayCount   = 1,
     bgImage    = -1,
     bgLoaded   = false,
+    bgAspect   = 16 / 9,
     onComplete = nil,
 }
 
@@ -82,10 +95,24 @@ local state = {
 -- 日期计算
 -- ---------------------------------------------------------------------------
 
+local function isLeapYear(y)
+    return (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0)
+end
+
+local function daysInMonth(y, m)
+    if m == 2 and isLeapYear(y) then return 29 end
+    return DAYS_IN_MONTH[m]
+end
+
 local function calcDate(dayCount)
     local y, m, d = BASE_YEAR, BASE_MONTH, BASE_DAY + (dayCount - 1)
-    while d > DAYS_IN_MONTH[m] do
-        d = d - DAYS_IN_MONTH[m]
+    while d < 1 do
+        m = m - 1
+        if m < 1 then m = 12; y = y - 1 end
+        d = d + daysInMonth(y, m)
+    end
+    while d > daysInMonth(y, m) do
+        d = d - daysInMonth(y, m)
         m = m + 1
         if m > 12 then m = 1; y = y + 1 end
     end
@@ -93,36 +120,22 @@ local function calcDate(dayCount)
 end
 
 local function calcWeekday(y, m, d)
-    local dayOfYear = d
-    for i = 1, m - 1 do dayOfYear = dayOfYear + DAYS_IN_MONTH[i] end
-    dayOfYear = dayOfYear - 1
-    return (4 + dayOfYear) % 7 + 1  -- 1=SUN..7=SAT
-end
-
-local function calcMoonPhase(dayCount)
-    local offset = (dayCount - 1) + BASE_MOON_PHASE * 3.7
-    return math.floor((offset % 29.5) / 3.7) % 8
+    local t = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4}
+    if m < 3 then y = y - 1 end
+    return (y + math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400) + t[m] + d) % 7 + 1
 end
 
 -- ---------------------------------------------------------------------------
 -- Easing
 -- ---------------------------------------------------------------------------
 
-local function easeOutCubic(t)
-    t = t - 1; return t * t * t + 1
-end
-
-local function easeInCubic(t)
-    return t * t * t
-end
+local function easeOutCubic(t) t = t - 1; return t * t * t + 1 end
+local function easeInCubic(t)  return t * t * t end
+local function easeInQuad(t)   return t * t end
 
 local function easeOutBack(t)
     local c = 1.70158; t = t - 1
     return t * t * ((c + 1) * t + c) + 1
-end
-
-local function easeInQuad(t)
-    return t * t
 end
 
 local function easeOutElastic(t)
@@ -139,80 +152,20 @@ local function clamp01(t)
 end
 
 -- ---------------------------------------------------------------------------
--- 月相绘制
--- ---------------------------------------------------------------------------
-
-local function drawMoon(vg, cx, cy, r, phase, alpha, isHighlight)
-    local darkR, darkG, darkB = 100, 100, 110
-    if isHighlight then darkR, darkG, darkB = 40, 40, 50 end
-
-    local lightR, lightG, lightB = 220, 220, 230
-    if isHighlight then lightR, lightG, lightB = 255, 210, 60 end
-
-    if isHighlight then
-        nvgBeginPath(vg)
-        nvgCircle(vg, cx, cy, r + 2)
-        nvgStrokeColor(vg, nvgRGBA(255, 255, 255, alpha))
-        nvgStrokeWidth(vg, 2)
-        nvgStroke(vg)
-    end
-
-    -- 暗面底色
-    nvgBeginPath(vg)
-    nvgCircle(vg, cx, cy, r)
-    nvgFillColor(vg, nvgRGBA(darkR, darkG, darkB, alpha))
-    nvgFill(vg)
-
-    -- 亮面
-    if phase == 0 then
-        -- 新月
-    elseif phase == 4 then
-        nvgBeginPath(vg); nvgCircle(vg, cx, cy, r - 0.5)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-    elseif phase == 2 then
-        nvgBeginPath(vg)
-        nvgArc(vg, cx, cy, r - 0.5, -math.pi * 0.5, math.pi * 0.5, NVG_CW)
-        nvgClosePath(vg)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-    elseif phase == 6 then
-        nvgBeginPath(vg)
-        nvgArc(vg, cx, cy, r - 0.5, math.pi * 0.5, -math.pi * 0.5, NVG_CW)
-        nvgClosePath(vg)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-    elseif phase == 1 then
-        nvgBeginPath(vg)
-        nvgArc(vg, cx, cy, r - 0.5, -math.pi * 0.5, math.pi * 0.5, NVG_CW)
-        nvgClosePath(vg)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-        nvgBeginPath(vg); nvgEllipse(vg, cx + r * 0.15, cy, r * 0.65, r)
-        nvgFillColor(vg, nvgRGBA(darkR, darkG, darkB, alpha)); nvgFill(vg)
-    elseif phase == 3 then
-        nvgBeginPath(vg); nvgCircle(vg, cx, cy, r - 0.5)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-        nvgBeginPath(vg); nvgEllipse(vg, cx - r * 0.6, cy, r * 0.5, r)
-        nvgFillColor(vg, nvgRGBA(darkR, darkG, darkB, alpha)); nvgFill(vg)
-    elseif phase == 5 then
-        nvgBeginPath(vg); nvgCircle(vg, cx, cy, r - 0.5)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-        nvgBeginPath(vg); nvgEllipse(vg, cx + r * 0.6, cy, r * 0.5, r)
-        nvgFillColor(vg, nvgRGBA(darkR, darkG, darkB, alpha)); nvgFill(vg)
-    elseif phase == 7 then
-        nvgBeginPath(vg)
-        nvgArc(vg, cx, cy, r - 0.5, math.pi * 0.5, -math.pi * 0.5, NVG_CW)
-        nvgClosePath(vg)
-        nvgFillColor(vg, nvgRGBA(lightR, lightG, lightB, alpha)); nvgFill(vg)
-        nvgBeginPath(vg); nvgEllipse(vg, cx - r * 0.15, cy, r * 0.65, r)
-        nvgFillColor(vg, nvgRGBA(darkR, darkG, darkB, alpha)); nvgFill(vg)
-    end
-end
-
--- ---------------------------------------------------------------------------
 -- API
 -- ---------------------------------------------------------------------------
 
 function M.init(vg)
     state.bgImage = nvgCreateImage(vg, "image/edited_主角_睡觉CGv3_20260425163451.png", 0)
     state.bgLoaded = state.bgImage and state.bgImage > 0
+    if state.bgLoaded then
+        local ok, w, h = pcall(nvgImageSize, vg, state.bgImage)
+        if ok and w and h and w > 0 and h > 0 then
+            state.bgAspect = w / h
+        else
+            state.bgAspect = 16 / 9
+        end
+    end
     print("[DateTransition] BG loaded: " .. tostring(state.bgLoaded))
 end
 
@@ -238,6 +191,45 @@ function M.update(dt)
 end
 
 -- ---------------------------------------------------------------------------
+-- 辅助: cover 模式背景图
+-- ---------------------------------------------------------------------------
+
+local function drawBgCover(vg, logicalW, logicalH, alpha)
+    if not state.bgLoaded or state.bgImage <= 0 then
+        nvgBeginPath(vg)
+        nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
+        nvgFillColor(vg, nvgRGBA(13, 13, 26, math.floor(alpha * 255)))
+        nvgFill(vg)
+        return
+    end
+
+    local screenAspect = logicalW / logicalH
+    local drawW, drawH, drawX, drawY
+    if state.bgAspect > screenAspect then
+        drawH = logicalH
+        drawW = logicalH * state.bgAspect
+        drawX = (logicalW - drawW) * 0.5
+        drawY = 0
+    else
+        drawW = logicalW
+        drawH = logicalW / state.bgAspect
+        drawX = 0
+        drawY = (logicalH - drawH) * 0.5
+    end
+
+    local imgPaint = nvgImagePattern(vg, drawX, drawY, drawW, drawH, 0, state.bgImage, alpha)
+    nvgBeginPath(vg)
+    nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
+    nvgFillPaint(vg, imgPaint)
+    nvgFill(vg)
+
+    nvgBeginPath(vg)
+    nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
+    nvgFillColor(vg, nvgRGBA(10, 10, 25, math.floor(alpha * 115)))
+    nvgFill(vg)
+end
+
+-- ---------------------------------------------------------------------------
 -- 绘制
 -- ---------------------------------------------------------------------------
 
@@ -251,22 +243,21 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     local centerY = logicalH * 0.5
 
     -- ==============================================
-    -- Phase 5: 退出进度 (分离滑出)
+    -- Phase 5: 退出进度
     -- ==============================================
-    local exitP = 0                     -- 0=未退出, 1=完全退出
+    local exitP = 0
     if t > T_EXIT_START then
         exitP = clamp01((t - T_EXIT_START) / T_EXIT_DUR)
         exitP = easeInCubic(exitP)
     end
-    -- 光带向右上滑出的偏移量
+    -- 光带沿光带方向(右上)滑出
     local bandExitOffset = exitP * diagLen * 0.6
-    -- UI (日期/月份) 向左下滑出的偏移量
+    -- UI 沿日期线负方向(左下)滑出
     local uiExitOffset   = exitP * diagLen * 0.6
-    -- 整体 alpha (用于各元素淡出)
-    local exitAlpha = 1.0 - exitP
+    local exitAlpha      = 1.0 - exitP
 
     -- ==============================================
-    -- Phase 1: 蓝色遮罩擦入 (从左下到右上)
+    -- Phase 1: 蓝色遮罩擦入
     -- ==============================================
     local wipeP = clamp01((t - T_WIPE_START) / (T_WIPE_END - T_WIPE_START))
     wipeP = easeOutCubic(wipeP)
@@ -280,16 +271,14 @@ function M.draw(vg, logicalW, logicalH, gameTime)
         shrinkP = easeOutCubic(shrinkP)
     end
 
-    -- 当前遮罩/光带宽度
     local fullCoverH = diagLen * 1.5
     local currentBandH = fullCoverH + (bandTargetW - fullCoverH) * shrinkP
 
-    -- 遮罩中心位置: 从左下到屏幕中心
     local startOffset = diagLen * 0.9
     local perpOffset  = startOffset * (1 - wipeP)
 
     -- ==============================================
-    -- 背景图 (Phase 2 开始淡入, Phase 5 淡出)
+    -- 背景图 (cover 模式)
     -- ==============================================
     local bgFadeIn = clamp01(shrinkP)
     local bgFadeOut = 1.0
@@ -298,48 +287,29 @@ function M.draw(vg, logicalW, logicalH, gameTime)
         bgFadeOut = 1.0 - easeInQuad(1.0 - bgFadeOut)
     end
     local bgAlpha = bgFadeIn * bgFadeOut
-
     if bgAlpha > 0.001 then
-        if state.bgLoaded and state.bgImage > 0 then
-            local imgPaint = nvgImagePattern(vg, 0, 0, logicalW, logicalH, 0, state.bgImage, bgAlpha)
-            nvgBeginPath(vg)
-            nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
-            nvgFillPaint(vg, imgPaint)
-            nvgFill(vg)
-
-            -- 暗角叠加
-            nvgBeginPath(vg)
-            nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
-            nvgFillColor(vg, nvgRGBA(10, 10, 25, math.floor(bgAlpha * 115)))
-            nvgFill(vg)
-        else
-            nvgBeginPath(vg)
-            nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
-            nvgFillColor(vg, nvgRGBA(13, 13, 26, math.floor(bgAlpha * 255)))
-            nvgFill(vg)
-        end
+        drawBgCover(vg, logicalW, logicalH, bgAlpha)
     end
 
     -- ==============================================
-    -- 绘制蓝色遮罩/光带 (Phase 5: 向右上滑出)
+    -- 蓝色光带 (使用 BAND_ANGLE, 较平缓)
     -- ==============================================
     local bandAlpha = math.floor(clamp01(wipeP) * exitAlpha * 255)
     if bandAlpha > 0 then
         nvgSave(vg)
-        -- 平移到屏幕中心 + 垂直方向偏移
-        local bx = centerX - COS_P * perpOffset
-        local by = centerY - SIN_P * perpOffset
+        -- 光带中心: 沿光带垂直方向擦入
+        local bx = centerX - BAND_PERP_COS * perpOffset
+        local by = centerY - BAND_PERP_SIN * perpOffset
 
-        -- Phase 5: 光带向右上(沿对角线正方向)滑出
+        -- Phase 5: 光带沿光带方向(右上)滑出
         if bandExitOffset > 0.1 then
-            bx = bx + COS_A * bandExitOffset
-            by = by + SIN_A * bandExitOffset
+            bx = bx + BAND_COS * bandExitOffset
+            by = by + BAND_SIN * bandExitOffset
         end
 
         nvgTranslate(vg, bx, by)
         nvgRotate(vg, BAND_ANGLE_RAD)
 
-        -- 光带渐变 (深蓝 → 亮蓝)
         local bandPaint = nvgLinearGradient(vg,
             0, -currentBandH * 0.5, 0, currentBandH * 0.5,
             nvgRGBA(20, 50, 130, bandAlpha),
@@ -350,65 +320,71 @@ function M.draw(vg, logicalW, logicalH, gameTime)
         nvgFillPaint(vg, bandPaint)
         nvgFill(vg)
 
-        -- (移除了旧的装饰性波纹椭圆)
-
         nvgRestore(vg)
     end
 
     -- ==============================================
-    -- Phase 3 & 4: 日期弹出 + 滚动 + 波纹
-    -- Phase 5: UI 向左下滑出
+    -- 日期元素 (使用 DATE_ANGLE, 较陡, 穿过光带)
     -- ==============================================
     if t >= T_POPUP_START and wipeP >= 0.99 then
-        local dateSpacing = logicalW * 0.115
+        local dateSpacing = logicalW * 0.28
 
-        -- Phase 4: 滚动进度 (所有日期沿对角线统一偏移一格)
+        -- Phase 4: 滚动 (沿日期线负方向)
         local scrollP = 0
         if t > T_SCROLL_START then
             local rawScroll = clamp01((t - T_SCROLL_START) / T_SCROLL_DUR)
             scrollP = easeOutElastic(rawScroll)
         end
-        -- 滚动偏移量: 沿对角线正方向移动一个 dateSpacing
-        local scrollOffX = scrollP * COS_A * dateSpacing
-        local scrollOffY = scrollP * SIN_A * dateSpacing
+        local scrollOffX = -scrollP * DATE_COS * dateSpacing
+        local scrollOffY = -scrollP * DATE_SIN * dateSpacing
 
-        -- Phase 5: UI 向左下(对角线负方向)滑出的偏移
+        -- Phase 5: UI 沿日期线负方向(左下)滑出
         local uiSlideX = 0
         local uiSlideY = 0
         if uiExitOffset > 0.1 then
-            -- 负方向 = 左下
-            uiSlideX = -COS_A * uiExitOffset
-            uiSlideY = -SIN_A * uiExitOffset
+            uiSlideX = -DATE_COS * uiExitOffset
+            uiSlideY = -DATE_SIN * uiExitOffset
         end
 
-        -- 计算所有日期的锚点 (沿对角线)
-        ---@type {posX: number, posY: number, dc: number, idx: number, popT: number, rawAlpha: number}[]
+        -- 以 dayCount-1 为初始中心 (上一天先高亮, 滚动后过渡到新一天)
+        local displayDayCount = state.dayCount - 1
+        local prevDC = state.dayCount - 1
+        -- 注意力中心: 从上一天渐变到新一天 (用于非高亮日期的缩放)
+        local attentionCenter = prevDC + scrollP
+
+        ---@type {posX: number, posY: number, dc: number, idx: number, popT: number, rawAlpha: number, highlightW: number}[]
         local dateSlots = {}
         for i = 1, DATE_COUNT do
             local dayOffset = i - CURRENT_INDEX
-            local dc = state.dayCount + dayOffset
-            if dc >= 1 then
-                -- 基础位置: 沿对角线排列
-                local basePosX = centerX + COS_A * dayOffset * dateSpacing
-                local basePosY = centerY + SIN_A * dayOffset * dateSpacing
+            local dc = displayDayCount + dayOffset
 
-                -- 弹出进度
-                local popStart = T_POPUP_START + (i - 1) * T_POPUP_STAGGER
-                local rawT = clamp01((t - popStart) / T_POPUP_DUR)
-                local popT = rawT > 0 and easeOutBack(rawT) or 0
+            -- 沿日期线排列 (DATE_ANGLE)
+            local basePosX = centerX + DATE_COS * dayOffset * dateSpacing
+            local basePosY = centerY + DATE_SIN * dayOffset * dateSpacing
 
-                -- 应用滚动偏移 + 退出偏移
-                local finalX = basePosX + scrollOffX + uiSlideX
-                local finalY = basePosY + scrollOffY + uiSlideY
+            local popStart = T_POPUP_START + (i - 1) * T_POPUP_STAGGER
+            local rawT = clamp01((t - popStart) / T_POPUP_DUR)
+            local popT = rawT > 0 and easeOutBack(rawT) or 0
 
-                dateSlots[#dateSlots + 1] = {
-                    posX = finalX, posY = finalY,
-                    dc = dc, idx = i, popT = popT, rawAlpha = rawT,
-                }
+            local finalX = basePosX + scrollOffX + uiSlideX
+            local finalY = basePosY + scrollOffY + uiSlideY
+
+            -- 高亮权重: 上一天从1→0, 新一天从0→1
+            local highlightW = 0
+            if dc == prevDC then
+                highlightW = 1.0 - scrollP
+            elseif dc == state.dayCount then
+                highlightW = scrollP
             end
+
+            dateSlots[#dateSlots + 1] = {
+                posX = finalX, posY = finalY,
+                dc = dc, idx = i, popT = popT, rawAlpha = rawT,
+                highlightW = highlightW,
+            }
         end
 
-        -- ---- 白色对角线 (跟随最后一个已弹出的日期延伸) ----
+        -- ---- 白色对角线 (沿日期线) ----
         if #dateSlots >= 2 then
             local lineEndIdx = 0
             for _, slot in ipairs(dateSlots) do
@@ -416,15 +392,14 @@ function M.draw(vg, logicalW, logicalH, gameTime)
                     lineEndIdx = lineEndIdx + 1
                 end
             end
-
             if lineEndIdx >= 1 then
                 local firstSlot = dateSlots[1]
                 local lastVisibleSlot = dateSlots[math.min(lineEndIdx, #dateSlots)]
-                local extendLen = dateSpacing * 0.6
-                local lx1 = firstSlot.posX - COS_A * extendLen
-                local ly1 = firstSlot.posY - SIN_A * extendLen
-                local lx2 = lastVisibleSlot.posX + COS_A * extendLen
-                local ly2 = lastVisibleSlot.posY + SIN_A * extendLen
+                local extendLen = diagLen * 0.5
+                local lx1 = firstSlot.posX - DATE_COS * extendLen
+                local ly1 = firstSlot.posY - DATE_SIN * extendLen
+                local lx2 = lastVisibleSlot.posX + DATE_COS * extendLen
+                local ly2 = lastVisibleSlot.posY + DATE_SIN * extendLen
 
                 local lineAlpha = math.floor(clamp01(firstSlot.rawAlpha) * exitAlpha * 150)
                 if lineAlpha > 0 then
@@ -438,17 +413,17 @@ function M.draw(vg, logicalW, logicalH, gameTime)
             end
         end
 
-        -- ---- 绘制日期元素 ----
+        -- ---- 绘制日期元素 (统一路径, highlightW 控制大小过渡) ----
         nvgFontFace(vg, "sans")
 
         for _, slot in ipairs(dateSlots) do
             if slot.popT <= 0.001 then goto nextDate end
 
             local dc = slot.dc
-            local isCurrent = (slot.idx == CURRENT_INDEX)
+            local hw = slot.highlightW
             local year, month, day = calcDate(dc)
             local weekday = calcWeekday(year, month, day)
-            local moonPhase = calcMoonPhase(dc)
+            local weather = Weather.getWeather(dc)
             local dayStr = tostring(day)
             local wdStr  = WEEKDAY_NAMES[weekday]
 
@@ -456,7 +431,6 @@ function M.draw(vg, logicalW, logicalH, gameTime)
             local popAlpha = math.floor(clamp01(slot.rawAlpha * 2.5) * exitAlpha * 255)
             if popAlpha <= 0 then goto nextDate end
 
-            -- 弹跳: 从下方弹起 (仅在 Phase 3 初始弹出时)
             local bounceOffsetY = 0
             if t < T_SCROLL_START then
                 bounceOffsetY = (1 - clamp01(slot.rawAlpha * 3)) * 15
@@ -465,106 +439,74 @@ function M.draw(vg, logicalW, logicalH, gameTime)
             local px = slot.posX
             local py = slot.posY + bounceOffsetY
 
-            if isCurrent then
-                -- ==== 当前日: 大号 ====
-                nvgSave(vg)
-                nvgTranslate(vg, px, py)
-                local s = popScale
-                nvgScale(vg, s, s)
+            -- 基于注意力中心计算距离, 越远越小
+            local dayOff = math.abs(dc - attentionCenter)
+            local smallScale = 0.50 - dayOff * 0.04
+            if smallScale < 0.25 then smallScale = 0.25 end
 
-                -- 日期数字
-                nvgFontSize(vg, logicalH * 0.14)
-                nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-                nvgFillColor(vg, nvgRGBA(255, 255, 255, popAlpha))
-                nvgText(vg, -dateSpacing * 0.15, 0, dayStr, nil)
+            -- 渲染缩放: 高亮权重越高越大
+            local renderScale = smallScale + (1.0 - smallScale) * hw
 
-                -- 星期
-                local wdSize = logicalH * 0.14 * 0.28
-                nvgFontSize(vg, wdSize)
-                nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
-                nvgFillColor(vg, nvgRGBA(255, 255, 255, popAlpha))
-                local wdX = logicalH * 0.14 * 0.18
-                local wdY = -logicalH * 0.14 * 0.1
-                nvgText(vg, wdX, wdY, wdStr, nil)
+            -- 透明度: 高亮项更亮
+            local alphaScale = 0.4 + renderScale * 0.6
+            local textAlpha = math.floor(alphaScale * popAlpha)
 
-                -- 星期下划线
-                local ulR, ulG, ulB = 255, 255, 255
-                if weekday == 1 then ulR, ulG, ulB = 230, 60, 60
-                elseif weekday == 7 then ulR, ulG, ulB = 80, 200, 220 end
+            nvgSave(vg)
+            nvgTranslate(vg, px, py)
+            nvgScale(vg, popScale * renderScale, popScale * renderScale)
+
+            local fontSize = logicalH * 0.15
+
+            -- 日期数字 (偏左)
+            nvgFontSize(vg, fontSize)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, textAlpha))
+            nvgText(vg, fontSize * 0.05, 0, dayStr, nil)
+
+            -- 星期 (数字右侧, 留出间隙)
+            local wdSize = fontSize * 0.28
+            nvgFontSize(vg, wdSize)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, math.floor(textAlpha * 0.85)))
+            local wdX = fontSize * 0.15
+            local wdY = -fontSize * 0.22
+            nvgText(vg, wdX, wdY, wdStr, nil)
+
+            -- 星期下划线 (高亮项 + 周日/周六)
+            local ulR, ulG, ulB = 255, 255, 255
+            if weekday == 1 then ulR, ulG, ulB = 230, 60, 60
+            elseif weekday == 7 then ulR, ulG, ulB = 80, 200, 220 end
+            if weekday == 1 or weekday == 7 or hw > 0.3 then
                 nvgBeginPath(vg)
-                nvgRect(vg, wdX, wdY + wdSize + 2, wdSize * 2.2, 2.5)
-                nvgFillColor(vg, nvgRGBA(ulR, ulG, ulB, popAlpha))
+                nvgRect(vg, wdX, wdY + wdSize + 3, wdSize * 2.2, 2)
+                nvgFillColor(vg, nvgRGBA(ulR, ulG, ulB, math.floor(textAlpha * 0.7)))
                 nvgFill(vg)
-
-                -- 月相
-                local moonR = logicalH * 0.04
-                drawMoon(vg, dateSpacing * 0.45, logicalH * 0.14 * 0.15, moonR, moonPhase, popAlpha, true)
-
-                nvgRestore(vg)
-            else
-                -- ==== 非当前日: 小号 ====
-                local dayOff = math.abs(slot.idx - CURRENT_INDEX)
-                local baseScale = 0.55 - dayOff * 0.03
-                if baseScale < 0.3 then baseScale = 0.3 end
-
-                nvgSave(vg)
-                nvgTranslate(vg, px, py)
-                local s = popScale * baseScale
-                nvgScale(vg, s, s)
-
-                local fontSize = logicalH * 0.13
-                nvgFontSize(vg, fontSize)
-                nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-                local textAlpha = math.floor(popAlpha * (0.5 + baseScale * 0.5))
-                nvgFillColor(vg, nvgRGBA(255, 255, 255, textAlpha))
-                nvgText(vg, -dateSpacing * 0.08, 0, dayStr, nil)
-
-                -- 星期
-                local wdSize = fontSize * 0.3
-                nvgFontSize(vg, wdSize)
-                nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-                nvgFillColor(vg, nvgRGBA(255, 255, 255, math.floor(textAlpha * 0.8)))
-                local wdX = fontSize * 0.35
-                nvgText(vg, wdX, -fontSize * 0.05, wdStr, nil)
-
-                -- 周日/周六下划线
-                if weekday == 1 then
-                    nvgBeginPath(vg)
-                    nvgRect(vg, wdX, wdSize * 0.5, wdSize * 2, 1.5)
-                    nvgFillColor(vg, nvgRGBA(230, 60, 60, math.floor(textAlpha * 0.7)))
-                    nvgFill(vg)
-                end
-
-                -- 月相
-                local moonR = logicalH * 0.035
-                drawMoon(vg, dateSpacing * 0.3, fontSize * 0.4, moonR, moonPhase, math.floor(popAlpha * 0.7), false)
-
-                nvgRestore(vg)
             end
+
+            -- 天气图标 (数字右下方, 与星期错开)
+            local weatherR = logicalH * 0.035
+            Weather.drawIcon(vg, fontSize * 0.35, fontSize * 0.25, weatherR, weather,
+                math.floor(popAlpha * (0.4 + hw * 0.6)), hw > 0.3)
+
+            nvgRestore(vg)
 
             ::nextDate::
         end
 
-        -- ---- Phase 4b: 波纹特效 (滚动后在当前日位置扩散) ----
+        -- ---- 波纹 (滚动后在当前日位置) ----
         if t > T_RIPPLE_START then
             local rippleP = clamp01((t - T_RIPPLE_START) / T_RIPPLE_DUR)
+            -- 波纹在当前日位置 (滚动完成后当前日在屏幕中心)
+            local rippleCX = centerX + uiSlideX
+            local rippleCY = centerY + uiSlideY
 
-            -- 波纹中心 = 当前日的最终位置 (含滚动偏移和退出偏移)
-            local curDayOffset = CURRENT_INDEX - CURRENT_INDEX  -- = 0
-            local rippleCX = centerX + scrollOffX + uiSlideX
-            local rippleCY = centerY + scrollOffY + uiSlideY
-
-            -- 绘制 3 圈同心波纹, 依次延迟扩散
-            local rippleCount = 3
-            for ri = 1, rippleCount do
+            for ri = 1, 3 do
                 local delay = (ri - 1) * 0.12
-                local localP = clamp01((rippleP - delay) / (1.0 - delay * rippleCount / (rippleCount + 1)))
+                local localP = clamp01((rippleP - delay) / (1.0 - delay * 3 / 4))
                 if localP > 0 then
-                    local maxRadius = logicalH * (0.06 + ri * 0.04)
-                    local radius = localP * maxRadius
-                    -- 淡出: 后半段消失
-                    local rippleAlpha = (1.0 - localP * localP) * exitAlpha
-                    local a = math.floor(rippleAlpha * 180)
+                    local maxR = logicalH * (0.06 + ri * 0.04)
+                    local radius = localP * maxR
+                    local a = math.floor((1.0 - localP * localP) * exitAlpha * 180)
                     if a > 0 then
                         nvgBeginPath(vg)
                         nvgCircle(vg, rippleCX, rippleCY, radius)
@@ -576,56 +518,65 @@ function M.draw(vg, logicalW, logicalH, gameTime)
             end
         end
 
-        -- ---- 左上: 月份标识 (Phase 5: 随 UI 向左下滑出) ----
+        -- ---- 光带上: "第 X 天" (沿光带中心线定位) ----
         local monthPopStart = T_POPUP_START + DATE_COUNT * T_POPUP_STAGGER
         local monthRawT = clamp01((t - monthPopStart) / 0.4)
         local monthPopT = monthRawT > 0 and easeOutBack(monthRawT) or 0
         local monthAlpha = math.floor(clamp01(monthRawT * 2) * exitAlpha * 255)
 
         if monthAlpha > 0 then
-            local year, month, _day = calcDate(state.dayCount)
-            local mx = logicalW * 0.08 + uiSlideX
-            local my = logicalH * 0.22 + uiSlideY
+            -- 沿光带中心线计算位置: 选取光带左上段的一个点
+            local bandTan = math.tan(BAND_ANGLE_RAD)
+            local hudX = logicalW * 0.10
+            local hudY = centerY + bandTan * (hudX - centerX)
+
+            -- 退出时跟随光带一起滑出 (而非 UI 方向)
+            if bandExitOffset > 0.1 then
+                hudX = hudX + BAND_COS * bandExitOffset
+                hudY = hudY + BAND_SIN * bandExitOffset
+            end
+
             local bounceY = (1 - clamp01(monthRawT * 3)) * 20
 
             nvgSave(vg)
-            nvgTranslate(vg, mx, my + bounceY)
-            local ms = monthPopT
-            nvgScale(vg, ms, ms)
+            nvgTranslate(vg, hudX, hudY + bounceY)
+            nvgScale(vg, monthPopT, monthPopT)
 
-            -- 年份
             nvgFontFace(vg, "sans")
-            nvgFontSize(vg, logicalH * 0.035)
-            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_BOTTOM)
-            nvgFillColor(vg, nvgRGBA(140, 180, 220, math.floor(monthAlpha * 0.8)))
-            nvgText(vg, 0, 0, tostring(year), nil)
-
-            -- 月份英文
-            nvgFontSize(vg, logicalH * 0.03)
-            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
-            nvgFillColor(vg, nvgRGBA(140, 180, 220, math.floor(monthAlpha * 0.7)))
-            nvgText(vg, 0, 2, MONTH_NAMES[month], nil)
-
-            -- 大号月份数字
-            nvgFontSize(vg, logicalH * 0.22)
-            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
-            nvgFillColor(vg, nvgRGBA(255, 255, 255, math.floor(monthAlpha * 0.9)))
-            nvgText(vg, logicalW * 0.02, logicalH * 0.02, tostring(month), nil)
+            nvgFontSize(vg, logicalH * 0.09)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, monthAlpha))
+            nvgText(vg, 0, 0, "第 " .. state.dayCount .. " 天", nil)
 
             nvgRestore(vg)
         end
 
-        -- ---- 右上: "第 X 天" (随 UI 向左下滑出) ----
+        -- ---- 右下角: 年份月份 (小号) ----
         if monthAlpha > 0 then
-            local hudX = logicalW * 0.92 + uiSlideX
-            local hudY = logicalH * 0.06 + uiSlideY
-            local bounceY2 = (1 - clamp01(monthRawT * 3)) * 15
+            local year, month, _day = calcDate(state.dayCount)
+            local mx = logicalW * 0.95 + uiSlideX
+            local my = logicalH * 0.92 + uiSlideY
+            local bounceY2 = (1 - clamp01(monthRawT * 3)) * 12
+
+            nvgSave(vg)
+            nvgTranslate(vg, mx, my + bounceY2)
+            nvgScale(vg, monthPopT, monthPopT)
 
             nvgFontFace(vg, "sans")
+
+            -- 年份
             nvgFontSize(vg, logicalH * 0.035)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_BOTTOM)
+            nvgFillColor(vg, nvgRGBA(180, 210, 240, math.floor(monthAlpha * 0.7)))
+            nvgText(vg, 0, 0, tostring(year), nil)
+
+            -- 月份英文
+            nvgFontSize(vg, logicalH * 0.03)
             nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_TOP)
-            nvgFillColor(vg, nvgRGBA(255, 255, 255, math.floor(monthAlpha * 0.9)))
-            nvgText(vg, hudX, hudY + bounceY2, "第 " .. state.dayCount .. " 天", nil)
+            nvgFillColor(vg, nvgRGBA(180, 210, 240, math.floor(monthAlpha * 0.6)))
+            nvgText(vg, 0, 3, MONTH_NAMES[month], nil)
+
+            nvgRestore(vg)
         end
     end
 end

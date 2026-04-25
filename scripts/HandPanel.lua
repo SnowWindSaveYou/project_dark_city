@@ -15,6 +15,7 @@ local M = {}
 -- 常量
 -- ---------------------------------------------------------------------------
 local TAG = "handpanel"
+local TAG_SHOWCASE = "handpanel_showcase"
 
 -- 笔记本尺寸
 local SPINE_W       = 10        -- 书脊宽度
@@ -74,12 +75,16 @@ end
 local state = {
     visible  = false,
     expanded = false,
+    showcasing = false,  -- true: 展开展示中 (先展开→停留→自动折叠)
     panelY   = 0,       -- 面板顶部 Y (动画驱动)
     alpha    = 0,
     hoverIndex = 0,
     hoverEndDay = false,    -- 结束今天按钮 hover
     hoverToolbar = nil,     -- 工具栏 hover 的 consumable key
 }
+
+-- 缓存 logicalH 用于延迟回调
+local storedLogicalH = 0
 
 -- 外部注入的回调
 local onEndDayCallback = nil
@@ -113,16 +118,64 @@ end
 -- 显示 / 隐藏 / 切换
 -- ---------------------------------------------------------------------------
 
-function M.show(logicalH)
+function M.show(logicalH, opts)
     if state.visible then return end
-    state.visible  = true
-    state.expanded = false
-    state.alpha    = 0
-    state.panelY   = (logicalH or 800) + 20  -- 从屏幕下方滑入
+    opts = opts or {}
+    local showcase = opts.showcase or false
 
-    local targetY = getTargetY(logicalH or 800)
-    Tween.to(state, { panelY = targetY, alpha = 1 }, 0.45, {
-        easing = Tween.Easing.easeOutBack,
+    storedLogicalH = logicalH or 800
+
+    state.visible = true
+    state.alpha   = 0
+    state.panelY  = storedLogicalH + 20  -- 从屏幕下方滑入
+
+    if showcase then
+        -- SHOWCASE: 先展开滑入 → 停留 2 秒 → 自动折叠
+        state.expanded   = true
+        state.showcasing = true
+
+        local expandedY = getTargetY(storedLogicalH)
+        Tween.to(state, { panelY = expandedY, alpha = 1 }, 0.5, {
+            easing = Tween.Easing.easeOutBack,
+            tag = TAG,
+            onComplete = function()
+                -- 滑入完成后，延迟 2 秒再折叠
+                local delay = { t = 0 }
+                Tween.to(delay, { t = 1 }, 2.0, {
+                    tag = TAG_SHOWCASE,
+                    onComplete = function()
+                        if state.showcasing then
+                            M.finishShowcase()
+                        end
+                    end
+                })
+            end
+        })
+    else
+        -- 普通模式: 折叠状态滑入
+        state.expanded   = false
+        state.showcasing = false
+
+        local targetY = getTargetY(storedLogicalH)
+        Tween.to(state, { panelY = targetY, alpha = 1 }, 0.45, {
+            easing = Tween.Easing.easeOutBack,
+            tag = TAG,
+        })
+    end
+end
+
+--- 结束 showcase: 取消定时器，立即折叠
+function M.finishShowcase()
+    if not state.showcasing then return end
+    state.showcasing = false
+    state.expanded   = false
+
+    Tween.cancelTag(TAG_SHOWCASE)
+    Tween.cancelTag(TAG)
+
+    local targetY = getTargetY(storedLogicalH)
+    Tween.to(state, { panelY = targetY }, 0.4, {
+        easing = Tween.Easing.easeInOutQuad,
         tag = TAG,
     })
 end
@@ -130,6 +183,8 @@ end
 function M.hide()
     if not state.visible then return end
     Tween.cancelTag(TAG)
+    Tween.cancelTag(TAG_SHOWCASE)
+    state.showcasing = false
     -- 整本滑出屏幕
     Tween.to(state, { panelY = state.panelY + getFullH() + 30, alpha = 0 }, 0.3, {
         easing = Tween.Easing.easeInQuad,
@@ -210,7 +265,17 @@ function M.handleClick(lx, ly, logicalW, logicalH)
 
     -- 点击标签栏区域 → 折叠/展开
     if ly < py + TAB_H then
+        if state.showcasing then
+            -- showcase 期间点标签栏 = "我看过了"，立即折叠
+            M.finishShowcase()
+            return true
+        end
         M.toggle(logicalH)
+        return true
+    end
+
+    -- showcase 期间阻止面板内其他交互 (防误触)
+    if state.showcasing then
         return true
     end
 
@@ -279,6 +344,14 @@ end
 
 function M.updateHover(lx, ly, dt, logicalW, logicalH)
     if not state.visible or state.alpha < 0.1 or not state.expanded then
+        state.hoverIndex = 0
+        state.hoverEndDay = false
+        state.hoverToolbar = nil
+        return
+    end
+
+    -- showcase 期间抑制 hover (不显示可交互高亮)
+    if state.showcasing then
         state.hoverIndex = 0
         state.hoverEndDay = false
         state.hoverToolbar = nil
@@ -856,9 +929,11 @@ end
 --- 重置
 function M.reset()
     Tween.cancelTag(TAG)
-    state.visible  = false
-    state.expanded = false
-    state.alpha    = 0
+    Tween.cancelTag(TAG_SHOWCASE)
+    state.visible    = false
+    state.expanded   = false
+    state.showcasing = false
+    state.alpha      = 0
     state.hoverIndex = 0
     state.hoverEndDay = false
     state.hoverToolbar = nil
