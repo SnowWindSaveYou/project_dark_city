@@ -331,8 +331,122 @@ end
 function M.clearCache()
     locationTexCache = {}
     eventTexCache = {}
-    -- backTex / icon 纹理保留，不会变
+    -- backTex / icon / glow 纹理保留，不会变
     print("[CardTextures] Cache cleared")
+end
+
+-- ---------------------------------------------------------------------------
+-- 安全光晕纹理 (方形发光边框, 与卡牌同比例 256x360)
+-- ---------------------------------------------------------------------------
+local safeGlowTex = nil
+local landmarkGlowTex = nil
+
+function M.getSafeGlowTexture()
+    if safeGlowTex then return safeGlowTex end
+    if not texVg then return nil end
+
+    local w, h = TEX_W, TEX_H  -- 256x360, 与卡牌纹理同比例
+
+    safeGlowTex = Texture2D:new()
+    safeGlowTex:SetNumLevels(1)
+    safeGlowTex:SetSize(w, h, Graphics:GetRGBAFormat(), TEXTURE_RENDERTARGET)
+    safeGlowTex:SetFilterMode(FILTER_BILINEAR)
+
+    nvgSetRenderTarget(texVg, safeGlowTex)
+    nvgBeginFrame(texVg, w, h, 1.0)
+
+    -- 清透明
+    nvgBeginPath(texVg)
+    nvgRect(texVg, 0, 0, w, h)
+    nvgFillColor(texVg, nvgRGBA(0, 0, 0, 0))
+    nvgFill(texVg)
+
+    -- 多层发光边框 (由外到内, 从淡到浓)
+    local r, g, b = 255, 255, 255  -- 白色发光
+    local margin = 6   -- 纹理边距, 给最外层模糊留空间
+
+    -- 外发光层 (宽模糊)
+    nvgBeginPath(texVg)
+    nvgRect(texVg, margin, margin, w - margin * 2, h - margin * 2)
+    nvgStrokeColor(texVg, nvgRGBA(r, g, b, 120))
+    nvgStrokeWidth(texVg, 16)
+    nvgStroke(texVg)
+
+    -- 中间发光层
+    nvgBeginPath(texVg)
+    nvgRect(texVg, margin + 4, margin + 4, w - (margin + 4) * 2, h - (margin + 4) * 2)
+    nvgStrokeColor(texVg, nvgRGBA(r, g, b, 200))
+    nvgStrokeWidth(texVg, 8)
+    nvgStroke(texVg)
+
+    -- 内层实线边框 (最亮)
+    nvgBeginPath(texVg)
+    nvgRect(texVg, margin + 8, margin + 8, w - (margin + 8) * 2, h - (margin + 8) * 2)
+    nvgStrokeColor(texVg, nvgRGBA(r, g, b, 255))
+    nvgStrokeWidth(texVg, 3)
+    nvgStroke(texVg)
+
+    nvgEndFrame(texVg)
+    nvgSetRenderTarget(texVg, nil)
+
+    print("[CardTextures] Safe glow border texture created (" .. w .. "x" .. h .. ")")
+    return safeGlowTex
+end
+
+-- ---------------------------------------------------------------------------
+-- 地标光晕纹理 (金色发光边框, 与卡牌同比例 256x360)
+-- ---------------------------------------------------------------------------
+
+function M.getLandmarkGlowTexture()
+    if landmarkGlowTex then return landmarkGlowTex end
+    if not texVg then return nil end
+
+    local w, h = TEX_W, TEX_H
+
+    landmarkGlowTex = Texture2D:new()
+    landmarkGlowTex:SetNumLevels(1)
+    landmarkGlowTex:SetSize(w, h, Graphics:GetRGBAFormat(), TEXTURE_RENDERTARGET)
+    landmarkGlowTex:SetFilterMode(FILTER_BILINEAR)
+
+    nvgSetRenderTarget(texVg, landmarkGlowTex)
+    nvgBeginFrame(texVg, w, h, 1.0)
+
+    -- 清透明
+    nvgBeginPath(texVg)
+    nvgRect(texVg, 0, 0, w, h)
+    nvgFillColor(texVg, nvgRGBA(0, 0, 0, 0))
+    nvgFill(texVg)
+
+    -- 多层发光边框 (金色)
+    local r, g, b = 255, 200, 60
+    local margin = 6
+
+    -- 外发光层
+    nvgBeginPath(texVg)
+    nvgRect(texVg, margin, margin, w - margin * 2, h - margin * 2)
+    nvgStrokeColor(texVg, nvgRGBA(r, g, b, 120))
+    nvgStrokeWidth(texVg, 16)
+    nvgStroke(texVg)
+
+    -- 中间发光层
+    nvgBeginPath(texVg)
+    nvgRect(texVg, margin + 4, margin + 4, w - (margin + 4) * 2, h - (margin + 4) * 2)
+    nvgStrokeColor(texVg, nvgRGBA(r, g, b, 200))
+    nvgStrokeWidth(texVg, 8)
+    nvgStroke(texVg)
+
+    -- 内层实线边框
+    nvgBeginPath(texVg)
+    nvgRect(texVg, margin + 8, margin + 8, w - (margin + 8) * 2, h - (margin + 8) * 2)
+    nvgStrokeColor(texVg, nvgRGBA(255, 220, 100, 255))
+    nvgStrokeWidth(texVg, 3)
+    nvgStroke(texVg)
+
+    nvgEndFrame(texVg)
+    nvgSetRenderTarget(texVg, nil)
+
+    print("[CardTextures] Landmark glow border texture created (" .. w .. "x" .. h .. ")")
+    return landmarkGlowTex
 end
 
 return M

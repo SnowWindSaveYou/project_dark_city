@@ -22,6 +22,8 @@ local CardManager      = require "CardManager"
 local HandPanel        = require "HandPanel"
 local DateTransition   = require "DateTransition"
 local BoardDecor       = require "BoardDecor"
+local MonsterGhost     = require "MonsterGhost"
+local BubbleDialogue   = require "BubbleDialogue"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -77,6 +79,9 @@ local board = nil
 ---@type table token
 local token = nil
 
+-- 气泡对话
+local playerBubble = nil
+
 -- 交互状态
 local demoState = "idle"
 local hoveredCard = nil
@@ -109,6 +114,7 @@ local gamePhase = "title"
 -- 统计
 local gameStats = {
     cardsRevealed = 0,
+    dayStartRevealed = 0,  -- 每天开始时的翻牌数 (用于每日氛围重置)
     monstersSlain = 0,
     photosUsed    = 0,
 }
@@ -251,7 +257,7 @@ local function setup3DScene()
     dirLight_ = lightNode:CreateComponent("Light")
     dirLight_.lightType = LIGHT_DIRECTIONAL
     dirLight_.color = Color(1.0, 1.0, 0.95, 1.0)
-    dirLight_.brightness = 2.2
+    dirLight_.brightness = 2.8
     dirLight_.castShadows = true
 
     -- 相机: 45度角俯瞰
@@ -275,7 +281,7 @@ local function setup3DScene()
     zone_.fogColor = Color(0.53, 0.76, 0.92, 1.0)  -- 初始: 明亮天蓝 (#87C3EB)
     zone_.fogStart = 50.0
     zone_.fogEnd = 80.0
-    zone_.ambientColor = Color(0.5, 0.5, 0.55, 1.0)
+    zone_.ambientColor = Color(0.70, 0.70, 0.75, 1.0)
 
     -- 桌面: 大平板 (Box.mdl 缩放)
     tableNode_ = scene_:CreateChild("Table")
@@ -292,6 +298,7 @@ local function setup3DScene()
 
     -- 装饰 (传入桌面 model 以替换纹理)
     BoardDecor.init(scene_, tableModel)
+    MonsterGhost.init(scene_)
 
     print("[Main] 3D scene initialized")
 end
@@ -303,15 +310,15 @@ end
 -- 明亮 → 暗色 的颜色定义
 local BG_BRIGHT = {
     fog     = { 0.53, 0.76, 0.92 },  -- 天蓝 #87C3EB
-    ambient = { 0.55, 0.55, 0.60 },
-    table   = { 0.32, 0.38, 0.48 },  -- 偏蓝灰桌面
-    brightness = 2.2,
+    ambient = { 0.70, 0.70, 0.75 },
+    table   = { 0.38, 0.44, 0.54 },  -- 偏蓝灰桌面
+    brightness = 2.8,
 }
 local BG_DARK = {
     fog     = { 0.15, 0.12, 0.18 },  -- 深紫暗色
-    ambient = { 0.25, 0.22, 0.28 },
-    table   = { 0.12, 0.10, 0.15 },  -- 暗紫桌面
-    brightness = 1.6,
+    ambient = { 0.35, 0.32, 0.38 },
+    table   = { 0.16, 0.14, 0.20 },  -- 暗紫桌面
+    brightness = 2.0,
 }
 
 --- 根据过渡进度 t (0=全亮, 1=全暗) 更新场景氛围
@@ -334,6 +341,9 @@ local function updateSceneAtmosphere(t)
         tableMat_:SetShaderParameter("MatDiffColor",
             Variant(lerpColor(BG_BRIGHT.table, BG_DARK.table, t)))
     end
+
+    -- 天际线日夜渐变
+    BoardDecor.updateNight(t)
 end
 
 -- ============================================================================
@@ -389,6 +399,9 @@ function Start()
     token.textures = Token.loadTextures()
     Token.createNode(token, scene_)
 
+    -- 气泡对话
+    playerBubble = BubbleDialogue.newBubble()
+
     -- 注入回调
     Card.setRumorQuery(function(location)
         return CardManager.getRumorFor(location)
@@ -440,10 +453,14 @@ function Start()
                 end
             end
         end
+        -- 已侦测的怪物卡显示 chibi
+        MonsterGhost.showOnScoutedCards(board, Board.ROWS, Board.COLS)
     end)
 
     CameraButton.setOnExitCallback(function()
         if not board or not board.cards then return end
+        -- 清除相机模式下的怪物 chibi
+        MonsterGhost.clearCardGhosts()
         for r = 1, Board.ROWS do
             for c = 1, Board.COLS do
                 local cd = board.cards[r] and board.cards[r][c]
@@ -494,6 +511,7 @@ end
 
 function startDeal()
     demoState = "dealing"
+    gameStats.dayStartRevealed = gameStats.cardsRevealed  -- 每日氛围重置
     VFX.spawnBanner("第 " .. dayCount .. " 天", 255, 255, 255, 28, 1.2)
 
     Board.dealAll(board, function()
@@ -515,6 +533,16 @@ function startDeal()
             Card.updateTexture(homeCard, CardTextures)
         end
 
+        -- 安全区光晕: 发牌完成后立刻显示 (明牌提示玩家)
+        for r = 1, Board.ROWS do
+            for c = 1, Board.COLS do
+                local cd = board.cards[r] and board.cards[r][c]
+                if cd and (cd.type == "safe" or cd.type == "home" or cd.type == "landmark") then
+                    Card.showSafeGlow(cd)
+                end
+            end
+        end
+
         CardManager.generateDaily(board)
         HandPanel.show(logicalH, { showcase = true })
         CameraButton.show()
@@ -528,6 +556,7 @@ function startRedeal()
     demoState = "dealing"
     hoveredCard = nil
     EventPopup.clearToasts()
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     Tween.cancelTag("cardflip")
     Tween.cancelTag("carddeal")
     Tween.cancelTag("cardshake")
@@ -536,6 +565,7 @@ function startRedeal()
     Tween.cancelTag("token")
     Tween.cancelTag("popup")
     Tween.cancelTag("toast")
+    Tween.cancelTag("bubble")
     Tween.cancelTag("camerabtn")
     Tween.cancelTag("cameramode")
     Tween.cancelTag("camerabtn_shake")
@@ -582,8 +612,10 @@ function advanceDay()
 
     demoState = "dealing"
     hoveredCard = nil
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     Tween.cancelTag("cardflip")
     Tween.cancelTag("cardshake")
+    Tween.cancelTag("bubble")
 
     token.visible = false
     token.alpha = 0
@@ -665,6 +697,7 @@ function onGameRestart()
     dayCount = 1
     gamePhase = "playing"
     gameStats.cardsRevealed = 0
+    gameStats.dayStartRevealed = 0
     gameStats.monstersSlain = 0
     gameStats.photosUsed    = 0
 
@@ -693,6 +726,9 @@ function onGameRestart()
     token = Token.new()
     token.textures = Token.loadTextures()
     Token.createNode(token, scene_)
+
+    -- 重置气泡对话
+    playerBubble = BubbleDialogue.newBubble()
 
     startDeal()
 end
@@ -771,6 +807,11 @@ local function onCardFlipped(card, screenX, screenY)
     }
     Token.setEmotion(token, emotionMap[card.type] or "default")
 
+    -- 更新气泡对话上下文
+    if playerBubble then
+        BubbleDialogue.setContext(playerBubble, card.location, card.type)
+    end
+
     if card.type == "home" or card.type == "landmark" then
         local locInfo = Card.LOCATION_INFO[card.location]
         local safeName = locInfo and locInfo.label or "安全区"
@@ -838,6 +879,8 @@ local function onCardFlipped(card, screenX, screenY)
         gameStats.cardsRevealed = gameStats.cardsRevealed + 1
         if card.type == "monster" then
             gameStats.monstersSlain = gameStats.monstersSlain + 1
+            -- 怪物 Chibi 弹出环绕玩家
+            MonsterGhost.spawnAroundPlayer(token.worldX, token.worldZ, card.location)
         end
 
         -- 传闻
@@ -861,12 +904,22 @@ local function onCardFlipped(card, screenX, screenY)
         -- 发送 toast
         EventPopup.toast(card.type, effects, shieldUsed, card.location)
 
-        -- 立即恢复 ready（不阻塞）
-        demoState = "ready"
-        CameraButton.show()
-
-        -- 败北检查
-        checkDefeat()
+        -- 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready
+        if card.type == "monster" then
+            local pauseDummy = { t = 0 }
+            Tween.to(pauseDummy, { t = 1 }, 0.6, {
+                tag = "monster_pause",
+                onComplete = function()
+                    demoState = "ready"
+                    CameraButton.show()
+                    checkDefeat()
+                end,
+            })
+        else
+            demoState = "ready"
+            CameraButton.show()
+            checkDefeat()
+        end
     end
 end
 
@@ -874,6 +927,11 @@ local function onPhotographFlipped(card, screenX, screenY)
     local tc = Theme.cardTypeColor(card.type)
     VFX.spawnBurst(screenX, screenY, 8, tc.r, tc.g, tc.b)
     VFX.triggerShake(2, 0.1)
+
+    -- 鉴定出怪物时在卡牌上方显示 chibi
+    if card.type == "monster" then
+        MonsterGhost.showOnCard(card, card.location)
+    end
 
     demoState = "popup"
     hoveredCard = nil
@@ -889,6 +947,9 @@ local function onPhotographFlipped(card, screenX, screenY)
 
                 card.scouted = true
                 Card.flipBack(card, nil, CardTextures)
+
+                -- 清除卡牌上的怪物 chibi
+                MonsterGhost.clearCardGhosts()
 
                 Token.setEmotion(token, "happy")
                 demoState = "ready"
@@ -1029,7 +1090,10 @@ local function handleNormalModeClick(card, row, col)
                 onCardFlipped(c, sx, sy)
             end, CardTextures)
         else
-            Card.shake(card)
+            -- 点击已翻开的当前格 → 触发气泡对话
+            if playerBubble then
+                BubbleDialogue.clickTrigger(playerBubble)
+            end
         end
         return
     end
@@ -1041,6 +1105,8 @@ local function handleNormalModeClick(card, row, col)
     end
 
     -- 移动 Token (世界坐标)
+    MonsterGhost.clearSurround()  -- 角色离开当前格, 清除环绕怪物
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     demoState = "moving"
     CameraButton.hide()
     token.targetRow = row
@@ -1356,11 +1422,23 @@ function HandleUpdate(eventType, eventData)
     ResourceBar.update(dt)
     CameraButton.update(dt)
     EventPopup.updateToasts(dt)
+    MonsterGhost.update(dt, gameTime)
+
+    -- 气泡对话更新
+    if playerBubble then
+        local isIdle = not token.isMoving and demoState == "ready"
+        local canTrigger = (gamePhase == "playing" and demoState == "ready"
+            and not EventPopup.isActive() and not ShopPopup.isActive()
+            and not CameraButton.isActive() and not DateTransition.isActive())
+        BubbleDialogue.update(playerBubble, dt, isIdle, canTrigger)
+    end
+
     updateHover(dt)
 
-    -- 背景氛围过渡 (根据翻牌数平滑变暗)
+    -- 背景氛围过渡 (根据当天翻牌数平滑变暗, 每天重置)
     local totalForFull = 8
-    bgTransitionTarget = math.min(gameStats.cardsRevealed / totalForFull, 1.0)
+    local dailyRevealed = gameStats.cardsRevealed - gameStats.dayStartRevealed
+    bgTransitionTarget = math.min(dailyRevealed / totalForFull, 1.0)
     local bgSpeed = 2.0
     if bgTransition < bgTransitionTarget then
         bgTransition = math.min(bgTransition + bgSpeed * dt, bgTransitionTarget)
@@ -1409,6 +1487,15 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 相机模式取景器叠加层 ===
     CameraButton.drawOverlay(vg, logicalW, logicalH, gameTime)
+
+    -- === 气泡对话 (角色头顶, 3D→2D 投影) ===
+    if playerBubble and token and token.visible then
+        -- Token 头顶世界坐标 (bounceY + 精灵高度)
+        local headWorldY = 0.25 + token.bounceY + 0.50 -- 0.25=基础Y, 0.50=精灵高度
+        local headPos = Vector3(token.worldX, headWorldY, token.worldZ)
+        local headSX, headSY = worldToScreen(headPos)
+        BubbleDialogue.draw(playerBubble, vg, headSX, headSY)
+    end
 
     -- === VFX 叠加层 ===
     VFX.drawBurst()

@@ -217,7 +217,7 @@ function M.generateDaily(board)
     for _, loc in ipairs(boardLocs) do
         local card = board.cards[loc.row] and board.cards[loc.row][loc.col]
         if card and card.location ~= "home" then
-            local isSafe = (card.type == "safe" or card.type == "reward" or card.type == "plot" or card.type == "clue")
+            local isSafe = (card.type == "safe" or card.type == "reward" or card.type == "plot" or card.type == "clue" or card.type == "landmark")
             local rumor = createRumor(card.location, isSafe)
             if rumor then
                 state.rumors[1] = rumor
@@ -379,7 +379,7 @@ function M.addRumor(board)
 
     -- 随机选一张
     local pick = candidates[math.random(1, #candidates)]
-    local isSafe = (pick.type == "safe" or pick.type == "reward" or pick.type == "plot" or pick.type == "clue")
+    local isSafe = (pick.type == "safe" or pick.type == "reward" or pick.type == "plot" or pick.type == "clue" or pick.type == "landmark")
     local rumor = createRumor(pick.location, isSafe)
     if not rumor then return false end
 
