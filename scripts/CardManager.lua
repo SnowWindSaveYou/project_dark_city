@@ -126,10 +126,17 @@ end
 --- 返回地点列表，Board 需保证这些地点出现在棋盘上
 ---@return string[] requiredLocations
 function M.preSelectLocations()
-    -- 收集所有可用的日程地点
+    -- 收集可用的日程地点 (排除地标和商店, 它们有专用格子)
+    local excludeSet = { convenience = true }
+    for _, lmLoc in ipairs(Card.LANDMARK_LOCATIONS) do
+        excludeSet[lmLoc] = true
+    end
+
     local allLocs = {}
     for loc, _ in pairs(SCHEDULE_TEMPLATES) do
-        allLocs[#allLocs + 1] = loc
+        if not excludeSet[loc] then
+            allLocs[#allLocs + 1] = loc
+        end
     end
     -- 洗牌
     for i = #allLocs, 2, -1 do

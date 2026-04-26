@@ -331,7 +331,7 @@ end
 function M.clearCache()
     locationTexCache = {}
     eventTexCache = {}
-    -- backTex 保留，不会变
+    -- backTex / icon 纹理保留，不会变
     print("[CardTextures] Cache cleared")
 end
 

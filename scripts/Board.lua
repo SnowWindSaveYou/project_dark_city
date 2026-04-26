@@ -123,24 +123,51 @@ function M.generateCards(board, requiredLocations)
         usedPositions[#usedPositions + 1] = pos
     end
 
-    -- 4. 地点池
+    -- 4. 地点池 (普通格子: 排除地标/商店地点, 避免与专用格子混淆)
     local normalSlots = M.ROWS * M.COLS - #usedPositions
     local locationPool = {}
     local usedInPool = {}
 
+    -- 地标和商店地点集合 (不应出现在普通格子中)
+    local specialLocSet = { home = true, convenience = true }
+    for _, lmLoc in ipairs(Card.LANDMARK_LOCATIONS) do
+        specialLocSet[lmLoc] = true
+    end
+
     if requiredLocations then
         for _, loc in ipairs(requiredLocations) do
-            if not usedInPool[loc] then
+            -- 只接纳非地标/非商店的地点
+            if not usedInPool[loc] and not specialLocSet[loc] then
                 locationPool[#locationPool + 1] = loc
                 usedInPool[loc] = true
             end
         end
     end
 
+    -- 回填: 从 REGULAR_LOCATIONS 中选择未使用的地点, 避免重复
+    local fillCandidates = {}
+    for _, loc in ipairs(Card.REGULAR_LOCATIONS) do
+        if not usedInPool[loc] then
+            fillCandidates[#fillCandidates + 1] = loc
+        end
+    end
+    for i = #fillCandidates, 2, -1 do
+        local j = math.random(1, i)
+        fillCandidates[i], fillCandidates[j] = fillCandidates[j], fillCandidates[i]
+    end
+    local fillIdx = 1
+
+    -- 优先用不重复的地点, 用完后允许重复 (棋盘格子可能多于地点种类)
     while #locationPool < normalSlots do
-        locationPool[#locationPool + 1] = Card.REGULAR_LOCATIONS[
-            math.random(1, #Card.REGULAR_LOCATIONS)
-        ]
+        if fillIdx <= #fillCandidates then
+            locationPool[#locationPool + 1] = fillCandidates[fillIdx]
+            fillIdx = fillIdx + 1
+        else
+            -- 已无不重复地点可用, 从全部 REGULAR_LOCATIONS 随机补
+            locationPool[#locationPool + 1] = Card.REGULAR_LOCATIONS[
+                math.random(1, #Card.REGULAR_LOCATIONS)
+            ]
+        end
     end
     for i = #locationPool, 2, -1 do
         local j = math.random(1, i)
@@ -305,19 +332,28 @@ function M.dealAll(board, onComplete)
     local order = M.spiralOrder()
     local totalCards = #order
 
+    -- 渐进加速延迟: 前几张牌出得从容，后面越来越快
+    -- 间隔从 0.09s 逐渐降到 0.03s
+    local accDelay = 0
+    local lastDelay = 0
+
     for i, pos in ipairs(order) do
         local row, col = pos[1], pos[2]
         local card = board.cards[row][col]
         if card then
             local tx, tz = M.cardPos(board, row, col)
-            local delay = (i - 1) * 0.06
-            Card.dealTo(card, tx, tz, delay)
+            Card.dealTo(card, tx, tz, accDelay)
+            lastDelay = accDelay
+
+            -- 间隔随进度递减: lerp(0.09, 0.03, progress)
+            local progress = i / totalCards
+            local interval = 0.09 - 0.06 * progress
+            accDelay = accDelay + interval
         end
     end
 
     if onComplete then
-        local lastDelay = (totalCards - 1) * 0.06 + 0.5
-        board._dealTimer = lastDelay
+        board._dealTimer = lastDelay + 0.50
         board._dealCallback = onComplete
     end
 end

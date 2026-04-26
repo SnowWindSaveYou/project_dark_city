@@ -21,6 +21,7 @@ local ShopPopup    = require "ShopPopup"
 local CardManager      = require "CardManager"
 local HandPanel        = require "HandPanel"
 local DateTransition   = require "DateTransition"
+local BoardDecor       = require "BoardDecor"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -38,6 +39,17 @@ local cameraNode_ = nil
 local camera_ = nil
 local tableNode_ = nil  -- 桌面节点
 
+-- 相机自适应参数 (根据屏幕宽高比动态计算)
+local cameraBaseY_ = 4.5
+local cameraBaseZ_ = -4.5
+local cameraLookAtZ_ = -0.3
+
+-- 相机平移 (拖拽偏移, 世界空间)
+local cameraPanX_ = 0
+local cameraPanZ_ = 0
+local PAN_LIMIT_X = 1.5
+local PAN_LIMIT_Z = 1.5
+
 -- 分辨率 (Mode B)
 local physW, physH = 0, 0
 local dpr = 1.0
@@ -47,7 +59,14 @@ local logicalW, logicalH = 0, 0
 local gameTime = 0
 local frameDt  = 0
 
--- (3D 版: 背景由 Zone fogColor 提供, 不再使用 NanoVG 背景图)
+-- 背景过渡 (3D 版: 通过 Zone fogColor + 桌面颜色 + 光照亮度平滑变化)
+local bgTransition = 0       -- 当前过渡进度 0=全亮 1=全暗
+local bgTransitionTarget = 0 -- 目标过渡值
+---@type Zone
+local zone_ = nil            -- Zone 组件引用
+---@type Light
+local dirLight_ = nil        -- 方向光引用
+local tableMat_ = nil        -- 桌面材质引用
 
 -- F4: 前置声明
 local handleInventoryExorcism
@@ -61,6 +80,24 @@ local token = nil
 -- 交互状态
 local demoState = "idle"
 local hoveredCard = nil
+
+-- 帧计数器 (用于防止触摸模拟导致的同帧双重点击)
+local frameCount_ = 0
+local lastClickFrame_ = -1
+
+-- 拖拽状态 (用于区分点击和拖拽平移)
+local DRAG_THRESHOLD = 8  -- 逻辑像素, 超过此距离判定为拖拽
+local dragState_ = {
+    active = false,       -- 按下中 (尚未抬起)
+    isDragging = false,   -- 已超过阈值, 正在拖拽
+    startLX = 0,          -- 按下时的逻辑坐标
+    startLY = 0,
+    lastLX = 0,           -- 上一次的逻辑坐标 (用于计算增量)
+    lastLY = 0,
+    physStartX = 0,       -- 按下时的物理坐标 (用于 handleClick)
+    physStartY = 0,
+    inputSource = "none", -- "mouse" 或 "touch"
+}
 
 -- 日期
 local dayCount = 1
@@ -92,10 +129,100 @@ local function recalcResolution()
 end
 
 -- ============================================================================
--- 布局 (3D 版: 不再需要棋盘居中计算)
+-- 布局 (3D 版: 相机根据屏幕宽高比自适应)
 -- ============================================================================
 
+--- 将相机移动到 base + pan 偏移位置 (保持45°角)
+local function applyCameraPosition()
+    if not cameraNode_ then return end
+    cameraNode_:SetPosition(Vector3(
+        cameraPanX_, cameraBaseY_, cameraBaseZ_ + cameraPanZ_
+    ))
+    cameraNode_:LookAt(Vector3(
+        cameraPanX_, 0, cameraLookAtZ_ + cameraPanZ_
+    ))
+end
+
+--- 更新拖拽增量, 平移相机
+local function updateDrag(lx, ly)
+    local dx = lx - dragState_.startLX
+    local dy = ly - dragState_.startLY
+
+    -- 判定是否开始拖拽
+    if not dragState_.isDragging then
+        if math.abs(dx) > DRAG_THRESHOLD or math.abs(dy) > DRAG_THRESHOLD then
+            dragState_.isDragging = true
+        else
+            return
+        end
+    end
+
+    -- 计算增量
+    local deltaLX = lx - dragState_.lastLX
+    local deltaLY = ly - dragState_.lastLY
+    dragState_.lastLX = lx
+    dragState_.lastLY = ly
+
+    -- 灵敏度: 屏幕像素 → 世界米
+    if not camera_ then return end
+    local D = cameraBaseY_ * math.sqrt(2)
+    local visibleH = 2 * D * math.tan(math.rad(camera_.fov / 2))
+    local worldPerPx = visibleH / logicalH
+
+    -- 拖拽方向 → 相机平移 (grab 手势: 内容跟手)
+    -- 水平: 手指右移 → 相机左移 (-X)
+    -- 竖直: 手指下移 → 相机前移 (+Z) (因为屏幕上方=世界+Z)
+    cameraPanX_ = cameraPanX_ - deltaLX * worldPerPx
+    cameraPanZ_ = cameraPanZ_ + deltaLY * worldPerPx
+
+    -- 限制范围
+    cameraPanX_ = math.max(-PAN_LIMIT_X, math.min(PAN_LIMIT_X, cameraPanX_))
+    cameraPanZ_ = math.max(-PAN_LIMIT_Z, math.min(PAN_LIMIT_Z, cameraPanZ_))
+
+    applyCameraPosition()
+end
+
+--- 根据屏幕宽高比计算相机位置，确保棋盘完整可见
+local function recalcCamera()
+    if not camera_ then return end
+
+    local aspect = logicalW / logicalH  -- >1 横屏, <1 竖屏
+    local fovRad = math.rad(camera_.fov)  -- 45° → 0.785 rad
+    local halfTanFov = math.tan(fovRad / 2)  -- tan(22.5°) ≈ 0.4142
+
+    -- 棋盘宽度 (含少量边距)
+    local boardW = Board.COLS * (Card.CARD_W + Board.GAP) - Board.GAP  -- 3.68m
+    local margin = 1.12  -- 12% 边距
+    local requiredW = boardW * margin  -- ~4.12m
+
+    -- 45° 俯视相机: 相机到棋面中心的距离 = camY * sqrt(2)
+    -- 水平可视宽度 = 2 * camY * sqrt(2) * tan(vFOV/2) * aspect
+    -- 解 camY: camY = requiredW / (2 * sqrt(2) * tan(vFOV/2) * aspect)
+    local camYFromW = requiredW / (2 * math.sqrt(2) * halfTanFov * aspect)
+
+    -- 横屏 (aspect ≥ 1.0) 时宽度富余, 保持原始值 4.5
+    -- 竖屏时按需拉远
+    local camY = math.max(4.5, camYFromW)
+
+    -- 上限: 避免棋盘过小 (极窄屏保护)
+    camY = math.min(camY, 8.5)
+
+    -- 45° 角: Z = -Y
+    cameraBaseY_ = camY
+    cameraBaseZ_ = -camY
+
+    -- LookAt 偏移: 按比例调整 (原始 camY=4.5 时 lookAtZ=-0.3)
+    cameraLookAtZ_ = -0.3 * (camY / 4.5)
+
+    -- 应用 (含 pan 偏移)
+    applyCameraPosition()
+
+    print(string.format("[Main] Camera adapted: aspect=%.2f, camY=%.1f, camZ=%.1f, lookAtZ=%.2f",
+        aspect, cameraBaseY_, cameraBaseZ_, cameraLookAtZ_))
+end
+
 local function recalcLayout()
+    recalcCamera()
     CameraButton.recalcLayout(logicalW, logicalH)
 end
 
@@ -121,11 +248,11 @@ local function setup3DScene()
     -- 光照: 方向光 (明亮场景)
     local lightNode = scene_:CreateChild("DirectionalLight")
     lightNode:SetDirection(Vector3(0.5, -1.0, 0.6))
-    local light = lightNode:CreateComponent("Light")
-    light.lightType = LIGHT_DIRECTIONAL
-    light.color = Color(1.0, 1.0, 0.95, 1.0)
-    light.brightness = 2.2
-    light.castShadows = true
+    dirLight_ = lightNode:CreateComponent("Light")
+    dirLight_.lightType = LIGHT_DIRECTIONAL
+    dirLight_.color = Color(1.0, 1.0, 0.95, 1.0)
+    dirLight_.brightness = 2.2
+    dirLight_.castShadows = true
 
     -- 相机: 45度角俯瞰
     cameraNode_ = scene_:CreateChild("Camera")
@@ -143,27 +270,70 @@ local function setup3DScene()
     renderer.hdrRendering = true
 
     -- 环境
-    local zone = scene_:CreateComponent("Zone")
-    zone.boundingBox = BoundingBox(Vector3(-100, -100, -100), Vector3(100, 100, 100))
-    zone.fogColor = Color(0.15, 0.12, 0.18, 1.0)  -- 深紫暗色背景
-    zone.fogStart = 50.0
-    zone.fogEnd = 80.0
-    zone.ambientColor = Color(0.5, 0.5, 0.55, 1.0)
+    zone_ = scene_:CreateComponent("Zone")
+    zone_.boundingBox = BoundingBox(Vector3(-100, -100, -100), Vector3(100, 100, 100))
+    zone_.fogColor = Color(0.53, 0.76, 0.92, 1.0)  -- 初始: 明亮天蓝 (#87C3EB)
+    zone_.fogStart = 50.0
+    zone_.fogEnd = 80.0
+    zone_.ambientColor = Color(0.5, 0.5, 0.55, 1.0)
 
     -- 桌面: 大平板 (Box.mdl 缩放)
     tableNode_ = scene_:CreateChild("Table")
-    tableNode_:SetPosition(Vector3(0, -0.05, 0))  -- 略低于卡牌
+    tableNode_:SetPosition(Vector3(0, -0.15, 0))  -- 桌面顶部在 Y=-0.1, 远离棋盘平面
     tableNode_:SetScale(Vector3(8, 0.1, 8))
     local tableModel = tableNode_:CreateComponent("StaticModel")
     tableModel:SetModel(cache:GetResource("Model", "Models/Box.mdl"))
-    local tableMat = Material:new()
-    tableMat:SetTechnique(0, cache:GetResource("Technique", "Techniques/PBR/PBRNoTexture.xml"))
-    tableMat:SetShaderParameter("MatDiffColor", Variant(Color(0.12, 0.10, 0.15, 1.0)))
-    tableMat:SetShaderParameter("MatRoughness", Variant(0.85))
-    tableMat:SetShaderParameter("MatMetallic", Variant(0.05))
-    tableModel:SetMaterial(tableMat)
+    tableMat_ = Material:new()
+    tableMat_:SetTechnique(0, cache:GetResource("Technique", "Techniques/PBR/PBRNoTexture.xml"))
+    tableMat_:SetShaderParameter("MatDiffColor", Variant(Color(0.32, 0.38, 0.48, 1.0)))  -- 初始: 偏蓝灰桌面
+    tableMat_:SetShaderParameter("MatRoughness", Variant(0.85))
+    tableMat_:SetShaderParameter("MatMetallic", Variant(0.05))
+    tableModel:SetMaterial(tableMat_)
+
+    -- 装饰 (传入桌面 model 以替换纹理)
+    BoardDecor.init(scene_, tableModel)
 
     print("[Main] 3D scene initialized")
+end
+
+-- ============================================================================
+-- 背景氛围过渡 (翻牌越多越暗)
+-- ============================================================================
+
+-- 明亮 → 暗色 的颜色定义
+local BG_BRIGHT = {
+    fog     = { 0.53, 0.76, 0.92 },  -- 天蓝 #87C3EB
+    ambient = { 0.55, 0.55, 0.60 },
+    table   = { 0.32, 0.38, 0.48 },  -- 偏蓝灰桌面
+    brightness = 2.2,
+}
+local BG_DARK = {
+    fog     = { 0.15, 0.12, 0.18 },  -- 深紫暗色
+    ambient = { 0.25, 0.22, 0.28 },
+    table   = { 0.12, 0.10, 0.15 },  -- 暗紫桌面
+    brightness = 1.6,
+}
+
+--- 根据过渡进度 t (0=全亮, 1=全暗) 更新场景氛围
+local function updateSceneAtmosphere(t)
+    if not zone_ then return end
+
+    local function lerp(a, b, f) return a + (b - a) * f end
+    local function lerpColor(ca, cb, f)
+        return Color(lerp(ca[1], cb[1], f), lerp(ca[2], cb[2], f), lerp(ca[3], cb[3], f), 1.0)
+    end
+
+    zone_.fogColor = lerpColor(BG_BRIGHT.fog, BG_DARK.fog, t)
+    zone_.ambientColor = lerpColor(BG_BRIGHT.ambient, BG_DARK.ambient, t)
+
+    if dirLight_ then
+        dirLight_.brightness = lerp(BG_BRIGHT.brightness, BG_DARK.brightness, t)
+    end
+
+    if tableMat_ then
+        tableMat_:SetShaderParameter("MatDiffColor",
+            Variant(lerpColor(BG_BRIGHT.table, BG_DARK.table, t)))
+    end
 end
 
 -- ============================================================================
@@ -190,7 +360,10 @@ function Start()
     -- 字体
     fontSans = nvgCreateFont(vg, "sans", "Fonts/MiSans-Regular.ttf")
 
-    -- (3D 版: 背景由 Zone fogColor 提供, 不再加载 NanoVG 背景图)
+    -- 重置背景过渡
+    bgTransition = 0
+    bgTransitionTarget = 0
+    updateSceneAtmosphere(0)  -- 初始化为全亮
 
     -- 主题
     Theme.init("bright")
@@ -263,13 +436,7 @@ function Start()
             for c = 1, Board.COLS do
                 local cd = board.cards[r] and board.cards[r][c]
                 if cd and cd.scouted and not cd.faceUp and not cd.isFlipping then
-                    cd.faceUp = true
-                    cd.scaleX = 0
-                    Card.updateTexture(cd, CardTextures)
-                    Tween.to(cd, { scaleX = 1.0 }, 0.2, {
-                        easing = Tween.Easing.easeOutBack,
-                        tag = "cameramode",
-                    })
+                    Card.flipToFace(cd, CardTextures)
                 end
             end
         end
@@ -281,18 +448,7 @@ function Start()
             for c = 1, Board.COLS do
                 local cd = board.cards[r] and board.cards[r][c]
                 if cd and cd.scouted and cd.faceUp and not cd.isFlipping then
-                    Tween.to(cd, { scaleX = 0 }, 0.1, {
-                        easing = Tween.Easing.easeInQuad,
-                        tag = "cameramode",
-                        onComplete = function()
-                            cd.faceUp = false
-                            Card.updateTexture(cd, CardTextures)
-                            Tween.to(cd, { scaleX = 1.0 }, 0.15, {
-                                easing = Tween.Easing.easeOutBack,
-                                tag = "cameramode",
-                            })
-                        end
-                    })
+                    Card.flipToBack(cd, CardTextures)
                 end
             end
         end
@@ -306,8 +462,11 @@ function Start()
     SubscribeToEvent("Update", "HandleUpdate")
     SubscribeToEvent("ScreenMode", "HandleScreenMode")
     SubscribeToEvent("MouseButtonDown", "HandleMouseDown")
+    SubscribeToEvent("MouseButtonUp", "HandleMouseUp")
     SubscribeToEvent("KeyDown", "HandleKeyDown")
     SubscribeToEvent("TouchBegin", "HandleTouchBegin")
+    SubscribeToEvent("TouchMove", "HandleTouchMove")
+    SubscribeToEvent("TouchEnd", "HandleTouchEnd")
 
     -- 标题画面
     gamePhase = "title"
@@ -506,6 +665,13 @@ function onGameRestart()
     gameStats.monstersSlain = 0
     gameStats.photosUsed    = 0
 
+    -- 重置背景过渡和相机平移
+    bgTransition = 0
+    bgTransitionTarget = 0
+    updateSceneAtmosphere(0)
+    cameraPanX_ = 0
+    cameraPanZ_ = 0
+
     ResourceBar.reset()
     CardManager.reset()
     HandPanel.reset()
@@ -656,18 +822,7 @@ local function onPhotographFlipped(card, screenX, screenY)
                 gameStats.cardsRevealed = gameStats.cardsRevealed + 1
 
                 card.scouted = true
-                Tween.to(card, { scaleX = 0 }, 0.12, {
-                    easing = Tween.Easing.easeInQuad,
-                    tag = "cardflip",
-                    onComplete = function()
-                        card.faceUp = false
-                        Card.updateTexture(card, CardTextures)
-                        Tween.to(card, { scaleX = 1.0 }, 0.2, {
-                            easing = Tween.Easing.easeOutBack,
-                            tag = "cardflip",
-                        })
-                    end
-                })
+                Card.flipBack(card, nil, CardTextures)
 
                 Token.setEmotion(token, "happy")
                 demoState = "ready"
@@ -891,6 +1046,11 @@ local function handleCameraModeClick(card, row, col)
 end
 
 local function handleClick(inputX, inputY)
+    -- 防止触摸模拟导致同帧双重点击 (SampleStart 在移动端启用触摸模拟,
+    -- 一次触摸同时触发 HandleTouchBegin 和 HandleMouseDown)
+    if frameCount_ == lastClickFrame_ then return end
+    lastClickFrame_ = frameCount_
+
     local lx = inputX / dpr
     local ly = inputY / dpr
 
@@ -943,13 +1103,49 @@ local function handleClick(inputX, inputY)
     end
 end
 
+--- 开始拖拽跟踪 (点击延迟到抬起时触发, 以支持拖拽平移)
+local function beginDragTracking(physX, physY, source)
+    if dragState_.active then return end  -- 已有活跃按下 (避免触摸模拟重复)
+    local lx = physX / dpr
+    local ly = physY / dpr
+    dragState_.active = true
+    dragState_.isDragging = false
+    dragState_.startLX = lx
+    dragState_.startLY = ly
+    dragState_.lastLX = lx
+    dragState_.lastLY = ly
+    dragState_.physStartX = physX
+    dragState_.physStartY = physY
+    dragState_.inputSource = source
+end
+
+--- 结束拖拽, 如果未拖拽则触发点击
+local function endDragTracking(source)
+    if not dragState_.active then return end
+    if dragState_.inputSource ~= source then return end
+    if not dragState_.isDragging then
+        handleClick(dragState_.physStartX, dragState_.physStartY)
+    end
+    dragState_.active = false
+    dragState_.isDragging = false
+    dragState_.inputSource = "none"
+end
+
 ---@param eventType string
 ---@param eventData MouseButtonDownEventData
 function HandleMouseDown(eventType, eventData)
     local button = eventData:GetInt("Button")
     if button ~= MOUSEB_LEFT then return end
     local mousePos = input:GetMousePosition()
-    handleClick(mousePos.x, mousePos.y)
+    beginDragTracking(mousePos.x, mousePos.y, "mouse")
+end
+
+---@param eventType string
+---@param eventData MouseButtonUpEventData
+function HandleMouseUp(eventType, eventData)
+    local button = eventData:GetInt("Button")
+    if button ~= MOUSEB_LEFT then return end
+    endDragTracking("mouse")
 end
 
 ---@param eventType string
@@ -957,7 +1153,22 @@ end
 function HandleTouchBegin(eventType, eventData)
     local tx = eventData:GetInt("X")
     local ty = eventData:GetInt("Y")
-    handleClick(tx, ty)
+    beginDragTracking(tx, ty, "touch")
+end
+
+---@param eventType string
+---@param eventData TouchMoveEventData
+function HandleTouchMove(eventType, eventData)
+    if not dragState_.active or dragState_.inputSource ~= "touch" then return end
+    local tx = eventData:GetInt("X")
+    local ty = eventData:GetInt("Y")
+    updateDrag(tx / dpr, ty / dpr)
+end
+
+---@param eventType string
+---@param eventData TouchEndEventData
+function HandleTouchEnd(eventType, eventData)
+    endDragTracking("touch")
 end
 
 ---@param eventType string
@@ -1018,7 +1229,7 @@ local function updateHover(dt)
     CameraButton.updateHover(lx, ly, dt)
     HandPanel.updateHover(lx, ly, dt, logicalW, logicalH)
 
-    if gamePhase ~= "playing" or demoState ~= "ready" then
+    if gamePhase ~= "playing" or demoState ~= "ready" or dragState_.isDragging then
         hoveredCard = nil
     else
         -- 3D 射线检测
@@ -1058,6 +1269,13 @@ function HandleUpdate(eventType, eventData)
     local dt = eventData:GetFloat("TimeStep")
     gameTime = gameTime + dt
     frameDt = dt
+    frameCount_ = frameCount_ + 1
+
+    -- 鼠标拖拽跟踪 (触摸拖拽由 HandleTouchMove 事件处理)
+    if dragState_.active and dragState_.inputSource == "mouse" then
+        local mousePos = input:GetMousePosition()
+        updateDrag(mousePos.x / dpr, mousePos.y / dpr)
+    end
 
     Tween.update(dt)
     VFX.updateAll(dt)
@@ -1068,23 +1286,33 @@ function HandleUpdate(eventType, eventData)
     CameraButton.update(dt)
     updateHover(dt)
 
+    -- 背景氛围过渡 (根据翻牌数平滑变暗)
+    local totalForFull = 8
+    bgTransitionTarget = math.min(gameStats.cardsRevealed / totalForFull, 1.0)
+    local bgSpeed = 2.0
+    if bgTransition < bgTransitionTarget then
+        bgTransition = math.min(bgTransition + bgSpeed * dt, bgTransitionTarget)
+    elseif bgTransition > bgTransitionTarget then
+        bgTransition = math.max(bgTransition - bgSpeed * dt, bgTransitionTarget)
+    end
+    updateSceneAtmosphere(bgTransition)
+
     -- 3D 节点同步 (每帧将 Lua 属性映射到 Node Transform)
     Board.syncAllNodes(board)
     Token.syncNode(token, gameTime)
 
-    -- 屏幕抖动 → 相机偏移
+    -- 屏幕抖动 → 相机偏移 (叠加 pan 平移)
     local shakeX, shakeY = VFX.getShakeOffset()
     if cameraNode_ and (shakeX ~= 0 or shakeY ~= 0) then
-        -- 将屏幕像素抖动转为世界空间偏移 (大约 1px = 0.005m)
-        local basePos = Vector3(0, 4.5, -4.5)
         cameraNode_:SetPosition(Vector3(
-            basePos.x + shakeX * 0.005,
-            basePos.y + shakeY * 0.005,
-            basePos.z
+            cameraPanX_ + shakeX * 0.005,
+            cameraBaseY_ + shakeY * 0.005,
+            cameraBaseZ_ + cameraPanZ_
         ))
     elseif cameraNode_ then
-        -- 无抖动时确保相机在正确位置
-        cameraNode_:SetPosition(Vector3(0, 4.5, -4.5))
+        cameraNode_:SetPosition(Vector3(
+            cameraPanX_, cameraBaseY_, cameraBaseZ_ + cameraPanZ_
+        ))
     end
 end
 
@@ -1117,13 +1345,12 @@ function HandleNanoVGRender(eventType, eventData)
     VFX.drawTransition()
 
     -- === 资源栏 ===
-    ResourceBar.draw(vg, logicalW, logicalH)
+    ResourceBar.draw(vg, logicalW, logicalH, dayCount)
 
     -- === 手牌面板 ===
     HandPanel.draw(vg, logicalW, logicalH, gameTime)
 
-    -- === HUD ===
-    drawHUD()
+    -- === HUD (天数已整合到 ResourceBar) ===
 
     -- === 相机按钮 ===
     CameraButton.draw(vg, logicalW, logicalH, gameTime)
@@ -1148,17 +1375,8 @@ function HandleNanoVGRender(eventType, eventData)
 end
 
 -- ============================================================================
--- HUD
+-- HUD (天数已整合到 ResourceBar 纸条中)
 -- ============================================================================
-
-function drawHUD()
-    local t = Theme.current
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, t.fontSize.subtitle)
-    nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_TOP)
-    nvgFillColor(vg, Theme.rgba(t.textPrimary))
-    nvgText(vg, logicalW - 20, 16, "第 " .. dayCount .. " 天", nil)
-end
 
 -- ============================================================================
 -- 屏幕变化
