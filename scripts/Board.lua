@@ -1,6 +1,7 @@
 -- ============================================================================
--- Board.lua - 5x5 棋盘布局与卡牌管理
--- 管理地点分配、事件分配、发牌编排、碰撞检测
+-- Board.lua - 5x5 棋盘布局与卡牌管理 (3D 版本)
+-- 世界坐标系: X=左右, Y=上下(高度), Z=前后(深度)
+-- 卡牌平铺在 Y=0 平面上
 -- ============================================================================
 
 local Card = require "Card"
@@ -13,7 +14,11 @@ local M = {}
 -- ---------------------------------------------------------------------------
 M.ROWS = 5
 M.COLS = 5
-M.GAP  = 10          -- 卡牌间距
+M.GAP  = 0.12  -- 卡牌间距 (米)
+
+-- 牌堆位置 (世界坐标, 在棋盘右侧外)
+M.DECK_X = 3.0
+M.DECK_Z = -1.5
 
 -- ---------------------------------------------------------------------------
 -- 构造
@@ -21,75 +26,41 @@ M.GAP  = 10          -- 卡牌间距
 
 ---@class BoardData
 ---@field cards table[]  二维数组 [row][col]
----@field originX number 棋盘左上角 X
----@field originY number 棋盘左上角 Y
----@field totalW number 棋盘总宽
----@field totalH number 棋盘总高
----@field deckX number 牌堆位置 X (发牌起点)
----@field deckY number 牌堆位置 Y
 ---@field homeRow number 家的行号
 ---@field homeCol number 家的列号
+---@field boardNode userdata 棋盘根节点 (3D)
 
 function M.new()
     return {
         cards = {},
-        originX = 0,
-        originY = 0,
-        totalW = 0,
-        totalH = 0,
-        deckX = 0,
-        deckY = 0,
         homeRow = 3,
         homeCol = 3,
         isDealt = false,
+        boardNode = nil,  -- 3D 场景节点
+
+        -- 兼容旧代码 (发牌起点)
+        deckX = M.DECK_X,
+        deckY = M.DECK_Z,  -- card.y → worldZ
     }
 end
 
 -- ---------------------------------------------------------------------------
--- 布局计算 (居中于给定区域)
+-- 世界坐标计算 (棋盘中心在原点)
 -- ---------------------------------------------------------------------------
 
---- 重新计算棋盘位置 (在屏幕改变时调用)
----@param board BoardData
----@param centerX number 棋盘中心 X
----@param centerY number 棋盘中心 Y
-function M.recalcLayout(board, centerX, centerY)
-    local cw, ch = Card.WIDTH, Card.HEIGHT
-    local gap = M.GAP
-
-    board.totalW = M.COLS * cw + (M.COLS - 1) * gap
-    board.totalH = M.ROWS * ch + (M.ROWS - 1) * gap
-    board.originX = centerX - board.totalW / 2
-    board.originY = centerY - board.totalH / 2
-
-    -- 牌堆在棋盘右侧偏上
-    board.deckX = centerX + board.totalW / 2 + cw * 0.8
-    board.deckY = centerY - board.totalH / 2 + ch * 0.5
-
-    -- 更新已有卡牌的目标位置 (不触发动画，仅用于 deal)
-    for row = 1, M.ROWS do
-        if board.cards[row] then
-            for col = 1, M.COLS do
-                local card = board.cards[row][col]
-                if card then
-                    -- 已发的牌直接跳到位置
-                    if not card.isDealing and card.alpha > 0 then
-                        card.x, card.y = M.cardPos(board, row, col)
-                    end
-                end
-            end
-        end
-    end
-end
-
---- 获取指定格子的中心位置
----@return number x, number y
+--- 获取指定格子的世界坐标 (中心)
+---@return number worldX, number worldZ
 function M.cardPos(board, row, col)
-    local cw, ch = Card.WIDTH, Card.HEIGHT
+    local cw, ch = Card.CARD_W, Card.CARD_H
     local gap = M.GAP
-    local x = board.originX + (col - 1) * (cw + gap) + cw / 2
-    local y = board.originY + (row - 1) * (ch + gap) + ch / 2
-    return x, y
+
+    -- 以 (0,0) 为中心
+    -- col: 1..5 → (col - 3) * stride
+    -- row: 1..5 → (row - 3) * stride
+    local worldX = (col - 3) * (cw + gap)
+    local worldZ = (row - 3) * (ch + gap)
+
+    return worldX, worldZ
 end
 
 -- ---------------------------------------------------------------------------
@@ -111,7 +82,6 @@ local function randomPositions(count, exclude)
             end
         end
     end
-    -- 洗牌
     for i = #positions, 2, -1 do
         local j = math.random(1, i)
         positions[i], positions[j] = positions[j], positions[i]
@@ -124,39 +94,40 @@ local function randomPositions(count, exclude)
 end
 
 -- ---------------------------------------------------------------------------
--- 生成卡牌 (地点 + 事件双层系统)
+-- 生成卡牌 (地点 + 事件双层系统) — 逻辑不变
 -- ---------------------------------------------------------------------------
 
---- @param requiredLocations string[]|nil 必须出现在棋盘上的地点列表 (由 CardManager.preSelectLocations 提供)
 function M.generateCards(board, requiredLocations)
+    -- 先销毁旧的 3D 节点
+    M.destroyAllNodes(board)
+
     board.cards = {}
     local usedPositions = {}
 
-    -- 1. 随机放置"家" (起始安全位置)
+    -- 1. 家
     local homePos = randomPositions(1, nil)
     board.homeRow = homePos[1][1]
     board.homeCol = homePos[1][2]
     usedPositions[#usedPositions + 1] = { board.homeRow, board.homeCol }
 
-    -- 2. 随机放置 1~2 个地标 (避开家)
+    -- 2. 地标
     local landmarkCount = math.random(1, 2)
     local landmarkPositions = randomPositions(landmarkCount, usedPositions)
     for _, pos in ipairs(landmarkPositions) do
         usedPositions[#usedPositions + 1] = pos
     end
 
-    -- 3. 随机放置 1 个商店 (避开已用位置)
+    -- 3. 商店
     local shopPositions = randomPositions(1, usedPositions)
     for _, pos in ipairs(shopPositions) do
         usedPositions[#usedPositions + 1] = pos
     end
 
-    -- 4. 准备地点池 (优先放入日程所需地点，再随机填充)
+    -- 4. 地点池
     local normalSlots = M.ROWS * M.COLS - #usedPositions
     local locationPool = {}
     local usedInPool = {}
 
-    -- 4a. 先放入必须出现的地点 (日程预选)
     if requiredLocations then
         for _, loc in ipairs(requiredLocations) do
             if not usedInPool[loc] then
@@ -166,20 +137,18 @@ function M.generateCards(board, requiredLocations)
         end
     end
 
-    -- 4b. 用随机地点填充到所需数量
     while #locationPool < normalSlots do
         locationPool[#locationPool + 1] = Card.REGULAR_LOCATIONS[
             math.random(1, #Card.REGULAR_LOCATIONS)
         ]
     end
-    -- 洗牌
     for i = #locationPool, 2, -1 do
         local j = math.random(1, i)
         locationPool[i], locationPool[j] = locationPool[j], locationPool[i]
     end
     local locIdx = 1
 
-    -- 5. 准备事件池 (加权随机)
+    -- 5. 事件池
     local eventWeights = {
         { "safe",   30 },
         { "monster", 20 },
@@ -202,7 +171,6 @@ function M.generateCards(board, requiredLocations)
     end
 
     -- 6. 填充棋盘
-    -- 先创建位置查找表
     local specialMap = {}
     specialMap[board.homeRow .. "," .. board.homeCol] = "home"
     for _, pos in ipairs(landmarkPositions) do
@@ -212,12 +180,10 @@ function M.generateCards(board, requiredLocations)
         specialMap[pos[1] .. "," .. pos[2]] = "shop"
     end
 
-    -- 地标使用的地点 (有祛邪力量的场所 — 教堂/警察局/神社)
     local landmarkLocations = {}
     for i, loc in ipairs(Card.LANDMARK_LOCATIONS) do
         landmarkLocations[i] = loc
     end
-    -- 洗牌，让地标地点随机化
     for i = #landmarkLocations, 2, -1 do
         local j = math.random(1, i)
         landmarkLocations[i], landmarkLocations[j] = landmarkLocations[j], landmarkLocations[i]
@@ -240,18 +206,17 @@ function M.generateCards(board, requiredLocations)
                 lmLocIdx = lmLocIdx + 1
             elseif special == "shop" then
                 cardType = "shop"
-                location = "convenience" -- 商店默认显示为便利店
+                location = "convenience"
             else
-                -- 普通格子：随机地点 + 随机事件
                 cardType = randomEvent()
                 location = locationPool[locIdx]
                 locIdx = locIdx + 1
             end
 
             local card = Card.new(cardType, row, col, location)
-            -- 初始位置在牌堆
-            card.x = board.deckX
-            card.y = board.deckY
+            -- 初始位置在牌堆 (世界坐标)
+            card.x = M.DECK_X
+            card.y = M.DECK_Z
             board.cards[row][col] = card
         end
     end
@@ -261,13 +226,63 @@ function M.generateCards(board, requiredLocations)
 end
 
 -- ---------------------------------------------------------------------------
--- 查询: 地标光环 (上下左右4格变安全)
+-- 3D 节点管理
 -- ---------------------------------------------------------------------------
 
---- 检查指定位置是否在地标光环范围内
----@return boolean
+--- 为所有卡牌创建 3D 节点
+function M.createAllNodes(board, parentNode, CardTextures)
+    board.boardNode = parentNode:CreateChild("Board")
+
+    for row = 1, M.ROWS do
+        if board.cards[row] then
+            for col = 1, M.COLS do
+                local card = board.cards[row][col]
+                if card then
+                    Card.createNode(card, board.boardNode, CardTextures)
+                end
+            end
+        end
+    end
+    print("[Board] Created 3D nodes for all cards")
+end
+
+--- 销毁所有卡牌 3D 节点
+function M.destroyAllNodes(board)
+    for row = 1, M.ROWS do
+        if board.cards[row] then
+            for col = 1, M.COLS do
+                local card = board.cards[row][col]
+                if card then
+                    Card.destroyNode(card)
+                end
+            end
+        end
+    end
+    if board.boardNode then
+        board.boardNode:Remove()
+        board.boardNode = nil
+    end
+end
+
+--- 每帧同步所有卡牌的 3D 节点 Transform
+function M.syncAllNodes(board)
+    for row = 1, M.ROWS do
+        if board.cards[row] then
+            for col = 1, M.COLS do
+                local card = board.cards[row][col]
+                if card then
+                    Card.syncNode(card)
+                end
+            end
+        end
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 查询: 地标光环
+-- ---------------------------------------------------------------------------
+
 function M.isInLandmarkAura(board, row, col)
-    -- 四邻方向
     local dirs = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }
     for _, d in ipairs(dirs) do
         local nr, nc = row + d[1], col + d[2]
@@ -282,7 +297,7 @@ function M.isInLandmarkAura(board, row, col)
 end
 
 -- ---------------------------------------------------------------------------
--- 发牌动画 (螺旋顺序，逐张延迟)
+-- 发牌动画 (螺旋顺序)
 -- ---------------------------------------------------------------------------
 
 function M.dealAll(board, onComplete)
@@ -294,13 +309,12 @@ function M.dealAll(board, onComplete)
         local row, col = pos[1], pos[2]
         local card = board.cards[row][col]
         if card then
-            local tx, ty = M.cardPos(board, row, col)
+            local tx, tz = M.cardPos(board, row, col)
             local delay = (i - 1) * 0.06
-            Card.dealTo(card, tx, ty, delay)
+            Card.dealTo(card, tx, tz, delay)
         end
     end
 
-    -- 最后一张牌发完后回调
     if onComplete then
         local lastDelay = (totalCards - 1) * 0.06 + 0.5
         board._dealTimer = lastDelay
@@ -308,7 +322,6 @@ function M.dealAll(board, onComplete)
     end
 end
 
---- 更新发牌计时器
 function M.update(board, dt)
     if board._dealTimer and board._dealTimer > 0 then
         board._dealTimer = board._dealTimer - dt
@@ -324,7 +337,7 @@ function M.update(board, dt)
 end
 
 -- ---------------------------------------------------------------------------
--- 收牌动画 (全部收回牌堆)
+-- 收牌动画
 -- ---------------------------------------------------------------------------
 
 function M.undealAll(board, onComplete)
@@ -337,13 +350,13 @@ function M.undealAll(board, onComplete)
         if card then
             local delay = (i - 1) * 0.04
             local isLast = (i == totalCards)
-            Card.undeal(card, board.deckX, board.deckY, delay, isLast and onComplete or nil)
+            Card.undeal(card, M.DECK_X, M.DECK_Z, delay, isLast and onComplete or nil)
         end
     end
 end
 
 -- ---------------------------------------------------------------------------
--- 螺旋遍历顺序 (从外到内)
+-- 螺旋遍历顺序
 -- ---------------------------------------------------------------------------
 
 function M.spiralOrder()
@@ -369,16 +382,49 @@ function M.spiralOrder()
 end
 
 -- ---------------------------------------------------------------------------
--- 碰撞检测
+-- 碰撞检测: 射线-平面交汇 + 卡牌矩形检测
 -- ---------------------------------------------------------------------------
 
---- 找到被点击的卡牌
+--- 从屏幕坐标射线检测卡牌 (3D ray-plane 交汇)
+---@param board BoardData
+---@param camera userdata Camera 组件
+---@param screenX number 物理像素 X
+---@param screenY number 物理像素 Y
+---@param screenW number 屏幕物理宽
+---@param screenH number 屏幕物理高
 ---@return CardData|nil card, number row, number col
-function M.hitTest(board, px, py)
+function M.hitTest(board, camera, screenX, screenY, screenW, screenH)
+    if not camera then
+        return nil, 0, 0
+    end
+
+    -- 屏幕坐标归一化到 [0,1]
+    local nx = screenX / screenW
+    local ny = screenY / screenH
+
+    -- 获取射线
+    local ray = camera:GetScreenRay(nx, ny)
+    local origin = ray.origin
+    local dir = ray.direction
+
+    -- 与 Y=0 平面求交
+    if math.abs(dir.y) < 0.0001 then
+        return nil, 0, 0  -- 射线几乎平行于平面
+    end
+
+    local t = -origin.y / dir.y
+    if t < 0 then
+        return nil, 0, 0  -- 交点在射线背面
+    end
+
+    local hitX = origin.x + dir.x * t
+    local hitZ = origin.z + dir.z * t
+
+    -- 遍历卡牌检测
     for row = 1, M.ROWS do
         for col = 1, M.COLS do
             local card = board.cards[row][col]
-            if card and Card.hitTest(card, px, py) then
+            if card and Card.hitTest(card, hitX, hitZ) then
                 return card, row, col
             end
         end
@@ -386,44 +432,17 @@ function M.hitTest(board, px, py)
     return nil, 0, 0
 end
 
--- ---------------------------------------------------------------------------
--- 渲染
--- ---------------------------------------------------------------------------
-
-function M.draw(vg, board, gameTime)
-    -- 牌堆指示 (简单背景牌)
-    M.drawDeck(vg, board)
-
-    -- 所有卡牌
+--- 世界坐标点击检测 (用于已知世界坐标的快捷检测)
+function M.hitTestWorld(board, worldX, worldZ)
     for row = 1, M.ROWS do
         for col = 1, M.COLS do
             local card = board.cards[row][col]
-            if card then
-                Card.draw(vg, card, gameTime)
+            if card and Card.hitTest(card, worldX, worldZ) then
+                return card, row, col
             end
         end
     end
-end
-
---- 牌堆视觉 (3 张堆叠效果)
-function M.drawDeck(vg, board)
-    local t = Theme.current
-    local cw, ch, cr = Card.WIDTH, Card.HEIGHT, Card.RADIUS
-    local dx, dy = board.deckX, board.deckY
-
-    for i = 3, 1, -1 do
-        local offX = (i - 1) * 2
-        local offY = (i - 1) * -1.5
-        local alpha = 120 + (4 - i) * 40
-
-        nvgBeginPath(vg)
-        nvgRoundedRect(vg, dx - cw / 2 + offX, dy - ch / 2 + offY, cw, ch, cr)
-        nvgFillColor(vg, Theme.rgbaA(t.cardBack, alpha))
-        nvgFill(vg)
-        nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, math.floor(alpha * 0.5)))
-        nvgStrokeWidth(vg, 1.0)
-        nvgStroke(vg)
-    end
+    return nil, 0, 0
 end
 
 return M

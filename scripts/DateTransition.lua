@@ -158,15 +158,8 @@ end
 function M.init(vg)
     state.bgImage = nvgCreateImage(vg, "image/edited_主角_睡觉CGv3_20260425163451.png", 0)
     state.bgLoaded = state.bgImage and state.bgImage > 0
-    if state.bgLoaded then
-        local ok, w, h = pcall(nvgImageSize, vg, state.bgImage)
-        if ok and w and h and w > 0 and h > 0 then
-            state.bgAspect = w / h
-        else
-            state.bgAspect = 16 / 9
-        end
-    end
-    print("[DateTransition] BG loaded: " .. tostring(state.bgLoaded))
+    state.bgSizeQueried = false  -- 延迟到 draw 时获取尺寸 (确保 NanoVG 就绪)
+    print("[DateTransition] BG image handle: " .. tostring(state.bgImage) .. " loaded: " .. tostring(state.bgLoaded))
 end
 
 function M.play(dayCount, onComplete)
@@ -203,14 +196,29 @@ local function drawBgCover(vg, logicalW, logicalH, alpha)
         return
     end
 
+    -- 延迟获取图片尺寸 (在 draw 阶段 NanoVG context 已就绪)
+    if not state.bgSizeQueried then
+        state.bgSizeQueried = true
+        local w, h = nvgImageSize(vg, state.bgImage)
+        print("[DateTransition] Image size: " .. tostring(w) .. "x" .. tostring(h))
+        if w and h and w > 0 and h > 0 then
+            state.bgAspect = w / h
+            print("[DateTransition] Aspect ratio: " .. state.bgAspect)
+        else
+            print("[DateTransition] WARNING: Failed to get image size, using fallback 16:9")
+        end
+    end
+
     local screenAspect = logicalW / logicalH
     local drawW, drawH, drawX, drawY
     if state.bgAspect > screenAspect then
+        -- 图片更宽: 高度填满, 宽度裁剪
         drawH = logicalH
         drawW = logicalH * state.bgAspect
         drawX = (logicalW - drawW) * 0.5
         drawY = 0
     else
+        -- 图片更高: 宽度填满, 高度裁剪
         drawW = logicalW
         drawH = logicalW / state.bgAspect
         drawX = 0
@@ -338,6 +346,9 @@ function M.draw(vg, logicalW, logicalH, gameTime)
         local scrollOffX = -scrollP * DATE_COS * dateSpacing
         local scrollOffY = -scrollP * DATE_SIN * dateSpacing
 
+        -- 用于高亮/注意力计算的 clamp 版本 (弹性缓动会超过 1.0 导致闪缩)
+        local highlightP = clamp01(scrollP)
+
         -- Phase 5: UI 沿日期线负方向(左下)滑出
         local uiSlideX = 0
         local uiSlideY = 0
@@ -349,8 +360,8 @@ function M.draw(vg, logicalW, logicalH, gameTime)
         -- 以 dayCount-1 为初始中心 (上一天先高亮, 滚动后过渡到新一天)
         local displayDayCount = state.dayCount - 1
         local prevDC = state.dayCount - 1
-        -- 注意力中心: 从上一天渐变到新一天 (用于非高亮日期的缩放)
-        local attentionCenter = prevDC + scrollP
+        -- 注意力中心: 从上一天渐变到新一天 (用 clamp 版本防止弹性过冲)
+        local attentionCenter = prevDC + highlightP
 
         ---@type {posX: number, posY: number, dc: number, idx: number, popT: number, rawAlpha: number, highlightW: number}[]
         local dateSlots = {}
@@ -369,12 +380,12 @@ function M.draw(vg, logicalW, logicalH, gameTime)
             local finalX = basePosX + scrollOffX + uiSlideX
             local finalY = basePosY + scrollOffY + uiSlideY
 
-            -- 高亮权重: 上一天从1→0, 新一天从0→1
+            -- 高亮权重: 上一天从1→0, 新一天从0→1 (用 clamp 版本防止弹性过冲)
             local highlightW = 0
             if dc == prevDC then
-                highlightW = 1.0 - scrollP
+                highlightW = 1.0 - highlightP
             elseif dc == state.dayCount then
-                highlightW = scrollP
+                highlightW = highlightP
             end
 
             dateSlots[#dateSlots + 1] = {

@@ -1,7 +1,7 @@
 -- ============================================================================
--- Card.lua - 卡牌数据、渲染与动画
+-- Card.lua - 卡牌数据、3D节点管理与动画
 -- 双层卡牌系统: 地点层 (明牌) + 事件层 (暗牌, 翻开后显示)
--- 纯 NanoVG 矢量绘制，Balatro 风格动效
+-- 3D 版本: 使用 Box.mdl 薄片作为卡牌，NanoVG 纹理贴图
 -- ============================================================================
 
 local Tween = require "lib.Tween"
@@ -10,11 +10,18 @@ local Theme = require "Theme"
 local M = {}
 
 -- ---------------------------------------------------------------------------
--- 常量
+-- 常量: 2D 逻辑 (保留兼容, 纹理用)
 -- ---------------------------------------------------------------------------
 M.WIDTH  = 64
 M.HEIGHT = 90
 M.RADIUS = 8
+
+-- ---------------------------------------------------------------------------
+-- 常量: 3D 世界尺寸 (米)
+-- ---------------------------------------------------------------------------
+M.CARD_W = 0.64          -- 世界宽
+M.CARD_H = 0.90          -- 世界高(深度方向 Z)
+M.CARD_THICKNESS = 0.015 -- 厚度 (Y 方向)
 
 -- ---------------------------------------------------------------------------
 -- 地点信息 (卡牌正面显示的都市地点)
@@ -51,18 +58,15 @@ M.LANDMARK_LOCATIONS = { "church", "police", "shrine" }
 -- ---------------------------------------------------------------------------
 -- 事件类型 (翻开卡牌后显示的隐藏事件)
 -- ---------------------------------------------------------------------------
--- 事件类型视觉信息由 Theme.cardTypeInfo() 提供
 M.EVENT_TYPES = { "safe", "monster", "trap", "reward", "plot", "clue" }
 
 -- 兼容旧代码的完整类型列表 (含特殊类型)
 M.ALL_TYPES = { "safe", "home", "landmark", "shop", "monster", "trap", "reward", "plot", "clue" }
 
 -- ---------------------------------------------------------------------------
--- 暗面世界映射: 地点 → 翻开后显示的暗面名称
--- 翻开卡牌 = 进入都市的另一侧世界，看到该地点的暗面版本
+-- 暗面世界映射
 -- ---------------------------------------------------------------------------
 M.DARKSIDE_INFO = {
-    -- 地点 → { [事件类型] = { icon, label } }
     company = {
         safe    = { icon = "🏢", label = "空荡办公室" },
         monster = { icon = "🕴️", label = "影子上司" },
@@ -129,10 +133,7 @@ M.DARKSIDE_INFO = {
     },
 }
 
---- 获取暗面显示信息 (地点+事件类型 → 暗面名称)
----@param location string
----@param eventType string
----@return table { icon, label } 或 nil
+--- 获取暗面显示信息
 function M.getDarksideInfo(location, eventType)
     local locMap = M.DARKSIDE_INFO[location]
     if locMap and locMap[eventType] then
@@ -146,22 +147,23 @@ end
 -- ---------------------------------------------------------------------------
 
 ---@class CardData
----@field type string       事件类型 (safe/monster/trap/reward/plot/clue/home/landmark/shop)
----@field location string   地点类型 (home/company/school/convenience/park/church/alley/station/...)
+---@field type string       事件类型
+---@field location string   地点类型
 ---@field row number
 ---@field col number
 ---@field faceUp boolean
----@field x number 渲染位置
----@field y number 渲染位置
+---@field x number   世界坐标 X
+---@field y number   世界坐标 Z (棋盘深度)
+---@field worldY number  世界坐标 Y (高度: 弹跳/浮动)
 ---@field scaleX number
 ---@field scaleY number
----@field rotation number degrees
+---@field rotation number degrees (绕 Y 轴)
 ---@field alpha number
----@field bounceY number 翻牌弹跳偏移
+---@field bounceY number  高度偏移 (正=上)
 ---@field glowIntensity number 0-1
 ---@field isFlipping boolean
 ---@field isDealing boolean
----@field hoverT number 0-1 hover 过渡
+---@field hoverT number 0-1
 
 function M.new(cardType, row, col, location)
     return {
@@ -169,49 +171,157 @@ function M.new(cardType, row, col, location)
         location = location or "company",
         row = row or 1,
         col = col or 1,
-        faceUp = (cardType == "landmark"),  -- 地标正面朝上（显示事件层）
+        faceUp = (cardType == "landmark"),
 
-        -- 渲染属性
+        -- 世界空间属性 (x→worldX, y→worldZ)
         x = 0, y = 0,
+        worldY = 0,       -- 高度 (牌面在 Y=0 平面上)
         scaleX = 1.0,
         scaleY = 1.0,
-        rotation = 0,
-        alpha = 0,           -- 初始透明，deal 动画时渐入
-        bounceY = 0,
+        rotation = 0,     -- 绕 Y 轴旋转 (度)
+        alpha = 0,
+        bounceY = 0,      -- 3D: 正值=向上弹跳
         glowIntensity = 0,
 
         -- 状态
         isFlipping = false,
         isDealing = false,
         hoverT = 0,
-        shakeX = 0,         -- 无效操作抖动偏移
-        scouted = false,    -- 被拍摄侦察过 (看到了事件类型，但未实际触发)
+        shakeX = 0,
+        scouted = false,
+
+        -- 3D 节点引用
+        node3d = nil,        -- Urho3D Node
+        model3d = nil,       -- StaticModel 组件
+        material3d = nil,    -- 当前材质
     }
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 翻牌
+-- 3D 节点: 创建
 -- ---------------------------------------------------------------------------
 
-function M.flip(card, onComplete)
+--- 为卡牌创建 3D 节点 (Box薄片)
+---@param card CardData
+---@param parentNode userdata 父节点 (scene 或 boardNode)
+---@param CardTextures table CardTextures 模块
+function M.createNode(card, parentNode, CardTextures)
+    if card.node3d then return end  -- 已创建
+
+    local node = parentNode:CreateChild("Card_" .. card.row .. "_" .. card.col)
+
+    -- Box.mdl 是 1x1x1，缩放为卡牌尺寸
+    -- X=宽, Y=厚度, Z=高(深度)
+    node:SetScale(Vector3(M.CARD_W, M.CARD_THICKNESS, M.CARD_H))
+
+    local model = node:CreateComponent("StaticModel")
+    model:SetModel(cache:GetResource("Model", "Models/Box.mdl"))
+
+    -- 初始材质 (地点面)
+    local mat = Material:new()
+    mat:SetTechnique(0, cache:GetResource("Technique", "Techniques/DiffAlpha.xml"))
+    local tex = CardTextures.getLocationTexture(card.location)
+    mat:SetTexture(TU_DIFFUSE, tex)
+    mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
+    model:SetMaterial(mat)
+
+    card.node3d = node
+    card.model3d = model
+    card.material3d = mat
+end
+
+-- ---------------------------------------------------------------------------
+-- 3D 节点: 同步 Lua 状态 → Node Transform
+-- ---------------------------------------------------------------------------
+
+--- 每帧调用: 将 card 的 Lua 属性映射到 3D Node
+---@param card CardData
+function M.syncNode(card)
+    local node = card.node3d
+    if not node then return end
+
+    -- 位置: card.x→worldX, card.y→worldZ, bounceY→worldY
+    local wx = card.x + card.shakeX * 0.01  -- shakeX 单位缩放: 2D(5px) → 3D(~0.05m)
+    local wy = card.bounceY                  -- bounceY 3D 正值=上
+    local wz = card.y                        -- card.y 映射到 worldZ
+
+    node:SetPosition(Vector3(wx, wy, wz))
+
+    -- 缩放: scaleX/Y 乘以基础尺寸
+    -- hoverT 放大效果
+    local hoverScale = 1.0 + card.hoverT * 0.08
+    local sx = M.CARD_W * card.scaleX * hoverScale
+    local sy = M.CARD_THICKNESS
+    local sz = M.CARD_H * card.scaleY * hoverScale
+    node:SetScale(Vector3(sx, sy, sz))
+
+    -- 旋转: rotation 绕 Y 轴
+    node:SetRotation(Quaternion(card.rotation, Vector3.UP))
+
+    -- alpha → 材质
+    if card.material3d then
+        card.material3d:SetShaderParameter("MatDiffColor",
+            Variant(Color(1, 1, 1, card.alpha)))
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 3D 节点: 更新材质纹理 (翻牌时切换)
+-- ---------------------------------------------------------------------------
+
+--- 切换卡牌显示面的纹理
+---@param card CardData
+---@param CardTextures table
+function M.updateTexture(card, CardTextures)
+    if not card.material3d then return end
+
+    local tex
+    if card.faceUp then
+        tex = CardTextures.getEventTexture(card.location, card.type)
+    else
+        tex = CardTextures.getLocationTexture(card.location)
+    end
+    card.material3d:SetTexture(TU_DIFFUSE, tex)
+end
+
+-- ---------------------------------------------------------------------------
+-- 3D 节点: 销毁
+-- ---------------------------------------------------------------------------
+
+function M.destroyNode(card)
+    if card.node3d then
+        card.node3d:Remove()
+        card.node3d = nil
+        card.model3d = nil
+        card.material3d = nil
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 动画: 翻牌 (3D 版 — scaleX 翻转 + bounceY 弹跳)
+-- ---------------------------------------------------------------------------
+
+function M.flip(card, onComplete, CardTextures)
     if card.isFlipping or card.faceUp then return end
     card.isFlipping = true
 
-    -- 阶段1: scaleX → 0 (收缩消失)
+    -- 阶段1: scaleX → 0 (收缩)
     Tween.to(card, { scaleX = 0, scaleY = 1.08 }, 0.14, {
         easing = Tween.Easing.easeInQuad,
         tag = "cardflip",
         onComplete = function()
-            -- 切换正反面
+            -- 切换正反面 + 纹理
             card.faceUp = true
+            if CardTextures then
+                M.updateTexture(card, CardTextures)
+            end
 
-            -- 阶段2: scaleX → 1 (弹出展开)
+            -- 阶段2: scaleX → 1 (展开)
             Tween.to(card, { scaleX = 1.0, scaleY = 1.0 }, 0.28, {
                 easing = Tween.Easing.easeOutBack,
                 tag = "cardflip",
                 onComplete = function()
                     card.isFlipping = false
-                    -- 揭示光晕
                     card.glowIntensity = 1.0
                     Tween.to(card, { glowIntensity = 0 }, 0.6, {
                         easing = Tween.Easing.easeOutQuad,
@@ -222,8 +332,8 @@ function M.flip(card, onComplete)
         end
     })
 
-    -- 弹跳 Y
-    Tween.to(card, { bounceY = -10 }, 0.12, {
+    -- 弹跳 Y (3D: 正值=上)
+    Tween.to(card, { bounceY = 0.08 }, 0.12, {
         easing = Tween.Easing.easeOutQuad,
         tag = "cardflip",
         onComplete = function()
@@ -236,7 +346,7 @@ function M.flip(card, onComplete)
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 无效操作抖动 (reject shake)
+-- 动画: 无效操作抖动
 -- ---------------------------------------------------------------------------
 
 function M.shake(card)
@@ -248,7 +358,7 @@ function M.shake(card)
         tag = "cardshake",
         onUpdate = function(_, t)
             local decay = (1 - t) ^ 2
-            card.shakeX = math.sin(t * math.pi * 6) * 5 * decay
+            card.shakeX = math.sin(t * math.pi * 6) * 0.04 * decay
         end,
         onComplete = function()
             card.shakeX = 0
@@ -258,7 +368,7 @@ function M.shake(card)
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 发牌 (从 deck 位置飞到目标位置)
+-- 动画: 发牌 (3D 世界坐标)
 -- ---------------------------------------------------------------------------
 
 function M.dealTo(card, targetX, targetY, delay)
@@ -286,7 +396,7 @@ function M.dealTo(card, targetX, targetY, delay)
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 重置 (反向收回)
+-- 动画: 收牌
 -- ---------------------------------------------------------------------------
 
 function M.undeal(card, deckX, deckY, delay, onComplete)
@@ -311,35 +421,32 @@ function M.undeal(card, deckX, deckY, delay, onComplete)
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 变形 (monster → photo 驱除)
--- 先 scaleX/Y 收缩 + 抖动 → 类型切换 → 弹出展开 + 光晕
+-- 动画: 变形 (monster → photo)
 -- ---------------------------------------------------------------------------
 
-function M.transformTo(card, newType, onComplete)
+function M.transformTo(card, newType, onComplete, CardTextures)
     if card._transforming then return end
     card._transforming = true
 
-    -- 阶段1: 收缩 + 快速抖动 (0.25s)
     card._shakeT = 0
     Tween.to(card, { scaleX = 0.3, scaleY = 0.3, _shakeT = 1 }, 0.25, {
         easing = Tween.Easing.easeInQuad,
         tag = "cardtransform",
         onUpdate = function(_, t)
-            -- 衰减抖动
-            card.shakeX = math.sin(t * math.pi * 10) * 6 * (1 - t * 0.5)
+            card.shakeX = math.sin(t * math.pi * 10) * 0.05 * (1 - t * 0.5)
         end,
         onComplete = function()
-            -- 切换类型
             card.type = newType
             card.shakeX = 0
+            if CardTextures then
+                M.updateTexture(card, CardTextures)
+            end
 
-            -- 阶段2: 弹出展开 (0.35s)
             Tween.to(card, { scaleX = 1.0, scaleY = 1.0 }, 0.35, {
                 easing = Tween.Easing.easeOutBack,
                 tag = "cardtransform",
                 onComplete = function()
                     card._transforming = false
-                    -- 光晕
                     card.glowIntensity = 1.0
                     Tween.to(card, { glowIntensity = 0 }, 0.8, {
                         easing = Tween.Easing.easeOutQuad,
@@ -352,282 +459,27 @@ function M.transformTo(card, newType, onComplete)
 end
 
 -- ---------------------------------------------------------------------------
--- 传闻角标 (外部注入查询函数，避免循环依赖)
+-- 传闻角标 (外部注入查询函数)
 -- ---------------------------------------------------------------------------
 
 ---@type fun(location: string): table|nil
 local rumorQueryFn = nil
 
---- 设置传闻查询函数 (由 main.lua 注入)
---- fn(location) → { isSafe = bool } | nil
 function M.setRumorQuery(fn)
     rumorQueryFn = fn
 end
 
 -- ---------------------------------------------------------------------------
--- 渲染
--- ---------------------------------------------------------------------------
-
-function M.draw(vg, card, gameTime)
-    if card.alpha <= 0.01 then return end
-    local t = Theme.current
-    local w, h, r = M.WIDTH, M.HEIGHT, M.RADIUS
-
-    nvgSave(vg)
-    local hoverFloat = card.hoverT * -4
-    nvgTranslate(vg, card.x + card.shakeX, card.y + card.bounceY + hoverFloat)
-    nvgRotate(vg, card.rotation * math.pi / 180)
-
-    -- hover 放大
-    local hoverScale = 1.0 + card.hoverT * 0.08
-    nvgScale(vg, card.scaleX * hoverScale, card.scaleY * hoverScale)
-
-    nvgGlobalAlpha(vg, card.alpha)
-
-    -- 阴影
-    local shadowPaint = nvgBoxGradient(vg, -w / 2 + 2, -h / 2 + 4, w, h, r, 10,
-        nvgRGBA(t.cardShadow.r, t.cardShadow.g, t.cardShadow.b, math.floor(t.cardShadow.a * card.alpha)),
-        nvgRGBA(0, 0, 0, 0))
-    nvgBeginPath(vg)
-    nvgRect(vg, -w / 2 - 10, -h / 2 - 6, w + 20, h + 20)
-    nvgFillPaint(vg, shadowPaint)
-    nvgFill(vg)
-
-    -- 卡体 — 两面都使用浅色底 (地点面和事件面都有内容)
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, -w / 2, -h / 2, w, h, r)
-    if card.faceUp then
-        nvgFillColor(vg, Theme.rgba(t.cardFace))
-    else
-        -- 地点面：用略带色调的浅底色，区别于翻开后的纯白
-        nvgFillColor(vg, Theme.rgba(t.cardLocationBg or t.cardFace))
-    end
-    nvgFill(vg)
-
-    -- 内容
-    if card.faceUp then
-        M.drawFace(vg, card, w, h)
-    else
-        M.drawLocation(vg, card, w, h, gameTime)
-    end
-
-    -- 侦察标记 (左下角 📷 徽章，两面都显示)
-    if card.scouted then
-        local sInfo = Theme.cardTypeInfo(card.type)
-        local stc = Theme.cardTypeColor(card.type)
-        local hw, hh = w / 2, h / 2
-        local bx = -hw + 4
-        local by = hh - 4
-        local badgeR = 7
-
-        nvgBeginPath(vg)
-        nvgCircle(vg, bx, by, badgeR)
-        nvgFillColor(vg, Theme.rgbaA(stc, 160))
-        nvgFill(vg)
-
-        nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 8)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, 230))
-        nvgText(vg, bx, by, "📷", nil)
-
-        if sInfo then
-            nvgFontSize(vg, 7)
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_BOTTOM)
-            nvgFillColor(vg, Theme.rgbaA(stc, 180))
-            nvgText(vg, 0, hh - 2, sInfo.label, nil)
-        end
-    end
-
-    -- 边框 (hover 时高亮加粗)
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, -w / 2, -h / 2, w, h, r)
-    if card.hoverT > 0.01 then
-        local borderAlpha = math.floor(180 * card.alpha + 75 * card.hoverT)
-        nvgStrokeColor(vg, Theme.rgbaA(t.highlight, borderAlpha))
-        nvgStrokeWidth(vg, 1.5 + card.hoverT * 1.2)
-    else
-        nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, math.floor(180 * card.alpha)))
-        nvgStrokeWidth(vg, 1.5)
-    end
-    nvgStroke(vg)
-
-    -- hover 外发光
-    if card.hoverT > 0.05 then
-        local glowA = math.floor(card.hoverT * 40 * card.alpha)
-        local hglow = nvgBoxGradient(vg, -w / 2 - 3, -h / 2 - 3, w + 6, h + 6, r + 2, 8,
-            nvgRGBA(t.highlight.r, t.highlight.g, t.highlight.b, glowA),
-            nvgRGBA(t.highlight.r, t.highlight.g, t.highlight.b, 0))
-        nvgBeginPath(vg)
-        nvgRect(vg, -w / 2 - 15, -h / 2 - 15, w + 30, h + 30)
-        nvgFillPaint(vg, hglow)
-        nvgFill(vg)
-    end
-
-    -- 翻牌光晕
-    if card.glowIntensity > 0.01 then
-        local gc = Theme.cardTypeColor(card.type)
-        local glowR = math.max(w, h) * 0.8
-        local glow = nvgRadialGradient(vg, 0, 0, 0, glowR,
-            nvgRGBA(gc.r, gc.g, gc.b, math.floor(card.glowIntensity * 120)),
-            nvgRGBA(gc.r, gc.g, gc.b, 0))
-        nvgBeginPath(vg)
-        nvgRect(vg, -glowR, -glowR, glowR * 2, glowR * 2)
-        nvgFillPaint(vg, glow)
-        nvgFill(vg)
-    end
-
-    nvgRestore(vg)
-end
-
--- ---------------------------------------------------------------------------
--- 卡面 (翻开后 — 显示事件类型)
--- ---------------------------------------------------------------------------
-
-function M.drawFace(vg, card, w, h)
-    local t = Theme.current
-    local info = Theme.cardTypeInfo(card.type)
-    if not info then return end
-
-    local tc = Theme.cardTypeColor(card.type)
-
-    -- 地标/家/商店：显示地点本身的信息，而非暗面事件
-    local displayIcon, displayLabel
-    if card.type == "landmark" or card.type == "home" or card.type == "shop" then
-        local locInfo = M.LOCATION_INFO[card.location]
-        displayIcon  = locInfo and locInfo.icon  or info.icon
-        displayLabel = locInfo and locInfo.label or info.label
-    else
-        -- 普通事件卡：尝试获取暗面世界版本的显示信息
-        local darkInfo = M.getDarksideInfo(card.location, card.type)
-        displayIcon  = darkInfo and darkInfo.icon  or info.icon
-        displayLabel = darkInfo and darkInfo.label or info.label
-    end
-
-    -- 顶部色条
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, -w / 2 + 3, -h / 2 + 3, w - 6, 6, 3)
-    nvgFillColor(vg, Theme.rgbaA(tc, 200))
-    nvgFill(vg)
-
-    -- 暗面图标
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, t.fontSize.cardIcon)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgba(t.textPrimary))
-    nvgText(vg, 0, -4, displayIcon, nil)
-
-    -- 暗面标签
-    nvgFontSize(vg, t.fontSize.cardLabel)
-    nvgFillColor(vg, Theme.rgbaA(tc, 220))
-    nvgText(vg, 0, h / 2 - 14, displayLabel, nil)
-end
-
--- ---------------------------------------------------------------------------
--- 地点面 (未翻开 — 显示都市地点)
--- ---------------------------------------------------------------------------
-
-function M.drawLocation(vg, card, w, h, gameTime)
-    local t = Theme.current
-    local hw, hh = w / 2, h / 2
-
-    local locInfo = M.LOCATION_INFO[card.location]
-    if not locInfo then
-        -- 兜底：显示默认图案
-        locInfo = { icon = "❓", label = "未知" }
-    end
-
-    -- 地点图标 (大 emoji，卡片中上部)
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, t.fontSize.cardIcon)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgba(t.textPrimary))
-    nvgText(vg, 0, -8, locInfo.icon, nil)
-
-    -- 地点名称 (卡片下方)
-    nvgFontSize(vg, t.fontSize.cardLabel)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 200))
-    nvgText(vg, 0, h / 2 - 14, locInfo.label, nil)
-
-    -- 内边框装饰 (微弱边线，暗示可翻开)
-    local inset = 4
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, -hw + inset, -hh + inset, w - inset * 2, h - inset * 2, M.RADIUS - 2)
-    nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 40))
-    nvgStrokeWidth(vg, 0.8)
-    nvgStroke(vg)
-
-    -- 微妙呼吸光 (暗示卡牌可交互)
-    local breathe = 0.2 + 0.1 * math.sin(gameTime * 2.0 + card.row * 0.5 + card.col * 0.7)
-    local glowPaint = nvgRadialGradient(vg, 0, -5, 0, 30,
-        nvgRGBA(255, 255, 255, math.floor(breathe * 20)),
-        nvgRGBA(255, 255, 255, 0))
-    nvgBeginPath(vg)
-    nvgCircle(vg, 0, -5, 30)
-    nvgFillPaint(vg, glowPaint)
-    nvgFill(vg)
-
-    -- 传闻角标 (右上角小圆点: 绿=安全, 红=危险)
-    if rumorQueryFn then
-        local rumor = rumorQueryFn(card.location)
-        if rumor then
-            local badgeR = 6
-            local bx = hw - 4
-            local by = -hh + 4
-            local pulse = 0.8 + 0.2 * math.sin(gameTime * 3.5)
-
-            -- 角标底色
-            local bc = rumor.isSafe and t.safe or t.danger
-            nvgBeginPath(vg)
-            nvgCircle(vg, bx, by, badgeR * pulse)
-            nvgFillColor(vg, Theme.rgbaA(bc, 200))
-            nvgFill(vg)
-
-            -- 角标图标
-            nvgFontFace(vg, "sans")
-            nvgFontSize(vg, 8)
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
-            nvgText(vg, bx, by, rumor.isSafe and "✓" or "!", nil)
-        end
-    end
-
-    -- 地图碎片揭示标记 (左上角显示事件类型图标)
-    if card.revealed then
-        local info = Theme.cardTypeInfo(card.type)
-        if info then
-            local tc = Theme.cardTypeColor(card.type)
-            local bx = -hw + 4
-            local by = -hh + 4
-            local badgeR = 7
-
-            -- 底圆
-            nvgBeginPath(vg)
-            nvgCircle(vg, bx, by, badgeR)
-            nvgFillColor(vg, Theme.rgbaA(tc, 180))
-            nvgFill(vg)
-
-            -- 类型图标
-            nvgFontFace(vg, "sans")
-            nvgFontSize(vg, 9)
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
-            nvgText(vg, bx, by, info.icon, nil)
-        end
-    end
-
-end
-
--- ---------------------------------------------------------------------------
--- 碰撞检测 (点是否在卡牌内)
+-- hitTest: 3D 版本由 Board 层通过 ray-plane 实现
+-- 保留 2D 版本用于向后兼容，但标记为 deprecated
 -- ---------------------------------------------------------------------------
 
 function M.hitTest(card, px, py)
     if card.alpha < 0.1 then return false end
+    -- 3D 模式下 px,py 是世界坐标
     local dx = math.abs(px - card.x)
-    local dy = math.abs(py - (card.y + card.bounceY))
-    return dx < M.WIDTH / 2 and dy < M.HEIGHT / 2
+    local dy = math.abs(py - card.y)
+    return dx < M.CARD_W / 2 and dy < M.CARD_H / 2
 end
 
 return M

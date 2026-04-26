@@ -65,6 +65,10 @@ function M.new()
         visible = false,
         idleTimer = 0,
 
+        -- 3D 世界坐标 (用于屏幕位置跟随)
+        worldX = 0,
+        worldZ = 0,
+
         -- 表情系统
         emotion = "default",
         pendingEmotion = nil,   -- 翻面动画中途待切换的表情
