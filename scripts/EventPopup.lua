@@ -865,4 +865,405 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     nvgRestore(vg)  -- 相片整体 transform
 end
 
+-- ===========================================================================
+-- Toast 子系统 (非阻塞卡牌通知)
+-- ===========================================================================
+
+-- 哪些事件使用阻塞模态弹窗 (其余走 toast)
+local BLOCKING_EVENTS = {
+    shop = true,
+    -- 未来: 带有选择的 plot 事件
+}
+
+--- 判断事件类型是否需要阻塞模态
+---@param cardType string
+---@param hasChoices boolean|nil  未来: 剧情选择
+---@return boolean
+function M.isBlockingEvent(cardType, hasChoices)
+    if BLOCKING_EVENTS[cardType] then return true end
+    if cardType == "plot" and hasChoices then return true end
+    return false
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast 常量
+-- ---------------------------------------------------------------------------
+local TOAST_W       = 220    -- 卡牌宽度
+local TOAST_R       = 10     -- 圆角
+local TOAST_GAP     = 8      -- 堆叠间距
+local TOAST_MARGIN_R = 12    -- 右边距
+local TOAST_MARGIN_T = 52    -- 顶部距离 (ResourceBar 下方)
+local TOAST_MAX     = 3      -- 最多同时可见
+local TOAST_IDLE    = 3.0    -- 驻留时间 (秒)
+local TOAST_ENTER   = 0.35   -- 入场动画时间
+local TOAST_EXIT    = 0.25   -- 退场动画时间
+
+-- ---------------------------------------------------------------------------
+-- Toast 状态
+-- ---------------------------------------------------------------------------
+local toastQueue = {}   -- ToastInstance[] (newest at tail)
+local toastNextId = 1
+
+-- ---------------------------------------------------------------------------
+-- Toast: 入队
+-- ---------------------------------------------------------------------------
+
+--- 推送一条非阻塞事件 Toast
+---@param cardType string
+---@param appliedEffects table  已结算的资源变化 (可能被护盾清空)
+---@param shieldUsed boolean   护盾是否生效
+---@param location string|nil  地点类型
+function M.toast(cardType, appliedEffects, shieldUsed, location)
+    -- 随机文案
+    local pool = M.templates[cardType]
+    if not pool or #pool == 0 then
+        pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
+    end
+    local tmpl = pool[math.random(1, #pool)]
+
+    -- 暗面世界标题
+    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local displayTitle = darkInfo and darkInfo.label or tmpl.title
+
+    local id = toastNextId
+    toastNextId = toastNextId + 1
+
+    ---@class ToastInstance
+    local toast = {
+        id = id,
+        cardType = cardType,
+        title = displayTitle,
+        desc = tmpl.desc,
+        effects = appliedEffects or {},
+        shieldUsed = shieldUsed or false,
+        location = location,
+
+        phase = "enter",   -- "enter" | "idle" | "exit" | "done"
+        timer = 0,
+
+        -- 动画属性
+        slideX = TOAST_W + TOAST_MARGIN_R + 20,  -- 从右侧屏幕外滑入
+        alpha = 0,
+        scale = 0.8,
+        targetY = 0,   -- 目标 Y 位置 (由堆栈计算)
+        currentY = 0,  -- 当前 Y 位置 (动画平滑)
+
+        -- 碰撞检测 (draw 时更新)
+        drawX = 0, drawY = 0, drawW = 0, drawH = 0,
+    }
+
+    toastQueue[#toastQueue + 1] = toast
+
+    -- 溢出: 强制退场最老的
+    local visibleCount = 0
+    for i = 1, #toastQueue do
+        if toastQueue[i].phase ~= "exit" and toastQueue[i].phase ~= "done" then
+            visibleCount = visibleCount + 1
+        end
+    end
+    if visibleCount > TOAST_MAX then
+        for i = 1, #toastQueue do
+            if toastQueue[i].phase ~= "exit" and toastQueue[i].phase ~= "done" then
+                toastQueue[i].phase = "exit"
+                toastQueue[i].timer = 0
+                break  -- 只退最老的一个
+            end
+        end
+    end
+
+    -- 入场 tween
+    Tween.to(toast, { slideX = 0, alpha = 1, scale = 1.0 }, TOAST_ENTER, {
+        easing = Tween.Easing.easeOutBack,
+        tag = "toast_" .. id,
+        onComplete = function()
+            if toast.phase == "enter" then
+                toast.phase = "idle"
+                toast.timer = 0
+            end
+        end
+    })
+
+    print(string.format("[EventPopup] Toast: %s - %s (id=%d)", cardType, displayTitle, id))
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 每帧更新
+-- ---------------------------------------------------------------------------
+
+function M.updateToasts(dt)
+    -- 更新计时器 + 自动退场
+    for i = #toastQueue, 1, -1 do
+        local t = toastQueue[i]
+        t.timer = t.timer + dt
+
+        if t.phase == "idle" and t.timer >= TOAST_IDLE then
+            -- 自动退场
+            t.phase = "exit"
+            t.timer = 0
+            Tween.to(t, { slideX = TOAST_W + 30, alpha = 0, scale = 0.85 }, TOAST_EXIT, {
+                easing = Tween.Easing.easeInCubic,
+                tag = "toast_" .. t.id,
+                onComplete = function()
+                    t.phase = "done"
+                end
+            })
+        end
+
+        if t.phase == "exit" and t.timer > TOAST_EXIT + 0.1 then
+            t.phase = "done"
+        end
+    end
+
+    -- 移除已完成的
+    for i = #toastQueue, 1, -1 do
+        if toastQueue[i].phase == "done" then
+            Tween.cancelTag("toast_" .. toastQueue[i].id)
+            table.remove(toastQueue, i)
+        end
+    end
+
+    -- 计算目标 Y (从上往下排列, 最新的在最下)
+    -- 只对非 done 的 toast 计算
+    local slot = 0
+    for i = 1, #toastQueue do
+        local t = toastQueue[i]
+        if t.phase ~= "done" then
+            t.targetY = TOAST_MARGIN_T + slot * (M._toastItemH(t) + TOAST_GAP)
+            slot = slot + 1
+        end
+    end
+
+    -- 平滑 Y
+    for i = 1, #toastQueue do
+        local t = toastQueue[i]
+        if t.phase == "enter" and t.timer < 0.05 then
+            t.currentY = t.targetY  -- 第一帧直接到位
+        else
+            t.currentY = t.currentY + (t.targetY - t.currentY) * math.min(1, dt * 12)
+        end
+    end
+end
+
+--- 计算单个 toast 的高度
+function M._toastItemH(toast)
+    local baseH = 42   -- 色条 + 图标/标题行
+    baseH = baseH + 28  -- 描述行
+    if toast.shieldUsed or #toast.effects > 0 then
+        baseH = baseH + 24  -- 徽章行
+    end
+    baseH = baseH + 12  -- 进度条 + 底部间距
+    return baseH
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 渲染
+-- ---------------------------------------------------------------------------
+
+function M.drawToasts(vg, logicalW, logicalH, gameTime)
+    if #toastQueue == 0 then return end
+
+    local tc_theme = Theme.current
+
+    for i = 1, #toastQueue do
+        local t = toastQueue[i]
+        if t.phase == "done" then goto continue end
+        if t.alpha < 0.01 then goto continue end
+
+        local itemH = M._toastItemH(t)
+        local x = logicalW - TOAST_W - TOAST_MARGIN_R + t.slideX
+        local y = t.currentY
+
+        -- 记录碰撞区域
+        t.drawX = x
+        t.drawY = y
+        t.drawW = TOAST_W
+        t.drawH = itemH
+
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, t.alpha)
+
+        -- 缩放 (以卡牌右中心为原点)
+        if math.abs(t.scale - 1.0) > 0.005 then
+            nvgTranslate(vg, x + TOAST_W, y + itemH / 2)
+            nvgScale(vg, t.scale, t.scale)
+            nvgTranslate(vg, -(x + TOAST_W), -(y + itemH / 2))
+        end
+
+        -- 阴影
+        local shadowP = nvgBoxGradient(vg, x + 1, y + 2, TOAST_W, itemH, TOAST_R, 10,
+            nvgRGBA(0, 0, 0, 50), nvgRGBA(0, 0, 0, 0))
+        nvgBeginPath(vg)
+        nvgRect(vg, x - 12, y - 8, TOAST_W + 24, itemH + 20)
+        nvgFillPaint(vg, shadowP)
+        nvgFill(vg)
+
+        -- 背景
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x, y, TOAST_W, itemH, TOAST_R)
+        nvgFillColor(vg, nvgRGBA(tc_theme.panelBg.r, tc_theme.panelBg.g, tc_theme.panelBg.b, 240))
+        nvgFill(vg)
+
+        -- 边框
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x, y, TOAST_W, itemH, TOAST_R)
+        nvgStrokeColor(vg, Theme.rgbaA(tc_theme.panelBorder, 80))
+        nvgStrokeWidth(vg, 1.0)
+        nvgStroke(vg)
+
+        -- 顶部类型色条
+        local typeColor = Theme.cardTypeColor(t.cardType)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x + 3, y + 3, TOAST_W - 6, 4, 2)
+        nvgFillColor(vg, Theme.rgbaA(typeColor, 200))
+        nvgFill(vg)
+
+        -- 内容区域
+        local contentX = x + 12
+        local contentY = y + 14
+
+        -- 图标 + 标题 (同行)
+        local info = Theme.cardTypeInfo(t.cardType)
+        nvgFontFace(vg, "sans")
+
+        -- 图标
+        nvgFontSize(vg, 22)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(tc_theme.textPrimary))
+        nvgText(vg, contentX, contentY + 8, info and info.icon or "❓", nil)
+
+        -- 标题
+        nvgFontSize(vg, 14)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(typeColor, 240))
+        nvgText(vg, contentX + 28, contentY + 8, t.title, nil)
+
+        contentY = contentY + 24
+
+        -- 描述 (1-2 行, 截断)
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+        nvgFillColor(vg, Theme.rgbaA(tc_theme.textSecondary, 200))
+        local maxTextW = TOAST_W - 24
+        -- 截断到约 40 字符 (2行)
+        local descText = t.desc
+        if #descText > 60 then
+            descText = descText:sub(1, 57) .. "..."
+        end
+        nvgTextBox(vg, contentX, contentY, maxTextW, descText, nil)
+        contentY = contentY + 28
+
+        -- 资源徽章 或 护盾提示
+        if t.shieldUsed then
+            -- 护盾提示
+            nvgFontSize(vg, 11)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgbaA(tc_theme.safe, 220))
+            nvgText(vg, contentX, contentY + 8, "🧿 护身符抵挡了伤害!", nil)
+            contentY = contentY + 20
+        elseif #t.effects > 0 then
+            local badgeX = contentX
+            for _, eff in ipairs(t.effects) do
+                local meta = resourceMeta[eff[1]]
+                local icon = meta and meta.icon or "?"
+                local delta = eff[2]
+                local label = icon .. (delta > 0 and "+" or "") .. delta
+
+                local bw = #label * 6 + 14
+                local bh = 18
+
+                -- 徽章背景
+                local bgC = delta > 0 and tc_theme.safe or tc_theme.danger
+                nvgBeginPath(vg)
+                nvgRoundedRect(vg, badgeX, contentY, bw, bh, bh / 2)
+                nvgFillColor(vg, Theme.rgbaA(bgC, 35))
+                nvgFill(vg)
+                nvgStrokeColor(vg, Theme.rgbaA(bgC, 80))
+                nvgStrokeWidth(vg, 0.8)
+                nvgStroke(vg)
+
+                -- 徽章文字
+                nvgFontSize(vg, 10)
+                nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+                nvgFillColor(vg, Theme.rgbaA(delta > 0 and tc_theme.safe or tc_theme.danger, 220))
+                nvgText(vg, badgeX + bw / 2, contentY + bh / 2, label, nil)
+
+                badgeX = badgeX + bw + 6
+            end
+            contentY = contentY + 24
+        end
+
+        -- 进度条 (自动消失倒计时)
+        if t.phase == "idle" then
+            local progress = 1.0 - math.min(t.timer / TOAST_IDLE, 1.0)
+            local barY = y + itemH - 6
+            local barW = TOAST_W - 20
+            local barH = 2
+
+            -- 背景
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, x + 10, barY, barW, barH, 1)
+            nvgFillColor(vg, nvgRGBA(tc_theme.textSecondary.r, tc_theme.textSecondary.g, tc_theme.textSecondary.b, 30))
+            nvgFill(vg)
+
+            -- 前景
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, x + 10, barY, barW * progress, barH, 1)
+            nvgFillColor(vg, Theme.rgbaA(typeColor, 120))
+            nvgFill(vg)
+        end
+
+        nvgRestore(vg)
+
+        ::continue::
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 点击处理 (提前关闭)
+-- ---------------------------------------------------------------------------
+
+--- 点击 Toast 提前关闭
+---@param lx number 逻辑 X
+---@param ly number 逻辑 Y
+---@return boolean consumed
+function M.handleToastClick(lx, ly)
+    -- 从最新 (队尾) 往最老遍历
+    for i = #toastQueue, 1, -1 do
+        local t = toastQueue[i]
+        if t.phase ~= "done" and t.phase ~= "exit" then
+            if lx >= t.drawX and lx <= t.drawX + t.drawW
+                and ly >= t.drawY and ly <= t.drawY + t.drawH then
+                -- 触发退场
+                t.phase = "exit"
+                t.timer = 0
+                Tween.cancelTag("toast_" .. t.id)
+                Tween.to(t, { slideX = TOAST_W + 30, alpha = 0, scale = 0.85 }, TOAST_EXIT, {
+                    easing = Tween.Easing.easeInCubic,
+                    tag = "toast_" .. t.id,
+                    onComplete = function()
+                        t.phase = "done"
+                    end
+                })
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 查询 / 清空
+-- ---------------------------------------------------------------------------
+
+function M.isToastActive()
+    return #toastQueue > 0
+end
+
+function M.clearToasts()
+    for i = 1, #toastQueue do
+        Tween.cancelTag("toast_" .. toastQueue[i].id)
+    end
+    toastQueue = {}
+end
+
 return M

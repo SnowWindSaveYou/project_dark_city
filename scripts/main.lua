@@ -527,6 +527,7 @@ function startRedeal()
     if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
     demoState = "dealing"
     hoveredCard = nil
+    EventPopup.clearToasts()
     Tween.cancelTag("cardflip")
     Tween.cancelTag("carddeal")
     Tween.cancelTag("cardshake")
@@ -534,6 +535,7 @@ function startRedeal()
     Tween.cancelTag("tokenmove")
     Tween.cancelTag("token")
     Tween.cancelTag("popup")
+    Tween.cancelTag("toast")
     Tween.cancelTag("camerabtn")
     Tween.cancelTag("cameramode")
     Tween.cancelTag("camerabtn_shake")
@@ -657,6 +659,7 @@ end
 function onGameRestart()
     Tween.cancelAll()
     VFX.resetAll()
+    EventPopup.clearToasts()
     hoveredCard = nil
 
     dayCount = 1
@@ -781,27 +784,90 @@ local function onCardFlipped(card, screenX, screenY)
 
     VFX.triggerShake(3, 0.15)
 
-    demoState = "popup"
-    hoveredCard = nil
+    -- -----------------------------------------------------------------------
+    -- 阻塞 vs 非阻塞 分流
+    -- -----------------------------------------------------------------------
+    local isBlocking = EventPopup.isBlockingEvent(card.type)
 
-    local popupDelay = { t = 0 }
-    Tween.to(popupDelay, { t = 1 }, 0.4, {
-        tag = "popup_delay",
-        onComplete = function()
-            local popCX = logicalW / 2
-            local popCY = logicalH * 0.42
-            if card.type == "shop" then
-                ShopPopup.show(popCX, popCY, function()
-                    gameStats.cardsRevealed = gameStats.cardsRevealed + 1
-                    Token.setEmotion(token, "happy")
-                    demoState = "ready"
-                    checkDefeat()
-                end)
-            else
-                EventPopup.show(card.type, popCX, popCY, onPopupDismissed, card.location)
+    if isBlocking then
+        -- === 阻塞路径: 商店 / 未来剧情选择 → 模态弹窗 ===
+        demoState = "popup"
+        hoveredCard = nil
+
+        local popupDelay = { t = 0 }
+        Tween.to(popupDelay, { t = 1 }, 0.4, {
+            tag = "popup_delay",
+            onComplete = function()
+                local popCX = logicalW / 2
+                local popCY = logicalH * 0.42
+                if card.type == "shop" then
+                    ShopPopup.show(popCX, popCY, function()
+                        gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+                        Token.setEmotion(token, "happy")
+                        demoState = "ready"
+                        checkDefeat()
+                    end)
+                else
+                    EventPopup.show(card.type, popCX, popCY, onPopupDismissed, card.location)
+                end
+            end
+        })
+    else
+        -- === 非阻塞路径: 怪物/陷阱/安全/线索/剧情/照片/悬赏 → Toast ===
+        local effects = EventPopup.cardEffects[card.type] or {}
+        local shieldUsed = false
+
+        -- 护盾检查 (仅怪物/陷阱有伤害效果)
+        if #effects > 0 and (card.type == "monster" or card.type == "trap") then
+            if ShopPopup.useItem("shield") then
+                shieldUsed = true
+                Token.setEmotion(token, "relieved")
+                local safC = Theme.current.safe
+                VFX.spawnBanner("🧿 护身符抵消了伤害!", safC.r, safC.g, safC.b, 18, 1.0)
+                VFX.flashScreen(100, 180, 255, 0.3, 120)
+                effects = {}
             end
         end
-    })
+
+        -- 立即应用资源变化
+        for _, eff in ipairs(effects) do
+            ResourceBar.change(eff[1], eff[2])
+        end
+
+        -- 统计
+        gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+        if card.type == "monster" then
+            gameStats.monstersSlain = gameStats.monstersSlain + 1
+        end
+
+        -- 传闻
+        local gotRumor = false
+        if card.type == "clue" then
+            local added = CardManager.addRumor(board)
+            if added then
+                gotRumor = true
+                local tc2 = Theme.current
+                VFX.spawnBanner("📰 获得了新传闻!", tc2.rumor.r, tc2.rumor.g, tc2.rumor.b, 18, 0.8)
+            end
+        end
+
+        -- 表情: 保持 emotionMap 初始表情 (scared/nervous/surprised 等)
+        -- 仅在特殊情况下覆盖
+        if gotRumor then
+            Token.setEmotion(token, "happy")
+        end
+        -- 护盾路径已在上方设置 "relieved", 无需再覆盖
+
+        -- 发送 toast
+        EventPopup.toast(card.type, effects, shieldUsed, card.location)
+
+        -- 立即恢复 ready（不阻塞）
+        demoState = "ready"
+        CameraButton.show()
+
+        -- 败北检查
+        checkDefeat()
+    end
 end
 
 local function onPhotographFlipped(card, screenX, screenY)
@@ -1076,6 +1142,11 @@ local function handleClick(inputX, inputY)
         return
     end
 
+    -- Toast 点击 (非阻塞, 提前关闭)
+    if EventPopup.handleToastClick(lx, ly) then
+        return
+    end
+
     if HandPanel.isActive() then
         local handConsumed = HandPanel.handleClick(lx, ly, logicalW, logicalH)
         if handConsumed then return end
@@ -1284,6 +1355,7 @@ function HandleUpdate(eventType, eventData)
     Token.update(token, dt)
     ResourceBar.update(dt)
     CameraButton.update(dt)
+    EventPopup.updateToasts(dt)
     updateHover(dt)
 
     -- 背景氛围过渡 (根据翻牌数平滑变暗)
@@ -1357,6 +1429,9 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 屏幕闪光 ===
     VFX.drawFlash()
+
+    -- === 非阻塞 Toast ===
+    EventPopup.drawToasts(vg, logicalW, logicalH, gameTime)
 
     -- === 弹窗 ===
     EventPopup.draw(vg, logicalW, logicalH, gameTime)
