@@ -480,12 +480,15 @@ function Start()
         end
         -- 已侦测的怪物卡显示 chibi
         MonsterGhost.showOnScoutedCards(board, Board.ROWS, Board.COLS)
+        -- 已记录的踪迹箭头 (小幽灵指向最近怪物)
+        MonsterGhost.showTrailsOnBoard(board, Board.ROWS, Board.COLS)
     end)
 
     CameraButton.setOnExitCallback(function()
         if not board or not board.cards then return end
-        -- 清除相机模式下的怪物 chibi
+        -- 清除相机模式下的怪物 chibi 和踪迹箭头
         MonsterGhost.clearCardGhosts()
+        MonsterGhost.clearTrailGhosts()
         for r = 1, Board.ROWS do
             for c = 1, Board.COLS do
                 local cd = board.cards[r] and board.cards[r][c]
@@ -1018,10 +1021,63 @@ local function onPhotographFlipped(card, screenX, screenY)
     VFX.spawnBurst(screenX, screenY, 8, tc.r, tc.g, tc.b)
     VFX.triggerShake(2, 0.1)
 
-    -- 鉴定出怪物时在卡牌上方显示 chibi
-    if card.type == "monster" then
-        MonsterGhost.showOnCard(card, card.location)
+    gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+
+    -- -----------------------------------------------------------------------
+    -- 侦察=清除: 怪物/陷阱 → 显示动效后自动驱除, 变为安全格
+    -- -----------------------------------------------------------------------
+    if card.type == "monster" or card.type == "trap" then
+        local isDanger = card.type  -- "monster" or "trap"
+
+        -- 怪物: 在卡牌上显示 chibi (明显的"出现了鬼"动效)
+        if isDanger == "monster" then
+            MonsterGhost.showOnCard(card, card.location)
+            gameStats.monstersSlain = gameStats.monstersSlain + 1
+        end
+
+        -- 设置情绪: 先是紧张/害怕 (看到鬼)
+        Token.setEmotion(token, isDanger == "monster" and "scared" or "nervous")
+        demoState = "exorcising"
+        hoveredCard = nil
+
+        -- 第一阶段: 停顿让玩家看清 (0.8 秒)
+        local revealPause = { t = 0 }
+        Tween.to(revealPause, { t = 1 }, 0.8, {
+            tag = "photograph_exorcise",
+            onComplete = function()
+                -- 第二阶段: 驱除动效
+                local pc = Theme.color("plot")
+                VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
+                VFX.triggerShake(4, 0.2)
+                Token.setEmotion(token, "angry")
+                Token.hop(token, 0.06)
+
+                -- 清除卡牌上的怪物 chibi (淡出)
+                MonsterGhost.clearCardGhosts()
+
+                -- 变形: 当前类型 → photo (安全格)
+                Card.transformTo(card, "photo", function(c)
+                    VFX.spawnBurst(screenX, screenY, 16, pc.r, pc.g, pc.b)
+                    if isDanger == "monster" then
+                        VFX.spawnBanner("👻 发现怪物! 已驱除!", pc.r, pc.g, pc.b, 20, 1.0)
+                    else
+                        VFX.spawnBanner("⚡ 发现陷阱! 已清除!", pc.r, pc.g, pc.b, 20, 1.0)
+                    end
+                    Token.setEmotion(token, "happy")
+                    demoState = "ready"
+                    CameraButton.show()
+                end, CardTextures)
+            end
+        })
+        return
     end
+
+    -- -----------------------------------------------------------------------
+    -- 非危险格 (安全/线索/奖励/剧情等): 显示踪迹箭头 + 侦察预览
+    -- -----------------------------------------------------------------------
+
+    -- 计算踪迹: 指向最近的怪物
+    local hasTrail = MonsterGhost.calculateTrail(card, board, Board.ROWS, Board.COLS)
 
     demoState = "popup"
     hoveredCard = nil
@@ -1030,16 +1086,19 @@ local function onPhotographFlipped(card, screenX, screenY)
     Tween.to(popupDelay, { t = 1 }, 0.4, {
         tag = "popup_delay",
         onComplete = function()
+            -- 显示踪迹箭头 (小幽灵 chibi 指向怪物方向)
+            if hasTrail then
+                MonsterGhost.showTrailOnCard(card, card.trailDirX, card.trailDirZ)
+            end
+
             local popCX = logicalW / 2
             local popCY = logicalH * 0.42
             EventPopup.showPhoto(card.type, popCX, popCY, function(_cardType, _effects)
-                gameStats.cardsRevealed = gameStats.cardsRevealed + 1
-
                 card.scouted = true
                 Card.flipBack(card, nil, CardTextures)
 
-                -- 清除卡牌上的怪物 chibi
-                MonsterGhost.clearCardGhosts()
+                -- 踪迹箭头在退出相机模式时统一清除 (只在相机模式可见)
+                MonsterGhost.clearTrailGhosts()
 
                 Token.setEmotion(token, "happy")
                 demoState = "ready"
@@ -1269,6 +1328,7 @@ end
 local function handleCameraModeClick(card, row, col)
     local film = ResourceBar.get("film")
 
+    -- 已翻开的怪物 (步行踩到后留下的): 消耗 1 胶卷驱除
     if card.faceUp and card.type == "monster" and not card.isFlipping then
         if film <= 0 then
             CameraButton.shakeNoFilm()
@@ -1281,6 +1341,7 @@ local function handleCameraModeClick(card, row, col)
         return
     end
 
+    -- 已侦察的安全牌 (相片预览)
     if card.scouted and card.faceUp and not card.isFlipping then
         demoState = "popup"
         hoveredCard = nil
@@ -1299,6 +1360,7 @@ local function handleCameraModeClick(card, row, col)
         return
     end
 
+    -- 未翻开的牌: 消耗 1 胶卷侦察 (怪物/陷阱会自动清除)
     if not card.faceUp and not card.isFlipping then
         CameraButton.exitCameraMode(function()
             doPhotograph(card, row, col)
@@ -1642,54 +1704,70 @@ function HandleNanoVGRender(eventType, eventData)
         BubbleDialogue.draw(playerBubble, vg, headSX, headSY)
     end
 
-    -- === NPC 交互提示 (同格时浮动气泡) ===
+    -- === NPC 交互提示 (同格时浮动气泡, 笔记本风格) ===
     if gamePhase == "playing" and demoState == "ready"
        and not DialogueSystem.isActive() and not CameraButton.isActive()
        and token and token.visible then
         local npcHere = NPCManager.getNPCAt(token.targetRow, token.targetCol)
         if npcHere and npcHere.alpha > 0.5 then
-            local hintWorldPos = Vector3(npcHere.worldX, 0.85, npcHere.worldZ)
+            local hintWorldPos = Vector3(npcHere.worldX, 1.10, npcHere.worldZ)
             local hsx, hsy = worldToScreen(hintWorldPos)
-            local bounce = math.sin(gameTime * 3.0) * 5
-            local pulse = 0.7 + 0.3 * math.sin(gameTime * 2.5)
-            local hintAlpha = math.floor(255 * pulse)
+            local bounce = math.sin(gameTime * 3.0) * 4
+            local pulse = 0.75 + 0.25 * math.sin(gameTime * 2.5)
+            local hAlpha = math.floor(240 * pulse)
 
             local hintLabel = "💬 点击对话"
             nvgFontFace(vg, "sans")
-            nvgFontSize(vg, 13)
+            nvgFontSize(vg, 12)
             nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
             local tw = nvgTextBounds(vg, 0, 0, hintLabel, nil) or 80
-            local pw, ph = tw + 20, 24
+            local pw, ph = tw + 18, 22
             local bx = hsx - pw / 2
             local by = hsy - ph / 2 + bounce
+            local arrowH = 5
 
             -- 阴影
             nvgBeginPath(vg)
-            nvgRoundedRect(vg, bx + 1, by + 2, pw, ph, 12)
-            nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(40 * pulse)))
+            nvgRoundedRect(vg, bx + 1, by + 2, pw, ph, 8)
+            nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(25 * pulse)))
             nvgFill(vg)
 
-            -- 气泡背景
-            local tc = Theme.current
-            local pri = tc.textPrimary or { r = 35, g = 45, b = 60 }
+            -- 白色气泡背景 (与 BubbleDialogue 统一)
             nvgBeginPath(vg)
-            nvgRoundedRect(vg, bx, by, pw, ph, 12)
-            nvgFillColor(vg, nvgRGBA(pri.r, pri.g, pri.b, hintAlpha))
+            nvgRoundedRect(vg, bx, by, pw, ph, 8)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hAlpha))
             nvgFill(vg)
 
-            -- 小三角指向下方
+            -- 细边框
+            nvgStrokeColor(vg, nvgRGBA(180, 180, 180, math.floor(100 * pulse)))
+            nvgStrokeWidth(vg, 1)
+            nvgStroke(vg)
+
+            -- 小三角指向下方 (白底 + 边框)
             local triCX = hsx
             local triY = by + ph
             nvgBeginPath(vg)
             nvgMoveTo(vg, triCX - 5, triY)
+            nvgLineTo(vg, triCX, triY + arrowH)
             nvgLineTo(vg, triCX + 5, triY)
-            nvgLineTo(vg, triCX, triY + 6)
             nvgClosePath(vg)
-            nvgFillColor(vg, nvgRGBA(pri.r, pri.g, pri.b, hintAlpha))
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hAlpha))
+            nvgFill(vg)
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, triCX - 5, triY)
+            nvgLineTo(vg, triCX, triY + arrowH)
+            nvgLineTo(vg, triCX + 5, triY)
+            nvgStrokeColor(vg, nvgRGBA(180, 180, 180, math.floor(100 * pulse)))
+            nvgStrokeWidth(vg, 1)
+            nvgStroke(vg)
+            -- 遮盖接合处边框
+            nvgBeginPath(vg)
+            nvgRect(vg, triCX - 5, triY - 1, 10, 2)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hAlpha))
             nvgFill(vg)
 
-            -- 文字
-            nvgFillColor(vg, nvgRGBA(255, 255, 255, hintAlpha))
+            -- 文字 (深色墨水)
+            nvgFillColor(vg, nvgRGBA(50, 50, 50, math.floor(220 * pulse)))
             nvgText(vg, hsx, by + ph / 2, hintLabel)
         end
     end

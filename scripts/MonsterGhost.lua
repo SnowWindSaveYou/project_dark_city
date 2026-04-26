@@ -5,6 +5,7 @@
 -- ============================================================================
 
 local Tween = require "lib.Tween"
+local Board = require "Board"
 
 local M = {}
 
@@ -70,6 +71,7 @@ local parentNode_ = nil
 
 local ghosts_ = {}       -- 环绕玩家的幽灵
 local cardGhosts_ = {}   -- 卡牌上的怪物 chibi
+local trailGhosts_ = {}  -- 踪迹箭头 (拍到非怪物格时指向最近怪物)
 
 -- ---------------------------------------------------------------------------
 -- 创建单个幽灵 Billboard
@@ -141,10 +143,20 @@ function M.clearCardGhosts()
     cardGhosts_ = {}
 end
 
+--- 清除所有踪迹箭头
+function M.clearTrailGhosts()
+    for _, g in ipairs(trailGhosts_) do
+        Tween.cancelTarget(g)
+        if g.node then g.node:Remove() end
+    end
+    trailGhosts_ = {}
+end
+
 --- 清除全部
 function M.clear()
     M.clearSurround()
     M.clearCardGhosts()
+    M.clearTrailGhosts()
 end
 
 --- 相机模式进入时: 在所有已侦测的怪物卡牌上显示 chibi
@@ -251,6 +263,126 @@ function M.showOnCard(card, location)
     })
 end
 
+-- ---------------------------------------------------------------------------
+-- 踪迹箭头: 拍到非怪物格时, 显示小幽灵指向最近怪物
+-- ---------------------------------------------------------------------------
+
+--- 在棋盘中寻找距离指定格子最近的怪物 (未翻开的)
+---@param board table 棋盘数据
+---@param fromRow number 起始行
+---@param fromCol number 起始列
+---@param ROWS number
+---@param COLS number
+---@return number|nil row, number|nil col, number|nil dist
+local function findNearestMonster(board, fromRow, fromCol, ROWS, COLS)
+    local bestR, bestC, bestDist = nil, nil, math.huge
+    for r = 1, ROWS do
+        for c = 1, COLS do
+            if r ~= fromRow or c ~= fromCol then
+                local cd = board.cards[r] and board.cards[r][c]
+                -- 排除安全区内的怪物 (地标光环范围, 翻开时会自动变 safe)
+                if cd and cd.type == "monster" and not cd.faceUp
+                   and not Board.isInLandmarkAura(board, r, c) then
+                    local dr = r - fromRow
+                    local dc = c - fromCol
+                    local dist = math.sqrt(dr * dr + dc * dc)
+                    if dist < bestDist then
+                        bestR, bestC, bestDist = r, c, dist
+                    end
+                end
+            end
+        end
+    end
+    return bestR, bestC, bestDist
+end
+
+--- 在卡牌上创建踪迹箭头: 小幽灵 chibi 偏移到指向怪物的方向
+---@param card table 被拍照的卡牌
+---@param dirX number 方向 X 分量 (世界坐标)
+---@param dirZ number 方向 Z 分量 (世界坐标)
+function M.showTrailOnCard(card, dirX, dirZ)
+    if not parentNode_ or not card then return end
+
+    -- 随机选一个小幽灵变体
+    local texPath = GHOST_VARIANTS[math.random(1, #GHOST_VARIANTS)]
+
+    local gx = card.x or 0
+    local gz = card.y or 0
+
+    -- 方向归一化, 小幽灵偏移到卡牌边缘 (0.38m ≈ 卡宽一半)
+    local len = math.sqrt(dirX * dirX + dirZ * dirZ)
+    local offsetX, offsetZ = 0, 0
+    if len > 0.001 then
+        offsetX = (dirX / len) * 0.38
+        offsetZ = (dirZ / len) * 0.38
+    end
+
+    local ghost = createGhostBillboard(texPath, gx + offsetX, gz + offsetZ, 0.25, 0.14, math.random() * 3.0)
+    ghost.lifetime = -1
+    ghost.offsetX = offsetX  -- 记录偏移, update 时使用
+    ghost.offsetZ = offsetZ
+    ghost.cardX = gx  -- 记录卡牌基准位置
+    ghost.cardZ = gz
+    trailGhosts_[#trailGhosts_ + 1] = ghost
+
+    -- 弹出动画
+    Tween.to(ghost, { scale = 1.0, alpha = 0.85 }, 0.35, {
+        easing = Tween.Easing.easeOutBack,
+        delay = 0.2,
+        tag = "trail_ghost_pop",
+    })
+end
+
+--- 相机模式进入时: 显示所有已记录的踪迹箭头 (从 card.trailDir 恢复)
+---@param board table 棋盘数据
+---@param ROWS number
+---@param COLS number
+function M.showTrailsOnBoard(board, ROWS, COLS)
+    M.clearTrailGhosts()
+    if not parentNode_ or not board or not board.cards then return end
+
+    for r = 1, ROWS do
+        for c = 1, COLS do
+            local cd = board.cards[r] and board.cards[r][c]
+            if cd and cd.trailDirX and cd.trailDirZ then
+                M.showTrailOnCard(cd, cd.trailDirX, cd.trailDirZ)
+            end
+        end
+    end
+    print(string.format("[MonsterGhost] showTrailsOnBoard: found %d trail arrows", #trailGhosts_))
+end
+
+--- 计算并记录踪迹方向到卡牌数据上
+---@param card table 被拍照的卡牌 (非怪物)
+---@param board table 棋盘数据
+---@param ROWS number
+---@param COLS number
+---@return boolean found 是否找到了最近的怪物
+function M.calculateTrail(card, board, ROWS, COLS)
+    local mr, mc, dist = findNearestMonster(board, card.row, card.col, ROWS, COLS)
+    if not mr then
+        print(string.format("[MonsterGhost] calculateTrail(%d,%d): no monster found", card.row, card.col))
+        card.trailDirX = nil
+        card.trailDirZ = nil
+        return false
+    end
+
+    -- 方向: 从被拍卡牌指向最近怪物 (用行列差映射到世界 XZ)
+    -- col → X, row → Z
+    local dirX = mc - card.col
+    local dirZ = mr - card.row
+    card.trailDirX = dirX
+    card.trailDirZ = dirZ
+
+    print(string.format("[MonsterGhost] calculateTrail(%d,%d) → nearest monster(%d,%d) dist=%.1f dir=(%.1f,%.1f)",
+        card.row, card.col, mr, mc, dist, dirX, dirZ))
+    return true
+end
+
+-- ---------------------------------------------------------------------------
+-- 每帧更新
+-- ---------------------------------------------------------------------------
+
 --- 每帧更新: 浮动动画 + 生命周期
 ---@param dt number
 ---@param gameTime number
@@ -300,6 +432,26 @@ function M.update(dt, gameTime)
         g.bb.size = Vector2(s, s)
         g.bb.color = Color(1, 1, 1, g.alpha)
         g.bbSet:Commit()
+    end
+
+    -- 踪迹箭头 chibi (偏移方向浮动)
+    for _, g in ipairs(trailGhosts_) do
+        local floatY = math.sin(gameTime * 2.0 + g.phase) * 0.02
+        -- 小幽灵在偏移方向上来回晃动 (像在引路, 幅度大一些更明显)
+        local bobT = math.sin(gameTime * 1.8 + g.phase) * 0.15
+        local ox = (g.offsetX or 0) * (1.0 + bobT)
+        local oz = (g.offsetZ or 0) * (1.0 + bobT)
+
+        local s = g.scale * g.size
+        g.bb.position = Vector3(ox, g.baseY + floatY, oz)
+        g.bb.size = Vector2(s, s)
+        g.bb.color = Color(1, 1, 1, g.alpha)
+        g.bbSet:Commit()
+
+        -- 更新节点位置为卡牌基准 (billboard 自身偏移通过 bb.position)
+        if g.node and g.cardX then
+            g.node:SetPosition(Vector3(g.cardX, 0, g.cardZ))
+        end
     end
 end
 
