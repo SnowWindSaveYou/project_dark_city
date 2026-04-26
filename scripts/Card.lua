@@ -201,7 +201,7 @@ end
 -- 3D 节点: 创建
 -- ---------------------------------------------------------------------------
 
---- 为卡牌创建 3D 节点 (Box薄片)
+--- 为卡牌创建 3D 节点 (CustomGeometry 薄片, 精确 UV)
 ---@param card CardData
 ---@param parentNode userdata 父节点 (scene 或 boardNode)
 ---@param CardTextures table CardTextures 模块
@@ -210,23 +210,60 @@ function M.createNode(card, parentNode, CardTextures)
 
     local node = parentNode:CreateChild("Card_" .. card.row .. "_" .. card.col)
 
-    -- Box.mdl 是 1x1x1，缩放为卡牌尺寸
-    -- X=宽, Y=厚度, Z=高(深度)
-    node:SetScale(Vector3(M.CARD_W, M.CARD_THICKNESS, M.CARD_H))
+    -- CustomGeometry: 水平薄片，面朝 +Y
+    -- 卡牌中心在 node 原点，无需额外缩放 (顶点直接使用世界尺寸)
+    local halfW = M.CARD_W / 2
+    local halfH = M.CARD_H / 2
+    local normal = Vector3(0, 1, 0)  -- 面朝上
 
-    local model = node:CreateComponent("StaticModel")
-    model:SetModel(cache:GetResource("Model", "Models/Box.mdl"))
+    local geom = node:CreateComponent("CustomGeometry")
+    geom:SetNumGeometries(1)
+    geom:BeginGeometry(0, TRIANGLE_LIST)
 
-    -- 初始材质 (地点面)
+    -- UV 映射 (NanoVG render-target 的 V 轴翻转):
+    -- NanoVG (0,0)=左上 → 屏幕左上 → 世界 (-X, +Z) → UV(0,1)
+    -- NanoVG (1,0)=右上 → 屏幕右上 → 世界 (+X, +Z) → UV(1,1)
+    -- NanoVG (0,1)=左下 → 屏幕左下 → 世界 (-X, -Z) → UV(0,0)
+    -- NanoVG (1,1)=右下 → 屏幕右下 → 世界 (+X, -Z) → UV(1,0)
+
+    -- 三角形 1: 左后 → 左前 → 右前
+    geom:DefineVertex(Vector3(-halfW, 0, -halfH))  -- 左下(屏幕) = 左前(世界-Z)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(0, 0))
+
+    geom:DefineVertex(Vector3(-halfW, 0, halfH))   -- 左上(屏幕) = 左后(世界+Z)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(0, 1))
+
+    geom:DefineVertex(Vector3(halfW, 0, halfH))    -- 右上(屏幕) = 右后(世界+Z)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(1, 1))
+
+    -- 三角形 2: 左前 → 右后 → 右前
+    geom:DefineVertex(Vector3(-halfW, 0, -halfH))  -- 左下(屏幕)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(0, 0))
+
+    geom:DefineVertex(Vector3(halfW, 0, halfH))    -- 右上(屏幕)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(1, 1))
+
+    geom:DefineVertex(Vector3(halfW, 0, -halfH))   -- 右下(屏幕)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(1, 0))
+
+    geom:Commit()
+
+    -- 材质
     local mat = Material:new()
     mat:SetTechnique(0, cache:GetResource("Technique", "Techniques/DiffAlpha.xml"))
     local tex = CardTextures.getLocationTexture(card.location)
     mat:SetTexture(TU_DIFFUSE, tex)
     mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
-    model:SetMaterial(mat)
+    geom:SetMaterial(mat)
 
     card.node3d = node
-    card.model3d = model
+    card.model3d = geom
     card.material3d = mat
 end
 
@@ -242,18 +279,16 @@ function M.syncNode(card)
 
     -- 位置: card.x→worldX, card.y→worldZ, bounceY→worldY
     local wx = card.x + card.shakeX * 0.01  -- shakeX 单位缩放: 2D(5px) → 3D(~0.05m)
-    local wy = card.bounceY                  -- bounceY 3D 正值=上
+    local wy = card.bounceY + 0.01           -- +0.01m 避免与桌面 Z-fighting
     local wz = card.y                        -- card.y 映射到 worldZ
 
     node:SetPosition(Vector3(wx, wy, wz))
 
-    -- 缩放: scaleX/Y 乘以基础尺寸
-    -- hoverT 放大效果
+    -- 缩放: CustomGeometry 顶点已包含世界尺寸，scale 仅作动画乘数
     local hoverScale = 1.0 + card.hoverT * 0.08
-    local sx = M.CARD_W * card.scaleX * hoverScale
-    local sy = M.CARD_THICKNESS
-    local sz = M.CARD_H * card.scaleY * hoverScale
-    node:SetScale(Vector3(sx, sy, sz))
+    local sx = card.scaleX * hoverScale
+    local sz = card.scaleY * hoverScale
+    node:SetScale(Vector3(sx, 1.0, sz))
 
     -- 旋转: rotation 绕 Y 轴
     node:SetRotation(Quaternion(card.rotation, Vector3.UP))

@@ -86,7 +86,6 @@ local function renderLocation(tex, locKey)
     local vg = texVg
     local w, h = TEX_W, TEX_H
     local t = Theme.current
-    local r = math.floor(TEX_W * Card.RADIUS / Card.WIDTH)  -- 圆角比例缩放
 
     nvgSetRenderTarget(vg, tex)
     nvgBeginFrame(vg, w, h, 1.0)
@@ -97,9 +96,9 @@ local function renderLocation(tex, locKey)
     nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
     nvgFill(vg)
 
-    -- 卡体底色
+    -- 卡体底色 (直角, 匹配 CustomGeometry)
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, 0, 0, w, h, r)
+    nvgRect(vg, 0, 0, w, h)
     nvgFillColor(vg, Theme.rgba(t.cardLocationBg or t.cardFace))
     nvgFill(vg)
 
@@ -111,28 +110,28 @@ local function renderLocation(tex, locKey)
 
     -- 地点图标
     nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 112)  -- 缩放: 28 * (256/64)
+    nvgFontSize(vg, 112)
     nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
     nvgFillColor(vg, Theme.rgba(t.textPrimary))
     nvgText(vg, w / 2, h / 2 - 32, locInfo.icon, nil)
 
     -- 地点名称
-    nvgFontSize(vg, 44)  -- 11 * 4
+    nvgFontSize(vg, 44)
     nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
     nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 200))
     nvgText(vg, w / 2, h - 56, locInfo.label, nil)
 
     -- 内边框
-    local inset = 16  -- 4 * 4
+    local inset = 16
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, inset, inset, w - inset * 2, h - inset * 2, r - 8)
+    nvgRect(vg, inset, inset, w - inset * 2, h - inset * 2)
     nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 40))
     nvgStrokeWidth(vg, 3.2)
     nvgStroke(vg)
 
     -- 边框
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, 0, 0, w, h, r)
+    nvgRect(vg, 0, 0, w, h)
     nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 180))
     nvgStrokeWidth(vg, 6)
     nvgStroke(vg)
@@ -149,8 +148,6 @@ local function renderEvent(tex, locKey, eventType)
     local vg = texVg
     local w, h = TEX_W, TEX_H
     local t = Theme.current
-    local r = math.floor(TEX_W * Card.RADIUS / Card.WIDTH)
-
     local info = Theme.cardTypeInfo(eventType)
     if not info then return end
     local tc = Theme.cardTypeColor(eventType)
@@ -176,9 +173,9 @@ local function renderEvent(tex, locKey, eventType)
     nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
     nvgFill(vg)
 
-    -- 卡体底色
+    -- 卡体底色 (直角, 匹配 CustomGeometry)
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, 0, 0, w, h, r)
+    nvgRect(vg, 0, 0, w, h)
     nvgFillColor(vg, Theme.rgba(t.cardFace))
     nvgFill(vg)
 
@@ -202,7 +199,7 @@ local function renderEvent(tex, locKey, eventType)
 
     -- 边框
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, 0, 0, w, h, r)
+    nvgRect(vg, 0, 0, w, h)
     nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 180))
     nvgStrokeWidth(vg, 6)
     nvgStroke(vg)
@@ -219,8 +216,6 @@ local function renderBack(tex)
     local vg = texVg
     local w, h = TEX_W, TEX_H
     local t = Theme.current
-    local r = math.floor(TEX_W * Card.RADIUS / Card.WIDTH)
-
     nvgSetRenderTarget(vg, tex)
     nvgBeginFrame(vg, w, h, 1.0)
 
@@ -230,9 +225,9 @@ local function renderBack(tex)
     nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
     nvgFill(vg)
 
-    -- 卡背底色
+    -- 卡背底色 (直角, 匹配 CustomGeometry)
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, 0, 0, w, h, r)
+    nvgRect(vg, 0, 0, w, h)
     nvgFillColor(vg, Theme.rgba(t.cardBack))
     nvgFill(vg)
 
@@ -261,7 +256,7 @@ local function renderBack(tex)
 
     -- 边框
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, 0, 0, w, h, r)
+    nvgRect(vg, 0, 0, w, h)
     nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 180))
     nvgStrokeWidth(vg, 6)
     nvgStroke(vg)

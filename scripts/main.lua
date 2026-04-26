@@ -57,7 +57,6 @@ local handleInventoryExorcism
 local board = nil
 ---@type table token
 local token = nil
-local emotionHandles = nil
 
 -- 交互状态
 local demoState = "idle"
@@ -119,26 +118,19 @@ local function setup3DScene()
     scene_ = Scene()
     scene_:CreateComponent("Octree")
 
-    -- 光照
-    local lightGroupFile = cache:GetResource("XMLFile", "LightGroup/Daytime.xml")
-    if lightGroupFile then
-        local lightGroup = scene_:CreateChild("LightGroup")
-        lightGroup:LoadXML(lightGroupFile:GetRoot())
-    else
-        -- Fallback: 手动创建方向光
-        local lightNode = scene_:CreateChild("DirectionalLight")
-        lightNode:SetDirection(Vector3(0.5, -1.0, 0.6))
-        local light = lightNode:CreateComponent("Light")
-        light.lightType = LIGHT_DIRECTIONAL
-        light.color = Color(0.95, 0.95, 0.9, 1.0)
-        light.brightness = 1.2
-        light.castShadows = true
-    end
+    -- 光照: 方向光 (明亮场景)
+    local lightNode = scene_:CreateChild("DirectionalLight")
+    lightNode:SetDirection(Vector3(0.5, -1.0, 0.6))
+    local light = lightNode:CreateComponent("Light")
+    light.lightType = LIGHT_DIRECTIONAL
+    light.color = Color(1.0, 1.0, 0.95, 1.0)
+    light.brightness = 2.2
+    light.castShadows = true
 
     -- 相机: 45度角俯瞰
     cameraNode_ = scene_:CreateChild("Camera")
     cameraNode_:SetPosition(Vector3(0, 4.5, -4.5))
-    cameraNode_:LookAt(Vector3(0, 0, 0.3))
+    cameraNode_:LookAt(Vector3(0, 0, -0.3))
 
     camera_ = cameraNode_:CreateComponent("Camera")
     camera_.nearClip = 0.1
@@ -156,7 +148,7 @@ local function setup3DScene()
     zone.fogColor = Color(0.15, 0.12, 0.18, 1.0)  -- 深紫暗色背景
     zone.fogStart = 50.0
     zone.fogEnd = 80.0
-    zone.ambientColor = Color(0.3, 0.3, 0.35, 1.0)
+    zone.ambientColor = Color(0.5, 0.5, 0.55, 1.0)
 
     -- 桌面: 大平板 (Box.mdl 缩放)
     tableNode_ = scene_:CreateChild("Table")
@@ -219,10 +211,10 @@ function Start()
     CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
     Board.createAllNodes(board, scene_, CardTextures)
 
-    -- Token + 表情贴图 (Phase 1: 仍使用 NanoVG 叠加)
-    emotionHandles = Token.loadImages(vg)
+    -- Token (3D Billboard)
     token = Token.new()
-    token.imageHandles = emotionHandles
+    token.textures = Token.loadTextures()
+    Token.createNode(token, scene_)
 
     -- 注入回调
     Card.setRumorQuery(function(location)
@@ -329,6 +321,7 @@ function Start()
 end
 
 function Stop()
+    Token.destroyNode(token)
     CardTextures.destroy()
     if vg then
         nvgDelete(vg)
@@ -348,18 +341,13 @@ function startDeal()
         demoState = "ready"
         print("[Main] Deal complete, Day " .. dayCount)
 
-        -- Token 出现在"家" (3D→屏幕坐标)
+        -- Token 出现在"家" (世界坐标)
         local homeRow = board.homeRow
         local homeCol = board.homeCol
         local wx, wz = Board.cardPos(board, homeRow, homeCol)
-        local sx, sy = worldToScreen(Vector3(wx, 0, wz))
-        Token.show(token, sx, sy)
+        Token.show(token, wx, wz)
         token.targetRow = homeRow
         token.targetCol = homeCol
-
-        -- 保存世界坐标供 Token 使用
-        token.worldX = wx
-        token.worldZ = wz
 
         -- 家的卡牌默认翻开
         local homeCard = board.cards[homeRow][homeCol]
@@ -532,8 +520,10 @@ function onGameRestart()
     Board.createAllNodes(board, scene_, CardTextures)
     recalcLayout()
 
+    Token.destroyNode(token)
     token = Token.new()
-    token.imageHandles = emotionHandles
+    token.textures = Token.loadTextures()
+    Token.createNode(token, scene_)
 
     startDeal()
 end
@@ -703,17 +693,7 @@ local function doPhotograph(card, row, col)
     Token.setEmotion(token, "determined")
     VFX.flashScreen(255, 255, 255, 0.3, 180)
 
-    local origY = token.y
-    Tween.to(token, { y = origY - 5 }, 0.1, {
-        easing = Tween.Easing.easeOutQuad,
-        tag = "tokenmove",
-        onComplete = function()
-            Tween.to(token, { y = origY }, 0.15, {
-                easing = Tween.Easing.easeInQuad,
-                tag = "tokenmove",
-            })
-        end
-    })
+    Token.hop(token, 0.05)
 
     local delay = { t = 0 }
     Tween.to(delay, { t = 1 }, 0.25, {
@@ -755,17 +735,7 @@ local function doExorcise(card, row, col, freeExorcise)
     VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
     VFX.triggerShake(4, 0.2)
 
-    local origY = token.y
-    Tween.to(token, { y = origY - 6 }, 0.12, {
-        easing = Tween.Easing.easeOutQuad,
-        tag = "tokenmove",
-        onComplete = function()
-            Tween.to(token, { y = origY }, 0.18, {
-                easing = Tween.Easing.easeInQuad,
-                tag = "tokenmove",
-            })
-        end
-    })
+    Token.hop(token, 0.06)
 
     local delay = { t = 0 }
     Tween.to(delay, { t = 1 }, 0.3, {
@@ -849,16 +819,14 @@ local function handleNormalModeClick(card, row, col)
         return
     end
 
-    -- 移动 Token (屏幕坐标)
+    -- 移动 Token (世界坐标)
     demoState = "moving"
     CameraButton.hide()
     token.targetRow = row
     token.targetCol = col
-    token.worldX = wx
-    token.worldZ = wz
     Token.setEmotion(token, "running")
 
-    Token.moveTo(token, sx, sy, function()
+    Token.moveTo(token, wx, wz, function()
         if not card.faceUp and not card.isFlipping then
             demoState = "flipping"
             Card.flip(card, function(c)
@@ -1102,16 +1070,7 @@ function HandleUpdate(eventType, eventData)
 
     -- 3D 节点同步 (每帧将 Lua 属性映射到 Node Transform)
     Board.syncAllNodes(board)
-
-    -- Token 屏幕位置更新 (跟随世界坐标)
-    if token.visible and token.worldX and not token.isMoving then
-        local sx, sy = worldToScreen(Vector3(token.worldX, 0, token.worldZ))
-        -- 不直接覆盖 (Tween 可能正在操作)，仅在非移动时微调
-        if not token.isMoving and demoState == "ready" then
-            token.x = sx
-            token.y = sy
-        end
-    end
+    Token.syncNode(token, gameTime)
 
     -- 屏幕抖动 → 相机偏移
     local shakeX, shakeY = VFX.getShakeOffset()
@@ -1146,11 +1105,7 @@ function HandleNanoVGRender(eventType, eventData)
         nvgTranslate(vg, sx, sy)
     end
 
-    -- === 3D 场景已由 Viewport 渲染，无需绘制背景 ===
-    -- === 棋盘/卡牌已由 3D Viewport 渲染 ===
-
-    -- === Token (Phase 1: 仍使用 NanoVG 叠加) ===
-    Token.draw(vg, token, gameTime)
+    -- === 3D 场景已由 Viewport 渲染 (棋盘/卡牌/Token 均为 3D) ===
 
     -- === 相机模式取景器叠加层 ===
     CameraButton.drawOverlay(vg, logicalW, logicalH, gameTime)

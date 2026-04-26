@@ -1,7 +1,7 @@
 -- ============================================================================
--- Token.lua - 玩家棋子 (贴图表情版)
+-- Token.lua - 玩家棋子 (3D Billboard 版)
 -- 15 种表情贴图 + 呼吸/弹跳/挤压/翻面动效
--- 放置在卡牌中心，叠加半透明阴影增加可见度
+-- 使用 BillboardSet 面向相机的 3D 精灵，站立在卡牌上
 -- ============================================================================
 
 local Tween = require "lib.Tween"
@@ -12,18 +12,16 @@ local M = {}
 -- ---------------------------------------------------------------------------
 -- 常量
 -- ---------------------------------------------------------------------------
-M.SIZE = 20          -- 基础尺寸半径 (兼容旧引用)
-M.BODY_H = 14       -- 身体高度 (兼容旧引用)
 
--- 精灵渲染尺寸 (逻辑像素) — 适配卡牌内显示
-local SPRITE_W = 40
-local SPRITE_H = math.floor(SPRITE_W * (768 / 515) + 0.5)  -- ≈ 60
+-- 3D 精灵尺寸 (米)
+local SPRITE_3D_H = 0.50                         -- 站立高度
+local SPRITE_3D_W = SPRITE_3D_H * (515 / 768)    -- 保持宽高比 ≈ 0.335m
+local DEAD_3D_H   = 0.38                          -- 躺尸高度
+local DEAD_3D_W   = DEAD_3D_H * (768 / 515)      -- 横版宽高比 ≈ 0.57m
 
--- 躺尸图是横版 768x515，需要特殊宽高
-local DEAD_W = math.floor(SPRITE_H * (768 / 515) + 0.5)    -- ≈ 89
-local DEAD_H = SPRITE_H                                      -- 60
-
-
+-- 兼容旧引用
+M.SIZE   = 20
+M.BODY_H = 14
 
 -- ---------------------------------------------------------------------------
 -- 表情映射
@@ -52,111 +50,244 @@ local EMOTIONS = {
 
 function M.new()
     return {
-        x = 0, y = 0,
+        -- 世界坐标 (主要定位)
+        worldX = 0,
+        worldZ = 0,
+        bounceY = 0,      -- 高度偏移 (正值=向上)
+
         targetRow = 1,
         targetCol = 1,
+
         scaleX = 1.0,
         scaleY = 1.0,
         alpha = 0,
-        bounceY = 0,
         squashX = 1.0,
         squashY = 1.0,
         isMoving = false,
         visible = false,
         idleTimer = 0,
 
-        -- 3D 世界坐标 (用于屏幕位置跟随)
-        worldX = 0,
-        worldZ = 0,
-
         -- 表情系统
         emotion = "default",
-        pendingEmotion = nil,   -- 翻面动画中途待切换的表情
-        imageHandles = {},      -- 由 loadImages() 填充
+        pendingEmotion = nil,
+
+        -- 3D 节点
+        node3d = nil,        ---@type userdata BillboardSet
+        billboardSet = nil,  ---@type userdata Billboard
+        billboard = nil,
+        material3d = nil,
+        textures = {},       -- emotion → Texture2D
     }
 end
 
 -- ---------------------------------------------------------------------------
--- 图片资源管理
+-- 纹理加载 (Texture2D, 替代旧的 NanoVG loadImages)
 -- ---------------------------------------------------------------------------
 
---- 一次性加载全部表情贴图 (在 Start() 中调用)
----@param vg userdata NanoVG context
----@return table handles  表情名 → nvg image handle
-function M.loadImages(vg)
-    local handles = {}
+--- 一次性加载全部表情为 Texture2D (在 Start() 中调用)
+---@return table textures  表情名 → Texture2D
+function M.loadTextures()
+    local textures = {}
     local loaded, failed = 0, 0
+    local loaded_paths = {}
+
     for key, path in pairs(EMOTIONS) do
-        -- 同路径不重复加载 (happy 和 default 共享)
-        local existing = nil
-        for k2, p2 in pairs(EMOTIONS) do
-            if p2 == path and handles[k2] then
-                existing = handles[k2]
-                break
-            end
-        end
-        if existing then
-            handles[key] = existing
+        -- 去重: 同路径共享 Texture2D
+        if loaded_paths[path] then
+            textures[key] = loaded_paths[path]
             loaded = loaded + 1
         else
-            local h = nvgCreateImage(vg, path, 0)
-            if h and h > 0 then
-                handles[key] = h
+            local tex = cache:GetResource("Texture2D", path)
+            if tex then
+                textures[key] = tex
+                loaded_paths[path] = tex
                 loaded = loaded + 1
             else
-                print("[Token] ERROR: Failed to load " .. path)
+                print("[Token] ERROR: Failed to load texture " .. path)
                 failed = failed + 1
             end
         end
     end
-    print("[Token] Loaded " .. loaded .. " emotions, " .. failed .. " failed")
-    return handles
-end
-
---- 清理图片资源 (在 Stop() 中调用)
----@param vg userdata
----@param token table
-function M.cleanup(vg, token)
-    if not token or not token.imageHandles then return end
-    -- 收集去重 (同句柄只删一次)
-    local deleted = {}
-    for _, handle in pairs(token.imageHandles) do
-        if handle and handle > 0 and not deleted[handle] then
-            nvgDeleteImage(vg, handle)
-            deleted[handle] = true
-        end
-    end
-    token.imageHandles = {}
-    print("[Token] Cleaned up " .. #deleted .. " image handles")
+    print("[Token] Loaded " .. loaded .. " emotion textures, " .. failed .. " failed")
+    return textures
 end
 
 -- ---------------------------------------------------------------------------
--- 表情切换 (带翻面动效)
+-- 3D 节点: 创建 (BillboardSet, 面向相机)
+-- ---------------------------------------------------------------------------
+
+--- 创建 Token 的 3D Billboard 节点
+---@param token table
+---@param parentNode userdata 父节点 (通常是 scene_)
+function M.createNode(token, parentNode)
+    if token.node3d then return end
+
+    local node = parentNode:CreateChild("Token")
+
+    local bbSet = node:CreateComponent("BillboardSet")
+    bbSet:SetNumBillboards(1)
+    bbSet:SetFaceCameraMode(FC_ROTATE_Y)  -- 绕 Y 轴旋转面向相机, 保持竖直
+    bbSet:SetSorted(true)
+
+    -- 材质: 透明 Diffuse
+    local mat = Material:new()
+    mat:SetTechnique(0, cache:GetResource("Technique", "Techniques/DiffAlpha.xml"))
+    local defaultTex = token.textures and token.textures["default"]
+    if defaultTex then
+        mat:SetTexture(TU_DIFFUSE, defaultTex)
+    end
+    bbSet:SetMaterial(mat)
+
+    -- 单个 Billboard (锚点在底部: 局部 Y 偏移半高, 使底边贴合节点原点)
+    local bb = bbSet:GetBillboard(0)
+    bb.position = Vector3(0, SPRITE_3D_H / 2, 0)
+    bb.size = Vector2(SPRITE_3D_W, SPRITE_3D_H)
+    bb.color = Color(1, 1, 1, 0)  -- 初始透明
+    bb.enabled = false
+    bbSet:Commit()
+
+    -- Blob shadow (独立节点, 直接在 parentNode 下, 不跟随 bounceY)
+    local shadowNode = parentNode:CreateChild("TokenShadow")
+    shadowNode:SetPosition(Vector3(0, 0.015, 0))
+    shadowNode:SetScale(Vector3(SPRITE_3D_W * 1.1, 0.001, SPRITE_3D_W * 0.5))
+    local shadowModel = shadowNode:CreateComponent("StaticModel")
+    shadowModel:SetModel(cache:GetResource("Model", "Models/Cylinder.mdl"))
+    local shadowMat = Material:new()
+    shadowMat:SetTechnique(0, cache:GetResource("Technique", "Techniques/PBR/PBRNoTextureAlpha.xml"))
+    shadowMat:SetShaderParameter("MatDiffColor", Variant(Color(0, 0, 0, 0.3)))
+    shadowMat:SetShaderParameter("MatRoughness", Variant(1.0))
+    shadowMat:SetShaderParameter("MatMetallic", Variant(0.0))
+    shadowModel:SetMaterial(shadowMat)
+
+    token.node3d = node
+    token.billboardSet = bbSet
+    token.billboard = bb
+    token.material3d = mat
+    token.shadowNode = shadowNode
+
+    print("[Token] Created 3D billboard node")
+end
+
+-- ---------------------------------------------------------------------------
+-- 3D 节点: 销毁
+-- ---------------------------------------------------------------------------
+
+function M.destroyNode(token)
+    if token.shadowNode then
+        token.shadowNode:Remove()
+        token.shadowNode = nil
+    end
+    if token.node3d then
+        token.node3d:Remove()
+        token.node3d = nil
+        token.billboardSet = nil
+        token.billboard = nil
+        token.material3d = nil
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 3D 节点: 每帧同步 Lua 属性 → Node Transform
+-- ---------------------------------------------------------------------------
+
+--- 每帧调用: 将 token 的 Lua 属性映射到 3D Billboard
+---@param token table
+---@param gameTime number 游戏总时间 (用于呼吸动画)
+function M.syncNode(token, gameTime)
+    if not token.node3d then return end
+
+    local bb = token.billboard
+    if not bb then return end
+
+    if not token.visible or token.alpha <= 0.01 then
+        bb.enabled = false
+        token.billboardSet:Commit()
+        return
+    end
+
+    -- 呼吸动画 (非移动时微弱上下浮动 + 缩放)
+    local breatheY = 0
+    local breatheScale = 1.0
+    if not token.isMoving and gameTime then
+        breatheY = math.sin(gameTime * 2.5) * 0.008
+        breatheScale = 1.0 + math.sin(gameTime * 2.5) * 0.02
+    end
+
+    -- 节点位置: 精灵底边浮于卡面上方 (billboard 自身已上移半高)
+    -- 0.12m: 45°视角下需足够高度避免被前排卡牌遮挡
+    token.node3d:SetPosition(Vector3(
+        token.worldX,
+        0.25 + token.bounceY + breatheY,
+        token.worldZ
+    ))
+
+    -- Billboard 尺寸 (含 squash/stretch 动画)
+    local isDead = (token.emotion == "dead")
+    local baseW = isDead and DEAD_3D_W or SPRITE_3D_W
+    local baseH = isDead and DEAD_3D_H or SPRITE_3D_H
+
+    -- 更新 billboard 局部位置以匹配动态高度 (底边锚定)
+    local actualH = baseH * token.scaleY * token.squashY * breatheScale
+    bb.position = Vector3(0, actualH / 2, 0)
+
+    bb.size = Vector2(
+        baseW * token.scaleX * token.squashX * breatheScale,
+        baseH * token.scaleY * token.squashY * breatheScale
+    )
+    bb.color = Color(1, 1, 1, token.alpha)
+    bb.enabled = true
+
+    token.billboardSet:Commit()
+
+    -- Shadow: 独立节点直接定位在脚下地面
+    if token.shadowNode then
+        token.shadowNode:SetPosition(Vector3(token.worldX, 0.015, token.worldZ))
+        -- 跳起时阴影变淡变小
+        local shadowAlpha = math.max(0.1, 0.3 - token.bounceY * 0.8)
+        local shadowScale = math.max(0.6, 1.0 - token.bounceY * 1.5)
+        token.shadowNode:SetScale(Vector3(
+            SPRITE_3D_W * 1.1 * shadowScale,
+            0.001,
+            SPRITE_3D_W * 0.5 * shadowScale
+        ))
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 表情切换 (换材质纹理 + 翻面动效)
 -- ---------------------------------------------------------------------------
 
 --- 切换表情
 ---@param token table
 ---@param emotion string 表情名
 function M.setEmotion(token, emotion)
-    if not token.imageHandles[emotion] then
+    if not token.textures[emotion] then
         emotion = "default"
     end
     if token.emotion == emotion then return end
 
-    -- 移动中直接切换，不做翻面
+    -- 移动中直接切换, 不做翻面
     if token.isMoving then
         token.emotion = emotion
+        if token.material3d and token.textures[emotion] then
+            token.material3d:SetTexture(TU_DIFFUSE, token.textures[emotion])
+        end
         return
     end
 
-    -- 翻面动效：压扁 → 切图 → 展开
+    -- 翻面动效: squashX → 0 → 切纹理 → 1
     token.pendingEmotion = emotion
     Tween.to(token, { squashX = 0.0 }, 0.07, {
         easing = Tween.Easing.easeInQuad,
         tag = "tokenflip",
         onComplete = function()
-            token.emotion = token.pendingEmotion or emotion
+            local newEmotion = token.pendingEmotion or emotion
+            token.emotion = newEmotion
             token.pendingEmotion = nil
+            -- 换纹理
+            if token.material3d and token.textures[newEmotion] then
+                token.material3d:SetTexture(TU_DIFFUSE, token.textures[newEmotion])
+            end
             Tween.to(token, { squashX = 1.0 }, 0.09, {
                 easing = Tween.Easing.easeOutBack,
                 tag = "tokenflip",
@@ -166,31 +297,49 @@ function M.setEmotion(token, emotion)
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 出现
+-- 动画: 出现 (世界坐标)
 -- ---------------------------------------------------------------------------
 
-function M.show(token, x, y)
-    token.x = x
-    token.y = y + 30
+--- Token 出现在指定世界坐标
+---@param token table
+---@param worldX number
+---@param worldZ number
+function M.show(token, worldX, worldZ)
+    token.worldX = worldX
+    token.worldZ = worldZ
+    token.bounceY = 0.15     -- 从高处落下
     token.visible = true
-    Tween.to(token, { x = x, y = y, alpha = 1.0, scaleX = 1.0, scaleY = 1.0 }, 0.4, {
+    token.scaleX = 0.5
+    token.scaleY = 0.5
+
+    Tween.to(token, {
+        alpha = 1.0,
+        scaleX = 1.0,
+        scaleY = 1.0,
+        bounceY = 0,
+    }, 0.4, {
         easing = Tween.Easing.easeOutBack,
         tag = "token",
     })
 end
 
 -- ---------------------------------------------------------------------------
--- 动画: 移动到目标位置
+-- 动画: 移动到目标 (世界坐标)
 -- ---------------------------------------------------------------------------
 
-function M.moveTo(token, targetX, targetY, onComplete)
+--- Token 移动到指定世界坐标
+---@param token table
+---@param targetX number 目标世界 X
+---@param targetZ number 目标世界 Z
+---@param onComplete function|nil 完成回调
+function M.moveTo(token, targetX, targetZ, onComplete)
     if token.isMoving then return end
     token.isMoving = true
 
-    local dx = targetX - token.x
-    local dy = targetY - token.y
-    local dist = math.sqrt(dx * dx + dy * dy)
-    local duration = math.min(0.6, math.max(0.25, dist / 300))
+    local dx = targetX - token.worldX
+    local dz = targetZ - token.worldZ
+    local dist = math.sqrt(dx * dx + dz * dz)
+    local duration = math.min(0.6, math.max(0.25, dist / 2.5))  -- ~2.5 m/s
 
     -- 起跳挤压
     Tween.to(token, { squashX = 1.2, squashY = 0.8 }, 0.08, {
@@ -204,16 +353,16 @@ function M.moveTo(token, targetX, targetY, onComplete)
         end
     })
 
-    -- 主移动
-    Tween.to(token, { x = targetX, y = targetY }, duration, {
+    -- 主移动 (世界坐标)
+    Tween.to(token, { worldX = targetX, worldZ = targetZ }, duration, {
         delay = 0.06,
         easing = Tween.Easing.easeInOutCubic,
         tag = "tokenmove",
     })
 
-    -- 弧形跳跃
-    local jumpHeight = math.min(40, dist * 0.3 + 15)
-    Tween.to(token, { bounceY = -jumpHeight }, duration * 0.45, {
+    -- 弧形跳跃 (3D: 正值=向上)
+    local jumpHeight = math.min(0.20, dist * 0.15 + 0.08)
+    Tween.to(token, { bounceY = jumpHeight }, duration * 0.45, {
         delay = 0.06,
         easing = Tween.Easing.easeOutQuad,
         tag = "tokenmove",
@@ -225,7 +374,7 @@ function M.moveTo(token, targetX, targetY, onComplete)
         end
     })
 
-    -- 落地
+    -- 落地挤压恢复
     Tween.to(token, { squashX = 1.0, squashY = 1.0 }, 0.01, {
         delay = duration + 0.06,
         tag = "tokenmove",
@@ -249,79 +398,33 @@ function M.moveTo(token, targetX, targetY, onComplete)
 end
 
 -- ---------------------------------------------------------------------------
--- 更新 (idle 动画计时)
+-- 动画: 小跳 (拍照/驱魔等动作)
+-- ---------------------------------------------------------------------------
+
+--- 原地小跳 (世界空间高度偏移)
+---@param token table
+---@param height number|nil 跳跃高度 (米), 默认 0.05
+function M.hop(token, height)
+    local h = height or 0.05
+    Tween.to(token, { bounceY = h }, 0.10, {
+        easing = Tween.Easing.easeOutQuad,
+        tag = "tokenmove",
+        onComplete = function()
+            Tween.to(token, { bounceY = 0 }, 0.15, {
+                easing = Tween.Easing.easeInQuad,
+                tag = "tokenmove",
+            })
+        end
+    })
+end
+
+-- ---------------------------------------------------------------------------
+-- 更新 (idle 计时)
 -- ---------------------------------------------------------------------------
 
 function M.update(token, dt)
     if not token.visible then return end
     token.idleTimer = token.idleTimer + dt
-end
-
--- ---------------------------------------------------------------------------
--- 渲染: 贴图精灵
--- ---------------------------------------------------------------------------
-
-function M.draw(vg, token, gameTime)
-    if not token.visible or token.alpha <= 0.01 then return end
-
-    local imgHandle = token.imageHandles[token.emotion]
-        or token.imageHandles["default"]
-    if not imgHandle or imgHandle <= 0 then return end
-
-    -- 判断是否为躺尸 (横版图)
-    local isDead = (token.emotion == "dead")
-    local sw = isDead and DEAD_W or SPRITE_W
-    local sh = isDead and DEAD_H or SPRITE_H
-
-    -- idle 呼吸 (非移动时轻微上下浮动)
-    local breathe = 0
-    if not token.isMoving then
-        breathe = math.sin(gameTime * 2.5) * 1.5
-    end
-
-    -- 呼吸缩放 (微幅)
-    local breatheScale = 1.0
-    if not token.isMoving then
-        breatheScale = 1.0 + math.sin(gameTime * 2.5) * 0.02
-    end
-
-    nvgSave(vg)
-
-    -- 定位到卡牌中心
-    local cx = token.x
-    local cy = token.y + token.bounceY + breathe
-    nvgTranslate(vg, cx, cy)
-    nvgGlobalAlpha(vg, token.alpha)
-
-    -- === 精灵贴图 (居中) ===
-    nvgScale(vg,
-        token.scaleX * token.squashX * breatheScale,
-        token.scaleY * token.squashY * breatheScale)
-
-    local imgX = -sw / 2
-    local imgY = -sh / 2
-
-    -- 角色阴影: 同图偏移 + 放大 + 低透明度
-    local shScale = 1.08
-    local shOff = 2
-    local shW = sw * shScale
-    local shH = sh * shScale
-    local shX = -shW / 2 + shOff
-    local shY = -shH / 2 + shOff
-    local shadowPaint = nvgImagePattern(vg, shX, shY, shW, shH, 0, imgHandle, 0.3)
-    nvgBeginPath(vg)
-    nvgRect(vg, shX, shY, shW, shH)
-    nvgFillPaint(vg, shadowPaint)
-    nvgFill(vg)
-
-    -- 主贴图
-    local imgPaint = nvgImagePattern(vg, imgX, imgY, sw, sh, 0, imgHandle, 1.0)
-    nvgBeginPath(vg)
-    nvgRect(vg, imgX, imgY, sw, sh)
-    nvgFillPaint(vg, imgPaint)
-    nvgFill(vg)
-
-    nvgRestore(vg)
 end
 
 return M
