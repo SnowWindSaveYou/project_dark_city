@@ -26,6 +26,8 @@ local MonsterGhost     = require "MonsterGhost"
 local BubbleDialogue   = require "BubbleDialogue"
 local ItemIcons        = require "ItemIcons"
 local BoardItems       = require "BoardItems"
+local NPCManager       = require "NPCManager"
+local DialogueSystem   = require "DialogueSystem"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -119,6 +121,21 @@ local gameStats = {
     dayStartRevealed = 0,  -- 每天开始时的翻牌数 (用于每日氛围重置)
     monstersSlain = 0,
     photosUsed    = 0,
+}
+
+-- ---------------------------------------------------------------------------
+-- 琴馨 NPC 对话脚本 (Day 1 相机教程)
+-- ---------------------------------------------------------------------------
+local QINXIN_DIALOGUE = {
+    { speaker = "琴馨", text = "唔……你也能看到那些奇怪的东西啊……" },
+    { speaker = "琴馨", text = "……我还以为只有我一个人呢。" },
+    { speaker = "琴馨", text = "嗯，那个……你看到右下角的 📷 了吗？" },
+    { speaker = "琴馨", text = "点一下就能进入相机模式哦。" },
+    { speaker = "琴馨", text = "在相机模式里，你可以拍照侦测还没翻开的牌……" },
+    { speaker = "琴馨", text = "这样就能提前知道哪张牌下面藏着什么了。" },
+    { speaker = "琴馨", text = "而且啊……如果已经知道是怪物，还能直接驱除掉它。" },
+    { speaker = "琴馨", text = "不过每次拍照都要消耗胶卷哦，每天只有3卷……" },
+    { speaker = "琴馨", text = "省着点用吧。……我先眯一会儿了。" },
 }
 
 -- ============================================================================
@@ -302,6 +319,7 @@ local function setup3DScene()
     BoardDecor.init(scene_, tableModel)
     MonsterGhost.init(scene_)
     BoardItems.init(scene_)
+    NPCManager.init(scene_)
 
     print("[Main] 3D scene initialized")
 end
@@ -394,6 +412,7 @@ function Start()
     board = Board.new()
     local reqLocs = CardManager.preSelectLocations()
     Board.generateCards(board, reqLocs)
+    NPCManager.setBoard(board, Board)
     recalcLayout()
 
     -- 预加载纹理 + 创建 3D 节点
@@ -480,6 +499,9 @@ function Start()
     -- 日期转场
     DateTransition.init(vg)
 
+    -- 对话系统
+    DialogueSystem.init(vg)
+
     -- 事件
     SubscribeToEvent(vg, "NanoVGRender", "HandleNanoVGRender")
     SubscribeToEvent("Update", "HandleUpdate")
@@ -504,6 +526,8 @@ end
 
 function Stop()
     Token.destroyNode(token)
+    NPCManager.destroy()
+    DialogueSystem.reset()
     CardTextures.destroy()
     if vg then
         nvgDelete(vg)
@@ -527,8 +551,28 @@ function startDeal()
         -- Token 出现在"家" (世界坐标)
         local homeRow = board.homeRow
         local homeCol = board.homeCol
+
+        -- Day 1: 放置琴馨 NPC (随机选一个非 home 格子)
+        if dayCount == 1 then
+            local candidates = {}
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    if not (r == homeRow and c == homeCol) then
+                        candidates[#candidates + 1] = { r = r, c = c }
+                    end
+                end
+            end
+            if #candidates > 0 then
+                local pick = candidates[math.random(#candidates)]
+                NPCManager.spawnNPC("qinxin", "琴馨", pick.r, pick.c,
+                    "image/怪物_面具使v2_20260426072832.png", QINXIN_DIALOGUE)
+            end
+        end
+
+        -- Token 位置 (考虑同格偏移)
         local wx, wz = Board.cardPos(board, homeRow, homeCol)
-        Token.show(token, wx, wz)
+        local shareOff = NPCManager.getShareOffset(homeRow, homeCol)
+        Token.show(token, wx + shareOff, wz)
         token.targetRow = homeRow
         token.targetCol = homeCol
 
@@ -569,7 +613,7 @@ end
 function startRedeal()
     if gamePhase ~= "playing" then return end
     if demoState == "dealing" then return end
-    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
+    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then return end
     demoState = "dealing"
     hoveredCard = nil
     EventPopup.clearToasts()
@@ -596,6 +640,8 @@ function startRedeal()
     HandPanel.hide()
     CameraButton.hide()
     BoardItems.clear()
+    NPCManager.clear()
+    DialogueSystem.reset()
 
     Board.undealAll(board, function()
         Board.destroyAllNodes(board)
@@ -615,7 +661,7 @@ local checkDefeat
 function advanceDay()
     if gamePhase ~= "playing" then return end
     if demoState ~= "ready" then return end
-    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
+    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then return end
 
     HandPanel.hide()
     local effects = CardManager.settleDay()
@@ -660,6 +706,8 @@ function advanceDay()
     token.alpha = 0
     HandPanel.hide()
     CameraButton.hide()
+    NPCManager.clear()
+    DialogueSystem.reset()
 
     Board.undealAll(board, function()
         dayCount = dayCount + 1
@@ -752,6 +800,8 @@ function onGameRestart()
     HandPanel.reset()
     ShopPopup.resetInventory()
     BoardItems.clear()
+    NPCManager.clear()
+    DialogueSystem.reset()
 
     Board.destroyAllNodes(board)
     CardTextures.clearCache()
@@ -1130,8 +1180,17 @@ local function handleNormalModeClick(card, row, col)
                 onCardFlipped(c, sx, sy)
             end, CardTextures)
         else
-            -- 点击已翻开的当前格 → 触发气泡对话
-            if playerBubble then
+            -- 点击已翻开的当前格 → 检查是否有 NPC 可交互
+            local npc = NPCManager.getNPCAt(row, col)
+            if npc and npc.dialogueScript and not DialogueSystem.isActive() then
+                demoState = "dialogue"
+                CameraButton.hide()
+                if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+                DialogueSystem.start(npc.dialogueScript, npc.texPath, function()
+                    demoState = "ready"
+                    CameraButton.show()
+                end)
+            elseif playerBubble then
                 BubbleDialogue.clickTrigger(playerBubble)
             end
         end
@@ -1144,7 +1203,7 @@ local function handleNormalModeClick(card, row, col)
         return
     end
 
-    -- 移动 Token (世界坐标)
+    -- 移动 Token (世界坐标, 含同格偏移)
     MonsterGhost.clearSurround()  -- 角色离开当前格, 清除环绕怪物
     if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     demoState = "moving"
@@ -1153,7 +1212,8 @@ local function handleNormalModeClick(card, row, col)
     token.targetCol = col
     Token.setEmotion(token, "running")
 
-    Token.moveTo(token, wx, wz, function()
+    local moveShareOff = NPCManager.getShareOffset(row, col)
+    Token.moveTo(token, wx + moveShareOff, wz, function()
         -- 检查并拾取该格子上的道具
         local collected = BoardItems.tryCollect(row, col)
         if collected then
@@ -1267,6 +1327,11 @@ local function handleClick(inputX, inputY)
 
     if GameOver.isActive() then
         GameOver.handleClick(lx, ly, logicalW, logicalH)
+        return
+    end
+
+    if DialogueSystem.isActive() then
+        DialogueSystem.handleClick(lx, ly)
         return
     end
 
@@ -1397,6 +1462,11 @@ function HandleKeyDown(eventType, eventData)
         return
     end
 
+    if DialogueSystem.isActive() then
+        DialogueSystem.handleKey(key)
+        return
+    end
+
     if ShopPopup.isActive() then
         ShopPopup.handleKey(key)
         return
@@ -1496,6 +1566,8 @@ function HandleUpdate(eventType, eventData)
     EventPopup.updateToasts(dt)
     MonsterGhost.update(dt, gameTime)
     BoardItems.update(dt, gameTime)
+    NPCManager.update(dt, gameTime)
+    DialogueSystem.update(dt)
 
     -- 气泡对话更新
     if playerBubble then
@@ -1570,6 +1642,58 @@ function HandleNanoVGRender(eventType, eventData)
         BubbleDialogue.draw(playerBubble, vg, headSX, headSY)
     end
 
+    -- === NPC 交互提示 (同格时浮动气泡) ===
+    if gamePhase == "playing" and demoState == "ready"
+       and not DialogueSystem.isActive() and not CameraButton.isActive()
+       and token and token.visible then
+        local npcHere = NPCManager.getNPCAt(token.targetRow, token.targetCol)
+        if npcHere and npcHere.alpha > 0.5 then
+            local hintWorldPos = Vector3(npcHere.worldX, 0.85, npcHere.worldZ)
+            local hsx, hsy = worldToScreen(hintWorldPos)
+            local bounce = math.sin(gameTime * 3.0) * 5
+            local pulse = 0.7 + 0.3 * math.sin(gameTime * 2.5)
+            local hintAlpha = math.floor(255 * pulse)
+
+            local hintLabel = "💬 点击对话"
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 13)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            local tw = nvgTextBounds(vg, 0, 0, hintLabel, nil) or 80
+            local pw, ph = tw + 20, 24
+            local bx = hsx - pw / 2
+            local by = hsy - ph / 2 + bounce
+
+            -- 阴影
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx + 1, by + 2, pw, ph, 12)
+            nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(40 * pulse)))
+            nvgFill(vg)
+
+            -- 气泡背景
+            local tc = Theme.current
+            local pri = tc.textPrimary or { r = 35, g = 45, b = 60 }
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx, by, pw, ph, 12)
+            nvgFillColor(vg, nvgRGBA(pri.r, pri.g, pri.b, hintAlpha))
+            nvgFill(vg)
+
+            -- 小三角指向下方
+            local triCX = hsx
+            local triY = by + ph
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, triCX - 5, triY)
+            nvgLineTo(vg, triCX + 5, triY)
+            nvgLineTo(vg, triCX, triY + 6)
+            nvgClosePath(vg)
+            nvgFillColor(vg, nvgRGBA(pri.r, pri.g, pri.b, hintAlpha))
+            nvgFill(vg)
+
+            -- 文字
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hintAlpha))
+            nvgText(vg, hsx, by + ph / 2, hintLabel)
+        end
+    end
+
     -- === VFX 叠加层 ===
     VFX.drawBurst()
     VFX.drawPopups()
@@ -1596,6 +1720,9 @@ function HandleNanoVGRender(eventType, eventData)
     -- === 弹窗 ===
     EventPopup.draw(vg, logicalW, logicalH, gameTime)
     ShopPopup.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 对话系统 (Gal 风格, 在弹窗之上、结算之下) ===
+    DialogueSystem.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 结算画面 ===
     GameOver.draw(vg, logicalW, logicalH, gameTime)
