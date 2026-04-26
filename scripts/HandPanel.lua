@@ -8,6 +8,7 @@ local Tween = require "lib.Tween"
 local Theme = require "Theme"
 local CardManager = require "CardManager"
 local ShopPopup   = require "ShopPopup"
+local ItemIcons   = require "ItemIcons"
 
 local M = {}
 
@@ -881,12 +882,16 @@ function M.drawToolbar(vg, px, py, pw, t, gameTime)
         nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, bgAlpha))
         nvgFill(vg)
 
-        -- 图标
-        nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 14)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgba(t.textPrimary))
-        nvgText(vg, cx, cy, entry.info.icon, nil)
+        -- 图标 — 有纹理图标时使用纹理，否则 fallback emoji
+        if entry.info.iconKey and ItemIcons.drawCircle(vg, entry.info.iconKey, cx, cy, iw / 2 - 1) then
+            -- 纹理绘制成功
+        else
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 14)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgba(t.textPrimary))
+            nvgText(vg, cx, cy, entry.info.icon, nil)
+        end
 
         -- 数量角标
         if entry.count > 1 then

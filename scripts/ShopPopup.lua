@@ -7,6 +7,7 @@ local Tween       = require "lib.Tween"
 local VFX         = require "lib.VFX"
 local Theme       = require "Theme"
 local ResourceBar = require "ResourceBar"
+local ItemIcons   = require "ItemIcons"
 
 local M = {}
 
@@ -17,20 +18,20 @@ local M = {}
 local ALL_GOODS = {
     -- 设计文档核心道具
     { icon = "☕", name = "咖啡",       price = 8,  effects = { { "san", 2 } },
-      desc = "恢复2点理智",    inventoryKey = "coffee" },
+      desc = "恢复2点理智",    inventoryKey = "coffee",    iconKey = "coffee" },
     { icon = "🎞️", name = "胶卷",       price = 10, effects = { { "film", 1 } },
-      desc = "补充1个胶卷" },
+      desc = "补充1个胶卷",                                iconKey = "film" },
     { icon = "🧿", name = "护身符",     price = 15, effects = { { "shield", 1 } },
-      desc = "抵消1次伤害",    inventoryKey = "shield" },
+      desc = "抵消1次伤害",    inventoryKey = "shield",    iconKey = "shield" },
     { icon = "🪔", name = "驱魔香",     price = 12, effects = { { "exorcism", 1 } },
-      desc = "免侦察驱除怪物", inventoryKey = "exorcism" },
+      desc = "免侦察驱除怪物", inventoryKey = "exorcism",  iconKey = "exorcism" },
     { icon = "🗺️", name = "地图碎片",   price = 10, effects = { { "mapReveal", 1 } },
-      desc = "揭示1张卡牌类型" },
+      desc = "揭示1张卡牌类型",                            iconKey = "mapReveal" },
     -- 补给型道具 (可存入背包)
     { icon = "💊", name = "镇定剂",     price = 12, effects = { { "san", 3 } },
-      desc = "恢复3点理智",    inventoryKey = "sedative" },
+      desc = "恢复3点理智",    inventoryKey = "sedative",    iconKey = "sedative" },
     { icon = "📜", name = "秩序手册",   price = 10, effects = { { "order", 2 } },
-      desc = "恢复2点秩序",    inventoryKey = "orderManual" },
+      desc = "恢复2点秩序",    inventoryKey = "orderManual", iconKey = "orderManual" },
 }
 
 local SHOP_VARIANTS = {
@@ -97,10 +98,10 @@ local inventory = {
 --- 可消耗道具元数据 (HandPanel 工具栏渲染用)
 --- order 决定工具栏排列顺序
 local CONSUMABLE_ITEMS = {
-    coffee      = { icon = "☕", label = "咖啡",     effects = { { "san", 2 } },   order = 1 },
-    sedative    = { icon = "💊", label = "镇定剂",   effects = { { "san", 3 } },   order = 2 },
-    orderManual = { icon = "📜", label = "秩序手册", effects = { { "order", 2 } }, order = 3 },
-    exorcism    = { icon = "🪔", label = "驱魔香",   effects = { { "exorcism", 1 } }, order = 4 },
+    coffee      = { icon = "☕", label = "咖啡",     effects = { { "san", 2 } },   order = 1, iconKey = "coffee" },
+    sedative    = { icon = "💊", label = "镇定剂",   effects = { { "san", 3 } },   order = 2, iconKey = "sedative" },
+    orderManual = { icon = "📜", label = "秩序手册", effects = { { "order", 2 } }, order = 3, iconKey = "orderManual" },
+    exorcism    = { icon = "🪔", label = "驱魔香",   effects = { { "exorcism", 1 } }, order = 4, iconKey = "exorcism" },
 }
 
 --- 地图碎片回调 (由 main.lua 注入，购买时立即调用)
@@ -537,14 +538,22 @@ local function drawCard(vg, idx, card, theme, shopColor, gameTime)
         nvgSave(vg)
         nvgGlobalAlpha(vg, state.popupAlpha * math.min(card.t * 1.5, 1.0) * 0.4)
 
-        -- 图标 (暗淡)
-        nvgFontSize(vg, 22)
+        -- 图标 (暗淡) — 有纹理图标时使用纹理，否则 fallback emoji
+        local iconY = -hh + 22
+        if item.iconKey and ItemIcons.draw(vg, item.iconKey, 0, iconY, 22, 100) then
+            -- 纹理绘制成功
+        else
+            nvgFontSize(vg, 22)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgbaA(theme.textPrimary, 100))
+            nvgText(vg, 0, iconY, item.icon, nil)
+        end
+
+        -- 名称 (暗淡，无论图标走哪条分支都重置文本状态)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 11)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(theme.textPrimary, 100))
-        nvgText(vg, 0, -hh + 22, item.icon, nil)
-
-        -- 名称 (暗淡)
-        nvgFontSize(vg, 11)
         nvgText(vg, 0, -hh + 42, item.name, nil)
 
         nvgRestore(vg)
@@ -563,19 +572,27 @@ local function drawCard(vg, idx, card, theme, shopColor, gameTime)
         -- 可购 / 不可购
         local alpha = canAfford and 240 or 130
 
-        -- 图标
-        nvgFontSize(vg, 22)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, nvgRGBA(theme.textPrimary.r, theme.textPrimary.g, theme.textPrimary.b, alpha))
-        nvgText(vg, 0, -hh + 22, item.icon, nil)
+        -- 图标 — 有纹理图标时使用纹理，否则 fallback emoji
+        local iconY = -hh + 22
+        if item.iconKey and ItemIcons.draw(vg, item.iconKey, 0, iconY, 22, alpha) then
+            -- 纹理绘制成功
+        else
+            nvgFontSize(vg, 22)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(theme.textPrimary.r, theme.textPrimary.g, theme.textPrimary.b, alpha))
+            nvgText(vg, 0, iconY, item.icon, nil)
+        end
 
-        -- 名称
+        -- 名称 (无论图标走哪条分支，都重新设置文本状态)
+        nvgFontFace(vg, "sans")
         nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, nvgRGBA(theme.textPrimary.r, theme.textPrimary.g, theme.textPrimary.b, alpha))
         nvgText(vg, 0, -hh + 42, item.name, nil)
 
         -- 效果徽章 / 描述
         nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         local effY = -hh + 60
         if item.inventoryKey and item.desc then
             -- 背包道具：显示描述文字
@@ -598,6 +615,7 @@ local function drawCard(vg, idx, card, theme, shopColor, gameTime)
 
         -- 价格 (底部)
         nvgFontSize(vg, 12)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         local priceColor = canAfford and theme.highlight or theme.danger
         nvgFillColor(vg, Theme.rgbaA(priceColor, canAfford and 240 or 170))
         nvgText(vg, 0, hh - 14, "💰 " .. item.price, nil)
@@ -605,6 +623,7 @@ local function drawCard(vg, idx, card, theme, shopColor, gameTime)
         -- 点击提示: hover 时显示 "点击购买"
         if card.hoverT > 0.3 and canAfford then
             nvgFontSize(vg, 9)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
             nvgFillColor(vg, Theme.rgbaA(shopColor, math.floor(card.hoverT * 160)))
             nvgText(vg, 0, hh - 28, "点击购买", nil)
         end

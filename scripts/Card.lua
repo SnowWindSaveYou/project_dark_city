@@ -263,6 +263,53 @@ local function createIconQuad(parentNode, name, texture, offsetX, offsetZ)
 end
 
 -- ---------------------------------------------------------------------------
+-- 光环节点: 动态附加 (可在 createNode 后调用)
+-- ---------------------------------------------------------------------------
+
+--- 为卡牌动态添加光环上浮环
+---@param card CardData
+---@param glowTex userdata Texture2D 光环纹理
+function M.attachGlowRings(card, glowTex)
+    if card.safeGlowRings then return end  -- 已有光环
+    if not card.node3d then return end
+
+    local halfW = M.CARD_W / 2
+    local halfH = M.CARD_H / 2
+    local nUp = Vector3(0, 1, 0)
+    local techAlpha = cache:GetResource("Technique", "Techniques/DiffAlpha.xml")
+    local rings = {}
+    local RING_COUNT = 3
+
+    for i = 1, RING_COUNT do
+        local rn = card.node3d:CreateChild("safe_ring_" .. i)
+        rn:SetPosition(Vector3(0, 0.005, 0))
+
+        local gg = rn:CreateComponent("CustomGeometry")
+        gg:SetNumGeometries(1)
+        gg:BeginGeometry(0, TRIANGLE_LIST)
+        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
+        gg:DefineVertex(Vector3(-halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 1))
+        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
+        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
+        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
+        gg:DefineVertex(Vector3( halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 0))
+        gg:Commit()
+
+        local ringMat = Material:new()
+        ringMat:SetTechnique(0, techAlpha)
+        ringMat:SetTexture(TU_DIFFUSE, glowTex)
+        ringMat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, 0)))
+        ringMat.renderOrder = 100
+        gg:SetMaterial(ringMat)
+
+        rn:SetEnabled(false)
+        rings[i] = { node = rn, mat = ringMat }
+    end
+
+    card.safeGlowRings = rings
+end
+
+-- ---------------------------------------------------------------------------
 -- 3D 节点: 创建
 -- ---------------------------------------------------------------------------
 
@@ -351,9 +398,8 @@ function M.createNode(card, parentNode, CardTextures)
     card.revealedNode = createIconQuad(node, "ico_revealed",
         revealedTex, iconX, iconZ2)   -- 右上角第二个
 
-    -- 光环上浮淡出效果 (safe/home=白色, landmark=金色)
-    local needGlow = (card.type == "safe" or card.type == "home" or card.type == "landmark")
-    if needGlow and CardTextures then
+    -- 光环上浮淡出效果 (home=白色, landmark=金色; safe 是暗牌不显示)
+    if (card.type == "home" or card.type == "landmark") and CardTextures then
         local glowTex
         if card.type == "landmark" then
             glowTex = CardTextures.getLandmarkGlowTexture and CardTextures.getLandmarkGlowTexture()
@@ -361,40 +407,7 @@ function M.createNode(card, parentNode, CardTextures)
             glowTex = CardTextures.getSafeGlowTexture and CardTextures.getSafeGlowTexture()
         end
         if glowTex then
-            local gw = halfW
-            local gh = halfH
-            local nUp = Vector3(0, 1, 0)
-            local techAlpha = cache:GetResource("Technique", "Techniques/DiffAlpha.xml")
-            local rings = {}
-            local RING_COUNT = 3
-
-            for i = 1, RING_COUNT do
-                local rn = node:CreateChild("safe_ring_" .. i)
-                rn:SetPosition(Vector3(0, 0.005, 0))
-
-                local gg = rn:CreateComponent("CustomGeometry")
-                gg:SetNumGeometries(1)
-                gg:BeginGeometry(0, TRIANGLE_LIST)
-                gg:DefineVertex(Vector3(-gw, 0, -gh)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
-                gg:DefineVertex(Vector3(-gw, 0,  gh)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 1))
-                gg:DefineVertex(Vector3( gw, 0,  gh)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
-                gg:DefineVertex(Vector3(-gw, 0, -gh)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
-                gg:DefineVertex(Vector3( gw, 0,  gh)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
-                gg:DefineVertex(Vector3( gw, 0, -gh)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 0))
-                gg:Commit()
-
-                local ringMat = Material:new()
-                ringMat:SetTechnique(0, techAlpha)
-                ringMat:SetTexture(TU_DIFFUSE, glowTex)
-                ringMat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, 0)))
-                ringMat.renderOrder = 100
-                gg:SetMaterial(ringMat)
-
-                rn:SetEnabled(false)
-                rings[i] = { node = rn, mat = ringMat }
-            end
-
-            card.safeGlowRings = rings
+            M.attachGlowRings(card, glowTex)
         end
     end
 end
@@ -453,7 +466,7 @@ function M.syncNode(card)
     if card.safeGlowActive and card.safeGlowRings then
         local elapsed = time and time.elapsedTime or 0
         local RING_COUNT = #card.safeGlowRings
-        local CYCLE = 2.2           -- 每层循环周期 (秒)
+        local CYCLE = 4.0           -- 每层循环周期 (秒)
         local Y_BASE = 0.005        -- 起始高度 (卡面上方)
         local Y_RISE = 0.05         -- 上浮距离
         local SCALE_GROW = 0.06     -- 上浮时微微放大
@@ -463,7 +476,8 @@ function M.syncNode(card)
             -- 交错相位: 每层偏移 1/RING_COUNT 个周期
             local phase = ((elapsed / CYCLE) + (i - 1) / RING_COUNT) % 1.0
             local y = Y_BASE + phase * Y_RISE
-            local alpha = (1.0 - phase) * (1.0 - phase)  -- 二次衰减
+            -- 线性衰减至全透明, 避免周期切换时跳变
+            local alpha = 1.0 - phase
             local sc = 1.0 + phase * SCALE_GROW
 
             ring.node:SetPosition(Vector3(0, y, 0))

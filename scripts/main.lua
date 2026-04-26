@@ -24,6 +24,8 @@ local DateTransition   = require "DateTransition"
 local BoardDecor       = require "BoardDecor"
 local MonsterGhost     = require "MonsterGhost"
 local BubbleDialogue   = require "BubbleDialogue"
+local ItemIcons        = require "ItemIcons"
+local BoardItems       = require "BoardItems"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -299,6 +301,7 @@ local function setup3DScene()
     -- 装饰 (传入桌面 model 以替换纹理)
     BoardDecor.init(scene_, tableModel)
     MonsterGhost.init(scene_)
+    BoardItems.init(scene_)
 
     print("[Main] 3D scene initialized")
 end
@@ -369,6 +372,9 @@ function Start()
 
     -- 字体
     fontSans = nvgCreateFont(vg, "sans", "Fonts/MiSans-Regular.ttf")
+
+    -- 道具图标纹理
+    ItemIcons.init(vg)
 
     -- 重置背景过渡
     bgTransition = 0
@@ -534,11 +540,19 @@ function startDeal()
         end
 
         -- 安全区光晕: 发牌完成后立刻显示 (明牌提示玩家)
+        -- 1) home=白色, landmark=金色
+        -- 2) 地标辐射区域(上下左右)=白色
+        local safeGlowTex = CardTextures.getSafeGlowTexture and CardTextures.getSafeGlowTexture()
         for r = 1, Board.ROWS do
             for c = 1, Board.COLS do
                 local cd = board.cards[r] and board.cards[r][c]
-                if cd and (cd.type == "safe" or cd.type == "home" or cd.type == "landmark") then
-                    Card.showSafeGlow(cd)
+                if cd then
+                    if cd.type == "home" or cd.type == "landmark" then
+                        Card.showSafeGlow(cd)
+                    elseif safeGlowTex and Board.isInLandmarkAura(board, r, c) then
+                        Card.attachGlowRings(cd, safeGlowTex)
+                        Card.showSafeGlow(cd)
+                    end
                 end
             end
         end
@@ -546,6 +560,9 @@ function startDeal()
         CardManager.generateDaily(board)
         HandPanel.show(logicalH, { showcase = true })
         CameraButton.show()
+
+        -- 在地图上放置可拾取道具 (1~3 个)
+        BoardItems.spawnDaily(board, Board, homeRow, homeCol)
     end)
 end
 
@@ -578,6 +595,7 @@ function startRedeal()
     token.alpha = 0
     HandPanel.hide()
     CameraButton.hide()
+    BoardItems.clear()
 
     Board.undealAll(board, function()
         Board.destroyAllNodes(board)
@@ -592,6 +610,7 @@ function startRedeal()
 end
 
 local checkVictory
+local checkDefeat
 
 function advanceDay()
     if gamePhase ~= "playing" then return end
@@ -599,7 +618,21 @@ function advanceDay()
     if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
 
     HandPanel.hide()
-    CardManager.settleDay()
+    local effects = CardManager.settleDay()
+
+    -- 展示日程未完成的惩罚反馈
+    local penaltyCount = 0
+    local totalPenalty = 0
+    for _, eff in ipairs(effects) do
+        if eff[2] < 0 then
+            penaltyCount = penaltyCount + 1
+            totalPenalty = totalPenalty + math.abs(eff[2])
+        end
+    end
+    if penaltyCount > 0 then
+        VFX.spawnBanner("⚠ " .. penaltyCount .. "项日程未完成! 秩序-" .. totalPenalty, 220, 80, 80, 18, 1.2)
+        VFX.flashScreen(180, 30, 30, 0.25, 100)
+    end
 
     ResourceBar.change("san", 1)
     ResourceBar.change("order", 1)
@@ -609,6 +642,12 @@ function advanceDay()
         ResourceBar.change("film", 3 - currentFilm)
     end
     ResourceBar.change("money", 10)
+
+    -- 日程惩罚可能导致败局 (扣秩序后即使加每日+1仍可能<=0)
+    if ResourceBar.get("order") <= 0 or ResourceBar.get("san") <= 0 then
+        checkDefeat()
+        return
+    end
 
     demoState = "dealing"
     hoveredCard = nil
@@ -644,7 +683,7 @@ end
 -- 胜负判定
 -- ============================================================================
 
-local function checkDefeat()
+checkDefeat = function()
     if gamePhase ~= "playing" then return end
     local san   = ResourceBar.get("san")
     local order = ResourceBar.get("order")
@@ -712,6 +751,7 @@ function onGameRestart()
     CardManager.reset()
     HandPanel.reset()
     ShopPopup.resetInventory()
+    BoardItems.clear()
 
     Board.destroyAllNodes(board)
     CardTextures.clearCache()
@@ -1114,6 +1154,38 @@ local function handleNormalModeClick(card, row, col)
     Token.setEmotion(token, "running")
 
     Token.moveTo(token, wx, wz, function()
+        -- 检查并拾取该格子上的道具
+        local collected = BoardItems.tryCollect(row, col)
+        if collected then
+            if collected.key == "film" then
+                ResourceBar.change("film", 1)
+            elseif collected.key == "mapReveal" then
+                -- 地图碎片: 随机翻开一张暗牌
+                local revealed = false
+                local candidates = {}
+                for r2 = 1, Board.ROWS do
+                    for c2 = 1, Board.COLS do
+                        local cd2 = board.cards[r2] and board.cards[r2][c2]
+                        if cd2 and not cd2.faceUp and not cd2.isFlipping then
+                            candidates[#candidates + 1] = { r = r2, c = c2, card = cd2 }
+                        end
+                    end
+                end
+                if #candidates > 0 then
+                    local pick = candidates[math.random(#candidates)]
+                    Card.flip(pick.card, nil, CardTextures)
+                    revealed = true
+                end
+                if not revealed then
+                    VFX.spawnBanner("没有可翻开的卡牌", 180, 180, 180, 16, 0.6)
+                end
+            else
+                -- coffee / shield / exorcism → 背包道具
+                ShopPopup.addItem(collected.key, 1)
+            end
+            VFX.spawnBanner("获得 " .. collected.icon .. " " .. collected.label, 255, 220, 100, 18, 0.9)
+        end
+
         if not card.faceUp and not card.isFlipping then
             demoState = "flipping"
             Card.flip(card, function(c)
@@ -1423,6 +1495,7 @@ function HandleUpdate(eventType, eventData)
     CameraButton.update(dt)
     EventPopup.updateToasts(dt)
     MonsterGhost.update(dt, gameTime)
+    BoardItems.update(dt, gameTime)
 
     -- 气泡对话更新
     if playerBubble then

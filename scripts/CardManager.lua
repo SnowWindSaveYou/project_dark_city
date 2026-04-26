@@ -315,8 +315,8 @@ function M.settleDay()
             print("[CardManager] Deferred to tomorrow: " .. sched.label)
         else
             -- 未完成且未推迟: 扣秩序值
-            effects[#effects + 1] = { "order", -1 }
-            print("[CardManager] Penalty: order -1 for " .. sched.label)
+            effects[#effects + 1] = { "order", -3 }
+            print("[CardManager] Penalty: order -3 for " .. sched.label)
         end
     end
 
