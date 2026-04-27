@@ -729,6 +729,7 @@ function advanceDay()
     token.alpha = 0
     HandPanel.hide()
     CameraButton.hide()
+    BoardItems.clear()
     NPCManager.clear()
     DialogueSystem.reset()
 
@@ -867,6 +868,14 @@ local function checkPendingRift()
     end
     local row, col = pendingRiftRow, pendingRiftCol
     pendingRiftRow, pendingRiftCol = nil, nil
+
+    -- 暗面世界未解锁时, 只提示不弹窗
+    if not DarkWorld.canEnter(dayCount) then
+        local tc2 = Theme.current
+        VFX.spawnBanner("🌀 裂隙出现... 暗面世界第2天解锁",
+            tc2.darkAccent.r, tc2.darkAccent.g, tc2.darkAccent.b, 16, 0.8)
+        return false
+    end
 
     demoState = "popup"
     CameraButton.hide()
@@ -1370,6 +1379,8 @@ enterDarkWorld = function(riftRow, riftCol)
     if DarkWorld.isActive() then return end
     if not DarkWorld.canEnter(dayCount) then
         VFX.spawnBanner("暗面世界尚未开启 (第2天解锁)", 180, 80, 80, 16, 0.8)
+        demoState = "ready"
+        CameraButton.show()
         return
     end
 
@@ -1416,8 +1427,17 @@ enterDarkWorld = function(riftRow, riftCol)
         )
         bgTransitionTarget = 1.0  -- 暗面世界全暗大气
 
-        -- 6. 生成或恢复暗面卡牌
+        -- 5.5 立即切换 ResourceBar 到暗面模式 (收牌后、发牌前, 让 HUD 先变)
         local layerIdx = DarkWorld.getCurrentLayer()
+        ResourceBar.setDarkMode(true, {
+            layerName = DarkWorld.getLayerName(),
+            energy = DarkWorld.getEnergy(),
+            maxEnergy = 10,
+            layerIdx = layerIdx,
+            layerCount = 3,
+        })
+
+        -- 6. 生成或恢复暗面卡牌
         local layerData = DarkWorld.getLayerData()
 
         if layerData.generated and layerData.savedCards then
@@ -1461,6 +1481,7 @@ enterDarkWorld = function(riftRow, riftCol)
             end
 
             demoState = "ready"
+            CameraButton.show()
             DarkWorld.onEnterComplete()
             print("[Main] Dark world entered, layer=" .. layerIdx)
         end)
@@ -1495,6 +1516,9 @@ exitDarkWorld = function()
         Board.destroyAllNodes(board)
         CardTextures.clearCache()
         DarkWorld.onExitComplete()
+
+        -- 立即恢复 ResourceBar 到现实模式 (收牌后、发牌前)
+        ResourceBar.setDarkMode(false)
 
         -- 5. 恢复大气
         bgTransitionTarget = savedBgTransition
@@ -1584,8 +1608,17 @@ changeDarkLayer = function(targetLayer, dc)
         Board.destroyAllNodes(board)
         CardTextures.clearCache()
 
-        -- 5. 生成或恢复目标层卡牌
+        -- 立即更新 ResourceBar 暗面信息 (新层, 收牌后发牌前)
         local newLayerIdx = DarkWorld.getCurrentLayer()
+        ResourceBar.setDarkMode(true, {
+            layerName = DarkWorld.getLayerName(),
+            energy = DarkWorld.getEnergy(),
+            maxEnergy = 10,
+            layerIdx = newLayerIdx,
+            layerCount = 3,
+        })
+
+        -- 5. 生成或恢复目标层卡牌
         local newLayerData = DarkWorld.getLayerData()
 
         if newLayerData.generated and newLayerData.savedCards then
@@ -1859,8 +1892,8 @@ local function handleClick(inputX, inputY)
 
     -- === 暗面世界路由 ===
     if DarkWorld.isActive() then
-        -- 退出按钮
-        if DarkWorld.hitTestExitButton(lx, ly, logicalW, logicalH) then
+        -- 退出按钮 (已整合到 ResourceBar 暗面面板)
+        if ResourceBar.hitTestDarkExit(lx, ly) then
             exitDarkWorld()
             return
         end

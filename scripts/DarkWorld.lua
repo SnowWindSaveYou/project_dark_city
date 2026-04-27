@@ -484,7 +484,7 @@ end
 -- 幽灵 AI 移动
 -- ---------------------------------------------------------------------------
 
-local function moveGhosts(playerRow, playerCol, resourceBarRef)
+local function moveGhosts(playerRow, playerCol, resourceBarRef, playerOldRow, playerOldCol)
     local layer = layers_[currentLayer_]
     if not layer then return end
 
@@ -522,6 +522,7 @@ local function moveGhosts(playerRow, playerCol, resourceBarRef)
                 end
 
                 if target then
+                    local oldRow, oldCol = ghost.row, ghost.col
                     ghost.row = target[1]
                     ghost.col = target[2]
 
@@ -529,6 +530,16 @@ local function moveGhosts(playerRow, playerCol, resourceBarRef)
                     if ghost.row == playerRow and ghost.col == playerCol then
                         checkGhostCollision(playerRow, playerCol, resourceBarRef)
                     end
+
+                    -- 互相换位检测: 幽灵从玩家新位置走到玩家旧位置 (擦肩而过)
+                    if ghost.alive and playerOldRow and
+                       oldRow == playerRow and oldCol == playerCol and
+                       ghost.row == playerOldRow and ghost.col == playerOldCol then
+                        checkGhostCollision(playerOldRow, playerOldCol, resourceBarRef)
+                    end
+
+                    -- 碰撞后幽灵已死亡, 跳过移动动画 (让淡出 Tween 正常播放)
+                    if not ghost.alive then goto continue_ghost end
 
                     for _, gn in ipairs(ghostNodes_) do
                         if gn.ghostIdx == i then
@@ -549,6 +560,7 @@ local function moveGhosts(playerRow, playerCol, resourceBarRef)
                         end
                     end
                 end
+                ::continue_ghost::
             end
         end
     end
@@ -799,6 +811,11 @@ function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem
     -- 消耗能量
     layer.energy = layer.energy - 1
     energyFlash_ = 0.5
+    -- 同步到 ResourceBar 暗面能量条
+    if resourceBar and resourceBar.updateDarkEnergy then
+        resourceBar.updateDarkEnergy(layer.energy, MAX_ENERGY)
+        resourceBar.flashDarkEnergy()
+    end
 
     -- 移动 Token
     darkState_ = "moving"
@@ -807,7 +824,7 @@ function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem
         layer.playerRow = row
         layer.playerCol = col
 
-        moveGhosts(row, col, resourceBar)
+        moveGhosts(row, col, resourceBar, pRow, pCol)
         checkGhostCollision(row, col, resourceBar)
         M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, shopPopup, dayCount)
 
@@ -1061,112 +1078,9 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     nvgFill(vg)
     nvgRestore(vg)
 
-    -- 层级指示器 (左上角)
-    nvgSave(vg)
-    local indX, indY = 12, 12
-    local indW, indH = 140, 44
+    -- 层级指示器 + 能量条 已整合到 ResourceBar 暗面模式, 此处不再绘制
 
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, indX, indY, indW, indH, 8)
-    nvgFillColor(vg, Theme.rgba(tc.darkPanel))
-    nvgFill(vg)
-    nvgStrokeColor(vg, Theme.rgbaA(tc.darkAccent, 100))
-    nvgStrokeWidth(vg, 1)
-    nvgStroke(vg)
-
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 13)
-    nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgba(tc.darkGlow))
-    nvgText(vg, indX + 10, indY + indH / 2 - 6, LAYER_CONFIG[currentLayer_].name)
-
-    local dotY = indY + indH / 2 + 8
-    for i = 1, 3 do
-        nvgBeginPath(vg)
-        local dotX = indX + 10 + (i - 1) * 16
-        nvgCircle(vg, dotX + 4, dotY, 3)
-        if i == currentLayer_ then
-            nvgFillColor(vg, Theme.rgba(tc.darkEnergy))
-        elseif layers_[i].unlocked then
-            nvgFillColor(vg, Theme.rgbaA(tc.darkAccent, 120))
-        else
-            nvgFillColor(vg, nvgRGBA(60, 50, 80, 100))
-        end
-        nvgFill(vg)
-    end
-    nvgRestore(vg)
-
-    -- 能量条 (右上角)
-    nvgSave(vg)
-    local engX = logicalW - 152
-    local engY = 12
-    local engW = 140
-    local engH = 36
-
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, engX, engY, engW, engH, 8)
-    nvgFillColor(vg, Theme.rgba(tc.darkPanel))
-    nvgFill(vg)
-    nvgStrokeColor(vg, Theme.rgbaA(tc.darkAccent, 100))
-    nvgStrokeWidth(vg, 1)
-    nvgStroke(vg)
-
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 11)
-    nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgbaA(tc.darkGlow, 180))
-    nvgText(vg, engX + 8, engY + engH / 2, "⚡ 能量")
-
-    local barX = engX + 60
-    local barY = engY + 10
-    local barW = 68
-    local barH = 16
-    local energyRatio = layer.energy / MAX_ENERGY
-
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, barX, barY, barW, barH, 4)
-    nvgFillColor(vg, nvgRGBA(20, 15, 40, 180))
-    nvgFill(vg)
-
-    local fillW = barW * energyRatio
-    if fillW > 0 then
-        nvgBeginPath(vg)
-        nvgRoundedRect(vg, barX, barY, fillW, barH, 4)
-        local energyColor = (energyRatio > 0.3) and tc.darkEnergy or tc.darkEnergyLow
-        local flashAlpha = 255
-        if energyFlash_ > 0 then
-            flashAlpha = math.floor(255 * (0.5 + 0.5 * math.sin(energyFlash_ * 20)))
-        end
-        nvgFillColor(vg, Theme.rgbaA(energyColor, flashAlpha))
-        nvgFill(vg)
-    end
-
-    nvgFontSize(vg, 11)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, nvgRGBA(255, 255, 255, 220))
-    nvgText(vg, barX + barW / 2, barY + barH / 2, layer.energy .. "/" .. MAX_ENERGY)
-    nvgRestore(vg)
-
-    -- 退出按钮 (右下角)
-    nvgSave(vg)
-    local exitW, exitH = 80, 30
-    local exitX = logicalW - exitW - 12
-    local exitY = logicalH - exitH - 60
-
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, exitX, exitY, exitW, exitH, 6)
-    nvgFillColor(vg, Theme.rgba(tc.darkPanel))
-    nvgFill(vg)
-    nvgStrokeColor(vg, Theme.rgbaA(tc.darkAccent, 120))
-    nvgStrokeWidth(vg, 1)
-    nvgStroke(vg)
-
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 12)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgba(tc.darkGlow))
-    nvgText(vg, exitX + exitW / 2, exitY + exitH / 2, "🌀 返回")
-    nvgRestore(vg)
+    -- 退出按钮已整合到 ResourceBar 暗面模式面板
 
     -- NPC 对话提示
     if darkState_ == "ready" then
@@ -1186,12 +1100,7 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     end
 end
 
-function M.hitTestExitButton(lx, ly, logicalW, logicalH)
-    local exitW, exitH = 80, 30
-    local exitX = logicalW - exitW - 12
-    local exitY = logicalH - exitH - 60
-    return lx >= exitX and lx <= exitX + exitW and ly >= exitY and ly <= exitY + exitH
-end
+-- hitTestExitButton 已迁移到 ResourceBar.hitTestDarkExit
 
 function M.setReady()
     darkState_ = "ready"

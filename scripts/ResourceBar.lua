@@ -11,6 +11,46 @@ local Weather = require "Weather"
 local M = {}
 
 -- ---------------------------------------------------------------------------
+-- 暗面模式状态
+-- ---------------------------------------------------------------------------
+local darkMode_ = false
+local darkLayerName_ = ""
+local darkEnergy_ = 0
+local darkMaxEnergy_ = 10
+local darkLayerIdx_ = 1
+local darkLayerCount_ = 3
+local darkEnergyFlash_ = 0
+
+function M.setDarkMode(enabled, opts)
+    darkMode_ = enabled
+    if enabled and opts then
+        darkLayerName_ = opts.layerName or ""
+        darkEnergy_ = opts.energy or 0
+        darkMaxEnergy_ = opts.maxEnergy or 10
+        darkLayerIdx_ = opts.layerIdx or 1
+        darkLayerCount_ = opts.layerCount or 3
+    end
+end
+
+function M.updateDarkEnergy(energy, maxEnergy)
+    if darkMode_ then
+        darkEnergy_ = energy or darkEnergy_
+        darkMaxEnergy_ = maxEnergy or darkMaxEnergy_
+    end
+end
+
+function M.flashDarkEnergy()
+    darkEnergyFlash_ = 0.5
+end
+
+function M.isDarkMode()
+    return darkMode_
+end
+
+-- 暗面退出按钮几何缓存 (供 hitTest 使用)
+local darkExitBtnRect_ = { x = 0, y = 0, w = 0, h = 0 }
+
+-- ---------------------------------------------------------------------------
 -- 资源定义
 -- ---------------------------------------------------------------------------
 
@@ -110,6 +150,9 @@ function M.update(dt)
     if filmData.flashTimer > 0 then
         filmData.flashTimer = filmData.flashTimer - dt
     end
+    if darkEnergyFlash_ > 0 then
+        darkEnergyFlash_ = darkEnergyFlash_ - dt
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -186,6 +229,73 @@ local function drawTape(vg, cx, cy, w, h, angle)
 end
 
 -- ---------------------------------------------------------------------------
+-- 辅助: 暗面腐蚀边缘 (对应笔记本撕裂边)
+-- ---------------------------------------------------------------------------
+
+local function drawDarkEdge(vg, x, y, w)
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, x, y)
+    local step = 4
+    local cx = x
+    local i = 0
+    while cx < x + w do
+        local nextX = math.min(cx + step, x + w)
+        -- 更尖锐的锯齿, 模拟腐蚀/结晶裂痕
+        local dy = (i % 2 == 0) and 2.0 or -0.3
+        local jitter = math.sin(cx * 2.1 + 0.7) * 1.2
+        nvgLineTo(vg, nextX, y + dy + jitter)
+        cx = nextX
+        i = i + 1
+    end
+    nvgLineTo(vg, x + w, y - 2)
+    nvgLineTo(vg, x, y - 2)
+    nvgClosePath(vg)
+    nvgFillColor(vg, nvgRGBA(18, 14, 35, 240))
+    nvgFill(vg)
+end
+
+-- ---------------------------------------------------------------------------
+-- 辅助: 暗面封印装饰 (对应笔记本胶带)
+-- ---------------------------------------------------------------------------
+
+local function drawDarkSeal(vg, cx, cy, w, h, angle)
+    nvgSave(vg)
+    nvgTranslate(vg, cx, cy)
+    nvgRotate(vg, angle)
+
+    -- 封印主体 (半透明暗紫, 对应胶带的半透明米黄)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -w / 2, -h / 2, w, h, 1.5)
+    nvgFillColor(vg, nvgRGBA(139, 92, 246, 25))
+    nvgFill(vg)
+
+    -- 封印中线灵纹 (对应胶带边缘高光)
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, -w / 2 + 4, 0)
+    nvgLineTo(vg, w / 2 - 4, 0)
+    nvgStrokeColor(vg, nvgRGBA(34, 211, 238, 35))
+    nvgStrokeWidth(vg, 0.4)
+    nvgStroke(vg)
+
+    -- 两端节点 (灵纹端点)
+    for _, dx in ipairs({ -w / 2 + 5, w / 2 - 5 }) do
+        nvgBeginPath(vg)
+        nvgCircle(vg, dx, 0, 1)
+        nvgFillColor(vg, nvgRGBA(34, 211, 238, 45))
+        nvgFill(vg)
+    end
+
+    -- 边框轮廓
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -w / 2, -h / 2, w, h, 1.5)
+    nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 35))
+    nvgStrokeWidth(vg, 0.5)
+    nvgStroke(vg)
+
+    nvgRestore(vg)
+end
+
+-- ---------------------------------------------------------------------------
 -- 辅助: 绘制竖线分隔符
 -- ---------------------------------------------------------------------------
 
@@ -221,57 +331,128 @@ function M.draw(vg, logicalW, logicalH, dayCount)
 
     nvgSave(vg)
 
-    -- === 纸张阴影 ===
-    local shadowPaint = nvgBoxGradient(vg,
-        stripX + 1, stripY + 2, stripW, STRIP_H, CORNER_R, 6,
-        nvgRGBA(60, 40, 20, 35),
-        nvgRGBA(0, 0, 0, 0))
-    nvgBeginPath(vg)
-    nvgRect(vg, stripX - 6, stripY - 3, stripW + 12, STRIP_H + 12)
-    nvgFillPaint(vg, shadowPaint)
-    nvgFill(vg)
+    if darkMode_ then
+        -- =====================================================================
+        -- 暗面模式: 暗纹石板风格 (与笔记本纸条对称的暗面美学)
+        -- =====================================================================
 
-    -- === 纸条主体 (米黄纸色) ===
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, stripX, stripY, stripW, STRIP_H, CORNER_R)
-    nvgFillColor(vg, Theme.rgba(t.notebookPaper))
-    nvgFill(vg)
-
-    -- === 横线纹理 (淡蓝色，与笔记本页面一致) ===
-    nvgSave(vg)
-    nvgIntersectScissor(vg, stripX, stripY, stripW, STRIP_H)
-    local lineY = stripY + LINE_SPACING * 0.6
-    while lineY < stripY + STRIP_H do
+        -- 1) 深邃阴影 (比纸条阴影更浓重)
+        local shadowPaint = nvgBoxGradient(vg,
+            stripX, stripY + 4, stripW, STRIP_H, 6, 10,
+            nvgRGBA(8, 4, 20, 100),
+            nvgRGBA(0, 0, 0, 0))
         nvgBeginPath(vg)
-        nvgMoveTo(vg, stripX + 4, lineY)
-        nvgLineTo(vg, stripX + stripW - 4, lineY)
-        nvgStrokeColor(vg, Theme.rgbaA(t.notebookLine, 50))
-        nvgStrokeWidth(vg, 0.4)
+        nvgRect(vg, stripX - 8, stripY - 4, stripW + 16, STRIP_H + 16)
+        nvgFillPaint(vg, shadowPaint)
+        nvgFill(vg)
+
+        -- 2) 面板主体 (纵向渐变, 打磨暗色石面质感)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, stripX, stripY, stripW, STRIP_H, CORNER_R)
+        local basePaint = nvgLinearGradient(vg,
+            stripX, stripY, stripX, stripY + STRIP_H,
+            nvgRGBA(30, 24, 50, 225), nvgRGBA(18, 14, 35, 240))
+        nvgFillPaint(vg, basePaint)
+        nvgFill(vg)
+
+        -- 3) 横纹肌理 (对应笔记本横线, 暗面版为幽微灵纹)
+        nvgSave(vg)
+        nvgIntersectScissor(vg, stripX, stripY, stripW, STRIP_H)
+        local dLineY = stripY + LINE_SPACING * 0.6
+        while dLineY < stripY + STRIP_H do
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, stripX + 4, dLineY)
+            nvgLineTo(vg, stripX + stripW - 4, dLineY)
+            nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 16))
+            nvgStrokeWidth(vg, 0.3)
+            nvgStroke(vg)
+            dLineY = dLineY + LINE_SPACING
+        end
+        nvgRestore(vg)
+
+        -- 4) 底部腐蚀边缘 (对应笔记本撕裂边)
+        drawDarkEdge(vg, stripX, stripY + STRIP_H, stripW)
+
+        -- 5) 上缘灵光 (对应纸张自然高光)
+        local topGlow = nvgLinearGradient(vg,
+            stripX, stripY, stripX, stripY + 8,
+            nvgRGBA(139, 92, 246, 45), nvgRGBA(139, 92, 246, 0))
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, stripX, stripY, stripW, 8, CORNER_R)
+        nvgFillPaint(vg, topGlow)
+        nvgFill(vg)
+
+        -- 6) 三边边框 (底部留给腐蚀边缘, 对应笔记本三边边框)
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, stripX, stripY + STRIP_H)
+        nvgLineTo(vg, stripX, stripY + CORNER_R)
+        nvgArcTo(vg, stripX, stripY, stripX + CORNER_R, stripY, CORNER_R)
+        nvgLineTo(vg, stripX + stripW - CORNER_R, stripY)
+        nvgArcTo(vg, stripX + stripW, stripY, stripX + stripW, stripY + CORNER_R, CORNER_R)
+        nvgLineTo(vg, stripX + stripW, stripY + STRIP_H)
+        nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 55))
+        nvgStrokeWidth(vg, 0.8)
         nvgStroke(vg)
-        lineY = lineY + LINE_SPACING
+
+        -- 7) 封印装饰 (对应笔记本胶带, 同位置/角度)
+        drawDarkSeal(vg, stripX + 16, stripY + 1, TAPE_W, TAPE_H, -0.12)
+        drawDarkSeal(vg, stripX + stripW - 16, stripY + 1, TAPE_W, TAPE_H, 0.10)
+    else
+        -- =====================================================================
+        -- 现实模式: 笔记本纸条风格
+        -- =====================================================================
+
+        -- 纸张阴影
+        local shadowPaint = nvgBoxGradient(vg,
+            stripX + 1, stripY + 2, stripW, STRIP_H, CORNER_R, 6,
+            nvgRGBA(60, 40, 20, 35),
+            nvgRGBA(0, 0, 0, 0))
+        nvgBeginPath(vg)
+        nvgRect(vg, stripX - 6, stripY - 3, stripW + 12, STRIP_H + 12)
+        nvgFillPaint(vg, shadowPaint)
+        nvgFill(vg)
+
+        -- 纸条主体 (米黄纸色)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, stripX, stripY, stripW, STRIP_H, CORNER_R)
+        nvgFillColor(vg, Theme.rgba(t.notebookPaper))
+        nvgFill(vg)
+
+        -- 横线纹理 (淡蓝色)
+        nvgSave(vg)
+        nvgIntersectScissor(vg, stripX, stripY, stripW, STRIP_H)
+        local lineY = stripY + LINE_SPACING * 0.6
+        while lineY < stripY + STRIP_H do
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, stripX + 4, lineY)
+            nvgLineTo(vg, stripX + stripW - 4, lineY)
+            nvgStrokeColor(vg, Theme.rgbaA(t.notebookLine, 50))
+            nvgStrokeWidth(vg, 0.4)
+            nvgStroke(vg)
+            lineY = lineY + LINE_SPACING
+        end
+        nvgRestore(vg)
+
+        -- 底部撕裂边缘
+        drawTornEdge(vg, stripX, stripY + STRIP_H,
+            stripW, t.notebookPaper.r, t.notebookPaper.g, t.notebookPaper.b, 255)
+
+        -- 纸条边框 (上部和两侧，底部撕裂不画边框)
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, stripX, stripY + STRIP_H)
+        nvgLineTo(vg, stripX, stripY + CORNER_R)
+        nvgArcTo(vg, stripX, stripY, stripX + CORNER_R, stripY, CORNER_R)
+        nvgLineTo(vg, stripX + stripW - CORNER_R, stripY)
+        nvgArcTo(vg, stripX + stripW, stripY, stripX + stripW, stripY + CORNER_R, CORNER_R)
+        nvgLineTo(vg, stripX + stripW, stripY + STRIP_H)
+        nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 100))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
+
+        -- 胶带装饰
+        drawTape(vg, stripX + 16, stripY + 1, TAPE_W, TAPE_H, -0.12)
+        drawTape(vg, stripX + stripW - 16, stripY + 1, TAPE_W, TAPE_H, 0.10)
     end
-    nvgRestore(vg)
-
-    -- === 底部撕裂边缘 ===
-    drawTornEdge(vg, stripX, stripY + STRIP_H,
-        stripW, t.notebookPaper.r, t.notebookPaper.g, t.notebookPaper.b, 255)
-
-    -- === 纸条边框 (上部和两侧，底部撕裂不画边框) ===
-    nvgBeginPath(vg)
-    -- 只画顶部 + 两侧，不闭合底部
-    nvgMoveTo(vg, stripX, stripY + STRIP_H)
-    nvgLineTo(vg, stripX, stripY + CORNER_R)
-    nvgArcTo(vg, stripX, stripY, stripX + CORNER_R, stripY, CORNER_R)
-    nvgLineTo(vg, stripX + stripW - CORNER_R, stripY)
-    nvgArcTo(vg, stripX + stripW, stripY, stripX + stripW, stripY + CORNER_R, CORNER_R)
-    nvgLineTo(vg, stripX + stripW, stripY + STRIP_H)
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 100))
-    nvgStrokeWidth(vg, 0.8)
-    nvgStroke(vg)
-
-    -- === 胶带装饰 (两端各一条) ===
-    drawTape(vg, stripX + 16, stripY + 1, TAPE_W, TAPE_H, -0.12)
-    drawTape(vg, stripX + stripW - 16, stripY + 1, TAPE_W, TAPE_H, 0.10)
 
     -- === 内容区域 ===
     nvgFontFace(vg, "sans")
@@ -287,15 +468,15 @@ function M.draw(vg, logicalW, logicalH, dayCount)
         -- 图标
         nvgFontSize(vg, 15)
         nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
+        nvgFillColor(vg, darkMode_ and nvgRGBA(200, 180, 255, 220) or Theme.rgbaA(t.textPrimary, 200))
         local iconEnd = nvgText(vg, cx, stripCY, res.icon, nil)
 
         -- 标签 (手写风小字)
         nvgFontSize(vg, 9)
-        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 160))
+        nvgFillColor(vg, darkMode_ and nvgRGBA(180, 160, 220, 160) or Theme.rgbaA(t.textSecondary, 160))
         local labelEnd = nvgText(vg, iconEnd + 1, stripCY - 8, res.label, nil)
 
-        -- 数值 (大号醒目)
+        -- 数值
         nvgFontSize(vg, 15)
         nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
 
@@ -314,7 +495,11 @@ function M.draw(vg, logicalW, logicalH, dayCount)
                     math.floor(rc.b + (t.danger.b - rc.b) * pulse), 255))
             end
         else
-            nvgFillColor(vg, Theme.rgba(rc))
+            if darkMode_ then
+                nvgFillColor(vg, nvgRGBA(rc.r, rc.g, rc.b, 200))
+            else
+                nvgFillColor(vg, Theme.rgba(rc))
+            end
         end
         local numEnd = nvgText(vg, iconEnd + 1, stripCY + 5, tostring(displayNum), nil)
 
@@ -336,45 +521,173 @@ function M.draw(vg, logicalW, logicalH, dayCount)
         -- 分隔竖线 (除最后一项)
         local nextX = math.max(numEnd, labelEnd) + 10
         if i < count then
-            drawSeparator(vg, nextX, stripY, STRIP_H, t)
+            if darkMode_ then
+                nvgBeginPath(vg)
+                nvgMoveTo(vg, nextX, stripY + SEP_PAD)
+                nvgLineTo(vg, nextX, stripY + STRIP_H - SEP_PAD)
+                nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 50))
+                nvgStrokeWidth(vg, 0.8)
+                nvgStroke(vg)
+            else
+                drawSeparator(vg, nextX, stripY, STRIP_H, t)
+            end
             cx = nextX + 8
         end
     end
 
-    -- ---- 右半: 天数 + 天气 ----
+    -- ---- 右半 ----
     local rightX = stripX + stripW - PAD_X - 6
 
-    -- 天气图标
-    local weatherType = Weather.getWeather(dayCount)
-    local weatherR = 10  -- 图标半径
-    Weather.drawIcon(vg, rightX - weatherR, stripCY, weatherR, weatherType, 220, true)
+    if darkMode_ then
+        -- === 暗面模式: 对称现实模式的双组双行布局 ===
+        -- 现实: [Day X / 第X天] | [天气图标 / 天气名]
+        -- 暗面: [层级名 / ⚡能量] | [🌀返回图标 / "返回"]
 
-    -- 天气名称 (小字)
-    nvgFontSize(vg, 9)
-    nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 160))
-    nvgText(vg, rightX - weatherR * 2 - 4, stripCY + 5, Weather.getName(weatherType), nil)
+        local iconR = 10  -- 与天气图标相同半径
+        local iconCX = rightX - iconR
+        local iconCY = stripCY
 
-    -- 天数 + 分隔线
-    local dayText = "Day " .. dayCount
-    nvgFontSize(vg, 14)
-    nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 220))
+        -- ── 返回图标 (圆形, 对应天气图标) ──
+        -- 外圈光晕
+        local glowPaint = nvgRadialGradient(vg,
+            iconCX, iconCY, iconR * 0.3, iconR * 1.3,
+            nvgRGBA(139, 92, 246, 50), nvgRGBA(139, 92, 246, 0))
+        nvgBeginPath(vg)
+        nvgCircle(vg, iconCX, iconCY, iconR * 1.3)
+        nvgFillPaint(vg, glowPaint)
+        nvgFill(vg)
 
-    -- 先测量天气区域宽度用于分隔线定位
-    local dayTextW = nvgTextBounds(vg, 0, 0, dayText, nil)
-    local dayRightX = rightX - weatherR * 2 - 8
-    nvgText(vg, dayRightX, stripCY - 4, dayText, nil)
+        -- 圆形背景
+        nvgBeginPath(vg)
+        nvgCircle(vg, iconCX, iconCY, iconR)
+        nvgFillColor(vg, nvgRGBA(35, 28, 60, 220))
+        nvgFill(vg)
+        nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 80))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
 
-    -- "第X天" 小字
-    nvgFontSize(vg, 9)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
-    nvgText(vg, dayRightX, stripCY + 7, "第" .. dayCount .. "天", nil)
+        -- 🌀 图标居中
+        nvgFontSize(vg, 12)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(200, 180, 255, 230))
+        nvgText(vg, iconCX, iconCY, "🌀", nil)
 
-    -- 天数区和资源区之间的竖线分隔
-    drawSeparator(vg, dayRightX - dayTextW - 8, stripY, STRIP_H, t)
+        -- "返回" 小字 (对应天气名称位置)
+        nvgFontSize(vg, 9)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(180, 160, 220, 160))
+        nvgText(vg, iconCX - iconR - 4, stripCY + 5, "返回", nil)
+
+        -- 缓存按钮点击区域 (整个圆形 + 文字区域)
+        darkExitBtnRect_.x = iconCX - iconR - 30
+        darkExitBtnRect_.y = stripY
+        darkExitBtnRect_.w = iconR * 2 + 30 + PAD_X
+        darkExitBtnRect_.h = STRIP_H
+
+        -- ── 层级信息组 (对应 Day X 组) ──
+        local infoRightX = iconCX - iconR * 2 - 8
+
+        -- 层级名称 (14px, 对应 "Day X" 主文字)
+        nvgFontSize(vg, 14)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(34, 211, 238, 220))
+        local layerTW = nvgTextBounds(vg, 0, 0, darkLayerName_, nil) or 40
+        nvgText(vg, infoRightX, stripCY - 4, darkLayerName_, nil)
+
+        -- 能量副行 (9px, 对应 "第X天" 副文字)
+        local energyRatio = darkMaxEnergy_ > 0 and (darkEnergy_ / darkMaxEnergy_) or 0
+        local energyText = "⚡" .. darkEnergy_ .. "/" .. darkMaxEnergy_
+
+        -- 迷你能量条 (嵌入副行, 在文字右侧)
+        local miniBarW = 30
+        local miniBarH = 4
+        local miniBarY = stripCY + 5
+
+        -- 能量文字
+        nvgFontSize(vg, 9)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        local eR, eG, eB = 34, 211, 238
+        if energyRatio <= 0.3 then eR, eG, eB = 244, 63, 94 end
+        local flashAlpha = 160
+        if darkEnergyFlash_ > 0 then
+            flashAlpha = math.floor(255 * (0.5 + 0.5 * math.sin(darkEnergyFlash_ * 20)))
+        end
+        nvgFillColor(vg, nvgRGBA(eR, eG, eB, flashAlpha))
+        local eTxtRight = infoRightX
+        nvgText(vg, eTxtRight, miniBarY, energyText, nil)
+
+        -- 迷你能量条 (能量文字左侧)
+        local eTxtW = nvgTextBounds(vg, 0, 0, energyText, nil) or 30
+        local mBarX = eTxtRight - eTxtW - miniBarW - 3
+        local mBarY = miniBarY - miniBarH / 2
+
+        -- 背景槽
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, mBarX, mBarY, miniBarW, miniBarH, 2)
+        nvgFillColor(vg, nvgRGBA(20, 15, 40, 180))
+        nvgFill(vg)
+
+        -- 填充
+        local fillW = miniBarW * energyRatio
+        if fillW > 0 then
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, mBarX, mBarY, fillW, miniBarH, 2)
+            nvgFillColor(vg, nvgRGBA(eR, eG, eB, flashAlpha))
+            nvgFill(vg)
+        end
+
+        -- ── 分隔线 (层级组 和 资源区 之间) ──
+        local sepDarkX = infoRightX - math.max(layerTW, eTxtW + miniBarW + 3) - 8
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, sepDarkX, stripY + SEP_PAD)
+        nvgLineTo(vg, sepDarkX, stripY + STRIP_H - SEP_PAD)
+        nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 50))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
+    else
+        -- === 现实模式: 天数 + 天气 ===
+
+        -- 天气图标
+        local weatherType = Weather.getWeather(dayCount)
+        local weatherR = 10
+        Weather.drawIcon(vg, rightX - weatherR, stripCY, weatherR, weatherType, 220, true)
+
+        -- 天气名称 (小字)
+        nvgFontSize(vg, 9)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 160))
+        nvgText(vg, rightX - weatherR * 2 - 4, stripCY + 5, Weather.getName(weatherType), nil)
+
+        -- 天数 + 分隔线
+        local dayText = "Day " .. dayCount
+        nvgFontSize(vg, 14)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 220))
+
+        local dayTextW = nvgTextBounds(vg, 0, 0, dayText, nil)
+        local dayRightX = rightX - weatherR * 2 - 8
+        nvgText(vg, dayRightX, stripCY - 4, dayText, nil)
+
+        -- "第X天" 小字
+        nvgFontSize(vg, 9)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
+        nvgText(vg, dayRightX, stripCY + 7, "第" .. dayCount .. "天", nil)
+
+        -- 天数区和资源区之间的竖线分隔
+        drawSeparator(vg, dayRightX - dayTextW - 8, stripY, STRIP_H, t)
+    end
 
     nvgRestore(vg)
+end
+
+--- 暗面退出按钮点击测试
+---@param lx number 逻辑坐标 X
+---@param ly number 逻辑坐标 Y
+---@return boolean
+function M.hitTestDarkExit(lx, ly)
+    if not darkMode_ then return false end
+    local r = darkExitBtnRect_
+    return lx >= r.x and lx <= r.x + r.w and ly >= r.y and ly <= r.y + r.h
 end
 
 return M
