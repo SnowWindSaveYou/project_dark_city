@@ -39,7 +39,7 @@ var resources := {}  # { "san": 10, "order": 10, "money": 50, "film": 3 }
 
 ## 两级状态机
 var game_phase := "title"    # "title" | "playing" | "gameover"
-var demo_state := "idle"     # "idle"|"dealing"|"ready"|"flipping"|"popup"|"moving"|"photographing"|"exorcising"
+var demo_state := "idle"     # "idle"|"dealing"|"ready"|"flipping"|"popup"|"moving"|"photographing"|"exorcising"|"dialogue"|"rift_confirm"|"dark_world"
 
 ## 天数
 var current_day := 0
@@ -146,6 +146,9 @@ func remove_item(item_key: String, count: int = 1) -> bool:
 
 func get_item_count(item_key: String) -> int:
 	return inventory.get(item_key, 0)
+
+func has_item(item_key: String) -> bool:
+	return get_item_count(item_key) > 0
 
 # ---------------------------------------------------------------------------
 # 统计

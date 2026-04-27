@@ -14,6 +14,14 @@ const GAP := 0.12  # 卡牌间隔 (米)
 ## 牌堆位置 (3D 世界坐标)
 const DECK_POS := Vector3(3.0, 0.0, -1.5)
 
+## 陷阱子类型权重 (生成时随机分配)
+const TRAP_SUBTYPE_WEIGHTS: Array = [
+	["sanity",   30],  # 阴气侵蚀: san -1
+	["money",    30],  # 财物散失: money -10
+	["film",     20],  # 灵雾曝光: film -1
+	["teleport", 20],  # 空间错位: 随机传送到未翻开格子
+]
+
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
@@ -61,50 +69,131 @@ func set_card(row: int, col: int, card: Card) -> void:
 func generate_cards() -> void:
 	clear()
 
-	# 1. 分配特殊位置
-	var special_positions := {}  # Vector2i → { location, type }
+	var used_positions: Array = []  # Array of [row, col]
 
-	# 家 - 固定中心 (3,3)
-	special_positions[Vector2i(3, 3)] = { "location": "home", "type": "home" }
+	# 1. 家 - 随机位置
+	var home_positions := _random_positions(1, [])
+	home_row = home_positions[0][0]
+	home_col = home_positions[0][1]
+	used_positions.append([home_row, home_col])
 
-	# 商店 - 随机一个非中心格子
-	var shop_pos := _random_empty_pos(special_positions)
-	special_positions[shop_pos] = { "location": "shop", "type": "shop" }
+	# 2. 地标 - 1~2 个
+	var landmark_count := randi_range(1, 2)
+	var landmark_positions := _random_positions(landmark_count, used_positions)
+	for pos in landmark_positions:
+		used_positions.append(pos)
 
-	# 地标 - 3 个
-	var landmarks := Card.LANDMARK_LOCATIONS.duplicate()
-	landmarks.shuffle()
-	for i in range(3):
-		var pos := _random_empty_pos(special_positions)
-		special_positions[pos] = { "location": landmarks[i], "type": "landmark" }
+	# 3. 商店 - 1 个
+	var shop_positions := _random_positions(1, used_positions)
+	for pos in shop_positions:
+		used_positions.append(pos)
 
-	# 2. 收集可用普通地点
-	var available_locations := Card.REGULAR_LOCATIONS.duplicate()
+	# 3.5 裂隙 (暗面世界入口, 每张棋盘 1 个)
+	var rift_positions := _random_positions(1, used_positions)
+	for pos in rift_positions:
+		used_positions.append(pos)
 
-	# 确保必选地点在可用列表前端
+	# 4. 地点池 (普通格子)
+	var normal_slots := ROWS * COLS - used_positions.size()
+	var location_pool: Array = []
+	var used_in_pool := {}
+
+	# 地标和商店地点不应出现在普通格子
+	var special_loc_set := { "home": true, "convenience": true }
+	for lm_loc in Card.LANDMARK_LOCATIONS:
+		special_loc_set[lm_loc] = true
+
+	# 优先放入必选地点
 	for loc in required_locations:
-		if loc in available_locations:
-			available_locations.erase(loc)
-			available_locations.push_front(loc)
+		if not used_in_pool.has(loc) and not special_loc_set.has(loc):
+			location_pool.append(loc)
+			used_in_pool[loc] = true
 
-	# 3. 生成剩余卡牌
-	var loc_index := 0
-	for r in range(1, ROWS + 1):
-		for c in range(1, COLS + 1):
-			var pos := Vector2i(r, c)
-			if pos in special_positions:
-				var info: Dictionary = special_positions[pos]
-				set_card(r, c, Card.create(info["location"], info["type"], r, c))
+	# 回填：从 REGULAR_LOCATIONS 中选择未使用的地点
+	var fill_candidates: Array = []
+	for loc in Card.REGULAR_LOCATIONS:
+		if not used_in_pool.has(loc):
+			fill_candidates.append(loc)
+	fill_candidates.shuffle()
+	var fill_idx := 0
+
+	while location_pool.size() < normal_slots:
+		if fill_idx < fill_candidates.size():
+			location_pool.append(fill_candidates[fill_idx])
+			fill_idx += 1
+		else:
+			location_pool.append(Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()])
+	location_pool.shuffle()
+	var loc_idx := 0
+
+	# 5. 特殊位置映射
+	var special_map := {}
+	special_map["%d,%d" % [home_row, home_col]] = "home"
+	for pos in landmark_positions:
+		special_map["%d,%d" % [pos[0], pos[1]]] = "landmark"
+	for pos in shop_positions:
+		special_map["%d,%d" % [pos[0], pos[1]]] = "shop"
+	for pos in rift_positions:
+		special_map["%d,%d" % [pos[0], pos[1]]] = "rift"
+
+	# 地标地点随机分配
+	var landmark_locs := Card.LANDMARK_LOCATIONS.duplicate()
+	landmark_locs.shuffle()
+	var lm_loc_idx := 0
+
+	# 6. 填充棋盘
+	for row in range(1, ROWS + 1):
+		for col in range(1, COLS + 1):
+			var key := "%d,%d" % [row, col]
+			var special: String = special_map.get(key, "")
+			var card_type: String
+			var location: String
+
+			if special == "home":
+				card_type = "home"
+				location = "home"
+			elif special == "landmark":
+				card_type = "landmark"
+				location = landmark_locs[lm_loc_idx] if lm_loc_idx < landmark_locs.size() else "church"
+				lm_loc_idx += 1
+			elif special == "shop":
+				card_type = "shop"
+				location = "convenience"
+			elif special == "rift":
+				# 裂隙伪装成普通事件卡，用 has_rift 标记
+				card_type = _weighted_random_event()
+				location = location_pool[loc_idx]
+				loc_idx += 1
 			else:
-				# 随机地点 (循环使用)
-				var loc: String = available_locations[loc_index % available_locations.size()]
-				loc_index += 1
-				# 加权随机事件
-				var evt: String = _weighted_random_event()
-				set_card(r, c, Card.create(loc, evt, r, c))
+				card_type = _weighted_random_event()
+				location = location_pool[loc_idx]
+				loc_idx += 1
 
-	# 4. 地标光环: 净化相邻的 monster/trap → safe
+			var card := Card.create(location, card_type, row, col)
+			# 陷阱子类型 (仅 trap 类型有)
+			if card_type == "trap":
+				card.trap_subtype = Board.random_trap_subtype()
+			# 裂隙标记 (伪装成普通卡, 翻开后才知道有裂隙)
+			if special == "rift":
+				card.has_rift = true
+			set_card(row, col, card)
+
+	# 7. 地标光环: 净化相邻的 monster/trap → safe
 	_apply_landmark_aura()
+
+## 根据权重随机选取陷阱子类型
+## TRAP_SUBTYPE_WEIGHTS: [[name, weight], ...] → w[0]=name, w[1]=weight
+static func random_trap_subtype() -> String:
+	var total := 0
+	for w in TRAP_SUBTYPE_WEIGHTS:
+		total += int(w[1])
+	var roll := randi_range(1, total)
+	var acc := 0
+	for w in TRAP_SUBTYPE_WEIGHTS:
+		acc += int(w[1])
+		if roll <= acc:
+			return str(w[0])
+	return "sanity"
 
 ## 加权随机事件
 func _weighted_random_event() -> String:
@@ -119,18 +208,20 @@ func _weighted_random_event() -> String:
 			return evt_type
 	return "safe"
 
-## 随机选取空位
-func _random_empty_pos(occupied: Dictionary) -> Vector2i:
-	var attempts := 0
-	while attempts < 100:
-		var r := randi_range(1, ROWS)
-		var c := randi_range(1, COLS)
-		var pos := Vector2i(r, c)
-		if pos not in occupied:
-			return pos
-		attempts += 1
-	# fallback
-	return Vector2i(1, 1)
+## 随机取 count 个不重复位置 (排除 exclude 中的 [row,col])
+func _random_positions(count: int, exclude: Array) -> Array:
+	var positions: Array = []
+	for r in range(1, ROWS + 1):
+		for c in range(1, COLS + 1):
+			var skip := false
+			for ex in exclude:
+				if ex[0] == r and ex[1] == c:
+					skip = true
+					break
+			if not skip:
+				positions.append([r, c])
+	positions.shuffle()
+	return positions.slice(0, count)
 
 ## 地标光环
 func _apply_landmark_aura() -> void:
@@ -258,3 +349,237 @@ func is_in_landmark_aura(row: int, col: int) -> bool:
 		if nb_card and nb_card.is_landmark():
 			return true
 	return false
+
+# ---------------------------------------------------------------------------
+# 暗面世界地图生成
+# ---------------------------------------------------------------------------
+
+## 暗面世界墙壁放置 + BFS 连通性检查
+## 返回 2D bool 数组 is_wall[row-1][col-1]
+static func generate_dark_walls(wall_count: int) -> Array:
+	var is_wall: Array = []
+	for r in range(ROWS):
+		var row_arr: Array = []
+		for _c in range(COLS):
+			row_arr.append(false)
+		is_wall.append(row_arr)
+
+	# 所有位置随机排列
+	var all_pos: Array = []
+	for r in range(1, ROWS + 1):
+		for c in range(1, COLS + 1):
+			all_pos.append(Vector2i(r, c))
+	all_pos.shuffle()
+
+	var walls_placed := 0
+	for pos in all_pos:
+		if walls_placed >= wall_count:
+			break
+		var r := pos.x
+		var c := pos.y
+		# 中心保护 (入口)
+		if r == 3 and c == 3:
+			continue
+		# 尝试放墙
+		is_wall[r - 1][c - 1] = true
+		# BFS 连通性检查: 从中心(3,3)出发
+		var visited := {}
+		var queue: Array = [Vector2i(3, 3)]
+		visited[Vector2i(3, 3)] = true
+		var head := 0
+		while head < queue.size():
+			var cur: Vector2i = queue[head]
+			head += 1
+			var dirs := [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]
+			for d in dirs:
+				var nr := cur.x + d.x
+				var nc := cur.y + d.y
+				var npos := Vector2i(nr, nc)
+				if nr >= 1 and nr <= ROWS and nc >= 1 and nc <= COLS \
+						and not is_wall[nr - 1][nc - 1] and not visited.has(npos):
+					visited[npos] = true
+					queue.append(npos)
+		# 检查所有非墙格子都能到达
+		var all_reachable := true
+		for r2 in range(1, ROWS + 1):
+			for c2 in range(1, COLS + 1):
+				if not is_wall[r2 - 1][c2 - 1] and not visited.has(Vector2i(r2, c2)):
+					all_reachable = false
+					break
+			if not all_reachable:
+				break
+		if all_reachable:
+			walls_placed += 1
+		else:
+			is_wall[r - 1][c - 1] = false  # 回退
+	return is_wall
+
+## 生成暗面世界卡牌 (复用 5×5 网格)
+## layer_data: { walkable, entry_row, entry_col, collected }
+## dark_locations: { normal: [...], shop: [...], intel: [...], clue: [...], item: [...] }
+## dark_config: { wall_count, layer_idx, passage_count, has_abyss_core, shop_count, ... }
+func generate_dark_cards(layer_data: Dictionary, dark_locations: Dictionary, dark_config: Dictionary) -> void:
+	clear()
+	var layer_idx: int = dark_config.get("layer_idx", 1)
+
+	# 1. 生成墙壁
+	var wall_count: int = dark_config.get("wall_count", 5)
+	var is_wall := Board.generate_dark_walls(wall_count)
+
+	# 2. 收集可通行位置
+	var walkable_positions: Array = []
+	var walkable: Array = []
+	for r in range(ROWS):
+		var row_walk: Array = []
+		for c in range(COLS):
+			if is_wall[r][c]:
+				row_walk.append(false)
+			else:
+				row_walk.append(true)
+				walkable_positions.append([r + 1, c + 1])
+		walkable.append(row_walk)
+	walkable_positions.shuffle()
+
+	layer_data["walkable"] = walkable
+	layer_data["entry_row"] = 3
+	layer_data["entry_col"] = 3
+
+	# 3. 分配暗面卡牌类型
+	var assigned := {}
+	assigned["3,3"] = "normal"  # 入口
+
+	# 层间通道
+	var passage_count: int = dark_config.get("passage_count", 0)
+	var pass_placed := 0
+	for pos in walkable_positions:
+		if pass_placed >= passage_count:
+			break
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key) and not (pos[0] == 3 and pos[1] == 3):
+			assigned[key] = "passage"
+			pass_placed += 1
+
+	# 深渊核心 (仅 L3)
+	if dark_config.get("has_abyss_core", false):
+		for pos in walkable_positions:
+			var key := "%d,%d" % [pos[0], pos[1]]
+			if not assigned.has(key) and not (pos[0] == 3 and pos[1] == 3):
+				assigned[key] = "abyss_core"
+				break
+
+	# 商店
+	var shop_count: int = dark_config.get("shop_count", 0)
+	var shop_placed := 0
+	for pos in walkable_positions:
+		if shop_placed >= shop_count:
+			break
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key):
+			assigned[key] = "shop"
+			shop_placed += 1
+
+	# 情报点
+	var intel_count: int = dark_config.get("intel_count", 0)
+	var intel_placed := 0
+	for pos in walkable_positions:
+		if intel_placed >= intel_count:
+			break
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key):
+			assigned[key] = "intel"
+			intel_placed += 1
+
+	# 关卡
+	var check_count: int = dark_config.get("checkpoint_count", 0)
+	var check_placed := 0
+	for pos in walkable_positions:
+		if check_placed >= check_count:
+			break
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key):
+			assigned[key] = "checkpoint"
+			check_placed += 1
+
+	# 线索
+	var clue_count: int = dark_config.get("clue_count", randi_range(3, 5))
+	var clue_placed := 0
+	for pos in walkable_positions:
+		if clue_placed >= clue_count:
+			break
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key):
+			assigned[key] = "clue"
+			clue_placed += 1
+
+	# 道具
+	var item_count: int = dark_config.get("item_count", randi_range(1, 3))
+	var item_placed := 0
+	for pos in walkable_positions:
+		if item_placed >= item_count:
+			break
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key):
+			assigned[key] = "item"
+			item_placed += 1
+
+	# 剩余全部设为 normal
+	for pos in walkable_positions:
+		var key := "%d,%d" % [pos[0], pos[1]]
+		if not assigned.has(key):
+			assigned[key] = "normal"
+
+	# 4. 创建卡牌数据
+	var locs: Dictionary = dark_locations
+	var normal_names: Array = (locs.get("normal", []) as Array).duplicate()
+	normal_names.shuffle()
+	var normal_idx := 0
+
+	home_row = 3
+	home_col = 3
+
+	for r in range(1, ROWS + 1):
+		for c in range(1, COLS + 1):
+			if not walkable[r - 1][c - 1]:
+				set_card(r, c, null)  # 墙壁
+			else:
+				var key := "%d,%d" % [r, c]
+				var dark_type: String = assigned.get(key, "normal")
+
+				# 选择地点名
+				var loc_name: String
+				if dark_type == "normal":
+					loc_name = normal_names[normal_idx % maxi(normal_names.size(), 1)]
+					normal_idx += 1
+				elif dark_type == "shop":
+					var shop_locs: Array = locs.get("shop", [])
+					loc_name = shop_locs[randi() % maxi(shop_locs.size(), 1)] if shop_locs.size() > 0 else "暗市"
+				elif dark_type == "intel":
+					var intel_locs: Array = locs.get("intel", [])
+					loc_name = intel_locs[randi() % maxi(intel_locs.size(), 1)] if intel_locs.size() > 0 else "情报点"
+				elif dark_type == "clue":
+					var clue_locs: Array = locs.get("clue", [])
+					loc_name = clue_locs[randi() % maxi(clue_locs.size(), 1)] if clue_locs.size() > 0 else "线索"
+				elif dark_type == "item":
+					var item_locs: Array = locs.get("item", [])
+					loc_name = item_locs[randi() % maxi(item_locs.size(), 1)] if item_locs.size() > 0 else "道具"
+				elif dark_type == "passage":
+					loc_name = "崩塌阶梯" if layer_idx == 1 else "裂隙走廊"
+				elif dark_type == "abyss_core":
+					loc_name = "最深处"
+				elif dark_type == "checkpoint":
+					loc_name = "面具之门"
+				else:
+					loc_name = normal_names[normal_idx % maxi(normal_names.size(), 1)]
+					normal_idx += 1
+
+				var card := Card.create_dark(dark_type, loc_name, r, c)
+
+				# 恢复已收集状态
+				var collected: Dictionary = layer_data.get("collected", {})
+				if collected.has(key):
+					card.dark_type = "normal"
+					card.dark_name = "空走廊"
+				set_card(r, c, card)
+
+	print("[Board] Generated dark cards: layer=%d, walkable=%d, walls=%d" % [
+		layer_idx, walkable_positions.size(), wall_count])

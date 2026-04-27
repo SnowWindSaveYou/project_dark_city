@@ -4,22 +4,39 @@ class_name CardManager
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 日程模板
+# 日程模板  reward: [资源key, 变化量]
 # ---------------------------------------------------------------------------
 const SCHEDULE_TEMPLATES := {
-	"company":    { "verb": "拍摄公司照片", "reward": { "money": 10 } },
-	"park":       { "verb": "在公园取景",   "reward": { "san": 1 } },
-	"hospital":   { "verb": "调查医院档案", "reward": { "money": 8 } },
-	"school":     { "verb": "记录学校传闻", "reward": { "order": 1 } },
-	"station":    { "verb": "追踪车站线索", "reward": { "money": 12 } },
-	"market":     { "verb": "拍摄商场橱窗", "reward": { "money": 8 } },
-	"shrine":     { "verb": "参拜神社",     "reward": { "san": 2 } },
-	"alley":      { "verb": "探索巷子深处", "reward": { "money": 15 } },
-	"lighthouse": { "verb": "登上灯塔瞭望", "reward": { "order": 2, "san": 1 } },
-	"library":    { "verb": "查阅图书馆文献", "reward": { "order": 1 } },
-	"temple":     { "verb": "在教堂祈祷",   "reward": { "san": 2 } },
-	"home":       { "verb": "回家整理笔记", "reward": { "san": 1, "order": 1 } },
+	# 普通地点
+	"company":     { "verb": "去公司上班",     "reward": ["money", 10] },
+	"school":      { "verb": "去学校上课",     "reward": ["money",  8] },
+	"park":        { "verb": "去公园散步",     "reward": ["san",    1] },
+	"alley":       { "verb": "穿过小巷",       "reward": ["money",  8] },
+	"station":     { "verb": "去车站接人",     "reward": ["money",  6] },
+	"hospital":    { "verb": "去医院看病",     "reward": ["san",    1] },
+	"library":     { "verb": "去图书馆学习",   "reward": ["order",  1] },
+	"bank":        { "verb": "去银行办事",     "reward": ["money", 12] },
+	# 商店地点
+	"convenience": { "verb": "去便利店购物",   "reward": ["money",  5] },
+	# 地标地点
+	"church":      { "verb": "去教堂祈祷",     "reward": ["san",    1] },
+	"police":      { "verb": "去警察局报案",   "reward": ["order",  1] },
+	"shrine":      { "verb": "去神社参拜",     "reward": ["san",    1] },
 }
+
+# ---------------------------------------------------------------------------
+# 传闻模板
+# ---------------------------------------------------------------------------
+const RUMOR_SAFE_TEXTS := [
+	"今天%s很平静",
+	"%s附近没有异常",
+	"听说%s今天很安全",
+]
+const RUMOR_DANGER_TEXTS := [
+	"%s有脏东西",
+	"别去%s，有危险",
+	"听说%s闹鬼了",
+]
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -33,60 +50,92 @@ var schedules: Array = []
 ## 每个元素: { "type": "safe"|"danger", "text": "..." }
 var rumors: Array = []
 
-## 延期日程 (留到下一天)
+## 延期日程 (留到下一天, 最多 1 张)
 var _deferred_schedules: Array = []
+
+## 预选地点缓存
+var _pre_selected: Array = []
 
 # ---------------------------------------------------------------------------
 # 每日生成
 # ---------------------------------------------------------------------------
 
-## 生成今日日程和传闻
-func generate_daily(_day_count: int) -> void:
+## 生成今日日程和传闻 (在 Board.generate_cards 之后调用)
+func generate_daily(_board: Board) -> void:
 	schedules = []
 	rumors = []
 
-	# 追加昨日延期日程
-	for deferred in _deferred_schedules:
-		deferred["status"] = "pending"
-		schedules.append(deferred)
+	# 加入前一天推迟的日程 (最多 1 张, 其地点已在预选列表中)
+	var deferred_count := 0
+	if _deferred_schedules.size() > 0:
+		var ds: Dictionary = _deferred_schedules[0].duplicate()
+		ds["status"] = "pending"
+		schedules.append(ds)
+		deferred_count = 1
 	_deferred_schedules = []
 
-	# 已用地点 (避免重复)
-	var used_locations: Array = []
+	# 从预选地点中生成剩余日程卡
+	var max_schedules := 3 + deferred_count
+	var used_locations := {}
 	for s in schedules:
-		used_locations.append(s["location"])
+		used_locations[s["location"]] = true
 
-	# 随机 3 个新日程
-	var available := SCHEDULE_TEMPLATES.keys().duplicate()
-	available.shuffle()
-	var added := 0
-	for loc in available:
-		if added >= 3:
+	for loc in _pre_selected:
+		if schedules.size() >= max_schedules:
 			break
-		if loc in used_locations:
-			continue
-		var tmpl: Dictionary = SCHEDULE_TEMPLATES[loc]
-		schedules.append({
-			"location": loc,
-			"verb": tmpl["verb"],
-			"reward": tmpl["reward"].duplicate(),
-			"status": "pending",
-		})
-		used_locations.append(loc)
-		added += 1
+		if not used_locations.has(loc) and SCHEDULE_TEMPLATES.has(loc):
+			var tmpl: Dictionary = SCHEDULE_TEMPLATES[loc]
+			var loc_info := Card.LOCATION_INFO.get(loc, {})
+			schedules.append({
+				"location": loc,
+				"verb": tmpl["verb"],
+				"icon": loc_info.get("icon", "📋"),
+				"reward": tmpl["reward"].duplicate(),
+				"status": "pending",
+			})
+			used_locations[loc] = true
 
-	# 生成 1 条传闻 (占位，实际内容由棋盘生成后补充)
-	# 具体逻辑在 Board 生成后由 main 调用 add_rumor()
+	# 清空预选缓存
+	_pre_selected = []
 
-## 获取日程需要的地点 (注入棋盘生成)
+	# 传闻由 main 在棋盘生成后调用 generate_rumor_from_board() 补充
+
+## 预选今天日程所需的地点 (在 Board.generate_cards 之前调用)
+## 返回地点列表，Board 需保证这些地点出现在棋盘上
 func pre_select_locations() -> Array:
-	var locations: Array = []
-	for s in schedules:
-		if s["location"] not in Card.LANDMARK_LOCATIONS \
-			and s["location"] != "home" \
-			and s["location"] != "shop":
-			locations.append(s["location"])
-	return locations
+	# 排除地标和商店 (它们有专用格子)
+	var exclude_set := { "convenience": true }
+	for lm_loc in Card.LANDMARK_LOCATIONS:
+		exclude_set[lm_loc] = true
+
+	var all_locs: Array = []
+	for loc in SCHEDULE_TEMPLATES.keys():
+		if not exclude_set.has(loc):
+			all_locs.append(loc)
+	all_locs.shuffle()
+
+	var required: Array = []
+	var used := {}
+
+	# 昨天推迟的日程地点
+	if _deferred_schedules.size() > 0:
+		var def_loc: String = _deferred_schedules[0]["location"]
+		required.append(def_loc)
+		used[def_loc] = true
+
+	# 选 3 个新地点
+	var needed := 3
+	for loc in all_locs:
+		if needed <= 0:
+			break
+		if not used.has(loc):
+			required.append(loc)
+			used[loc] = true
+			needed -= 1
+
+	# 缓存预选结果
+	_pre_selected = required
+	return required
 
 # ---------------------------------------------------------------------------
 # 日程交互
@@ -117,56 +166,98 @@ func toggle_defer(index: int) -> void:
 func add_rumor(rumor_type: String, text: String) -> void:
 	rumors.append({ "type": rumor_type, "text": text })
 
-## 根据棋盘数据生成初始传闻
+## 根据棋盘数据生成初始传闻 (1 条)
 func generate_rumor_from_board(board: Board) -> void:
-	# 随机挑一个安全或危险的地点作为提示
-	var safe_cards: Array = []
-	var danger_cards: Array = []
+	var candidates: Array = []
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card := board.get_card(r, c)
-			if card == null or card.type in ["home", "shop", "landmark"]:
+			if card == null or card.location == "home":
 				continue
-			if card.type == "safe":
-				safe_cards.append(card)
-			elif card.type in ["monster", "trap"]:
-				danger_cards.append(card)
+			if not card.is_flipped:
+				candidates.append(card)
+	candidates.shuffle()
 
-	if randf() < 0.5 and safe_cards.size() > 0:
-		var card: Card = safe_cards[randi() % safe_cards.size()]
+	for card in candidates:
+		var is_safe := card.type in ["safe", "reward", "plot", "clue", "landmark"]
 		var loc_info := card.get_location_info()
-		add_rumor("safe", "📍 听说 " + loc_info["label"] + " 附近还算安全")
-	elif danger_cards.size() > 0:
-		var card: Card = danger_cards[randi() % danger_cards.size()]
-		var loc_info := card.get_location_info()
-		add_rumor("danger", "⚠️ 有人说 " + loc_info["label"] + " 附近有不好的东西")
+		var label: String = loc_info.get("label", "未知")
+		var templates: Array = RUMOR_SAFE_TEXTS if is_safe else RUMOR_DANGER_TEXTS
+		var text: String = templates[randi() % templates.size()] % label
+		rumors.append({
+			"location": card.location,
+			"label": label,
+			"icon": loc_info.get("icon", "📋"),
+			"is_safe": is_safe,
+			"text": text,
+		})
+		break  # 只生成 1 条
+
+## 从棋盘中添加额外传闻 (线索事件触发)
+func add_rumor_from_board(board: Board) -> bool:
+	# 已有传闻的地点集合
+	var covered := {}
+	for r in rumors:
+		covered[r["location"]] = true
+
+	var candidates: Array = []
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card := board.get_card(r, c)
+			if card and card.location != "home" \
+					and not card.is_flipped and not covered.has(card.location):
+				candidates.append(card)
+	if candidates.is_empty():
+		return false
+
+	var pick: Card = candidates[randi() % candidates.size()]
+	var is_safe := pick.type in ["safe", "reward", "plot", "clue", "landmark"]
+	var loc_info := pick.get_location_info()
+	var label: String = loc_info.get("label", "未知")
+	var templates: Array = RUMOR_SAFE_TEXTS if is_safe else RUMOR_DANGER_TEXTS
+	var text: String = templates[randi() % templates.size()] % label
+	rumors.append({
+		"location": pick.location,
+		"label": label,
+		"icon": loc_info.get("icon", "📋"),
+		"is_safe": is_safe,
+		"text": text,
+	})
+	return true
+
+## 查询指定地点是否有传闻
+func get_rumor_for(location: String) -> Dictionary:
+	for r in rumors:
+		if r["location"] == location:
+			return r
+	return {}
 
 # ---------------------------------------------------------------------------
 # 日终结算
 # ---------------------------------------------------------------------------
 
-## 结算当天日程，返回结算结果
-## 返回: { "completed": [...], "deferred": [...], "pending_penalty": int }
-func settle_day() -> Dictionary:
-	var result := {
-		"completed": [],
-		"deferred": [],
-		"pending_penalty": 0,
-	}
-
+## 结算日程卡，返回资源变化列表 [[resKey, delta], ...]
+func settle_day() -> Array:
+	var effects: Array = []
 	_deferred_schedules = []
 
 	for s in schedules:
 		match s["status"]:
 			"completed":
-				result["completed"].append(s)
+				# 完成: 发奖励
+				var reward: Array = s["reward"]
+				effects.append([reward[0], reward[1]])
 			"deferred":
-				result["deferred"].append(s)
-				_deferred_schedules.append(s.duplicate())
-			"pending":
-				result["pending_penalty"] += 1
+				# 推迟: 累积到明天 (最多 1 张)
+				if _deferred_schedules.size() == 0:
+					_deferred_schedules.append(s.duplicate())
+			_:
+				# 未完成且未推迟: 扣秩序值 -3
+				effects.append(["order", -3])
 
-	return result
+	# 清空传闻 (仅当天有效)
+	rumors = []
+	return effects
 
 # ---------------------------------------------------------------------------
 # 查询
@@ -185,3 +276,19 @@ func get_completed_count() -> int:
 		if s["status"] == "completed":
 			count += 1
 	return count
+
+## 获取日程完成统计 → [completed, total]
+func get_progress() -> Array:
+	var completed := 0
+	var total := schedules.size()
+	for s in schedules:
+		if s["status"] == "completed":
+			completed += 1
+	return [completed, total]
+
+## 重置所有状态 (新游戏)
+func reset() -> void:
+	schedules = []
+	rumors = []
+	_deferred_schedules = []
+	_pre_selected = []
