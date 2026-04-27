@@ -59,6 +59,11 @@ M.templates = {
         { title = "留影", desc = "相片上定格的画面取代了原本的恐惧。这里现在安全了。" },
         { title = "净化", desc = "曝光的胶片封印了阴影。被拍下的事物不再具有威胁。" },
     },
+    rift = {
+        { title = "时空裂隙", desc = "地面出现一道蜿蜒的裂缝，透出幽蓝色的微光。你感到另一个世界在呼唤。" },
+        { title = "维度缝隙", desc = "空气中浮现扭曲的纹路，仿佛现实被撕开了一道口子。裂隙另一端的景象若隐若现。" },
+        { title = "异界入口", desc = "脚下的地砖突然龟裂，缝隙中涌出暗紫色的雾气。这是通往暗面世界的通道。" },
+    },
 }
 
 -- ---------------------------------------------------------------------------
@@ -70,11 +75,56 @@ M.cardEffects = {
     landmark = {},
     shop     = {},
     monster  = { { "san", -2 }, { "order", -1 } },
-    trap     = { { "san", -1 }, { "order", -1 } },
+    trap     = {},  -- 旧通用 trap 已废弃; 由 trapSubtypeEffects 替代
     reward   = { { "money", 15 }, { "film", 1 } },
     plot     = { { "order", 1 } },
     clue     = { { "film", 1 } },
     photo    = {},  -- 相片：安全格，无资源效果
+    rift     = {},  -- 裂隙：无资源效果，触发暗面世界入口
+}
+
+-- ---------------------------------------------------------------------------
+-- 陷阱子类型: 效果 / 文案 / 图标
+-- ---------------------------------------------------------------------------
+
+--- 子类型→资源变化
+M.trapSubtypeEffects = {
+    sanity   = { { "san",   -1 } },   -- 阴气侵蚀
+    money    = { { "money", -10 } },   -- 财物散失
+    film     = { { "film",  -1 } },    -- 灵雾曝光
+    teleport = {},                      -- 空间错位 (无资源伤害)
+}
+
+--- 子类型→文案 (覆盖通用 M.templates.trap)
+M.trapSubtypeTemplates = {
+    sanity = {
+        { title = "阴气侵蚀", desc = "一股寒意从地面渗入脚底，直冲脑门。周围的空气变得凝重，理智在无声中消磨。" },
+        { title = "低语缠绕", desc = "耳边响起断断续续的低语，内容听不清楚。你的思维开始变得混乱。" },
+        { title = "幻象涌动", desc = "视野边缘浮现模糊的影像，分不清是真实还是幻觉。你努力保持清醒。" },
+    },
+    money = {
+        { title = "财物散失", desc = "口袋突然变轻了——零钱从破洞滑落，怎么也捡不回来。" },
+        { title = "无形窃取", desc = "一转眼，钱包里的钞票少了几张。你确信没有人靠近过。" },
+        { title = "诅咒流失", desc = "硬币在手中变得灼热，你不得不松手。它们落地后消失不见。" },
+    },
+    film = {
+        { title = "灵雾曝光", desc = "一团幽蓝色的雾气突然涌来，相机发出咔嗒声——胶卷被意外曝光了。" },
+        { title = "闪光干扰", desc = "空气中闪过一道强光，相机自动触发了快门。一卷珍贵的胶卷报废了。" },
+        { title = "异光侵蚀", desc = "从墙缝渗出的异样光芒照射到你的相机上，胶卷上留下了无法冲洗的痕迹。" },
+    },
+    teleport = {
+        { title = "空间错位", desc = "脚下的地面突然扭曲，你的身体被一股力量拉扯到了别处！" },
+        { title = "维度跳跃", desc = "眨眼之间，周围的景色全变了。你不知道自己被传送到了哪里。" },
+        { title = "瞬间位移", desc = "一阵眩晕过后，你发现自己站在一个完全不同的地方。" },
+    },
+}
+
+--- 子类型→图标/名称 (Toast 中覆盖默认 trap 图标)
+M.trapSubtypeInfo = {
+    sanity   = { icon = "👁️",  label = "阴气侵蚀" },
+    money    = { icon = "💸", label = "财物散失" },
+    film     = { icon = "📷", label = "灵雾曝光" },
+    teleport = { icon = "🌀", label = "空间错位" },
 }
 
 -- 资源中文名 / 图标
@@ -913,9 +963,15 @@ local toastNextId = 1
 ---@param appliedEffects table  已结算的资源变化 (可能被护盾清空)
 ---@param shieldUsed boolean   护盾是否生效
 ---@param location string|nil  地点类型
-function M.toast(cardType, appliedEffects, shieldUsed, location)
-    -- 随机文案
-    local pool = M.templates[cardType]
+---@param trapSubtype string|nil  陷阱子类型 (sanity/money/film/teleport)
+function M.toast(cardType, appliedEffects, shieldUsed, location, trapSubtype)
+    -- 随机文案: 陷阱子类型使用专属文案池
+    local pool
+    if cardType == "trap" and trapSubtype and M.trapSubtypeTemplates[trapSubtype] then
+        pool = M.trapSubtypeTemplates[trapSubtype]
+    else
+        pool = M.templates[cardType]
+    end
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
     end
@@ -932,6 +988,7 @@ function M.toast(cardType, appliedEffects, shieldUsed, location)
     local toast = {
         id = id,
         cardType = cardType,
+        trapSubtype = trapSubtype,  -- 陷阱子类型 (nil for non-trap)
         title = displayTitle,
         desc = tmpl.desc,
         effects = appliedEffects or {},
@@ -1123,13 +1180,18 @@ function M.drawToasts(vg, logicalW, logicalH, gameTime)
 
         -- 图标 + 标题 (同行)
         local info = Theme.cardTypeInfo(t.cardType)
+        -- 陷阱子类型: 使用专属图标
+        local displayIcon = (info and info.icon or "❓")
+        if t.cardType == "trap" and t.trapSubtype and M.trapSubtypeInfo[t.trapSubtype] then
+            displayIcon = M.trapSubtypeInfo[t.trapSubtype].icon
+        end
         nvgFontFace(vg, "sans")
 
         -- 图标
         nvgFontSize(vg, 22)
         nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgba(tc_theme.textPrimary))
-        nvgText(vg, contentX, contentY + 8, info and info.icon or "❓", nil)
+        nvgText(vg, contentX, contentY + 8, displayIcon, nil)
 
         -- 标题
         nvgFontSize(vg, 14)
@@ -1264,6 +1326,309 @@ function M.clearToasts()
         Tween.cancelTag("toast_" .. toastQueue[i].id)
     end
     toastQueue = {}
+end
+
+-- ===========================================================================
+-- 裂隙确认弹窗 (双按钮: 进入暗面 / 留在原地)
+-- ===========================================================================
+
+local riftState = {
+    active = false,
+    phase = "done",        -- "enter" | "idle" | "exit"
+    cx = 0, cy = 0,
+    onConfirm = nil,       -- 点击"进入"
+    onCancel  = nil,       -- 点击"留下"
+    -- 动画
+    overlayAlpha = 0,
+    popupScale   = 0,
+    popupAlpha   = 0,
+    iconT        = 0,
+    titleT       = 0,
+    descT        = 0,
+    btnEnterT    = 0,
+    btnStayT     = 0,
+    btnEnterHover = 0,
+    btnStayHover  = 0,
+}
+
+local RIFT_POPUP_W = 260
+local RIFT_POPUP_H = 185
+local RIFT_BTN_W   = 100
+local RIFT_BTN_H   = 30
+local RIFT_BTN_GAP = 12
+
+--- 显示裂隙确认弹窗
+---@param cx number 弹窗中心 X
+---@param cy number 弹窗中心 Y
+---@param onConfirm function 进入暗面回调
+---@param onCancel function|nil 留在原地回调
+function M.showRiftConfirm(cx, cy, onConfirm, onCancel)
+    riftState.active = true
+    riftState.phase = "enter"
+    riftState.cx = cx
+    riftState.cy = cy
+    riftState.onConfirm = onConfirm
+    riftState.onCancel  = onCancel
+
+    riftState.overlayAlpha = 0
+    riftState.popupScale   = 0.3
+    riftState.popupAlpha   = 0
+    riftState.iconT        = 0
+    riftState.titleT       = 0
+    riftState.descT        = 0
+    riftState.btnEnterT    = 0
+    riftState.btnStayT     = 0
+    riftState.btnEnterHover = 0
+    riftState.btnStayHover  = 0
+
+    Tween.to(riftState, { overlayAlpha = 0.4, popupScale = 1.0, popupAlpha = 1.0 }, 0.35, {
+        easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    local base = 0.12
+    Tween.to(riftState, { iconT = 1 }, 0.3, {
+        delay = base, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    Tween.to(riftState, { titleT = 1 }, 0.3, {
+        delay = base + 0.08, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    Tween.to(riftState, { descT = 1 }, 0.3, {
+        delay = base + 0.16, easing = Tween.Easing.easeOutCubic, tag = "riftpopup",
+    })
+    Tween.to(riftState, { btnEnterT = 1 }, 0.3, {
+        delay = base + 0.24, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    Tween.to(riftState, { btnStayT = 1 }, 0.3, {
+        delay = base + 0.30, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+        onComplete = function() riftState.phase = "idle" end,
+    })
+end
+
+local function dismissRift(accepted)
+    if not riftState.active or riftState.phase == "exit" then return end
+    riftState.phase = "exit"
+    Tween.cancelTag("riftpopup")
+    Tween.to(riftState, {
+        overlayAlpha = 0, popupScale = 0.5, popupAlpha = 0,
+        iconT = 0, titleT = 0, descT = 0, btnEnterT = 0, btnStayT = 0,
+    }, 0.22, {
+        easing = Tween.Easing.easeInBack, tag = "riftpopup",
+        onComplete = function()
+            riftState.active = false
+            riftState.phase = "done"
+            if accepted and riftState.onConfirm then
+                riftState.onConfirm()
+            elseif not accepted and riftState.onCancel then
+                riftState.onCancel()
+            end
+        end,
+    })
+end
+
+function M.isRiftConfirmActive()
+    return riftState.active
+end
+
+--- 裂隙确认弹窗碰撞检测 (两个按钮)
+---@return string|nil "enter"|"stay"|nil
+local function riftBtnHitTest(lx, ly)
+    local hw = RIFT_POPUP_W / 2
+    local hh = RIFT_POPUP_H / 2
+    local btnY = riftState.cy + hh - RIFT_BTN_H - 14
+    local totalW = RIFT_BTN_W * 2 + RIFT_BTN_GAP
+    local startX = riftState.cx - totalW / 2
+    -- 进入按钮
+    if lx >= startX and lx <= startX + RIFT_BTN_W
+        and ly >= btnY and ly <= btnY + RIFT_BTN_H then
+        return "enter"
+    end
+    -- 留下按钮
+    local stayX = startX + RIFT_BTN_W + RIFT_BTN_GAP
+    if lx >= stayX and lx <= stayX + RIFT_BTN_W
+        and ly >= btnY and ly <= btnY + RIFT_BTN_H then
+        return "stay"
+    end
+    return nil
+end
+
+function M.handleRiftClick(lx, ly)
+    if not riftState.active then return false end
+    if riftState.phase == "enter" then return true end
+    local hit = riftBtnHitTest(lx, ly)
+    if hit == "enter" then
+        dismissRift(true)
+        return true
+    elseif hit == "stay" then
+        dismissRift(false)
+        return true
+    end
+    -- 面板外点击 = 留下
+    local px = riftState.cx - RIFT_POPUP_W / 2
+    local py = riftState.cy - RIFT_POPUP_H / 2
+    if not (lx >= px and lx <= px + RIFT_POPUP_W and ly >= py and ly <= py + RIFT_POPUP_H) then
+        dismissRift(false)
+        return true
+    end
+    return true
+end
+
+function M.updateRiftHover(lx, ly, dt)
+    if not riftState.active then return end
+    local hit = riftBtnHitTest(lx, ly)
+    local targetEnter = (hit == "enter") and 1 or 0
+    local targetStay  = (hit == "stay")  and 1 or 0
+    local speed = 8
+    riftState.btnEnterHover = riftState.btnEnterHover + (targetEnter - riftState.btnEnterHover) * math.min(1, dt * speed)
+    riftState.btnStayHover  = riftState.btnStayHover  + (targetStay  - riftState.btnStayHover)  * math.min(1, dt * speed)
+end
+
+function M.drawRiftConfirm(vg, logicalW, logicalH)
+    if not riftState.active then return end
+
+    local t = Theme.current
+
+    -- 遮罩
+    if riftState.overlayAlpha > 0.01 then
+        nvgBeginPath(vg)
+        nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
+        nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(riftState.overlayAlpha * 255)))
+        nvgFill(vg)
+    end
+
+    nvgSave(vg)
+    nvgTranslate(vg, riftState.cx, riftState.cy)
+    nvgScale(vg, riftState.popupScale, riftState.popupScale)
+    nvgGlobalAlpha(vg, riftState.popupAlpha)
+
+    local hw = RIFT_POPUP_W / 2
+    local hh = RIFT_POPUP_H / 2
+
+    -- 阴影
+    local shadowP = nvgBoxGradient(vg, -hw + 2, -hh + 4, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R, 16,
+        nvgRGBA(0, 0, 0, 70), nvgRGBA(0, 0, 0, 0))
+    nvgBeginPath(vg)
+    nvgRect(vg, -hw - 20, -hh - 16, RIFT_POPUP_W + 40, RIFT_POPUP_H + 40)
+    nvgFillPaint(vg, shadowP)
+    nvgFill(vg)
+
+    -- 面板
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
+    nvgFillColor(vg, nvgRGBA(t.panelBg.r, t.panelBg.g, t.panelBg.b, 245))
+    nvgFill(vg)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
+    nvgStrokeColor(vg, Theme.rgbaA(t.darkAccent, 100))
+    nvgStrokeWidth(vg, 1.2)
+    nvgStroke(vg)
+
+    -- 顶部色条
+    nvgSave(vg)
+    nvgScissor(vg, -hw, -hh, RIFT_POPUP_W, 4)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
+    nvgFillColor(vg, Theme.rgba(t.darkAccent))
+    nvgFill(vg)
+    nvgRestore(vg)
+
+    -- 图标
+    if riftState.iconT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, riftState.popupAlpha * riftState.iconT)
+        nvgTranslate(vg, 0, -hh + 35 + (1 - riftState.iconT) * 15)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 36)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(t.darkAccent))
+        nvgText(vg, 0, 0, "🌀", nil)
+        nvgRestore(vg)
+    end
+
+    -- 标题
+    if riftState.titleT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, riftState.popupAlpha * riftState.titleT)
+        nvgTranslate(vg, 0, -hh + 65 + (1 - riftState.titleT) * 10)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 16)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(t.textPrimary))
+        nvgText(vg, 0, 0, "发现空间裂隙", nil)
+        nvgRestore(vg)
+    end
+
+    -- 描述
+    if riftState.descT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, riftState.popupAlpha * riftState.descT)
+        nvgTranslate(vg, 0, -hh + 92 + (1 - riftState.descT) * 8)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 12)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
+        nvgText(vg, 0, 0, "此处出现通往暗面世界的裂隙", nil)
+        nvgText(vg, 0, 16, "是否要进入？", nil)
+        nvgRestore(vg)
+    end
+
+    -- 双按钮
+    local btnY = hh - RIFT_BTN_H - 14
+    local totalW = RIFT_BTN_W * 2 + RIFT_BTN_GAP
+    local startX = -totalW / 2
+
+    -- "进入暗面" 按钮
+    if riftState.btnEnterT > 0.01 then
+        nvgSave(vg)
+        local bx = startX + RIFT_BTN_W / 2
+        local by = btnY + RIFT_BTN_H / 2
+        local off = (1 - riftState.btnEnterT) * 15
+        nvgTranslate(vg, bx, by + off)
+        nvgScale(vg, riftState.btnEnterT, riftState.btnEnterT)
+        local h = riftState.btnEnterHover
+        local sc = 1.0 + h * 0.05
+        nvgScale(vg, sc, sc)
+        local da = t.darkAccent
+        local br = math.floor(da.r + (255 - da.r) * h * 0.15)
+        local bg = math.floor(da.g + (255 - da.g) * h * 0.15)
+        local bb = math.floor(da.b + (255 - da.b) * h * 0.15)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, -RIFT_BTN_W / 2, -RIFT_BTN_H / 2, RIFT_BTN_W, RIFT_BTN_H, 6)
+        nvgFillColor(vg, nvgRGBA(br, bg, bb, 220))
+        nvgFill(vg)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+        nvgText(vg, 0, 0, "进入暗面", nil)
+        nvgRestore(vg)
+    end
+
+    -- "留在原地" 按钮
+    if riftState.btnStayT > 0.01 then
+        nvgSave(vg)
+        local bx = startX + RIFT_BTN_W + RIFT_BTN_GAP + RIFT_BTN_W / 2
+        local by = btnY + RIFT_BTN_H / 2
+        local off = (1 - riftState.btnStayT) * 15
+        nvgTranslate(vg, bx, by + off)
+        nvgScale(vg, riftState.btnStayT, riftState.btnStayT)
+        local h = riftState.btnStayHover
+        local sc = 1.0 + h * 0.05
+        nvgScale(vg, sc, sc)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, -RIFT_BTN_W / 2, -RIFT_BTN_H / 2, RIFT_BTN_W, RIFT_BTN_H, 6)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 60))
+        nvgFill(vg)
+        nvgStrokeColor(vg, Theme.rgbaA(t.textSecondary, 120))
+        nvgStrokeWidth(vg, 1.0)
+        nvgStroke(vg)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
+        nvgText(vg, 0, 0, "留在原地", nil)
+        nvgRestore(vg)
+    end
+
+    nvgRestore(vg)
 end
 
 return M

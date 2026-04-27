@@ -94,6 +94,321 @@ local function randomPositions(count, exclude)
 end
 
 -- ---------------------------------------------------------------------------
+-- 陷阱子类型权重 (生成时随机分配)
+-- ---------------------------------------------------------------------------
+local TRAP_SUBTYPE_WEIGHTS = {
+    { "sanity",   30 },  -- 阴气侵蚀: san -1
+    { "money",    30 },  -- 财物散失: money -10
+    { "film",     20 },  -- 灵雾曝光: film -1
+    { "teleport", 20 },  -- 空间错位: 随机传送到未翻开格子
+}
+
+--- 根据权重随机选取陷阱子类型
+function M.randomTrapSubtype()
+    local total = 0
+    for _, w in ipairs(TRAP_SUBTYPE_WEIGHTS) do total = total + w[2] end
+    local roll = math.random(1, total)
+    local acc = 0
+    for _, w in ipairs(TRAP_SUBTYPE_WEIGHTS) do
+        acc = acc + w[2]
+        if roll <= acc then return w[1] end
+    end
+    return "sanity"
+end
+
+-- ---------------------------------------------------------------------------
+-- 暗面世界地图生成
+-- ---------------------------------------------------------------------------
+
+--- 暗面世界墙壁放置 + BFS 连通性检查
+---@param wallCount number 要放置的墙壁数量
+---@return table isWall  [row][col] = bool
+local function generateDarkWalls(wallCount)
+    local isWall = {}
+    for r = 1, M.ROWS do
+        isWall[r] = {}
+        for c = 1, M.COLS do
+            isWall[r][c] = false
+        end
+    end
+
+    -- 所有位置随机排列
+    local allPos = {}
+    for r = 1, M.ROWS do
+        for c = 1, M.COLS do
+            allPos[#allPos + 1] = { r, c }
+        end
+    end
+    for i = #allPos, 2, -1 do
+        local j = math.random(1, i)
+        allPos[i], allPos[j] = allPos[j], allPos[i]
+    end
+
+    local wallsPlaced = 0
+    for _, pos in ipairs(allPos) do
+        if wallsPlaced >= wallCount then break end
+        local r, c = pos[1], pos[2]
+        -- 中心保护 (入口)
+        if r == 3 and c == 3 then goto continue end
+        -- 尝试放墙
+        isWall[r][c] = true
+        -- BFS 连通性检查: 从中心(3,3)出发
+        local visited = {}
+        local queue = { {3, 3} }
+        visited["3,3"] = true
+        local head = 1
+        while head <= #queue do
+            local cr, cc = queue[head][1], queue[head][2]
+            head = head + 1
+            local dirs = { {-1,0}, {1,0}, {0,-1}, {0,1} }
+            for _, d in ipairs(dirs) do
+                local nr, nc = cr + d[1], cc + d[2]
+                if nr >= 1 and nr <= M.ROWS and nc >= 1 and nc <= M.COLS
+                   and not isWall[nr][nc] and not visited[nr..","..nc] then
+                    visited[nr..","..nc] = true
+                    queue[#queue + 1] = { nr, nc }
+                end
+            end
+        end
+        -- 检查所有非墙格子都能到达
+        local allReachable = true
+        for r2 = 1, M.ROWS do
+            for c2 = 1, M.COLS do
+                if not isWall[r2][c2] and not visited[r2..","..c2] then
+                    allReachable = false
+                    break
+                end
+            end
+            if not allReachable then break end
+        end
+        if allReachable then
+            wallsPlaced = wallsPlaced + 1
+        else
+            isWall[r][c] = false  -- 回退
+        end
+        ::continue::
+    end
+    return isWall
+end
+
+--- 生成暗面世界卡牌 (复用 Board 5×5 网格)
+--- 暗面卡牌全部正面朝上 (全明牌), 有墙壁 (nil 格子), 持久化
+---@param board BoardData
+---@param layerData table 层级持久数据 (含 grid/walkable/collected 等)
+---@param darkLocations table 该层地点名称池 { normal={...}, shop={...}, ... }
+---@param darkConfig table 该层配置 { wallCount, layerIdx, ... }
+function M.generateDarkCards(board, layerData, darkLocations, darkConfig)
+    -- 先销毁旧的 3D 节点
+    M.destroyAllNodes(board)
+
+    board.cards = {}
+    local layerIdx = darkConfig.layerIdx or 1
+
+    -- 1. 生成墙壁
+    local wallCount = darkConfig.wallCount or 5
+    local isWall = generateDarkWalls(wallCount)
+
+    -- 2. 收集可通行位置
+    local walkablePositions = {}
+    local walkable = {}
+    for r = 1, M.ROWS do
+        walkable[r] = {}
+        for c = 1, M.COLS do
+            if isWall[r][c] then
+                walkable[r][c] = false
+            else
+                walkable[r][c] = true
+                walkablePositions[#walkablePositions + 1] = { r, c }
+            end
+        end
+    end
+    -- 洗牌
+    for i = #walkablePositions, 2, -1 do
+        local j = math.random(1, i)
+        walkablePositions[i], walkablePositions[j] = walkablePositions[j], walkablePositions[i]
+    end
+
+    layerData.walkable = walkable
+    layerData.entryRow = 3
+    layerData.entryCol = 3
+
+    -- 3. 分配暗面卡牌类型
+    local assigned = {}
+    assigned["3,3"] = "normal"  -- 入口
+
+    -- 层间通道
+    local passageCount = darkConfig.passageCount or 0
+    local passPlaced = 0
+    for _, pos in ipairs(walkablePositions) do
+        if passPlaced >= passageCount then break end
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] and not (pos[1] == 3 and pos[2] == 3) then
+            assigned[key] = "passage"
+            passPlaced = passPlaced + 1
+        end
+    end
+
+    -- 深渊核心 (仅L3)
+    if darkConfig.hasAbyssCore then
+        for _, pos in ipairs(walkablePositions) do
+            local key = pos[1]..","..pos[2]
+            if not assigned[key] and not (pos[1] == 3 and pos[2] == 3) then
+                assigned[key] = "abyss_core"
+                break
+            end
+        end
+    end
+
+    -- 商店
+    local shopCount = darkConfig.shopCount or 0
+    local shopPlaced = 0
+    for _, pos in ipairs(walkablePositions) do
+        if shopPlaced >= shopCount then break end
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] then
+            assigned[key] = "shop"
+            shopPlaced = shopPlaced + 1
+        end
+    end
+
+    -- 情报点
+    local intelCount = darkConfig.intelCount or 0
+    local intelPlaced = 0
+    for _, pos in ipairs(walkablePositions) do
+        if intelPlaced >= intelCount then break end
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] then
+            assigned[key] = "intel"
+            intelPlaced = intelPlaced + 1
+        end
+    end
+
+    -- 关卡
+    local checkCount = darkConfig.checkpointCount or 0
+    local checkPlaced = 0
+    for _, pos in ipairs(walkablePositions) do
+        if checkPlaced >= checkCount then break end
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] then
+            assigned[key] = "checkpoint"
+            checkPlaced = checkPlaced + 1
+        end
+    end
+
+    -- 线索
+    local clueCount = darkConfig.clueCount or math.random(3, 5)
+    local cluePlaced = 0
+    for _, pos in ipairs(walkablePositions) do
+        if cluePlaced >= clueCount then break end
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] then
+            assigned[key] = "clue"
+            cluePlaced = cluePlaced + 1
+        end
+    end
+
+    -- 道具
+    local itemCount = darkConfig.itemCount or math.random(1, 3)
+    local itemPlaced = 0
+    for _, pos in ipairs(walkablePositions) do
+        if itemPlaced >= itemCount then break end
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] then
+            assigned[key] = "item"
+            itemPlaced = itemPlaced + 1
+        end
+    end
+
+    -- 剩余全部设为 normal
+    for _, pos in ipairs(walkablePositions) do
+        local key = pos[1]..","..pos[2]
+        if not assigned[key] then
+            assigned[key] = "normal"
+        end
+    end
+
+    -- 4. 创建卡牌数据
+    local locs = darkLocations
+    local normalNames = {}
+    for i, v in ipairs(locs.normal) do normalNames[i] = v end
+    for i = #normalNames, 2, -1 do
+        local j = math.random(1, i)
+        normalNames[i], normalNames[j] = normalNames[j], normalNames[i]
+    end
+    local normalIdx = 0
+
+    board.homeRow = 3
+    board.homeCol = 3
+
+    for r = 1, M.ROWS do
+        board.cards[r] = {}
+        for c = 1, M.COLS do
+            if not walkable[r][c] then
+                board.cards[r][c] = nil  -- 墙壁
+            else
+                local key = r..","..c
+                local darkType = assigned[key] or "normal"
+
+                -- 选择地点名
+                local locName
+                if darkType == "normal" then
+                    normalIdx = normalIdx + 1
+                    locName = normalNames[((normalIdx - 1) % #normalNames) + 1]
+                elseif darkType == "shop" and locs.shop and #locs.shop > 0 then
+                    locName = locs.shop[math.random(#locs.shop)]
+                elseif darkType == "intel" and locs.intel and #locs.intel > 0 then
+                    locName = locs.intel[math.random(#locs.intel)]
+                elseif darkType == "clue" and locs.clue and #locs.clue > 0 then
+                    locName = locs.clue[math.random(#locs.clue)]
+                elseif darkType == "item" and locs.item and #locs.item > 0 then
+                    locName = locs.item[math.random(#locs.item)]
+                elseif darkType == "passage" then
+                    locName = (layerIdx == 1) and "崩塌阶梯" or "裂隙走廊"
+                elseif darkType == "abyss_core" then
+                    locName = "最深处"
+                elseif darkType == "checkpoint" then
+                    locName = "面具之门"
+                else
+                    normalIdx = normalIdx + 1
+                    locName = normalNames[((normalIdx - 1) % #normalNames) + 1]
+                end
+
+                local typeInfo = Theme.darkCardTypeInfo(darkType) or
+                    { icon = "🌑", label = "暗巷" }
+
+                -- 暗面卡牌: 使用 "safe" 作为基础事件类型, location 使用通用地点
+                local card = Card.new("safe", r, c, "company")
+                card.faceUp       = true        -- 全明牌
+                card.alpha        = 1
+                card.darkType     = darkType
+                card.darkName     = locName
+                card.darkIcon     = typeInfo.icon
+                card.darkLabel    = typeInfo.label
+                card.darkCollected = false
+                card.isDark       = true        -- 标记为暗面卡牌
+
+                -- 恢复已收集状态
+                if layerData.collected and layerData.collected[key] then
+                    card.darkCollected = true
+                    card.darkType  = "normal"
+                    card.darkName  = "空走廊"
+                    card.darkIcon  = "🌑"
+                    card.darkLabel = "暗巷"
+                end
+
+                -- 初始位置在牌堆 (世界坐标)
+                card.x = M.DECK_X
+                card.y = M.DECK_Z
+                board.cards[r][c] = card
+            end
+        end
+    end
+
+    print(string.format("[Board] Generated dark cards: layer=%d, walkable=%d, walls=%d",
+        layerIdx, #walkablePositions, wallCount))
+end
+
+-- ---------------------------------------------------------------------------
 -- 生成卡牌 (地点 + 事件双层系统) — 逻辑不变
 -- ---------------------------------------------------------------------------
 
@@ -120,6 +435,12 @@ function M.generateCards(board, requiredLocations)
     -- 3. 商店
     local shopPositions = randomPositions(1, usedPositions)
     for _, pos in ipairs(shopPositions) do
+        usedPositions[#usedPositions + 1] = pos
+    end
+
+    -- 3.5 裂隙 (暗面世界入口, 每张棋盘1个)
+    local riftPositions = randomPositions(1, usedPositions)
+    for _, pos in ipairs(riftPositions) do
         usedPositions[#usedPositions + 1] = pos
     end
 
@@ -206,6 +527,9 @@ function M.generateCards(board, requiredLocations)
     for _, pos in ipairs(shopPositions) do
         specialMap[pos[1] .. "," .. pos[2]] = "shop"
     end
+    for _, pos in ipairs(riftPositions) do
+        specialMap[pos[1] .. "," .. pos[2]] = "rift"
+    end
 
     local landmarkLocations = {}
     for i, loc in ipairs(Card.LANDMARK_LOCATIONS) do
@@ -234,6 +558,11 @@ function M.generateCards(board, requiredLocations)
             elseif special == "shop" then
                 cardType = "shop"
                 location = "convenience"
+            elseif special == "rift" then
+                -- 裂隙伪装成普通事件卡, 用 hasRift 标记
+                cardType = randomEvent()
+                location = locationPool[locIdx]
+                locIdx = locIdx + 1
             else
                 cardType = randomEvent()
                 location = locationPool[locIdx]
@@ -241,6 +570,14 @@ function M.generateCards(board, requiredLocations)
             end
 
             local card = Card.new(cardType, row, col, location)
+            -- 陷阱子类型 (仅 trap 类型有)
+            if cardType == "trap" then
+                card.trapSubtype = M.randomTrapSubtype()
+            end
+            -- 裂隙标记 (伪装成普通卡, 翻开后才知道有裂隙)
+            if special == "rift" then
+                card.hasRift = true
+            end
             -- 初始位置在牌堆 (世界坐标)
             card.x = M.DECK_X
             card.y = M.DECK_Z
@@ -248,8 +585,8 @@ function M.generateCards(board, requiredLocations)
         end
     end
 
-    print(string.format("[Board] Generated: home=(%d,%d), landmarks=%d, shops=%d",
-        board.homeRow, board.homeCol, landmarkCount, #shopPositions))
+    print(string.format("[Board] Generated: home=(%d,%d), landmarks=%d, shops=%d, rifts=%d",
+        board.homeRow, board.homeCol, landmarkCount, #shopPositions, #riftPositions))
 end
 
 -- ---------------------------------------------------------------------------
@@ -479,6 +816,42 @@ function M.hitTestWorld(board, worldX, worldZ)
         end
     end
     return nil, 0, 0
+end
+
+--- 隐藏棋盘所有 3D 节点 (暗面世界进入时)
+function M.hideAllNodes(board)
+    if board.boardNode then
+        board.boardNode.enabled = false
+        -- 递归禁用所有子节点的组件
+        for row = 1, M.ROWS do
+            if board.cards[row] then
+                for col = 1, M.COLS do
+                    local card = board.cards[row][col]
+                    if card and card._node3D then
+                        card._node3D:SetEnabled(false)
+                    end
+                end
+            end
+        end
+        board.boardNode:SetEnabled(false)
+    end
+end
+
+--- 显示棋盘所有 3D 节点 (暗面世界退出时恢复)
+function M.showAllNodes(board)
+    if board.boardNode then
+        board.boardNode:SetEnabled(true)
+        for row = 1, M.ROWS do
+            if board.cards[row] then
+                for col = 1, M.COLS do
+                    local card = board.cards[row][col]
+                    if card and card._node3D then
+                        card._node3D:SetEnabled(true)
+                    end
+                end
+            end
+        end
+    end
 end
 
 return M

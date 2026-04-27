@@ -25,6 +25,8 @@ local fontSans = -1
 local locationTexCache = {}   -- locKey → Texture2D (地点面)
 local eventTexCache    = {}   -- "locKey_eventType" → Texture2D (事件面)
 local backTex          = nil  -- 牌背纹理
+local darkCardTexCache = {}   -- "darkType_darkName" → Texture2D (暗面卡牌)
+local darkWallTex      = nil  -- 暗面墙壁纹理
 
 -- 待渲染队列
 local pendingQueue = {}  -- { { kind="location"|"event"|"back", key=string, card=table }, ... }
@@ -57,6 +59,8 @@ function M.destroy()
     end
     locationTexCache = {}
     eventTexCache = {}
+    darkCardTexCache = {}
+    darkWallTex = nil
     backTex = nil
     pendingQueue = {}
 end
@@ -266,6 +270,70 @@ local function renderBack(tex)
 end
 
 -- ---------------------------------------------------------------------------
+-- 绘制函数: 暗面世界卡牌 (全明牌, 暗色底 + 类型图标)
+-- ---------------------------------------------------------------------------
+
+local function renderDarkCard(tex, darkType, darkName)
+    local vg = texVg
+    local w, h = TEX_W, TEX_H
+    local t = Theme.current
+    local typeInfo = Theme.darkCardTypeInfo(darkType) or { icon = "🌑", label = "暗巷" }
+    local typeColor = Theme.darkCardTypeColor(darkType)
+
+    nvgSetRenderTarget(vg, tex)
+    nvgBeginFrame(vg, w, h, 1.0)
+
+    -- 清透明
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, h)
+    nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
+    nvgFill(vg)
+
+    -- 暗面卡体底色
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, h)
+    nvgFillColor(vg, Theme.rgba(t.darkCardFace))
+    nvgFill(vg)
+
+    -- 顶部类型色条
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, 12, 12, w - 24, 24, 12)
+    nvgFillColor(vg, Theme.rgbaA(typeColor, 180))
+    nvgFill(vg)
+
+    -- 类型图标 (居中大图标)
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 112)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+    nvgText(vg, w / 2, h / 2 - 16, typeInfo.icon, nil)
+
+    -- 地点名称 (底部)
+    nvgFontSize(vg, 36)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgbaA(typeColor, 220))
+    nvgText(vg, w / 2, h - 56, darkName or typeInfo.label, nil)
+
+    -- 暗面内边框 (淡紫光晕)
+    local inset = 14
+    nvgBeginPath(vg)
+    nvgRect(vg, inset, inset, w - inset * 2, h - inset * 2)
+    nvgStrokeColor(vg, Theme.rgbaA(t.darkGlow or t.darkAccent, 50))
+    nvgStrokeWidth(vg, 2.5)
+    nvgStroke(vg)
+
+    -- 外边框
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, h)
+    nvgStrokeColor(vg, Theme.rgbaA(t.darkCardBorder, 200))
+    nvgStrokeWidth(vg, 6)
+    nvgStroke(vg)
+
+    nvgEndFrame(vg)
+    nvgSetRenderTarget(vg, nil)
+end
+
+-- ---------------------------------------------------------------------------
 -- 公共 API: 纹理获取 (带懒渲染)
 -- ---------------------------------------------------------------------------
 
@@ -301,14 +369,34 @@ function M.getBackTexture()
     return backTex
 end
 
+--- 获取暗面卡牌纹理 (全明牌, 暗色主题)
+---@param darkType string  暗面类型 (normal/shop/clue/item/passage/intel/checkpoint/abyss_core)
+---@param darkName string|nil  地点名称 (可选, 未传则用 typeInfo.label)
+---@return userdata Texture2D
+function M.getDarkCardTexture(darkType, darkName)
+    local cacheKey = (darkType or "normal") .. "_" .. (darkName or "")
+    if darkCardTexCache[cacheKey] then
+        return darkCardTexCache[cacheKey]
+    end
+    local tex = createRenderTexture()
+    renderDarkCard(tex, darkType, darkName)
+    darkCardTexCache[cacheKey] = tex
+    return tex
+end
+
 -- ---------------------------------------------------------------------------
 -- 预加载: 为棋盘所有卡牌提前生成纹理
 -- ---------------------------------------------------------------------------
 
 --- 确保一张卡的所有纹理已就绪
 function M.ensureCard(card)
-    M.getLocationTexture(card.location)
-    M.getEventTexture(card.location, card.type)
+    if card.isDark then
+        -- 暗面卡牌: 全明牌, 只需暗面纹理
+        M.getDarkCardTexture(card.darkType or "normal", card.darkName)
+    else
+        M.getLocationTexture(card.location)
+        M.getEventTexture(card.location, card.type)
+    end
 end
 
 --- 为整个棋盘预加载纹理
@@ -327,10 +415,12 @@ function M.preloadBoard(board, ROWS, COLS)
     print("[CardTextures] Preloaded textures for board")
 end
 
---- 清空缓存 (换天时调用)
+--- 清空缓存 (换天/切暗面时调用)
 function M.clearCache()
     locationTexCache = {}
     eventTexCache = {}
+    darkCardTexCache = {}
+    darkWallTex = nil
     -- backTex / icon / glow 纹理保留，不会变
     print("[CardTextures] Cache cleared")
 end

@@ -377,7 +377,14 @@ function M.createNode(card, parentNode, CardTextures)
     else
         mat:SetTechnique(0, techDiff)
     end
-    local tex = CardTextures.getLocationTexture(card.location)
+    local tex
+    if card.isDark then
+        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
+    elseif card.faceUp then
+        tex = CardTextures.getEventTexture(card.location, card.type)
+    else
+        tex = CardTextures.getLocationTexture(card.location)
+    end
     mat:SetTexture(TU_DIFFUSE, tex)
     mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
     geom:SetMaterial(mat)
@@ -531,7 +538,10 @@ function M.updateTexture(card, CardTextures)
     if not card.material3d then return end
 
     local tex
-    if card.faceUp then
+    if card.isDark then
+        -- 暗面卡牌: 全明牌, 始终使用暗面纹理
+        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
+    elseif card.faceUp then
         tex = CardTextures.getEventTexture(card.location, card.type)
     else
         tex = CardTextures.getLocationTexture(card.location)
