@@ -178,6 +178,37 @@ M.themes = {
             plot     = { icon = "📖", label = "剧情",  colorKey = "plot" },
             clue     = { icon = "🔍", label = "线索",  colorKey = "info" },
             photo    = { icon = "📸", label = "相片",  colorKey = "safe" },
+            rift     = { icon = "🌀", label = "裂隙",  colorKey = "darkAccent" },
+        },
+
+        -- ================================================================
+        -- 暗面世界 (Dark World) 扩展
+        -- ================================================================
+
+        -- 暗面世界氛围色
+        darkBgTop     = hex("#0D0F1A"),   -- 深渊黑蓝
+        darkBgBottom  = hex("#1A1025"),   -- 暗紫底
+        darkCardFace  = hex("#1E1A2C"),   -- 暗紫卡面
+        darkCardBorder = hex("#5A4E8C"),  -- 暗紫边框
+        darkPanel     = rgb(20, 16, 35, 220), -- 暗面面板底色
+        darkAccent    = hex("#8B5CF6"),   -- 紫光强调色
+        darkGlow      = hex("#C084FC"),   -- 淡紫光晕
+        darkEnergy    = hex("#22D3EE"),   -- 青蓝能量色
+        darkEnergyLow = hex("#F43F5E"),   -- 能量不足红
+        darkPassage   = hex("#6366F1"),   -- 层间通道靛蓝
+        darkAbyss     = hex("#DC2626"),   -- 深渊核心暗红
+
+        -- 暗面世界卡牌类型映射
+        darkCardTypes = {
+            normal     = { icon = "🌑", label = "暗巷",    colorKey = "darkAccent" },
+            shop       = { icon = "🏪", label = "暗市",    colorKey = "info" },
+            intel      = { icon = "👁️", label = "情报点",  colorKey = "plot" },
+            checkpoint = { icon = "🚧", label = "关卡",    colorKey = "warning" },
+            clue       = { icon = "🔮", label = "线索",    colorKey = "darkGlow" },
+            item       = { icon = "📦", label = "道具",    colorKey = "highlight" },
+            passage    = { icon = "🕳️", label = "通道",    colorKey = "darkPassage" },
+            abyss_core = { icon = "💀", label = "深渊核心", colorKey = "darkAbyss" },
+            rift       = { icon = "🌀", label = "裂隙",    colorKey = "darkAccent" },
         },
     },
 }
@@ -214,6 +245,20 @@ function M.cardTypeColor(cardType)
         return M.current[info.colorKey] or M.current.accent
     end
     return M.current.accent
+end
+
+--- 获取暗面世界卡牌类型的视觉信息
+function M.darkCardTypeInfo(darkType)
+    return M.current.darkCardTypes[darkType]
+end
+
+--- 获取暗面世界卡牌类型对应的颜色
+function M.darkCardTypeColor(darkType)
+    local info = M.current.darkCardTypes[darkType]
+    if info then
+        return M.current[info.colorKey] or M.current.darkAccent
+    end
+    return M.current.darkAccent
 end
 
 return M

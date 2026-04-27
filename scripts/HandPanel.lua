@@ -8,6 +8,7 @@ local Tween = require "lib.Tween"
 local Theme = require "Theme"
 local CardManager = require "CardManager"
 local ShopPopup   = require "ShopPopup"
+local ItemIcons   = require "ItemIcons"
 
 local M = {}
 
@@ -56,12 +57,15 @@ local function getToolbarH()
     return TOOLBAR_H
 end
 
---- 内容区高度：超过3条日程时按条目数扩展 + 工具栏
+--- 内容区高度：超过3条日程时按条目数扩展 + 工具栏 + 结束按钮
 local function getBodyH()
     local count = #CardManager.getSchedules()
     local base = BASE_BODY_H
     if count > 3 then base = BASE_BODY_H + (count - 3) * ITEM_H end
-    return base + getToolbarH()
+    local toolbar = getToolbarH()
+    -- 有工具栏时，需要额外空间放"结束今天"按钮，否则按钮被挤到溢出区外
+    local btnSpace = (toolbar > 0) and (BTN_H + BTN_MARGIN * 2) or 0
+    return base + toolbar + btnSpace
 end
 
 --- 笔记本总高
@@ -81,6 +85,7 @@ local state = {
     hoverIndex = 0,
     hoverEndDay = false,    -- 结束今天按钮 hover
     hoverToolbar = nil,     -- 工具栏 hover 的 consumable key
+    rumorPage = 1,          -- 当前显示的传闻索引 (1-based，循环翻页)
 }
 
 -- 缓存 logicalH 用于延迟回调
@@ -319,6 +324,26 @@ function M.handleClick(lx, ly, logicalW, logicalH)
         end
     end
 
+    -- 展开状态下点击传闻便签 → 翻页
+    local rumors = CardManager.getRumors()
+    if #rumors > 1 then
+        local schedCount = #CardManager.getSchedules()
+        local schedH = BASE_BODY_H
+        if schedCount > 3 then schedH = BASE_BODY_H + (schedCount - 3) * ITEM_H end
+        local noteX = px + pw - NOTE_W - PAGE_PAD + 2
+        local noteBaseY = py + TAB_H + (schedH - NOTE_H) / 2
+        -- 点击区域比便签稍大一些，方便点击
+        local hitPad = 4
+        if lx >= noteX - hitPad and lx <= noteX + NOTE_W + hitPad
+            and ly >= noteBaseY - hitPad and ly <= noteBaseY + NOTE_H + hitPad + 10 then
+            state.rumorPage = state.rumorPage + 1
+            if state.rumorPage > #rumors then
+                state.rumorPage = 1  -- 循环回第一条
+            end
+            return true
+        end
+    end
+
     -- 展开状态下点击日程条目
     local schedules = CardManager.getSchedules()
     local contentX = px + SPINE_W + PAGE_PAD
@@ -509,10 +534,16 @@ function M.drawTabBar(vg, px, py, pw, t, gameTime)
     nvgText(vg, afterIcon + 3, tabCY,
         string.format("日程 %d/%d", completed, total), nil)
 
-    -- 右: 传闻
+    -- 右: 传闻 (多条时显示页码)
     nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
     nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
-    nvgText(vg, px + pw - 28, tabCY, string.format("传闻 %d", #rumors), nil)
+    if #rumors > 1 then
+        local page = math.max(1, math.min(state.rumorPage, #rumors))
+        nvgText(vg, px + pw - 28, tabCY,
+            string.format("传闻 %d/%d", page, #rumors), nil)
+    else
+        nvgText(vg, px + pw - 28, tabCY, string.format("传闻 %d", #rumors), nil)
+    end
     nvgFillColor(vg, Theme.rgba(t.rumor))
     nvgText(vg, px + pw - 10, tabCY, "📰", nil)
 
@@ -681,6 +712,10 @@ function M.drawRumorNote(vg, px, py, pw, t, gameTime)
     local rumors = CardManager.getRumors()
     if #rumors == 0 then return end
 
+    -- 保证 rumorPage 在有效范围内
+    if state.rumorPage > #rumors then state.rumorPage = 1 end
+    if state.rumorPage < 1 then state.rumorPage = #rumors end
+
     -- 日程区高度（不含工具栏）
     local count = #CardManager.getSchedules()
     local schedH = BASE_BODY_H
@@ -690,71 +725,106 @@ function M.drawRumorNote(vg, px, py, pw, t, gameTime)
     local noteX = px + pw - NOTE_W - PAGE_PAD + 2
     local noteBaseY = py + TAB_H + (schedH - NOTE_H) / 2
 
-    -- 多条传闻堆叠：底层先画 (微偏移)，顶层最后画
-    local maxShow = math.min(#rumors, 3)  -- 最多堆叠3张
+    -- 多条时：底层画 1-2 张偏移便签暗示还有更多，颜色取自对应传闻
+    if #rumors > 1 then
+        local maxLayer = math.min(#rumors - 1, 2)
+        for layer = maxLayer, 1, -1 do
+            -- 取当前页之后的传闻（循环取）
+            local peekIdx = ((state.rumorPage - 1 + layer) % #rumors) + 1
+            local peekRumor = rumors[peekIdx]
 
-    for idx = maxShow, 1, -1 do
-        local rumor = rumors[idx]
-        local stackOffset = (idx - 1) * 4  -- 每层偏移4px
-        local rotDeg = 2.0 + (idx - 1) * 1.5 * ((idx % 2 == 0) and -1 or 1)
+            local stackOff = layer * 4
+            -- 各层角度：用 peekIdx 做种子产生不同方向
+            local rotDeg = (1.5 + layer * 1.8) * ((peekIdx % 2 == 0) and -1 or 1)
 
-        nvgSave(vg)
-        nvgTranslate(vg, noteX + NOTE_W / 2 + stackOffset, noteBaseY + NOTE_H / 2 + stackOffset)
-        nvgRotate(vg, rotDeg * math.pi / 180)
-        nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+            nvgSave(vg)
+            nvgTranslate(vg, noteX + NOTE_W / 2 + stackOff, noteBaseY + NOTE_H / 2 + stackOff)
+            nvgRotate(vg, rotDeg * math.pi / 180)
+            nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+            nvgGlobalAlpha(vg, state.alpha * (0.4 - (layer - 1) * 0.12))
 
-        -- 底层便签半透明
-        local layerAlpha = (idx == 1) and 1.0 or (0.7 - (idx - 2) * 0.15)
-        nvgGlobalAlpha(vg, state.alpha * layerAlpha)
+            -- 底色跟随传闻安全/危险
+            local bgColor = peekRumor.isSafe
+                and nvgRGBA(218, 236, 218, 210)
+                or  nvgRGBA(240, 224, 210, 210)
+            nvgBeginPath(vg)
+            nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+            nvgFillColor(vg, bgColor)
+            nvgFill(vg)
+            nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 50))
+            nvgStrokeWidth(vg, 0.6)
+            nvgStroke(vg)
 
-        -- 阴影
-        nvgBeginPath(vg)
-        nvgRect(vg, 2, 2, NOTE_W, NOTE_H)
-        nvgFillColor(vg, nvgRGBA(80, 60, 40, 25))
-        nvgFill(vg)
-
-        -- 底色
-        local noteColor = rumor.isSafe
-            and nvgRGBA(228, 242, 228, 240)
-            or  nvgRGBA(248, 232, 218, 240)
-        nvgBeginPath(vg)
-        nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-        nvgFillColor(vg, noteColor)
-        nvgFill(vg)
-
-        -- 边框
-        nvgBeginPath(vg)
-        nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-        nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 70))
-        nvgStrokeWidth(vg, 0.8)
-        nvgStroke(vg)
-
-        -- 胶带
-        nvgBeginPath(vg)
-        nvgRect(vg, NOTE_W / 2 - 16, -3, 32, 7)
-        nvgFillColor(vg, nvgRGBA(210, 205, 190, 80))
-        nvgFill(vg)
-
-        -- 图标 + 状态
-        nvgFontFace(vg, "sans")
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-
-        nvgFontSize(vg, 15)
-        nvgFillColor(vg, Theme.rgba(t.textPrimary))
-        nvgText(vg, NOTE_W / 2, 12, rumor.icon, nil)
-
-        nvgFontSize(vg, 10)
-        local sc = rumor.isSafe and t.safe or t.danger
-        nvgFillColor(vg, Theme.rgba(sc))
-        nvgText(vg, NOTE_W / 2, 26, rumor.isSafe and "✓ 安全" or "⚠ 危险", nil)
-
-        -- 传闻文字
-        nvgFontSize(vg, 7.5)
-        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
-        nvgText(vg, NOTE_W / 2, 38, rumor.text, nil)
-
-        nvgRestore(vg)
+            nvgRestore(vg)
+        end
     end
+
+    -- 顶层：绘制当前页传闻
+    local rumor = rumors[state.rumorPage]
+    local rotDeg = 2.0
+
+    nvgSave(vg)
+    nvgTranslate(vg, noteX + NOTE_W / 2, noteBaseY + NOTE_H / 2)
+    nvgRotate(vg, rotDeg * math.pi / 180)
+    nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+    nvgGlobalAlpha(vg, state.alpha)
+
+    -- 阴影
+    nvgBeginPath(vg)
+    nvgRect(vg, 2, 2, NOTE_W, NOTE_H)
+    nvgFillColor(vg, nvgRGBA(80, 60, 40, 25))
+    nvgFill(vg)
+
+    -- 底色
+    local noteColor = rumor.isSafe
+        and nvgRGBA(228, 242, 228, 240)
+        or  nvgRGBA(248, 232, 218, 240)
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+    nvgFillColor(vg, noteColor)
+    nvgFill(vg)
+
+    -- 边框
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+    nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 70))
+    nvgStrokeWidth(vg, 0.8)
+    nvgStroke(vg)
+
+    -- 胶带
+    nvgBeginPath(vg)
+    nvgRect(vg, NOTE_W / 2 - 16, -3, 32, 7)
+    nvgFillColor(vg, nvgRGBA(210, 205, 190, 80))
+    nvgFill(vg)
+
+    -- 图标 + 状态
+    nvgFontFace(vg, "sans")
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+
+    nvgFontSize(vg, 15)
+    nvgFillColor(vg, Theme.rgba(t.textPrimary))
+    nvgText(vg, NOTE_W / 2, 12, rumor.icon, nil)
+
+    nvgFontSize(vg, 10)
+    local sc = rumor.isSafe and t.safe or t.danger
+    nvgFillColor(vg, Theme.rgba(sc))
+    nvgText(vg, NOTE_W / 2, 26, rumor.isSafe and "✓ 安全" or "⚠ 危险", nil)
+
+    -- 传闻文字
+    nvgFontSize(vg, 7.5)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
+    nvgText(vg, NOTE_W / 2, 38, rumor.text, nil)
+
+    -- 多条传闻时：底部页码指示器
+    if #rumors > 1 then
+        nvgFontSize(vg, 7)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 150))
+        nvgText(vg, NOTE_W / 2, NOTE_H + 6,
+            string.format("▶ %d/%d", state.rumorPage, #rumors), nil)
+    end
+
+    nvgRestore(vg)
 end
 
 -- ---------------------------------------------------------------------------
@@ -812,12 +882,16 @@ function M.drawToolbar(vg, px, py, pw, t, gameTime)
         nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, bgAlpha))
         nvgFill(vg)
 
-        -- 图标
-        nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 14)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgba(t.textPrimary))
-        nvgText(vg, cx, cy, entry.info.icon, nil)
+        -- 图标 — 有纹理图标时使用纹理，否则 fallback emoji
+        if entry.info.iconKey and ItemIcons.drawCircle(vg, entry.info.iconKey, cx, cy, iw / 2 - 1) then
+            -- 纹理绘制成功
+        else
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 14)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgba(t.textPrimary))
+            nvgText(vg, cx, cy, entry.info.icon, nil)
+        end
 
         -- 数量角标
         if entry.count > 1 then

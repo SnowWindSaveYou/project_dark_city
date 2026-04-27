@@ -8,6 +8,7 @@
 local Tween       = require "lib.Tween"
 local Theme       = require "Theme"
 local ResourceBar = require "ResourceBar"
+local ItemIcons   = require "ItemIcons"
 
 local M = {}
 
@@ -509,8 +510,11 @@ function M.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 胶卷计数 (按钮左侧，始终可见) ===
     local film = ResourceBar.get("film")
-    local filmStr = "🎞️" .. film
+    local filmAlpha = film <= 1 and 220 or 200
+    local filmIconSize = 14
+    local filmNumX = -(r + 6)
 
+    -- 数字
     nvgFontFace(vg, "sans")
     nvgFontSize(vg, 13)
     nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
@@ -519,7 +523,16 @@ function M.draw(vg, logicalW, logicalH, gameTime)
     else
         nvgFillColor(vg, nvgRGBA(t.textSecondary.r, t.textSecondary.g, t.textSecondary.b, 200))
     end
-    nvgText(vg, -(r + 6), 0, filmStr, nil)
+    local numTW = nvgTextBounds(vg, 0, 0, tostring(film), nil)
+    nvgText(vg, filmNumX, 0, tostring(film), nil)
+
+    -- 胶卷图标 (纹理 or emoji fallback)
+    local iconCX = filmNumX - numTW - filmIconSize / 2 - 2
+    if not ItemIcons.draw(vg, "film", iconCX, 0, filmIconSize, filmAlpha) then
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgText(vg, filmNumX - numTW - 2, 0, "🎞️", nil)
+    end
 
     nvgRestore(vg)
 end

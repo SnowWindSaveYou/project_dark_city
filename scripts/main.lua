@@ -22,6 +22,13 @@ local CardManager      = require "CardManager"
 local HandPanel        = require "HandPanel"
 local DateTransition   = require "DateTransition"
 local BoardDecor       = require "BoardDecor"
+local MonsterGhost     = require "MonsterGhost"
+local BubbleDialogue   = require "BubbleDialogue"
+local ItemIcons        = require "ItemIcons"
+local BoardItems       = require "BoardItems"
+local NPCManager       = require "NPCManager"
+local DialogueSystem   = require "DialogueSystem"
+local DarkWorld        = require "DarkWorld"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -70,12 +77,18 @@ local tableMat_ = nil        -- 桌面材质引用
 
 -- F4: 前置声明
 local handleInventoryExorcism
+local enterDarkWorld
+local exitDarkWorld
+local changeDarkLayer
 
 -- 模块实例
 ---@type BoardData
 local board = nil
 ---@type table token
 local token = nil
+
+-- 气泡对话
+local playerBubble = nil
 
 -- 交互状态
 local demoState = "idle"
@@ -103,14 +116,36 @@ local dragState_ = {
 local dayCount = 1
 local MAX_DAYS = 3
 
+-- 暗面世界保存的现实状态
+local savedRealityCards = nil
+local savedRealityFaceUp = nil  -- {[row]={[col]=bool}} undeal 会重置 faceUp, 需单独保存
+local savedHomeRow, savedHomeCol = nil, nil
+local savedBgTransition = 0
+
 -- 游戏阶段
 local gamePhase = "title"
 
 -- 统计
 local gameStats = {
     cardsRevealed = 0,
+    dayStartRevealed = 0,  -- 每天开始时的翻牌数 (用于每日氛围重置)
     monstersSlain = 0,
     photosUsed    = 0,
+}
+
+-- ---------------------------------------------------------------------------
+-- 琴馨 NPC 对话脚本 (Day 1 相机教程)
+-- ---------------------------------------------------------------------------
+local QINXIN_DIALOGUE = {
+    { speaker = "琴馨", text = "唔……你也能看到那些奇怪的东西啊……" },
+    { speaker = "琴馨", text = "……我还以为只有我一个人呢。" },
+    { speaker = "琴馨", text = "嗯，那个……你看到右下角的 📷 了吗？" },
+    { speaker = "琴馨", text = "点一下就能进入相机模式哦。" },
+    { speaker = "琴馨", text = "在相机模式里，你可以拍照侦测还没翻开的牌……" },
+    { speaker = "琴馨", text = "这样就能提前知道哪张牌下面藏着什么了。" },
+    { speaker = "琴馨", text = "而且啊……如果已经知道是怪物，还能直接驱除掉它。" },
+    { speaker = "琴馨", text = "不过每次拍照都要消耗胶卷哦，每天只有3卷……" },
+    { speaker = "琴馨", text = "省着点用吧。……我先眯一会儿了。" },
 }
 
 -- ============================================================================
@@ -251,7 +286,7 @@ local function setup3DScene()
     dirLight_ = lightNode:CreateComponent("Light")
     dirLight_.lightType = LIGHT_DIRECTIONAL
     dirLight_.color = Color(1.0, 1.0, 0.95, 1.0)
-    dirLight_.brightness = 2.2
+    dirLight_.brightness = 2.8
     dirLight_.castShadows = true
 
     -- 相机: 45度角俯瞰
@@ -275,7 +310,7 @@ local function setup3DScene()
     zone_.fogColor = Color(0.53, 0.76, 0.92, 1.0)  -- 初始: 明亮天蓝 (#87C3EB)
     zone_.fogStart = 50.0
     zone_.fogEnd = 80.0
-    zone_.ambientColor = Color(0.5, 0.5, 0.55, 1.0)
+    zone_.ambientColor = Color(0.70, 0.70, 0.75, 1.0)
 
     -- 桌面: 大平板 (Box.mdl 缩放)
     tableNode_ = scene_:CreateChild("Table")
@@ -292,6 +327,9 @@ local function setup3DScene()
 
     -- 装饰 (传入桌面 model 以替换纹理)
     BoardDecor.init(scene_, tableModel)
+    MonsterGhost.init(scene_)
+    BoardItems.init(scene_)
+    NPCManager.init(scene_)
 
     print("[Main] 3D scene initialized")
 end
@@ -303,15 +341,15 @@ end
 -- 明亮 → 暗色 的颜色定义
 local BG_BRIGHT = {
     fog     = { 0.53, 0.76, 0.92 },  -- 天蓝 #87C3EB
-    ambient = { 0.55, 0.55, 0.60 },
-    table   = { 0.32, 0.38, 0.48 },  -- 偏蓝灰桌面
-    brightness = 2.2,
+    ambient = { 0.70, 0.70, 0.75 },
+    table   = { 0.38, 0.44, 0.54 },  -- 偏蓝灰桌面
+    brightness = 2.8,
 }
 local BG_DARK = {
     fog     = { 0.15, 0.12, 0.18 },  -- 深紫暗色
-    ambient = { 0.25, 0.22, 0.28 },
-    table   = { 0.12, 0.10, 0.15 },  -- 暗紫桌面
-    brightness = 1.6,
+    ambient = { 0.35, 0.32, 0.38 },
+    table   = { 0.16, 0.14, 0.20 },  -- 暗紫桌面
+    brightness = 2.0,
 }
 
 --- 根据过渡进度 t (0=全亮, 1=全暗) 更新场景氛围
@@ -334,6 +372,9 @@ local function updateSceneAtmosphere(t)
         tableMat_:SetShaderParameter("MatDiffColor",
             Variant(lerpColor(BG_BRIGHT.table, BG_DARK.table, t)))
     end
+
+    -- 天际线日夜渐变
+    BoardDecor.updateNight(t)
 end
 
 -- ============================================================================
@@ -360,6 +401,9 @@ function Start()
     -- 字体
     fontSans = nvgCreateFont(vg, "sans", "Fonts/MiSans-Regular.ttf")
 
+    -- 道具图标纹理
+    ItemIcons.init(vg)
+
     -- 重置背景过渡
     bgTransition = 0
     bgTransitionTarget = 0
@@ -378,6 +422,7 @@ function Start()
     board = Board.new()
     local reqLocs = CardManager.preSelectLocations()
     Board.generateCards(board, reqLocs)
+    NPCManager.setBoard(board, Board)
     recalcLayout()
 
     -- 预加载纹理 + 创建 3D 节点
@@ -388,6 +433,9 @@ function Start()
     token = Token.new()
     token.textures = Token.loadTextures()
     Token.createNode(token, scene_)
+
+    -- 气泡对话
+    playerBubble = BubbleDialogue.newBubble()
 
     -- 注入回调
     Card.setRumorQuery(function(location)
@@ -440,10 +488,17 @@ function Start()
                 end
             end
         end
+        -- 已侦测的怪物卡显示 chibi
+        MonsterGhost.showOnScoutedCards(board, Board.ROWS, Board.COLS)
+        -- 已记录的踪迹箭头 (小幽灵指向最近怪物)
+        MonsterGhost.showTrailsOnBoard(board, Board.ROWS, Board.COLS)
     end)
 
     CameraButton.setOnExitCallback(function()
         if not board or not board.cards then return end
+        -- 清除相机模式下的怪物 chibi 和踪迹箭头
+        MonsterGhost.clearCardGhosts()
+        MonsterGhost.clearTrailGhosts()
         for r = 1, Board.ROWS do
             for c = 1, Board.COLS do
                 local cd = board.cards[r] and board.cards[r][c]
@@ -456,6 +511,18 @@ function Start()
 
     -- 日期转场
     DateTransition.init(vg)
+
+    -- 对话系统
+    DialogueSystem.init(vg)
+
+    -- 暗面世界
+    DarkWorld.init(vg)
+    DarkWorld.setExitCallback(function()
+        exitDarkWorld()
+    end)
+    DarkWorld.changeLayerCallback = function(targetLayer, dc)
+        changeDarkLayer(targetLayer, dc)
+    end
 
     -- 事件
     SubscribeToEvent(vg, "NanoVGRender", "HandleNanoVGRender")
@@ -480,7 +547,10 @@ function Start()
 end
 
 function Stop()
+    DarkWorld.reset()
     Token.destroyNode(token)
+    NPCManager.destroy()
+    DialogueSystem.reset()
     CardTextures.destroy()
     if vg then
         nvgDelete(vg)
@@ -494,6 +564,7 @@ end
 
 function startDeal()
     demoState = "dealing"
+    gameStats.dayStartRevealed = gameStats.cardsRevealed  -- 每日氛围重置
     VFX.spawnBanner("第 " .. dayCount .. " 天", 255, 255, 255, 28, 1.2)
 
     Board.dealAll(board, function()
@@ -503,8 +574,28 @@ function startDeal()
         -- Token 出现在"家" (世界坐标)
         local homeRow = board.homeRow
         local homeCol = board.homeCol
+
+        -- Day 1: 放置琴馨 NPC (随机选一个非 home 格子)
+        if dayCount == 1 then
+            local candidates = {}
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    if not (r == homeRow and c == homeCol) then
+                        candidates[#candidates + 1] = { r = r, c = c }
+                    end
+                end
+            end
+            if #candidates > 0 then
+                local pick = candidates[math.random(#candidates)]
+                NPCManager.spawnNPC("qinxin", "琴馨", pick.r, pick.c,
+                    "image/怪物_面具使v2_20260426072832.png", QINXIN_DIALOGUE)
+            end
+        end
+
+        -- Token 位置 (考虑同格偏移)
         local wx, wz = Board.cardPos(board, homeRow, homeCol)
-        Token.show(token, wx, wz)
+        local shareOff = NPCManager.getShareOffset(homeRow, homeCol)
+        Token.show(token, wx + shareOff, wz)
         token.targetRow = homeRow
         token.targetCol = homeCol
 
@@ -515,18 +606,41 @@ function startDeal()
             Card.updateTexture(homeCard, CardTextures)
         end
 
+        -- 安全区光晕: 发牌完成后立刻显示 (明牌提示玩家)
+        -- 1) home=白色, landmark=金色
+        -- 2) 地标辐射区域(上下左右)=白色
+        local safeGlowTex = CardTextures.getSafeGlowTexture and CardTextures.getSafeGlowTexture()
+        for r = 1, Board.ROWS do
+            for c = 1, Board.COLS do
+                local cd = board.cards[r] and board.cards[r][c]
+                if cd then
+                    if cd.type == "home" or cd.type == "landmark" then
+                        Card.showSafeGlow(cd)
+                    elseif safeGlowTex and Board.isInLandmarkAura(board, r, c) then
+                        Card.attachGlowRings(cd, safeGlowTex)
+                        Card.showSafeGlow(cd)
+                    end
+                end
+            end
+        end
+
         CardManager.generateDaily(board)
         HandPanel.show(logicalH, { showcase = true })
         CameraButton.show()
+
+        -- 在地图上放置可拾取道具 (1~3 个)
+        BoardItems.spawnDaily(board, Board, homeRow, homeCol)
     end)
 end
 
 function startRedeal()
     if gamePhase ~= "playing" then return end
     if demoState == "dealing" then return end
-    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
+    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then return end
     demoState = "dealing"
     hoveredCard = nil
+    EventPopup.clearToasts()
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     Tween.cancelTag("cardflip")
     Tween.cancelTag("carddeal")
     Tween.cancelTag("cardshake")
@@ -534,6 +648,8 @@ function startRedeal()
     Tween.cancelTag("tokenmove")
     Tween.cancelTag("token")
     Tween.cancelTag("popup")
+    Tween.cancelTag("toast")
+    Tween.cancelTag("bubble")
     Tween.cancelTag("camerabtn")
     Tween.cancelTag("cameramode")
     Tween.cancelTag("camerabtn_shake")
@@ -546,6 +662,9 @@ function startRedeal()
     token.alpha = 0
     HandPanel.hide()
     CameraButton.hide()
+    BoardItems.clear()
+    NPCManager.clear()
+    DialogueSystem.reset()
 
     Board.undealAll(board, function()
         Board.destroyAllNodes(board)
@@ -560,14 +679,29 @@ function startRedeal()
 end
 
 local checkVictory
+local checkDefeat
 
 function advanceDay()
     if gamePhase ~= "playing" then return end
     if demoState ~= "ready" then return end
-    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() then return end
+    if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then return end
 
     HandPanel.hide()
-    CardManager.settleDay()
+    local effects = CardManager.settleDay()
+
+    -- 展示日程未完成的惩罚反馈
+    local penaltyCount = 0
+    local totalPenalty = 0
+    for _, eff in ipairs(effects) do
+        if eff[2] < 0 then
+            penaltyCount = penaltyCount + 1
+            totalPenalty = totalPenalty + math.abs(eff[2])
+        end
+    end
+    if penaltyCount > 0 then
+        VFX.spawnBanner("⚠ " .. penaltyCount .. "项日程未完成! 秩序-" .. totalPenalty, 220, 80, 80, 18, 1.2)
+        VFX.flashScreen(180, 30, 30, 0.25, 100)
+    end
 
     ResourceBar.change("san", 1)
     ResourceBar.change("order", 1)
@@ -578,15 +712,26 @@ function advanceDay()
     end
     ResourceBar.change("money", 10)
 
+    -- 日程惩罚可能导致败局 (扣秩序后即使加每日+1仍可能<=0)
+    if ResourceBar.get("order") <= 0 or ResourceBar.get("san") <= 0 then
+        checkDefeat()
+        return
+    end
+
     demoState = "dealing"
     hoveredCard = nil
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     Tween.cancelTag("cardflip")
     Tween.cancelTag("cardshake")
+    Tween.cancelTag("bubble")
 
     token.visible = false
     token.alpha = 0
     HandPanel.hide()
     CameraButton.hide()
+    BoardItems.clear()
+    NPCManager.clear()
+    DialogueSystem.reset()
 
     Board.undealAll(board, function()
         dayCount = dayCount + 1
@@ -610,7 +755,7 @@ end
 -- 胜负判定
 -- ============================================================================
 
-local function checkDefeat()
+checkDefeat = function()
     if gamePhase ~= "playing" then return end
     local san   = ResourceBar.get("san")
     local order = ResourceBar.get("order")
@@ -657,11 +802,13 @@ end
 function onGameRestart()
     Tween.cancelAll()
     VFX.resetAll()
+    EventPopup.clearToasts()
     hoveredCard = nil
 
     dayCount = 1
     gamePhase = "playing"
     gameStats.cardsRevealed = 0
+    gameStats.dayStartRevealed = 0
     gameStats.monstersSlain = 0
     gameStats.photosUsed    = 0
 
@@ -676,6 +823,17 @@ function onGameRestart()
     CardManager.reset()
     HandPanel.reset()
     ShopPopup.resetInventory()
+    BoardItems.clear()
+    NPCManager.clear()
+    DialogueSystem.reset()
+    DarkWorld.reset()
+    pendingRiftRow = nil
+    pendingRiftCol = nil
+    savedRealityCards = nil
+    savedRealityFaceUp = nil
+    savedHomeRow = nil
+    savedHomeCol = nil
+    savedBgTransition = 0
 
     Board.destroyAllNodes(board)
     CardTextures.clearCache()
@@ -691,7 +849,57 @@ function onGameRestart()
     token.textures = Token.loadTextures()
     Token.createNode(token, scene_)
 
+    -- 重置气泡对话
+    playerBubble = BubbleDialogue.newBubble()
+
     startDeal()
+end
+
+-- ============================================================================
+-- 裂隙确认 (翻牌后事件完成再触发)
+-- ============================================================================
+local pendingRiftRow, pendingRiftCol = nil, nil
+
+--- 在 Update 中轮询: 事件全部结束 + 有裂隙待确认 → 弹窗
+local function checkPendingRift()
+    if not pendingRiftRow then return false end
+    if EventPopup.isActive() or ShopPopup.isActive() or EventPopup.isRiftConfirmActive() then
+        return false
+    end
+    local row, col = pendingRiftRow, pendingRiftCol
+    pendingRiftRow, pendingRiftCol = nil, nil
+
+    -- 暗面世界未解锁时, 只提示不弹窗
+    if not DarkWorld.canEnter(dayCount) then
+        local tc2 = Theme.current
+        VFX.spawnBanner("🌀 裂隙出现... 暗面世界第2天解锁",
+            tc2.darkAccent.r, tc2.darkAccent.g, tc2.darkAccent.b, 16, 0.8)
+        return false
+    end
+
+    demoState = "popup"
+    CameraButton.hide()
+    local tc2 = Theme.current
+    VFX.spawnBanner("🌀 发现裂隙！", tc2.darkAccent.r, tc2.darkAccent.g, tc2.darkAccent.b, 18, 0.8)
+
+    local riftDelay = { t = 0 }
+    Tween.to(riftDelay, { t = 1 }, 0.5, {
+        tag = "riftconfirm",
+        onComplete = function()
+            local popCX = logicalW / 2
+            local popCY = logicalH * 0.42
+            EventPopup.showRiftConfirm(popCX, popCY,
+                function()
+                    enterDarkWorld(row, col)
+                end,
+                function()
+                    demoState = "ready"
+                    CameraButton.show()
+                end
+            )
+        end,
+    })
+    return true
 end
 
 -- ============================================================================
@@ -768,6 +976,11 @@ local function onCardFlipped(card, screenX, screenY)
     }
     Token.setEmotion(token, emotionMap[card.type] or "default")
 
+    -- 更新气泡对话上下文
+    if playerBubble then
+        BubbleDialogue.setContext(playerBubble, card.location, card.type)
+    end
+
     if card.type == "home" or card.type == "landmark" then
         local locInfo = Card.LOCATION_INFO[card.location]
         local safeName = locInfo and locInfo.label or "安全区"
@@ -779,29 +992,178 @@ local function onCardFlipped(card, screenX, screenY)
         return
     end
 
+    -- 标记裂隙 (事件完成后弹确认, 由 Update 中 checkPendingRift 驱动)
+    if card.hasRift then
+        pendingRiftRow = card.row
+        pendingRiftCol = card.col
+    end
+
     VFX.triggerShake(3, 0.15)
 
-    demoState = "popup"
-    hoveredCard = nil
+    -- -----------------------------------------------------------------------
+    -- 阻塞 vs 非阻塞 分流
+    -- -----------------------------------------------------------------------
+    local isBlocking = EventPopup.isBlockingEvent(card.type)
 
-    local popupDelay = { t = 0 }
-    Tween.to(popupDelay, { t = 1 }, 0.4, {
-        tag = "popup_delay",
-        onComplete = function()
-            local popCX = logicalW / 2
-            local popCY = logicalH * 0.42
-            if card.type == "shop" then
-                ShopPopup.show(popCX, popCY, function()
-                    gameStats.cardsRevealed = gameStats.cardsRevealed + 1
-                    Token.setEmotion(token, "happy")
-                    demoState = "ready"
-                    checkDefeat()
-                end)
-            else
-                EventPopup.show(card.type, popCX, popCY, onPopupDismissed, card.location)
+    if isBlocking then
+        -- === 阻塞路径: 商店 / 未来剧情选择 → 模态弹窗 ===
+        demoState = "popup"
+        hoveredCard = nil
+
+        local popupDelay = { t = 0 }
+        Tween.to(popupDelay, { t = 1 }, 0.4, {
+            tag = "popup_delay",
+            onComplete = function()
+                local popCX = logicalW / 2
+                local popCY = logicalH * 0.42
+                if card.type == "shop" then
+                    ShopPopup.show(popCX, popCY, function()
+                        gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+                        Token.setEmotion(token, "happy")
+                        demoState = "ready"
+                        checkDefeat()
+                    end)
+                else
+                    EventPopup.show(card.type, popCX, popCY, onPopupDismissed, card.location)
+                end
+            end
+        })
+    else
+        -- === 非阻塞路径: 怪物/陷阱/安全/线索/剧情/照片/悬赏 → Toast ===
+
+        -- 陷阱子类型: 使用专属效果表
+        local effects
+        if card.type == "trap" and card.trapSubtype then
+            effects = EventPopup.trapSubtypeEffects[card.trapSubtype] or {}
+        else
+            effects = EventPopup.cardEffects[card.type] or {}
+        end
+
+        local shieldUsed = false
+
+        -- 护盾检查 (仅怪物/陷阱有伤害效果; teleport 无伤害但仍可被护盾取消传送)
+        if (card.type == "monster" or card.type == "trap") then
+            local hasDamage = #effects > 0
+            local isTeleport = (card.type == "trap" and card.trapSubtype == "teleport")
+            if (hasDamage or isTeleport) and ShopPopup.useItem("shield") then
+                shieldUsed = true
+                Token.setEmotion(token, "relieved")
+                local safC = Theme.current.safe
+                VFX.spawnBanner("🧿 护身符抵消了伤害!", safC.r, safC.g, safC.b, 18, 1.0)
+                VFX.flashScreen(100, 180, 255, 0.3, 120)
+                effects = {}
             end
         end
-    })
+
+        -- 立即应用资源变化
+        for _, eff in ipairs(effects) do
+            ResourceBar.change(eff[1], eff[2])
+        end
+
+        -- 统计
+        gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+        if card.type == "monster" then
+            gameStats.monstersSlain = gameStats.monstersSlain + 1
+            -- 怪物 Chibi 弹出环绕玩家
+            MonsterGhost.spawnAroundPlayer(token.worldX, token.worldZ, card.location)
+        end
+
+        -- 传闻
+        local gotRumor = false
+        if card.type == "clue" then
+            local added = CardManager.addRumor(board)
+            if added then
+                gotRumor = true
+                local tc2 = Theme.current
+                VFX.spawnBanner("📰 获得了新传闻!", tc2.rumor.r, tc2.rumor.g, tc2.rumor.b, 18, 0.8)
+            end
+        end
+
+        -- 表情: 保持 emotionMap 初始表情 (scared/nervous/surprised 等)
+        -- 仅在特殊情况下覆盖
+        if gotRumor then
+            Token.setEmotion(token, "happy")
+        end
+        -- 护盾路径已在上方设置 "relieved", 无需再覆盖
+
+        -- 发送 toast (传递 trapSubtype)
+        EventPopup.toast(card.type, effects, shieldUsed, card.location, card.trapSubtype)
+
+        -- 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready
+        if card.type == "monster" then
+            local pauseDummy = { t = 0 }
+            Tween.to(pauseDummy, { t = 1 }, 0.6, {
+                tag = "monster_pause",
+                onComplete = function()
+                    demoState = "ready"
+                    CameraButton.show()
+                    checkDefeat()
+                end,
+            })
+        elseif card.type == "trap" and card.trapSubtype == "teleport" and not shieldUsed then
+            -- === 空间错位: 传送到随机未翻开格子 ===
+            demoState = "teleporting"
+
+            -- 收集所有未翻开的格子 (排除当前格)
+            local candidates = {}
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    if not (r == card.row and c == card.col) then
+                        local cd = board.cards[r] and board.cards[r][c]
+                        if cd and not cd.faceUp and not cd.isFlipping then
+                            candidates[#candidates + 1] = { r = r, c = c, card = cd }
+                        end
+                    end
+                end
+            end
+
+            if #candidates == 0 then
+                -- 没有未翻开的格子, 原地不动
+                demoState = "ready"
+                CameraButton.show()
+                checkDefeat()
+            else
+                local pick = candidates[math.random(1, #candidates)]
+
+                -- 紫色闪光 + 屏幕抖动
+                local teleDelay = { t = 0 }
+                Tween.to(teleDelay, { t = 1 }, 0.5, {
+                    tag = "teleport_delay",
+                    onComplete = function()
+                        VFX.flashScreen(140, 80, 200, 0.35, 160)
+                        VFX.triggerShake(5, 0.3)
+
+                        -- 移动 Token 到目标格
+                        local destWx, destWz = Board.cardPos(board, pick.r, pick.c)
+                        local shareOff = NPCManager.getShareOffset(pick.r, pick.c)
+                        token.targetRow = pick.r
+                        token.targetCol = pick.c
+                        Token.setEmotion(token, "scared")
+
+                        Token.moveTo(token, destWx + shareOff, destWz, function()
+                            -- 自动翻开目标格
+                            local destCard = pick.card
+                            if not destCard.faceUp and not destCard.isFlipping then
+                                local dsx, dsy = worldToScreen(Vector3(destWx, 0, destWz))
+                                demoState = "flipping"
+                                Card.flip(destCard, function(c)
+                                    onCardFlipped(c, dsx, dsy)
+                                end, CardTextures)
+                            else
+                                demoState = "ready"
+                                CameraButton.show()
+                                checkDefeat()
+                            end
+                        end)
+                    end,
+                })
+            end
+        else
+            demoState = "ready"
+            CameraButton.show()
+            checkDefeat()
+        end
+    end
 end
 
 local function onPhotographFlipped(card, screenX, screenY)
@@ -809,6 +1171,68 @@ local function onPhotographFlipped(card, screenX, screenY)
     VFX.spawnBurst(screenX, screenY, 8, tc.r, tc.g, tc.b)
     VFX.triggerShake(2, 0.1)
 
+    gameStats.cardsRevealed = gameStats.cardsRevealed + 1
+
+    -- -----------------------------------------------------------------------
+    -- 侦察=清除: 怪物/陷阱 → 显示动效后自动驱除, 变为安全格
+    -- -----------------------------------------------------------------------
+    if card.type == "monster" or card.type == "trap" then
+        local isDanger = card.type  -- "monster" or "trap"
+
+        -- 怪物: 在卡牌上显示 chibi (明显的"出现了鬼"动效)
+        if isDanger == "monster" then
+            MonsterGhost.showOnCard(card, card.location)
+            gameStats.monstersSlain = gameStats.monstersSlain + 1
+        end
+
+        -- 设置情绪: 先是紧张/害怕 (看到鬼)
+        Token.setEmotion(token, isDanger == "monster" and "scared" or "nervous")
+        demoState = "exorcising"
+        hoveredCard = nil
+
+        -- 第一阶段: 停顿让玩家看清 (0.8 秒)
+        local revealPause = { t = 0 }
+        Tween.to(revealPause, { t = 1 }, 0.8, {
+            tag = "photograph_exorcise",
+            onComplete = function()
+                -- 第二阶段: 驱除动效
+                local pc = Theme.color("plot")
+                VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
+                VFX.triggerShake(4, 0.2)
+                Token.setEmotion(token, "angry")
+                Token.hop(token, 0.06)
+
+                -- 清除卡牌上的怪物 chibi (淡出)
+                MonsterGhost.clearCardGhosts()
+
+                -- 变形: 当前类型 → photo (安全格)
+                Card.transformTo(card, "photo", function(c)
+                    VFX.spawnBurst(screenX, screenY, 16, pc.r, pc.g, pc.b)
+                    if isDanger == "monster" then
+                        VFX.spawnBanner("👻 发现怪物! 已驱除!", pc.r, pc.g, pc.b, 20, 1.0)
+                    else
+                        local trapLabel = "陷阱"
+                        if card.trapSubtype and EventPopup.trapSubtypeInfo[card.trapSubtype] then
+                            trapLabel = EventPopup.trapSubtypeInfo[card.trapSubtype].label
+                        end
+                        VFX.spawnBanner("⚡ 发现" .. trapLabel .. "! 已清除!", pc.r, pc.g, pc.b, 20, 1.0)
+                    end
+                    Token.setEmotion(token, "happy")
+                    demoState = "ready"
+                    CameraButton.show()
+                end, CardTextures)
+            end
+        })
+        return
+    end
+
+    -- -----------------------------------------------------------------------
+    -- 非危险格 (安全/线索/奖励/剧情等): 显示踪迹箭头 + 侦察预览
+    -- -----------------------------------------------------------------------
+
+    -- 计算踪迹: 指向最近的怪物
+    local hasTrail = MonsterGhost.calculateTrail(card, board, Board.ROWS, Board.COLS)
+
     demoState = "popup"
     hoveredCard = nil
 
@@ -816,13 +1240,19 @@ local function onPhotographFlipped(card, screenX, screenY)
     Tween.to(popupDelay, { t = 1 }, 0.4, {
         tag = "popup_delay",
         onComplete = function()
+            -- 显示踪迹箭头 (小幽灵 chibi 指向怪物方向)
+            if hasTrail then
+                MonsterGhost.showTrailOnCard(card, card.trailDirX, card.trailDirZ)
+            end
+
             local popCX = logicalW / 2
             local popCY = logicalH * 0.42
             EventPopup.showPhoto(card.type, popCX, popCY, function(_cardType, _effects)
-                gameStats.cardsRevealed = gameStats.cardsRevealed + 1
-
                 card.scouted = true
                 Card.flipBack(card, nil, CardTextures)
+
+                -- 踪迹箭头在退出相机模式时统一清除 (只在相机模式可见)
+                MonsterGhost.clearTrailGhosts()
 
                 Token.setEmotion(token, "happy")
                 demoState = "ready"
@@ -941,6 +1371,300 @@ handleInventoryExorcism = function()
 end
 
 -- ============================================================================
+-- 暗面世界进出
+-- ============================================================================
+
+--- 进入暗面世界 (从裂隙卡触发, 复用 Board 收发牌流程)
+enterDarkWorld = function(riftRow, riftCol)
+    if DarkWorld.isActive() then return end
+    if not DarkWorld.canEnter(dayCount) then
+        VFX.spawnBanner("暗面世界尚未开启 (第2天解锁)", 180, 80, 80, 16, 0.8)
+        demoState = "ready"
+        CameraButton.show()
+        return
+    end
+
+    demoState = "transition"
+    CameraButton.hide()
+    HandPanel.hide()
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+
+    -- 1. 保存现实世界状态 (undeal 会重置 faceUp, 需单独快照)
+    savedRealityCards = board.cards
+    savedRealityFaceUp = {}
+    for r = 1, Board.ROWS do
+        savedRealityFaceUp[r] = {}
+        for c = 1, Board.COLS do
+            local cd = board.cards[r] and board.cards[r][c]
+            if cd then savedRealityFaceUp[r][c] = cd.faceUp end
+        end
+    end
+    savedHomeRow = board.homeRow
+    savedHomeCol = board.homeCol
+    savedBgTransition = bgTransitionTarget
+
+    -- 2. 清理现实世界的覆盖物
+    MonsterGhost.clearSurround()
+    MonsterGhost.clearCardGhosts()
+    MonsterGhost.clearTrailGhosts()
+    BoardItems.clear()
+    NPCManager.clear()
+
+    -- 3. 隐藏 Token
+    token.visible = false
+    token.alpha = 0
+
+    -- 4. 收牌 → 销毁 → 重建暗面卡牌
+    Tween.cancelTag("cardflip")
+    Tween.cancelTag("cardshake")
+    Board.undealAll(board, function()
+        Board.destroyAllNodes(board)
+        CardTextures.clearCache()
+
+        -- 5. 设置暗面状态 & 大气
+        DarkWorld.enter(dayCount, riftRow, riftCol, scene_, camera_, CardTextures, physW, physH,
+            function() exitDarkWorld() end
+        )
+        bgTransitionTarget = 1.0  -- 暗面世界全暗大气
+
+        -- 5.5 立即切换 ResourceBar 到暗面模式 (收牌后、发牌前, 让 HUD 先变)
+        local layerIdx = DarkWorld.getCurrentLayer()
+        ResourceBar.setDarkMode(true, {
+            layerName = DarkWorld.getLayerName(),
+            energy = DarkWorld.getEnergy(),
+            maxEnergy = 10,
+            layerIdx = layerIdx,
+            layerCount = 3,
+        })
+
+        -- 6. 生成或恢复暗面卡牌
+        local layerData = DarkWorld.getLayerData()
+
+        if layerData.generated and layerData.savedCards then
+            -- 已生成过: 恢复保存的卡牌
+            board.cards = layerData.savedCards
+            board.homeRow = layerData.entryRow
+            board.homeCol = layerData.entryCol
+        else
+            -- 首次进入: 生成新卡牌
+            local darkConfig = DarkWorld.getDarkConfig(layerIdx)
+            local darkLocations = DarkWorld.getDarkLocations(layerIdx)
+            Board.generateDarkCards(board, layerData, darkLocations, darkConfig)
+            DarkWorld.generateOverlayData(layerIdx)
+        end
+
+        -- 7. 预加载纹理 → 创建节点 → 发牌
+        CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
+        Board.createAllNodes(board, scene_, CardTextures)
+        DarkWorld.createOverlayNodes(board.boardNode)
+        recalcLayout()
+
+        -- 8. 发牌动画完成后显示 Token
+        Board.dealAll(board, function()
+            local pRow = layerData.playerRow or layerData.entryRow
+            local pCol = layerData.playerCol or layerData.entryCol
+            local wx, wz = Board.cardPos(board, pRow, pCol)
+            Token.show(token, wx, wz)
+            token.targetRow = pRow
+            token.targetCol = pCol
+            Token.setEmotion(token, "normal")
+
+            -- 暗面卡牌全明牌: 翻开所有可通行卡
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    local cd = board.cards[r] and board.cards[r][c]
+                    if cd and not cd.faceUp and cd.isDark then
+                        cd.faceUp = true
+                        Card.updateTexture(cd, CardTextures)
+                    end
+                end
+            end
+
+            demoState = "ready"
+            CameraButton.show()
+            DarkWorld.onEnterComplete()
+            print("[Main] Dark world entered, layer=" .. layerIdx)
+        end)
+    end)
+end
+
+--- 退出暗面世界 (恢复现实世界棋盘)
+exitDarkWorld = function()
+    if not DarkWorld.isActive() then return end
+
+    demoState = "transition"
+    CameraButton.hide()
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+
+    -- 1. 保存暗面卡牌状态
+    local layerData = DarkWorld.getLayerData()
+    layerData.savedCards = board.cards
+    -- playerRow/playerCol 由 DarkWorld.handleClick 在移动时维护
+
+    -- 2. 获取裂隙位置 (返回现实世界后 Token 站的位置)
+    local riftRow, riftCol, _ = DarkWorld.beginExit()
+
+    -- 3. 隐藏 Token
+    token.visible = false
+    token.alpha = 0
+
+    -- 4. 收牌 → 销毁 → 恢复现实
+    Tween.cancelTag("cardflip")
+    Tween.cancelTag("cardshake")
+    Board.undealAll(board, function()
+        DarkWorld.destroyOverlayNodes()
+        Board.destroyAllNodes(board)
+        CardTextures.clearCache()
+        DarkWorld.onExitComplete()
+
+        -- 立即恢复 ResourceBar 到现实模式 (收牌后、发牌前)
+        ResourceBar.setDarkMode(false)
+
+        -- 5. 恢复大气
+        bgTransitionTarget = savedBgTransition
+
+        -- 6. 恢复现实世界卡牌 & faceUp 状态
+        board.cards = savedRealityCards
+        board.homeRow = savedHomeRow
+        board.homeCol = savedHomeCol
+        if savedRealityFaceUp then
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    local cd = board.cards[r] and board.cards[r][c]
+                    if cd and savedRealityFaceUp[r] then
+                        cd.faceUp = savedRealityFaceUp[r][c] or false
+                    end
+                end
+            end
+        end
+        savedRealityCards = nil
+        savedRealityFaceUp = nil
+
+        -- 7. 预加载 → 创建节点 → 发牌
+        CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
+        Board.createAllNodes(board, scene_, CardTextures)
+        recalcLayout()
+
+        Board.dealAll(board, function()
+            -- 安全区光晕: 恢复 (home/landmark 自带, 辐射区需额外 attach)
+            local safeGlowTex = CardTextures.getSafeGlowTexture and CardTextures.getSafeGlowTexture()
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    local cd = board.cards[r] and board.cards[r][c]
+                    if cd then
+                        if cd.type == "home" or cd.type == "landmark" then
+                            Card.showSafeGlow(cd)
+                        elseif safeGlowTex and Board.isInLandmarkAura(board, r, c) then
+                            Card.attachGlowRings(cd, safeGlowTex)
+                            Card.showSafeGlow(cd)
+                        end
+                    end
+                end
+            end
+
+            -- Token 回到裂隙卡位置
+            local wx, wz = Board.cardPos(board, riftRow, riftCol)
+            Token.show(token, wx, wz)
+            token.targetRow = riftRow
+            token.targetCol = riftCol
+            Token.setEmotion(token, "normal")
+
+            demoState = "ready"
+            CameraButton.show()
+            HandPanel.show(logicalH, { showcase = false })
+            print("[Main] Returned to reality from dark world")
+        end)
+    end)
+end
+
+--- 暗面世界层间切换 (由 DarkWorld 通道卡触发)
+changeDarkLayer = function(targetLayer, dc)
+    if not DarkWorld.isActive() then return end
+
+    demoState = "transition"
+
+    -- 1. 保存当前层卡牌
+    local oldLayerData = DarkWorld.getLayerData()
+    oldLayerData.savedCards = board.cards
+
+    -- 2. 切换层级 (DarkWorld 内部更新 currentLayer_)
+    local success, layerName = DarkWorld.beginChangeLayer(targetLayer, dc)
+    if not success then
+        demoState = "ready"
+        return
+    end
+
+    -- 3. 隐藏 Token
+    token.visible = false
+    token.alpha = 0
+
+    VFX.spawnBanner("前往 " .. (layerName or "未知区域"), 200, 180, 255, 20, 1.0)
+
+    -- 4. 收牌 → 销毁 → 生成新层
+    Tween.cancelTag("cardflip")
+    Tween.cancelTag("cardshake")
+    Board.undealAll(board, function()
+        DarkWorld.destroyOverlayNodes()
+        Board.destroyAllNodes(board)
+        CardTextures.clearCache()
+
+        -- 立即更新 ResourceBar 暗面信息 (新层, 收牌后发牌前)
+        local newLayerIdx = DarkWorld.getCurrentLayer()
+        ResourceBar.setDarkMode(true, {
+            layerName = DarkWorld.getLayerName(),
+            energy = DarkWorld.getEnergy(),
+            maxEnergy = 10,
+            layerIdx = newLayerIdx,
+            layerCount = 3,
+        })
+
+        -- 5. 生成或恢复目标层卡牌
+        local newLayerData = DarkWorld.getLayerData()
+
+        if newLayerData.generated and newLayerData.savedCards then
+            board.cards = newLayerData.savedCards
+            board.homeRow = newLayerData.entryRow
+            board.homeCol = newLayerData.entryCol
+        else
+            local darkConfig = DarkWorld.getDarkConfig(newLayerIdx)
+            local darkLocations = DarkWorld.getDarkLocations(newLayerIdx)
+            Board.generateDarkCards(board, newLayerData, darkLocations, darkConfig)
+            DarkWorld.generateOverlayData(newLayerIdx)
+        end
+
+        -- 6. 预加载 → 创建 → 发牌
+        CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
+        Board.createAllNodes(board, scene_, CardTextures)
+        DarkWorld.createOverlayNodes(board.boardNode)
+        recalcLayout()
+
+        Board.dealAll(board, function()
+            local pRow = newLayerData.playerRow or newLayerData.entryRow
+            local pCol = newLayerData.playerCol or newLayerData.entryCol
+            local wx, wz = Board.cardPos(board, pRow, pCol)
+            Token.show(token, wx, wz)
+            token.targetRow = pRow
+            token.targetCol = pCol
+
+            -- 全明牌
+            for r = 1, Board.ROWS do
+                for c = 1, Board.COLS do
+                    local cd = board.cards[r] and board.cards[r][c]
+                    if cd and not cd.faceUp and cd.isDark then
+                        cd.faceUp = true
+                        Card.updateTexture(cd, CardTextures)
+                    end
+                end
+            end
+
+            demoState = "ready"
+            DarkWorld.onChangeLayerComplete()
+            print("[Main] Dark layer changed to " .. newLayerIdx)
+        end)
+    end)
+end
+
+-- ============================================================================
 -- 交互处理 (3D 射线检测)
 -- ============================================================================
 
@@ -962,8 +1686,30 @@ local function handleNormalModeClick(card, row, col)
             Card.flip(card, function(c)
                 onCardFlipped(c, sx, sy)
             end, CardTextures)
+        elseif card.faceUp and card.hasRift then
+            -- 已翻开的裂隙卡: 弹确认窗
+            demoState = "popup"
+            CameraButton.hide()
+            local popCX = logicalW / 2
+            local popCY = logicalH * 0.42
+            EventPopup.showRiftConfirm(popCX, popCY,
+                function() enterDarkWorld(row, col) end,
+                function() demoState = "ready"; CameraButton.show() end
+            )
         else
-            Card.shake(card)
+            -- 点击已翻开的当前格 → 检查是否有 NPC 可交互
+            local npc = NPCManager.getNPCAt(row, col)
+            if npc and npc.dialogueScript and not DialogueSystem.isActive() then
+                demoState = "dialogue"
+                CameraButton.hide()
+                if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+                DialogueSystem.start(npc.dialogueScript, npc.texPath, function()
+                    demoState = "ready"
+                    CameraButton.show()
+                end)
+            elseif playerBubble then
+                BubbleDialogue.clickTrigger(playerBubble)
+            end
         end
         return
     end
@@ -974,14 +1720,49 @@ local function handleNormalModeClick(card, row, col)
         return
     end
 
-    -- 移动 Token (世界坐标)
+    -- 移动 Token (世界坐标, 含同格偏移)
+    MonsterGhost.clearSurround()  -- 角色离开当前格, 清除环绕怪物
+    if playerBubble then BubbleDialogue.forceHide(playerBubble) end
     demoState = "moving"
     CameraButton.hide()
     token.targetRow = row
     token.targetCol = col
     Token.setEmotion(token, "running")
 
-    Token.moveTo(token, wx, wz, function()
+    local moveShareOff = NPCManager.getShareOffset(row, col)
+    Token.moveTo(token, wx + moveShareOff, wz, function()
+        -- 检查并拾取该格子上的道具
+        local collected = BoardItems.tryCollect(row, col)
+        if collected then
+            if collected.key == "film" then
+                ResourceBar.change("film", 1)
+            elseif collected.key == "mapReveal" then
+                -- 地图碎片: 随机翻开一张暗牌
+                local revealed = false
+                local candidates = {}
+                for r2 = 1, Board.ROWS do
+                    for c2 = 1, Board.COLS do
+                        local cd2 = board.cards[r2] and board.cards[r2][c2]
+                        if cd2 and not cd2.faceUp and not cd2.isFlipping then
+                            candidates[#candidates + 1] = { r = r2, c = c2, card = cd2 }
+                        end
+                    end
+                end
+                if #candidates > 0 then
+                    local pick = candidates[math.random(#candidates)]
+                    Card.flip(pick.card, nil, CardTextures)
+                    revealed = true
+                end
+                if not revealed then
+                    VFX.spawnBanner("没有可翻开的卡牌", 180, 180, 180, 16, 0.6)
+                end
+            else
+                -- coffee / shield / exorcism → 背包道具
+                ShopPopup.addItem(collected.key, 1)
+            end
+            VFX.spawnBanner("获得 " .. collected.icon .. " " .. collected.label, 255, 220, 100, 18, 0.9)
+        end
+
         if not card.faceUp and not card.isFlipping then
             demoState = "flipping"
             Card.flip(card, function(c)
@@ -1005,6 +1786,7 @@ end
 local function handleCameraModeClick(card, row, col)
     local film = ResourceBar.get("film")
 
+    -- 已翻开的怪物 (步行踩到后留下的): 消耗 1 胶卷驱除
     if card.faceUp and card.type == "monster" and not card.isFlipping then
         if film <= 0 then
             CameraButton.shakeNoFilm()
@@ -1017,6 +1799,7 @@ local function handleCameraModeClick(card, row, col)
         return
     end
 
+    -- 已侦察的安全牌 (相片预览)
     if card.scouted and card.faceUp and not card.isFlipping then
         demoState = "popup"
         hoveredCard = nil
@@ -1035,6 +1818,7 @@ local function handleCameraModeClick(card, row, col)
         return
     end
 
+    -- 未翻开的牌: 消耗 1 胶卷侦察 (怪物/陷阱会自动清除)
     if not card.faceUp and not card.isFlipping then
         CameraButton.exitCameraMode(function()
             doPhotograph(card, row, col)
@@ -1066,6 +1850,16 @@ local function handleClick(inputX, inputY)
         return
     end
 
+    if DialogueSystem.isActive() then
+        DialogueSystem.handleClick(lx, ly)
+        return
+    end
+
+    if EventPopup.isRiftConfirmActive() then
+        EventPopup.handleRiftClick(lx, ly)
+        return
+    end
+
     if ShopPopup.isActive() then
         ShopPopup.handleClick(lx, ly)
         return
@@ -1073,6 +1867,11 @@ local function handleClick(inputX, inputY)
 
     if EventPopup.isActive() then
         EventPopup.handleClick(lx, ly)
+        return
+    end
+
+    -- Toast 点击 (非阻塞, 提前关闭)
+    if EventPopup.handleToastClick(lx, ly) then
         return
     end
 
@@ -1090,6 +1889,28 @@ local function handleClick(inputX, inputY)
     end
 
     if gamePhase ~= "playing" then return end
+
+    -- === 暗面世界路由 ===
+    if DarkWorld.isActive() then
+        -- 退出按钮 (已整合到 ResourceBar 暗面面板)
+        if ResourceBar.hitTestDarkExit(lx, ly) then
+            exitDarkWorld()
+            return
+        end
+        -- 暗面世界中的相机驱除
+        if CameraButton.isActive() then
+            local shotHit = DarkWorld.handleCameraShot(board, token, inputX, inputY, ResourceBar)
+            if shotHit then
+                ResourceBar.change("film", -1)
+                gameStats.photosUsed = gameStats.photosUsed + 1
+                return
+            end
+        end
+        -- 暗面世界卡牌点击
+        DarkWorld.handleClick(board, token, inputX, inputY, ResourceBar, DialogueSystem, ShopPopup, dayCount)
+        return
+    end
+
     if demoState ~= "ready" then return end
 
     -- 3D 射线检测
@@ -1188,9 +2009,18 @@ function HandleKeyDown(eventType, eventData)
         return
     end
 
+    if DialogueSystem.isActive() then
+        DialogueSystem.handleKey(key)
+        return
+    end
+
     if ShopPopup.isActive() then
         ShopPopup.handleKey(key)
         return
+    end
+
+    if EventPopup.isRiftConfirmActive() then
+        return  -- 裂隙确认弹窗不响应键盘, 需点击
     end
 
     if EventPopup.isActive() then
@@ -1209,6 +2039,20 @@ function HandleKeyDown(eventType, eventData)
 
     if gamePhase ~= "playing" then return end
 
+    -- 暗面世界: ESC 退出
+    if DarkWorld.isActive() then
+        if key == KEY_ESCAPE then
+            exitDarkWorld()
+        end
+        return
+    end
+
+    -- [DEBUG] 按 1 强制进入暗面世界
+    if key == KEY_1 and demoState == "ready" then
+        enterDarkWorld(token.targetRow or 3, token.targetCol or 3)
+        return
+    end
+
     if key == KEY_ESCAPE then
         engine:Exit()
     end
@@ -1226,6 +2070,7 @@ local function updateHover(dt)
     GameOver.updateHover(lx, ly, dt, logicalW, logicalH)
     ShopPopup.updateHover(lx, ly, dt)
     EventPopup.updateHover(lx, ly, dt)
+    EventPopup.updateRiftHover(lx, ly, dt)
     CameraButton.updateHover(lx, ly, dt)
     HandPanel.updateHover(lx, ly, dt, logicalW, logicalH)
 
@@ -1284,11 +2129,35 @@ function HandleUpdate(eventType, eventData)
     Token.update(token, dt)
     ResourceBar.update(dt)
     CameraButton.update(dt)
+    EventPopup.updateToasts(dt)
+    MonsterGhost.update(dt, gameTime)
+    BoardItems.update(dt, gameTime)
+    NPCManager.update(dt, gameTime)
+    DialogueSystem.update(dt)
+    DarkWorld.update(dt, gameTime)
+
+    -- 气泡对话更新
+    if playerBubble then
+        local isIdle = not token.isMoving and demoState == "ready"
+        local canTrigger = (gamePhase == "playing" and demoState == "ready"
+            and not EventPopup.isActive() and not ShopPopup.isActive()
+            and not CameraButton.isActive() and not DateTransition.isActive())
+        BubbleDialogue.update(playerBubble, dt, isIdle, canTrigger)
+    end
+
     updateHover(dt)
 
-    -- 背景氛围过渡 (根据翻牌数平滑变暗)
-    local totalForFull = 8
-    bgTransitionTarget = math.min(gameStats.cardsRevealed / totalForFull, 1.0)
+    -- 裂隙确认轮询 (事件结束后自动弹窗)
+    if demoState == "ready" and gamePhase == "playing" then
+        checkPendingRift()
+    end
+
+    -- 背景氛围过渡 (根据当天翻牌数平滑变暗, 每天重置; 暗面世界时由进出流程控制)
+    if not DarkWorld.isActive() then
+        local totalForFull = 8
+        local dailyRevealed = gameStats.cardsRevealed - gameStats.dayStartRevealed
+        bgTransitionTarget = math.min(dailyRevealed / totalForFull, 1.0)
+    end
     local bgSpeed = 2.0
     if bgTransition < bgTransitionTarget then
         bgTransition = math.min(bgTransition + bgSpeed * dt, bgTransitionTarget)
@@ -1335,8 +2204,88 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 3D 场景已由 Viewport 渲染 (棋盘/卡牌/Token 均为 3D) ===
 
+    -- === 暗面世界 HUD 叠加层 ===
+    DarkWorld.draw(vg, logicalW, logicalH, gameTime)
+
     -- === 相机模式取景器叠加层 ===
     CameraButton.drawOverlay(vg, logicalW, logicalH, gameTime)
+
+    -- === 气泡对话 (角色头顶, 3D→2D 投影) ===
+    if playerBubble and token and token.visible then
+        -- Token 头顶世界坐标 (bounceY + 精灵高度)
+        local headWorldY = 0.25 + token.bounceY + 0.50 -- 0.25=基础Y, 0.50=精灵高度
+        local headPos = Vector3(token.worldX, headWorldY, token.worldZ)
+        local headSX, headSY = worldToScreen(headPos)
+        BubbleDialogue.draw(playerBubble, vg, headSX, headSY)
+    end
+
+    -- === NPC 交互提示 (同格时浮动气泡, 笔记本风格) ===
+    if gamePhase == "playing" and demoState == "ready"
+       and not DialogueSystem.isActive() and not CameraButton.isActive()
+       and token and token.visible then
+        local npcHere = NPCManager.getNPCAt(token.targetRow, token.targetCol)
+        if npcHere and npcHere.alpha > 0.5 then
+            local hintWorldPos = Vector3(npcHere.worldX, 1.10, npcHere.worldZ)
+            local hsx, hsy = worldToScreen(hintWorldPos)
+            local bounce = math.sin(gameTime * 3.0) * 4
+            local pulse = 0.75 + 0.25 * math.sin(gameTime * 2.5)
+            local hAlpha = math.floor(240 * pulse)
+
+            local hintLabel = "💬 点击对话"
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 12)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            local tw = nvgTextBounds(vg, 0, 0, hintLabel, nil) or 80
+            local pw, ph = tw + 18, 22
+            local bx = hsx - pw / 2
+            local by = hsy - ph / 2 + bounce
+            local arrowH = 5
+
+            -- 阴影
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx + 1, by + 2, pw, ph, 8)
+            nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(25 * pulse)))
+            nvgFill(vg)
+
+            -- 白色气泡背景 (与 BubbleDialogue 统一)
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx, by, pw, ph, 8)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hAlpha))
+            nvgFill(vg)
+
+            -- 细边框
+            nvgStrokeColor(vg, nvgRGBA(180, 180, 180, math.floor(100 * pulse)))
+            nvgStrokeWidth(vg, 1)
+            nvgStroke(vg)
+
+            -- 小三角指向下方 (白底 + 边框)
+            local triCX = hsx
+            local triY = by + ph
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, triCX - 5, triY)
+            nvgLineTo(vg, triCX, triY + arrowH)
+            nvgLineTo(vg, triCX + 5, triY)
+            nvgClosePath(vg)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hAlpha))
+            nvgFill(vg)
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, triCX - 5, triY)
+            nvgLineTo(vg, triCX, triY + arrowH)
+            nvgLineTo(vg, triCX + 5, triY)
+            nvgStrokeColor(vg, nvgRGBA(180, 180, 180, math.floor(100 * pulse)))
+            nvgStrokeWidth(vg, 1)
+            nvgStroke(vg)
+            -- 遮盖接合处边框
+            nvgBeginPath(vg)
+            nvgRect(vg, triCX - 5, triY - 1, 10, 2)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, hAlpha))
+            nvgFill(vg)
+
+            -- 文字 (深色墨水)
+            nvgFillColor(vg, nvgRGBA(50, 50, 50, math.floor(220 * pulse)))
+            nvgText(vg, hsx, by + ph / 2, hintLabel)
+        end
+    end
 
     -- === VFX 叠加层 ===
     VFX.drawBurst()
@@ -1358,9 +2307,16 @@ function HandleNanoVGRender(eventType, eventData)
     -- === 屏幕闪光 ===
     VFX.drawFlash()
 
+    -- === 非阻塞 Toast ===
+    EventPopup.drawToasts(vg, logicalW, logicalH, gameTime)
+
     -- === 弹窗 ===
     EventPopup.draw(vg, logicalW, logicalH, gameTime)
+    EventPopup.drawRiftConfirm(vg, logicalW, logicalH)
     ShopPopup.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 对话系统 (Gal 风格, 在弹窗之上、结算之下) ===
+    DialogueSystem.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 结算画面 ===
     GameOver.draw(vg, logicalW, logicalH, gameTime)
@@ -1385,4 +2341,5 @@ end
 function HandleScreenMode(eventType, eventData)
     recalcResolution()
     recalcLayout()
+    DarkWorld.updateScreenParams(camera_, physW, physH)
 end

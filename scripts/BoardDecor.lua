@@ -32,7 +32,8 @@ local DECOR_DEFS = {
 }
 
 -- 远景背景定义
-local BACKDROP_TEX = "image/都市天际线_20260426035953.png"
+local BACKDROP_TEX       = "image/都市天际线_20260426035953.png"
+local BACKDROP_NIGHT_TEX = "image/edited_都市天际线_暗夜版_20260426105650.png"
 local BACKDROP_W   = 20.0   -- 背景宽度 (米, 覆盖全视野)
 local BACKDROP_H   = 8.0    -- 背景高度 (米)
 local BACKDROP_Z   = 12.0   -- 背景 Z 位置 (最远层)
@@ -46,7 +47,9 @@ local TABLE_TEX = "image/屋顶地面_20260426041833.png"
 -- ---------------------------------------------------------------------------
 
 local decorNodes_ = {}     -- 装饰 Billboard 节点
-local backdropNode_ = nil  -- 远景背景节点
+local backdropNode_ = nil  -- 远景背景节点 (白天)
+local nightNode_ = nil     -- 远景背景节点 (暗夜, 叠加在白天之上)
+local nightMat_ = nil      -- 暗夜背景材质 (控制 alpha 渐变)
 local parentNode_ = nil    -- 根节点
 
 -- ---------------------------------------------------------------------------
@@ -121,6 +124,41 @@ local function createBackdrop(parent)
 end
 
 -- ---------------------------------------------------------------------------
+-- 创建暗夜背景板 (叠加在白天之上, alpha 由外部控制)
+-- ---------------------------------------------------------------------------
+
+local function createNightBackdrop(parent)
+    local node = parent:CreateChild("BackdropNight")
+    node:SetPosition(Vector3(0, 0, BACKDROP_Z - 0.05))  -- 略靠前, 避免 Z-fighting
+
+    local bbSet = node:CreateComponent("BillboardSet")
+    bbSet:SetNumBillboards(1)
+    bbSet:SetFaceCameraMode(FC_ROTATE_Y)
+    bbSet:SetSorted(true)
+
+    local mat = Material:new()
+    mat:SetTechnique(0, cache:GetResource("Technique", "Techniques/DiffAlpha.xml"))
+    local tex = cache:GetResource("Texture2D", BACKDROP_NIGHT_TEX)
+    if tex then
+        mat:SetTexture(TU_DIFFUSE, tex)
+    else
+        print("[BoardDecor] WARNING: night backdrop texture not found")
+    end
+    mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, 0)))  -- 初始全透明
+    bbSet:SetMaterial(mat)
+
+    local bb = bbSet:GetBillboard(0)
+    bb.position = Vector3(0, BACKDROP_Y + BACKDROP_H / 2, 0)
+    bb.size = Vector2(BACKDROP_W, BACKDROP_H)
+    bb.color = Color(1, 1, 1, 1)
+    bb.enabled = true
+    bbSet:Commit()
+
+    nightMat_ = mat
+    return node
+end
+
+-- ---------------------------------------------------------------------------
 -- 公开 API
 -- ---------------------------------------------------------------------------
 
@@ -137,8 +175,9 @@ function M.init(scene, tableModel)
         decorNodes_[i] = node
     end
 
-    -- 远景背景板
+    -- 远景背景板 (白天 + 暗夜叠加)
     backdropNode_ = createBackdrop(parentNode_)
+    nightNode_ = createNightBackdrop(parentNode_)
 
     -- 替换桌面纹理 (深色游戏桌垫)
     if tableModel then
@@ -155,6 +194,14 @@ function M.init(scene, tableModel)
     print(string.format("[BoardDecor] Created %d decorations + backdrop", #decorNodes_))
 end
 
+--- 更新暗夜渐变 (每帧调用, t: 0=白天, 1=暗夜)
+---@param t number 过渡进度 0~1
+function M.updateNight(t)
+    if nightMat_ then
+        nightMat_:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, t)))
+    end
+end
+
 --- 销毁所有装饰节点
 function M.destroy()
     if parentNode_ then
@@ -163,6 +210,8 @@ function M.destroy()
     end
     decorNodes_ = {}
     backdropNode_ = nil
+    nightNode_ = nil
+    nightMat_ = nil
 end
 
 return M

@@ -19,6 +19,7 @@ scripts/
 ├── ShopPopup.lua       # 商店弹窗 (商品列表 + 实时购买 + 离开)
 ├── TitleScreen.lua     # 标题画面 (氛围入场 + 浮动卡牌 + 点击开始)
 ├── GameOver.lua        # 结算画面 (胜/负 + 统计 + 重新开始)
+├── DarkWorld.lua       # 暗面世界控制器 (3层5×5迷宫，能量制移动，幽灵AI)
 └── lib/
     ├── Tween.lua       # 通用动画引擎 (缓动/延迟/回调/标签)
     └── VFX.lua         # 全局视觉特效 (屏幕震动/飘字/粒子/过渡/闪光)
@@ -76,7 +77,7 @@ Tween.dampAngle(current, target, speed, dt)  -- 角度平滑逼近
 
 ### 使用约定
 
-- **tag 命名**：`"cardflip"` `"carddeal"` `"cardshake"` `"cardtransform"` `"tokenmove"` `"token"` `"popup"` `"popup_delay"` `"camerabtn"` `"cameramode"` `"camerabtn_shake"` `"photograph"` `"exorcise"` `"daytransition"` `"resource_xxx"` `"resource_delta_xxx"` `"shoppopup"` `"shoppopup_card"` `"shoppopup_flash"` `"titlescreen"` `"gameover"`
+- **tag 命名**：`"cardflip"` `"carddeal"` `"cardshake"` `"cardtransform"` `"tokenmove"` `"token"` `"popup"` `"popup_delay"` `"camerabtn"` `"cameramode"` `"camerabtn_shake"` `"photograph"` `"exorcise"` `"daytransition"` `"resource_xxx"` `"resource_delta_xxx"` `"shoppopup"` `"shoppopup_card"` `"shoppopup_flash"` `"titlescreen"` `"gameover"` `"darkworld"` `"darkghost"` `"darkmove"` `"darknpc"` `"darkcard"`
 - **hover 动画不用 Tween**：hover 追踪用每帧手动 lerp（`dt * 12`），避免创建大量 Tween 实例。见 main.lua `updateHover()`。
 
 ---
@@ -452,6 +453,7 @@ CameraButton.recalcLayout(logicalW, logicalH)  -- 重算按钮位置
 | `plot` | 📖 | plot(紫) | 剧情 |
 | `clue` | 🔍 | info(蓝) | 线索 |
 | `photo` | 📸 | safe(绿) | 相片(驱除后)，安全格 |
+| `rift` | 🌀 | darkAccent(幽蓝) | 裂隙，暗面世界入口(第2天起出现) |
 
 ---
 
@@ -529,7 +531,89 @@ Tag: `"gameover"`
 
 ---
 
-## 14. main.lua — 状态机
+## 14. DarkWorld.lua — 暗面世界
+
+通过裂隙卡进入的平行维度，3 层 5×5 迷宫，能量制移动，幽灵 AI 追逐。
+
+```lua
+DarkWorld.init(vg)                          -- 初始化 (NanoVG 上下文)
+DarkWorld.reset()                           -- 重置所有状态
+DarkWorld.canEnter(dayCount) → bool         -- 是否可进入 (dayCount >= 2)
+DarkWorld.isActive() → bool                 -- 是否激活
+DarkWorld.enter(dayCount, riftRow, riftCol, scene, camera, cardTextures, pw, ph, onExit)
+DarkWorld.exit()                            -- 退出暗面世界 (调用 onExit 回调)
+DarkWorld.update(dt, gameTime)              -- 每帧更新 (幽灵AI/能量/动画)
+DarkWorld.draw(vg, logicalW, logicalH, gameTime)  -- HUD 绘制
+DarkWorld.syncLayerNodes()                  -- 同步当前层 3D 节点位置
+DarkWorld.handleClick(token, inputX, inputY, resourceBar, dialogueSystem, shopPopup, dayCount)
+DarkWorld.handleCameraShot(token, inputX, inputY, resourceBar) → bool  -- 拍照驱除幽灵
+DarkWorld.hitTestExitButton(lx, ly, logicalW, logicalH) → bool  -- 退出按钮检测
+DarkWorld.updateScreenParams(camera, pw, ph) -- 屏幕参数更新
+```
+
+### 核心机制
+
+| 机制 | 说明 |
+|------|------|
+| 3 层迷宫 | 每层独立 5×5 网格，BFS 保证连通性的墙壁生成 |
+| 能量制 | 每层 10 点能量，移动消耗 1 点，用尽强制退出 |
+| 全正面 | 所有卡牌面朝上，玩家可见卡牌类型 |
+| 幽灵 AI | 每层 2 只，玩家移动后幽灵跟动，50%追逐/50%随机 |
+| 暗面卡牌 | 独立类型系统: dark_safe/dark_trap/dark_reward/dark_portal/dark_shop/dark_npc |
+| NPC 对话 | 暗面世界特有 NPC，使用 DialogueSystem 触发对话 |
+
+### 暗面卡牌类型 (Theme.darkCardTypes)
+
+| darkType | 图标 | 效果 |
+|----------|------|------|
+| `dark_safe` | 🌑 | 安全，无效果 |
+| `dark_trap` | 💀 | san -3, order -2 |
+| `dark_reward` | ✨ | money +20, film +1 |
+| `dark_portal` | 🌀 | 传送到下一层 |
+| `dark_shop` | 🕯️ | 打开商店 |
+| `dark_npc` | 👤 | 触发对话 |
+
+### 幽灵 AI
+
+- **追逐模式(50%)**: BFS 最短路径向玩家移动 1 格
+- **随机模式(50%)**: 随机选择可通行邻格
+- **碰撞惩罚**: san -5, order -3 + 屏幕闪红 + 震动
+- **驱除**: 相机模式拍照消灭幽灵 (消耗胶卷)
+- **3D 表现**: Billboard 精灵，FC_ROTATE_Y 面向相机
+
+### 层间切换
+
+踩到 `dark_portal` 卡牌 → 层过渡动画 → 隐藏当前层节点 → 显示下一层节点
+第 3 层完成后自动退出暗面世界
+
+### 进出流程
+
+**进入** (main.lua `enterDarkWorld()`):
+1. 设 `demoState = "transition"`
+2. 隐藏现实世界 UI (CameraButton/HandPanel/Board 节点)
+3. 调用 `DarkWorld.enter()` 生成迷宫/创建 3D 节点
+
+**退出** (DarkWorld 内部或 ESC/退出按钮):
+1. 清理暗面世界 3D 节点
+2. 调用 `onExit(riftRow, riftCol)` 回调
+3. main.lua 恢复: 显示 Board 节点，Token 回到裂隙位置，`demoState = "ready"`
+
+### 内部状态 (darkState_)
+
+| darkState_ | 说明 |
+|------------|------|
+| `"enter"` | 入场动画 |
+| `"ready"` | 等待玩家操作 |
+| `"moving"` | Token 移动动画中 |
+| `"dialogue"` | NPC 对话中 |
+| `"layer_transition"` | 层间切换动画 |
+| `"exit"` | 退场处理 |
+
+Tags: `"darkworld"` `"darkghost"` `"darkmove"` `"darknpc"` `"darkcard"`
+
+---
+
+## 15. main.lua — 状态机
 
 ### 双层状态
 
@@ -558,6 +642,19 @@ idle → dealing → ready ↔ flipping → popup → ready
            exorcising → (变形动画) → ready
                    ↕
                 dealing (重发/切天)
+                   ↕
+             transition → [暗面世界] → ready (裂隙卡触发)
+```
+
+**暗面世界内部状态** (`darkState_`，在 DarkWorld.lua 内部管理):
+```
+enter → ready ↔ moving → ready
+                  ↕
+             dialogue → ready
+                  ↕
+           layer_transition → ready (切换层)
+                  ↕
+                exit → [回到现实世界]
 ```
 
 **相机模式不是独立 demoState**，而是 `ready` 状态上的 UI 修饰层。
@@ -601,16 +698,17 @@ idle → dealing → ready ↔ flipping → popup → ready
 6. ResourceBar
 7. HUD 文字
 8. CameraButton.draw (悬浮按钮)
-9. VFX.drawFlash (全屏闪光)
-10. EventPopup (遮罩 + 面板)
-11. ShopPopup (商店遮罩 + 面板)
-12. GameOver (结算遮罩 + 面板)
-13. TitleScreen (标题遮罩 + 装饰)
+9. DarkWorld.draw (暗面世界 HUD: 能量条/层指示器/退出按钮/幽灵警告)
+10. VFX.drawFlash (全屏闪光)
+11. EventPopup (遮罩 + 面板)
+12. ShopPopup (商店遮罩 + 面板)
+13. GameOver (结算遮罩 + 面板)
+14. TitleScreen (标题遮罩 + 装饰)
 
 ### 输入处理
 
 - **鼠标/触摸**: 物理坐标 → `/ dpr` → 逻辑坐标
-  - 优先级链: **TitleScreen** → **GameOver** → **ShopPopup** → **EventPopup** → **CameraButton** → **Board.hitTest**
+  - 优先级链: **TitleScreen** → **GameOver** → **ShopPopup** → **EventPopup** → **DarkWorld** (暗面世界激活时拦截) → **CameraButton** → **Board.hitTest**
   - TitleScreen/GameOver 激活时吞掉一切点击
   - ShopPopup/EventPopup 激活时吞掉一切点击 (返回 true)
   - CameraButton 检测按钮点击 (进入/退出相机模式)

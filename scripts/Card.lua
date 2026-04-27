@@ -9,6 +9,10 @@ local Theme = require "Theme"
 
 local M = {}
 
+-- 缓存 Technique 资源, 避免每帧查找
+local techDiff      = nil  -- 不透明
+local techDiffAlpha = nil  -- 透明 (发牌淡入/淡出时用)
+
 -- ---------------------------------------------------------------------------
 -- 常量: 2D 逻辑 (保留兼容, 纹理用)
 -- ---------------------------------------------------------------------------
@@ -199,6 +203,8 @@ function M.new(cardType, row, col, location)
         material3d = nil,    -- 当前材质
         scoutedNode = nil,   -- 已侦查图标子节点
         revealedNode = nil,  -- 已揭示图标子节点
+        safeGlowRings = nil,  -- 安全区光环数组 { {node=, mat=}, ... }
+        safeGlowActive = false, -- 光晕是否激活
     }
 end
 
@@ -254,6 +260,53 @@ local function createIconQuad(parentNode, name, texture, offsetX, offsetZ)
 
     node:SetEnabled(false)
     return node
+end
+
+-- ---------------------------------------------------------------------------
+-- 光环节点: 动态附加 (可在 createNode 后调用)
+-- ---------------------------------------------------------------------------
+
+--- 为卡牌动态添加光环上浮环
+---@param card CardData
+---@param glowTex userdata Texture2D 光环纹理
+function M.attachGlowRings(card, glowTex)
+    if card.safeGlowRings then return end  -- 已有光环
+    if not card.node3d then return end
+
+    local halfW = M.CARD_W / 2
+    local halfH = M.CARD_H / 2
+    local nUp = Vector3(0, 1, 0)
+    local techAlpha = cache:GetResource("Technique", "Techniques/DiffAlpha.xml")
+    local rings = {}
+    local RING_COUNT = 3
+
+    for i = 1, RING_COUNT do
+        local rn = card.node3d:CreateChild("safe_ring_" .. i)
+        rn:SetPosition(Vector3(0, 0.005, 0))
+
+        local gg = rn:CreateComponent("CustomGeometry")
+        gg:SetNumGeometries(1)
+        gg:BeginGeometry(0, TRIANGLE_LIST)
+        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
+        gg:DefineVertex(Vector3(-halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 1))
+        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
+        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
+        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
+        gg:DefineVertex(Vector3( halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 0))
+        gg:Commit()
+
+        local ringMat = Material:new()
+        ringMat:SetTechnique(0, techAlpha)
+        ringMat:SetTexture(TU_DIFFUSE, glowTex)
+        ringMat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, 0)))
+        ringMat.renderOrder = 100
+        gg:SetMaterial(ringMat)
+
+        rn:SetEnabled(false)
+        rings[i] = { node = rn, mat = ringMat }
+    end
+
+    card.safeGlowRings = rings
 end
 
 -- ---------------------------------------------------------------------------
@@ -313,10 +366,25 @@ function M.createNode(card, parentNode, CardTextures)
 
     geom:Commit()
 
-    -- 材质
+    -- 材质 (卡牌主体用不透明 Technique, 发牌动画时按需切换)
+    if not techDiff then
+        techDiff      = cache:GetResource("Technique", "Techniques/Diff.xml")
+        techDiffAlpha = cache:GetResource("Technique", "Techniques/DiffAlpha.xml")
+    end
     local mat = Material:new()
-    mat:SetTechnique(0, cache:GetResource("Technique", "Techniques/DiffAlpha.xml"))
-    local tex = CardTextures.getLocationTexture(card.location)
+    if card.alpha < 1.0 then
+        mat:SetTechnique(0, techDiffAlpha)
+    else
+        mat:SetTechnique(0, techDiff)
+    end
+    local tex
+    if card.isDark then
+        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
+    elseif card.faceUp then
+        tex = CardTextures.getEventTexture(card.location, card.type)
+    else
+        tex = CardTextures.getLocationTexture(card.location)
+    end
     mat:SetTexture(TU_DIFFUSE, tex)
     mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
     geom:SetMaterial(mat)
@@ -336,6 +404,19 @@ function M.createNode(card, parentNode, CardTextures)
         scoutedTex,  iconX, iconZ1)   -- 右上角第一个
     card.revealedNode = createIconQuad(node, "ico_revealed",
         revealedTex, iconX, iconZ2)   -- 右上角第二个
+
+    -- 光环上浮淡出效果 (home=白色, landmark=金色; safe 是暗牌不显示)
+    if (card.type == "home" or card.type == "landmark") and CardTextures then
+        local glowTex
+        if card.type == "landmark" then
+            glowTex = CardTextures.getLandmarkGlowTexture and CardTextures.getLandmarkGlowTexture()
+        else
+            glowTex = CardTextures.getSafeGlowTexture and CardTextures.getSafeGlowTexture()
+        end
+        if glowTex then
+            M.attachGlowRings(card, glowTex)
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -368,8 +449,13 @@ function M.syncNode(card)
     end
     node:SetRotation(rot)
 
-    -- alpha → 材质
+    -- alpha → 材质 (按需切换透明/不透明 Technique)
     if card.material3d then
+        if card.alpha < 0.999 then
+            card.material3d:SetTechnique(0, techDiffAlpha)
+        else
+            card.material3d:SetTechnique(0, techDiff)
+        end
         card.material3d:SetShaderParameter("MatDiffColor",
             Variant(Color(1, 1, 1, card.alpha)))
     end
@@ -381,6 +467,63 @@ function M.syncNode(card)
     end
     if card.revealedNode then
         card.revealedNode:SetEnabled(showIcons and card.revealed == true)
+    end
+
+    -- 安全区光环: 多层上浮淡出 (仅激活状态)
+    if card.safeGlowActive and card.safeGlowRings then
+        local elapsed = time and time.elapsedTime or 0
+        local RING_COUNT = #card.safeGlowRings
+        local CYCLE = 4.0           -- 每层循环周期 (秒)
+        local Y_BASE = 0.005        -- 起始高度 (卡面上方)
+        local Y_RISE = 0.05         -- 上浮距离
+        local SCALE_GROW = 0.06     -- 上浮时微微放大
+
+        for i = 1, RING_COUNT do
+            local ring = card.safeGlowRings[i]
+            -- 交错相位: 每层偏移 1/RING_COUNT 个周期
+            local phase = ((elapsed / CYCLE) + (i - 1) / RING_COUNT) % 1.0
+            local y = Y_BASE + phase * Y_RISE
+            -- 线性衰减至全透明, 避免周期切换时跳变
+            local alpha = 1.0 - phase
+            local sc = 1.0 + phase * SCALE_GROW
+
+            ring.node:SetPosition(Vector3(0, y, 0))
+            ring.node:SetScale(Vector3(sc, 1, sc))
+            ring.node:SetEnabled(card.alpha > 0.1)
+            ring.mat:SetShaderParameter("MatDiffColor",
+                Variant(Color(1, 1, 1, alpha * card.alpha)))
+        end
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 安全区光晕: 显示/隐藏
+-- ---------------------------------------------------------------------------
+
+--- 激活安全区光环 (多层上浮)
+---@param card CardData
+function M.showSafeGlow(card)
+    if not card.safeGlowRings then
+        print(string.format("[Card] showSafeGlow(%d,%d) SKIP: no rings", card.row, card.col))
+        return
+    end
+    if card.safeGlowActive then return end
+    print(string.format("[Card] showSafeGlow(%d,%d) type=%s ACTIVATED", card.row, card.col, card.type))
+    card.safeGlowActive = true
+    for _, ring in ipairs(card.safeGlowRings) do
+        ring.node:SetEnabled(true)
+    end
+end
+
+--- 关闭安全区光环 (淡出)
+---@param card CardData
+function M.hideSafeGlow(card)
+    if not card.safeGlowRings then return end
+    if not card.safeGlowActive then return end
+    card.safeGlowActive = false
+    for _, ring in ipairs(card.safeGlowRings) do
+        ring.node:SetEnabled(false)
+        ring.mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, 0)))
     end
 end
 
@@ -395,7 +538,10 @@ function M.updateTexture(card, CardTextures)
     if not card.material3d then return end
 
     local tex
-    if card.faceUp then
+    if card.isDark then
+        -- 暗面卡牌: 全明牌, 始终使用暗面纹理
+        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
+    elseif card.faceUp then
         tex = CardTextures.getEventTexture(card.location, card.type)
     else
         tex = CardTextures.getLocationTexture(card.location)
@@ -415,6 +561,8 @@ function M.destroyNode(card)
         card.material3d = nil
         card.scoutedNode = nil   -- 子节点随父节点一起销毁
         card.revealedNode = nil
+        card.safeGlowRings = nil
+        card.safeGlowActive = false
     end
 end
 

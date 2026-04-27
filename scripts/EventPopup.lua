@@ -59,6 +59,11 @@ M.templates = {
         { title = "留影", desc = "相片上定格的画面取代了原本的恐惧。这里现在安全了。" },
         { title = "净化", desc = "曝光的胶片封印了阴影。被拍下的事物不再具有威胁。" },
     },
+    rift = {
+        { title = "时空裂隙", desc = "地面出现一道蜿蜒的裂缝，透出幽蓝色的微光。你感到另一个世界在呼唤。" },
+        { title = "维度缝隙", desc = "空气中浮现扭曲的纹路，仿佛现实被撕开了一道口子。裂隙另一端的景象若隐若现。" },
+        { title = "异界入口", desc = "脚下的地砖突然龟裂，缝隙中涌出暗紫色的雾气。这是通往暗面世界的通道。" },
+    },
 }
 
 -- ---------------------------------------------------------------------------
@@ -70,11 +75,56 @@ M.cardEffects = {
     landmark = {},
     shop     = {},
     monster  = { { "san", -2 }, { "order", -1 } },
-    trap     = { { "san", -1 }, { "order", -1 } },
+    trap     = {},  -- 旧通用 trap 已废弃; 由 trapSubtypeEffects 替代
     reward   = { { "money", 15 }, { "film", 1 } },
     plot     = { { "order", 1 } },
     clue     = { { "film", 1 } },
     photo    = {},  -- 相片：安全格，无资源效果
+    rift     = {},  -- 裂隙：无资源效果，触发暗面世界入口
+}
+
+-- ---------------------------------------------------------------------------
+-- 陷阱子类型: 效果 / 文案 / 图标
+-- ---------------------------------------------------------------------------
+
+--- 子类型→资源变化
+M.trapSubtypeEffects = {
+    sanity   = { { "san",   -1 } },   -- 阴气侵蚀
+    money    = { { "money", -10 } },   -- 财物散失
+    film     = { { "film",  -1 } },    -- 灵雾曝光
+    teleport = {},                      -- 空间错位 (无资源伤害)
+}
+
+--- 子类型→文案 (覆盖通用 M.templates.trap)
+M.trapSubtypeTemplates = {
+    sanity = {
+        { title = "阴气侵蚀", desc = "一股寒意从地面渗入脚底，直冲脑门。周围的空气变得凝重，理智在无声中消磨。" },
+        { title = "低语缠绕", desc = "耳边响起断断续续的低语，内容听不清楚。你的思维开始变得混乱。" },
+        { title = "幻象涌动", desc = "视野边缘浮现模糊的影像，分不清是真实还是幻觉。你努力保持清醒。" },
+    },
+    money = {
+        { title = "财物散失", desc = "口袋突然变轻了——零钱从破洞滑落，怎么也捡不回来。" },
+        { title = "无形窃取", desc = "一转眼，钱包里的钞票少了几张。你确信没有人靠近过。" },
+        { title = "诅咒流失", desc = "硬币在手中变得灼热，你不得不松手。它们落地后消失不见。" },
+    },
+    film = {
+        { title = "灵雾曝光", desc = "一团幽蓝色的雾气突然涌来，相机发出咔嗒声——胶卷被意外曝光了。" },
+        { title = "闪光干扰", desc = "空气中闪过一道强光，相机自动触发了快门。一卷珍贵的胶卷报废了。" },
+        { title = "异光侵蚀", desc = "从墙缝渗出的异样光芒照射到你的相机上，胶卷上留下了无法冲洗的痕迹。" },
+    },
+    teleport = {
+        { title = "空间错位", desc = "脚下的地面突然扭曲，你的身体被一股力量拉扯到了别处！" },
+        { title = "维度跳跃", desc = "眨眼之间，周围的景色全变了。你不知道自己被传送到了哪里。" },
+        { title = "瞬间位移", desc = "一阵眩晕过后，你发现自己站在一个完全不同的地方。" },
+    },
+}
+
+--- 子类型→图标/名称 (Toast 中覆盖默认 trap 图标)
+M.trapSubtypeInfo = {
+    sanity   = { icon = "👁️",  label = "阴气侵蚀" },
+    money    = { icon = "💸", label = "财物散失" },
+    film     = { icon = "📷", label = "灵雾曝光" },
+    teleport = { icon = "🌀", label = "空间错位" },
 }
 
 -- 资源中文名 / 图标
@@ -863,6 +913,722 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     end
 
     nvgRestore(vg)  -- 相片整体 transform
+end
+
+-- ===========================================================================
+-- Toast 子系统 (非阻塞卡牌通知)
+-- ===========================================================================
+
+-- 哪些事件使用阻塞模态弹窗 (其余走 toast)
+local BLOCKING_EVENTS = {
+    shop = true,
+    -- 未来: 带有选择的 plot 事件
+}
+
+--- 判断事件类型是否需要阻塞模态
+---@param cardType string
+---@param hasChoices boolean|nil  未来: 剧情选择
+---@return boolean
+function M.isBlockingEvent(cardType, hasChoices)
+    if BLOCKING_EVENTS[cardType] then return true end
+    if cardType == "plot" and hasChoices then return true end
+    return false
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast 常量
+-- ---------------------------------------------------------------------------
+local TOAST_W       = 220    -- 卡牌宽度
+local TOAST_R       = 10     -- 圆角
+local TOAST_GAP     = 8      -- 堆叠间距
+local TOAST_MARGIN_R = 12    -- 右边距
+local TOAST_MARGIN_T = 52    -- 顶部距离 (ResourceBar 下方)
+local TOAST_MAX     = 3      -- 最多同时可见
+local TOAST_IDLE    = 3.0    -- 驻留时间 (秒)
+local TOAST_ENTER   = 0.35   -- 入场动画时间
+local TOAST_EXIT    = 0.25   -- 退场动画时间
+
+-- ---------------------------------------------------------------------------
+-- Toast 状态
+-- ---------------------------------------------------------------------------
+local toastQueue = {}   -- ToastInstance[] (newest at tail)
+local toastNextId = 1
+
+-- ---------------------------------------------------------------------------
+-- Toast: 入队
+-- ---------------------------------------------------------------------------
+
+--- 推送一条非阻塞事件 Toast
+---@param cardType string
+---@param appliedEffects table  已结算的资源变化 (可能被护盾清空)
+---@param shieldUsed boolean   护盾是否生效
+---@param location string|nil  地点类型
+---@param trapSubtype string|nil  陷阱子类型 (sanity/money/film/teleport)
+function M.toast(cardType, appliedEffects, shieldUsed, location, trapSubtype)
+    -- 随机文案: 陷阱子类型使用专属文案池
+    local pool
+    if cardType == "trap" and trapSubtype and M.trapSubtypeTemplates[trapSubtype] then
+        pool = M.trapSubtypeTemplates[trapSubtype]
+    else
+        pool = M.templates[cardType]
+    end
+    if not pool or #pool == 0 then
+        pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
+    end
+    local tmpl = pool[math.random(1, #pool)]
+
+    -- 暗面世界标题
+    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local displayTitle = darkInfo and darkInfo.label or tmpl.title
+
+    local id = toastNextId
+    toastNextId = toastNextId + 1
+
+    ---@class ToastInstance
+    local toast = {
+        id = id,
+        cardType = cardType,
+        trapSubtype = trapSubtype,  -- 陷阱子类型 (nil for non-trap)
+        title = displayTitle,
+        desc = tmpl.desc,
+        effects = appliedEffects or {},
+        shieldUsed = shieldUsed or false,
+        location = location,
+
+        phase = "enter",   -- "enter" | "idle" | "exit" | "done"
+        timer = 0,
+
+        -- 动画属性
+        slideX = TOAST_W + TOAST_MARGIN_R + 20,  -- 从右侧屏幕外滑入
+        alpha = 0,
+        scale = 0.8,
+        targetY = 0,   -- 目标 Y 位置 (由堆栈计算)
+        currentY = 0,  -- 当前 Y 位置 (动画平滑)
+
+        -- 碰撞检测 (draw 时更新)
+        drawX = 0, drawY = 0, drawW = 0, drawH = 0,
+    }
+
+    toastQueue[#toastQueue + 1] = toast
+
+    -- 溢出: 强制退场最老的
+    local visibleCount = 0
+    for i = 1, #toastQueue do
+        if toastQueue[i].phase ~= "exit" and toastQueue[i].phase ~= "done" then
+            visibleCount = visibleCount + 1
+        end
+    end
+    if visibleCount > TOAST_MAX then
+        for i = 1, #toastQueue do
+            if toastQueue[i].phase ~= "exit" and toastQueue[i].phase ~= "done" then
+                toastQueue[i].phase = "exit"
+                toastQueue[i].timer = 0
+                break  -- 只退最老的一个
+            end
+        end
+    end
+
+    -- 入场 tween
+    Tween.to(toast, { slideX = 0, alpha = 1, scale = 1.0 }, TOAST_ENTER, {
+        easing = Tween.Easing.easeOutBack,
+        tag = "toast_" .. id,
+        onComplete = function()
+            if toast.phase == "enter" then
+                toast.phase = "idle"
+                toast.timer = 0
+            end
+        end
+    })
+
+    print(string.format("[EventPopup] Toast: %s - %s (id=%d)", cardType, displayTitle, id))
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 每帧更新
+-- ---------------------------------------------------------------------------
+
+function M.updateToasts(dt)
+    -- 更新计时器 + 自动退场
+    for i = #toastQueue, 1, -1 do
+        local t = toastQueue[i]
+        t.timer = t.timer + dt
+
+        if t.phase == "idle" and t.timer >= TOAST_IDLE then
+            -- 自动退场
+            t.phase = "exit"
+            t.timer = 0
+            Tween.to(t, { slideX = TOAST_W + 30, alpha = 0, scale = 0.85 }, TOAST_EXIT, {
+                easing = Tween.Easing.easeInCubic,
+                tag = "toast_" .. t.id,
+                onComplete = function()
+                    t.phase = "done"
+                end
+            })
+        end
+
+        if t.phase == "exit" and t.timer > TOAST_EXIT + 0.1 then
+            t.phase = "done"
+        end
+    end
+
+    -- 移除已完成的
+    for i = #toastQueue, 1, -1 do
+        if toastQueue[i].phase == "done" then
+            Tween.cancelTag("toast_" .. toastQueue[i].id)
+            table.remove(toastQueue, i)
+        end
+    end
+
+    -- 计算目标 Y (从上往下排列, 最新的在最下)
+    -- 只对非 done 的 toast 计算
+    local slot = 0
+    for i = 1, #toastQueue do
+        local t = toastQueue[i]
+        if t.phase ~= "done" then
+            t.targetY = TOAST_MARGIN_T + slot * (M._toastItemH(t) + TOAST_GAP)
+            slot = slot + 1
+        end
+    end
+
+    -- 平滑 Y
+    for i = 1, #toastQueue do
+        local t = toastQueue[i]
+        if t.phase == "enter" and t.timer < 0.05 then
+            t.currentY = t.targetY  -- 第一帧直接到位
+        else
+            t.currentY = t.currentY + (t.targetY - t.currentY) * math.min(1, dt * 12)
+        end
+    end
+end
+
+--- 计算单个 toast 的高度
+function M._toastItemH(toast)
+    local baseH = 42   -- 色条 + 图标/标题行
+    baseH = baseH + 28  -- 描述行
+    if toast.shieldUsed or #toast.effects > 0 then
+        baseH = baseH + 24  -- 徽章行
+    end
+    baseH = baseH + 12  -- 进度条 + 底部间距
+    return baseH
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 渲染
+-- ---------------------------------------------------------------------------
+
+function M.drawToasts(vg, logicalW, logicalH, gameTime)
+    if #toastQueue == 0 then return end
+
+    local tc_theme = Theme.current
+
+    for i = 1, #toastQueue do
+        local t = toastQueue[i]
+        if t.phase == "done" then goto continue end
+        if t.alpha < 0.01 then goto continue end
+
+        local itemH = M._toastItemH(t)
+        local x = logicalW - TOAST_W - TOAST_MARGIN_R + t.slideX
+        local y = t.currentY
+
+        -- 记录碰撞区域
+        t.drawX = x
+        t.drawY = y
+        t.drawW = TOAST_W
+        t.drawH = itemH
+
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, t.alpha)
+
+        -- 缩放 (以卡牌右中心为原点)
+        if math.abs(t.scale - 1.0) > 0.005 then
+            nvgTranslate(vg, x + TOAST_W, y + itemH / 2)
+            nvgScale(vg, t.scale, t.scale)
+            nvgTranslate(vg, -(x + TOAST_W), -(y + itemH / 2))
+        end
+
+        -- 阴影
+        local shadowP = nvgBoxGradient(vg, x + 1, y + 2, TOAST_W, itemH, TOAST_R, 10,
+            nvgRGBA(0, 0, 0, 50), nvgRGBA(0, 0, 0, 0))
+        nvgBeginPath(vg)
+        nvgRect(vg, x - 12, y - 8, TOAST_W + 24, itemH + 20)
+        nvgFillPaint(vg, shadowP)
+        nvgFill(vg)
+
+        -- 背景
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x, y, TOAST_W, itemH, TOAST_R)
+        nvgFillColor(vg, nvgRGBA(tc_theme.panelBg.r, tc_theme.panelBg.g, tc_theme.panelBg.b, 240))
+        nvgFill(vg)
+
+        -- 边框
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x, y, TOAST_W, itemH, TOAST_R)
+        nvgStrokeColor(vg, Theme.rgbaA(tc_theme.panelBorder, 80))
+        nvgStrokeWidth(vg, 1.0)
+        nvgStroke(vg)
+
+        -- 顶部类型色条
+        local typeColor = Theme.cardTypeColor(t.cardType)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x + 3, y + 3, TOAST_W - 6, 4, 2)
+        nvgFillColor(vg, Theme.rgbaA(typeColor, 200))
+        nvgFill(vg)
+
+        -- 内容区域
+        local contentX = x + 12
+        local contentY = y + 14
+
+        -- 图标 + 标题 (同行)
+        local info = Theme.cardTypeInfo(t.cardType)
+        -- 陷阱子类型: 使用专属图标
+        local displayIcon = (info and info.icon or "❓")
+        if t.cardType == "trap" and t.trapSubtype and M.trapSubtypeInfo[t.trapSubtype] then
+            displayIcon = M.trapSubtypeInfo[t.trapSubtype].icon
+        end
+        nvgFontFace(vg, "sans")
+
+        -- 图标
+        nvgFontSize(vg, 22)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(tc_theme.textPrimary))
+        nvgText(vg, contentX, contentY + 8, displayIcon, nil)
+
+        -- 标题
+        nvgFontSize(vg, 14)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(typeColor, 240))
+        nvgText(vg, contentX + 28, contentY + 8, t.title, nil)
+
+        contentY = contentY + 24
+
+        -- 描述 (1-2 行, 截断)
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+        nvgFillColor(vg, Theme.rgbaA(tc_theme.textSecondary, 200))
+        local maxTextW = TOAST_W - 24
+        -- 截断到约 40 字符 (2行)
+        local descText = t.desc
+        if #descText > 60 then
+            descText = descText:sub(1, 57) .. "..."
+        end
+        nvgTextBox(vg, contentX, contentY, maxTextW, descText, nil)
+        contentY = contentY + 28
+
+        -- 资源徽章 或 护盾提示
+        if t.shieldUsed then
+            -- 护盾提示
+            nvgFontSize(vg, 11)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgbaA(tc_theme.safe, 220))
+            nvgText(vg, contentX, contentY + 8, "🧿 护身符抵挡了伤害!", nil)
+            contentY = contentY + 20
+        elseif #t.effects > 0 then
+            local badgeX = contentX
+            for _, eff in ipairs(t.effects) do
+                local meta = resourceMeta[eff[1]]
+                local icon = meta and meta.icon or "?"
+                local delta = eff[2]
+                local label = icon .. (delta > 0 and "+" or "") .. delta
+
+                local bw = #label * 6 + 14
+                local bh = 18
+
+                -- 徽章背景
+                local bgC = delta > 0 and tc_theme.safe or tc_theme.danger
+                nvgBeginPath(vg)
+                nvgRoundedRect(vg, badgeX, contentY, bw, bh, bh / 2)
+                nvgFillColor(vg, Theme.rgbaA(bgC, 35))
+                nvgFill(vg)
+                nvgStrokeColor(vg, Theme.rgbaA(bgC, 80))
+                nvgStrokeWidth(vg, 0.8)
+                nvgStroke(vg)
+
+                -- 徽章文字
+                nvgFontSize(vg, 10)
+                nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+                nvgFillColor(vg, Theme.rgbaA(delta > 0 and tc_theme.safe or tc_theme.danger, 220))
+                nvgText(vg, badgeX + bw / 2, contentY + bh / 2, label, nil)
+
+                badgeX = badgeX + bw + 6
+            end
+            contentY = contentY + 24
+        end
+
+        -- 进度条 (自动消失倒计时)
+        if t.phase == "idle" then
+            local progress = 1.0 - math.min(t.timer / TOAST_IDLE, 1.0)
+            local barY = y + itemH - 6
+            local barW = TOAST_W - 20
+            local barH = 2
+
+            -- 背景
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, x + 10, barY, barW, barH, 1)
+            nvgFillColor(vg, nvgRGBA(tc_theme.textSecondary.r, tc_theme.textSecondary.g, tc_theme.textSecondary.b, 30))
+            nvgFill(vg)
+
+            -- 前景
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, x + 10, barY, barW * progress, barH, 1)
+            nvgFillColor(vg, Theme.rgbaA(typeColor, 120))
+            nvgFill(vg)
+        end
+
+        nvgRestore(vg)
+
+        ::continue::
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 点击处理 (提前关闭)
+-- ---------------------------------------------------------------------------
+
+--- 点击 Toast 提前关闭
+---@param lx number 逻辑 X
+---@param ly number 逻辑 Y
+---@return boolean consumed
+function M.handleToastClick(lx, ly)
+    -- 从最新 (队尾) 往最老遍历
+    for i = #toastQueue, 1, -1 do
+        local t = toastQueue[i]
+        if t.phase ~= "done" and t.phase ~= "exit" then
+            if lx >= t.drawX and lx <= t.drawX + t.drawW
+                and ly >= t.drawY and ly <= t.drawY + t.drawH then
+                -- 触发退场
+                t.phase = "exit"
+                t.timer = 0
+                Tween.cancelTag("toast_" .. t.id)
+                Tween.to(t, { slideX = TOAST_W + 30, alpha = 0, scale = 0.85 }, TOAST_EXIT, {
+                    easing = Tween.Easing.easeInCubic,
+                    tag = "toast_" .. t.id,
+                    onComplete = function()
+                        t.phase = "done"
+                    end
+                })
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- ---------------------------------------------------------------------------
+-- Toast: 查询 / 清空
+-- ---------------------------------------------------------------------------
+
+function M.isToastActive()
+    return #toastQueue > 0
+end
+
+function M.clearToasts()
+    for i = 1, #toastQueue do
+        Tween.cancelTag("toast_" .. toastQueue[i].id)
+    end
+    toastQueue = {}
+end
+
+-- ===========================================================================
+-- 裂隙确认弹窗 (双按钮: 进入暗面 / 留在原地)
+-- ===========================================================================
+
+local riftState = {
+    active = false,
+    phase = "done",        -- "enter" | "idle" | "exit"
+    cx = 0, cy = 0,
+    onConfirm = nil,       -- 点击"进入"
+    onCancel  = nil,       -- 点击"留下"
+    -- 动画
+    overlayAlpha = 0,
+    popupScale   = 0,
+    popupAlpha   = 0,
+    iconT        = 0,
+    titleT       = 0,
+    descT        = 0,
+    btnEnterT    = 0,
+    btnStayT     = 0,
+    btnEnterHover = 0,
+    btnStayHover  = 0,
+}
+
+local RIFT_POPUP_W = 260
+local RIFT_POPUP_H = 185
+local RIFT_BTN_W   = 100
+local RIFT_BTN_H   = 30
+local RIFT_BTN_GAP = 12
+
+--- 显示裂隙确认弹窗
+---@param cx number 弹窗中心 X
+---@param cy number 弹窗中心 Y
+---@param onConfirm function 进入暗面回调
+---@param onCancel function|nil 留在原地回调
+function M.showRiftConfirm(cx, cy, onConfirm, onCancel)
+    riftState.active = true
+    riftState.phase = "enter"
+    riftState.cx = cx
+    riftState.cy = cy
+    riftState.onConfirm = onConfirm
+    riftState.onCancel  = onCancel
+
+    riftState.overlayAlpha = 0
+    riftState.popupScale   = 0.3
+    riftState.popupAlpha   = 0
+    riftState.iconT        = 0
+    riftState.titleT       = 0
+    riftState.descT        = 0
+    riftState.btnEnterT    = 0
+    riftState.btnStayT     = 0
+    riftState.btnEnterHover = 0
+    riftState.btnStayHover  = 0
+
+    Tween.to(riftState, { overlayAlpha = 0.4, popupScale = 1.0, popupAlpha = 1.0 }, 0.35, {
+        easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    local base = 0.12
+    Tween.to(riftState, { iconT = 1 }, 0.3, {
+        delay = base, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    Tween.to(riftState, { titleT = 1 }, 0.3, {
+        delay = base + 0.08, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    Tween.to(riftState, { descT = 1 }, 0.3, {
+        delay = base + 0.16, easing = Tween.Easing.easeOutCubic, tag = "riftpopup",
+    })
+    Tween.to(riftState, { btnEnterT = 1 }, 0.3, {
+        delay = base + 0.24, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+    })
+    Tween.to(riftState, { btnStayT = 1 }, 0.3, {
+        delay = base + 0.30, easing = Tween.Easing.easeOutBack, tag = "riftpopup",
+        onComplete = function() riftState.phase = "idle" end,
+    })
+end
+
+local function dismissRift(accepted)
+    if not riftState.active or riftState.phase == "exit" then return end
+    riftState.phase = "exit"
+    Tween.cancelTag("riftpopup")
+    Tween.to(riftState, {
+        overlayAlpha = 0, popupScale = 0.5, popupAlpha = 0,
+        iconT = 0, titleT = 0, descT = 0, btnEnterT = 0, btnStayT = 0,
+    }, 0.22, {
+        easing = Tween.Easing.easeInBack, tag = "riftpopup",
+        onComplete = function()
+            riftState.active = false
+            riftState.phase = "done"
+            if accepted and riftState.onConfirm then
+                riftState.onConfirm()
+            elseif not accepted and riftState.onCancel then
+                riftState.onCancel()
+            end
+        end,
+    })
+end
+
+function M.isRiftConfirmActive()
+    return riftState.active
+end
+
+--- 裂隙确认弹窗碰撞检测 (两个按钮)
+---@return string|nil "enter"|"stay"|nil
+local function riftBtnHitTest(lx, ly)
+    local hw = RIFT_POPUP_W / 2
+    local hh = RIFT_POPUP_H / 2
+    local btnY = riftState.cy + hh - RIFT_BTN_H - 14
+    local totalW = RIFT_BTN_W * 2 + RIFT_BTN_GAP
+    local startX = riftState.cx - totalW / 2
+    -- 进入按钮
+    if lx >= startX and lx <= startX + RIFT_BTN_W
+        and ly >= btnY and ly <= btnY + RIFT_BTN_H then
+        return "enter"
+    end
+    -- 留下按钮
+    local stayX = startX + RIFT_BTN_W + RIFT_BTN_GAP
+    if lx >= stayX and lx <= stayX + RIFT_BTN_W
+        and ly >= btnY and ly <= btnY + RIFT_BTN_H then
+        return "stay"
+    end
+    return nil
+end
+
+function M.handleRiftClick(lx, ly)
+    if not riftState.active then return false end
+    if riftState.phase == "enter" then return true end
+    local hit = riftBtnHitTest(lx, ly)
+    if hit == "enter" then
+        dismissRift(true)
+        return true
+    elseif hit == "stay" then
+        dismissRift(false)
+        return true
+    end
+    -- 面板外点击 = 留下
+    local px = riftState.cx - RIFT_POPUP_W / 2
+    local py = riftState.cy - RIFT_POPUP_H / 2
+    if not (lx >= px and lx <= px + RIFT_POPUP_W and ly >= py and ly <= py + RIFT_POPUP_H) then
+        dismissRift(false)
+        return true
+    end
+    return true
+end
+
+function M.updateRiftHover(lx, ly, dt)
+    if not riftState.active then return end
+    local hit = riftBtnHitTest(lx, ly)
+    local targetEnter = (hit == "enter") and 1 or 0
+    local targetStay  = (hit == "stay")  and 1 or 0
+    local speed = 8
+    riftState.btnEnterHover = riftState.btnEnterHover + (targetEnter - riftState.btnEnterHover) * math.min(1, dt * speed)
+    riftState.btnStayHover  = riftState.btnStayHover  + (targetStay  - riftState.btnStayHover)  * math.min(1, dt * speed)
+end
+
+function M.drawRiftConfirm(vg, logicalW, logicalH)
+    if not riftState.active then return end
+
+    local t = Theme.current
+
+    -- 遮罩
+    if riftState.overlayAlpha > 0.01 then
+        nvgBeginPath(vg)
+        nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
+        nvgFillColor(vg, nvgRGBA(0, 0, 0, math.floor(riftState.overlayAlpha * 255)))
+        nvgFill(vg)
+    end
+
+    nvgSave(vg)
+    nvgTranslate(vg, riftState.cx, riftState.cy)
+    nvgScale(vg, riftState.popupScale, riftState.popupScale)
+    nvgGlobalAlpha(vg, riftState.popupAlpha)
+
+    local hw = RIFT_POPUP_W / 2
+    local hh = RIFT_POPUP_H / 2
+
+    -- 阴影
+    local shadowP = nvgBoxGradient(vg, -hw + 2, -hh + 4, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R, 16,
+        nvgRGBA(0, 0, 0, 70), nvgRGBA(0, 0, 0, 0))
+    nvgBeginPath(vg)
+    nvgRect(vg, -hw - 20, -hh - 16, RIFT_POPUP_W + 40, RIFT_POPUP_H + 40)
+    nvgFillPaint(vg, shadowP)
+    nvgFill(vg)
+
+    -- 面板
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
+    nvgFillColor(vg, nvgRGBA(t.panelBg.r, t.panelBg.g, t.panelBg.b, 245))
+    nvgFill(vg)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
+    nvgStrokeColor(vg, Theme.rgbaA(t.darkAccent, 100))
+    nvgStrokeWidth(vg, 1.2)
+    nvgStroke(vg)
+
+    -- 顶部色条
+    nvgSave(vg)
+    nvgScissor(vg, -hw, -hh, RIFT_POPUP_W, 4)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
+    nvgFillColor(vg, Theme.rgba(t.darkAccent))
+    nvgFill(vg)
+    nvgRestore(vg)
+
+    -- 图标
+    if riftState.iconT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, riftState.popupAlpha * riftState.iconT)
+        nvgTranslate(vg, 0, -hh + 35 + (1 - riftState.iconT) * 15)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 36)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(t.darkAccent))
+        nvgText(vg, 0, 0, "🌀", nil)
+        nvgRestore(vg)
+    end
+
+    -- 标题
+    if riftState.titleT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, riftState.popupAlpha * riftState.titleT)
+        nvgTranslate(vg, 0, -hh + 65 + (1 - riftState.titleT) * 10)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 16)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(t.textPrimary))
+        nvgText(vg, 0, 0, "发现空间裂隙", nil)
+        nvgRestore(vg)
+    end
+
+    -- 描述
+    if riftState.descT > 0.01 then
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, riftState.popupAlpha * riftState.descT)
+        nvgTranslate(vg, 0, -hh + 92 + (1 - riftState.descT) * 8)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 12)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
+        nvgText(vg, 0, 0, "此处出现通往暗面世界的裂隙", nil)
+        nvgText(vg, 0, 16, "是否要进入？", nil)
+        nvgRestore(vg)
+    end
+
+    -- 双按钮
+    local btnY = hh - RIFT_BTN_H - 14
+    local totalW = RIFT_BTN_W * 2 + RIFT_BTN_GAP
+    local startX = -totalW / 2
+
+    -- "进入暗面" 按钮
+    if riftState.btnEnterT > 0.01 then
+        nvgSave(vg)
+        local bx = startX + RIFT_BTN_W / 2
+        local by = btnY + RIFT_BTN_H / 2
+        local off = (1 - riftState.btnEnterT) * 15
+        nvgTranslate(vg, bx, by + off)
+        nvgScale(vg, riftState.btnEnterT, riftState.btnEnterT)
+        local h = riftState.btnEnterHover
+        local sc = 1.0 + h * 0.05
+        nvgScale(vg, sc, sc)
+        local da = t.darkAccent
+        local br = math.floor(da.r + (255 - da.r) * h * 0.15)
+        local bg = math.floor(da.g + (255 - da.g) * h * 0.15)
+        local bb = math.floor(da.b + (255 - da.b) * h * 0.15)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, -RIFT_BTN_W / 2, -RIFT_BTN_H / 2, RIFT_BTN_W, RIFT_BTN_H, 6)
+        nvgFillColor(vg, nvgRGBA(br, bg, bb, 220))
+        nvgFill(vg)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+        nvgText(vg, 0, 0, "进入暗面", nil)
+        nvgRestore(vg)
+    end
+
+    -- "留在原地" 按钮
+    if riftState.btnStayT > 0.01 then
+        nvgSave(vg)
+        local bx = startX + RIFT_BTN_W + RIFT_BTN_GAP + RIFT_BTN_W / 2
+        local by = btnY + RIFT_BTN_H / 2
+        local off = (1 - riftState.btnStayT) * 15
+        nvgTranslate(vg, bx, by + off)
+        nvgScale(vg, riftState.btnStayT, riftState.btnStayT)
+        local h = riftState.btnStayHover
+        local sc = 1.0 + h * 0.05
+        nvgScale(vg, sc, sc)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, -RIFT_BTN_W / 2, -RIFT_BTN_H / 2, RIFT_BTN_W, RIFT_BTN_H, 6)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 60))
+        nvgFill(vg)
+        nvgStrokeColor(vg, Theme.rgbaA(t.textSecondary, 120))
+        nvgStrokeWidth(vg, 1.0)
+        nvgStroke(vg)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
+        nvgText(vg, 0, 0, "留在原地", nil)
+        nvgRestore(vg)
+    end
+
+    nvgRestore(vg)
 end
 
 return M
