@@ -67,6 +67,7 @@ var _is_photo_mode: bool = false
 var _photo_card_type: String = ""
 var _photo_location: String = ""
 var _photo_rotation: float = 0.0  # 拍立得微倾角度
+var _cached_desc: String = ""     # 缓存的事件描述文本 (避免每帧随机)
 
 # 动画值
 var _overlay_alpha: float = 0.0
@@ -120,6 +121,7 @@ func show_event(card: Card) -> void:
 	_active = true
 	_phase = "enter"
 	_is_photo_mode = false
+	_cached_desc = card.get_event_text()  # 缓存, 避免 _draw 中每帧随机
 	visible = true
 
 	_overlay_alpha = 0.0
@@ -164,6 +166,7 @@ func show_photo(card: Card) -> void:
 	_photo_card_type = card.type
 	_photo_location = card.location
 	_photo_rotation = randf_range(-6.0, 6.0)
+	_cached_desc = card.get_event_text()  # 缓存, 避免 _draw 中每帧随机
 	visible = true
 
 	_overlay_alpha = 0.0
@@ -613,9 +616,8 @@ func _draw_event() -> void:
 	# 描述
 	if _desc_t > 0.01:
 		var desc_color: Color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, content_alpha * _desc_t)
-		var desc: String = _card.get_event_text()
 		draw_string(font, Vector2(cx, cy + 22 + (1.0 - _desc_t) * 10),
-			desc, HORIZONTAL_ALIGNMENT_CENTER, scaled_w * 0.8, 12, desc_color)
+			_cached_desc, HORIZONTAL_ALIGNMENT_CENTER, scaled_w * 0.8, 12, desc_color)
 
 	# 效果徽章
 	if _effects_t > 0.01:
@@ -707,9 +709,8 @@ func _draw_photo() -> void:
 	# 描述
 	if _desc_t > 0.01:
 		var desc_color: Color = Color(0.784, 0.784, 0.824, _panel_alpha * _desc_t * 0.7)
-		var desc: String = _card.get_event_text()
 		draw_string(font, Vector2(img_x + 10, img_y + img_h / 2.0 + 48 + (1.0 - _desc_t) * 8),
-			desc, HORIZONTAL_ALIGNMENT_LEFT, img_w - 20, 10, desc_color)
+			_cached_desc, HORIZONTAL_ALIGNMENT_LEFT, img_w - 20, 10, desc_color)
 
 	# 照片区内边框
 	draw_rect(Rect2(img_x, img_y, img_w, img_h), Color(0, 0, 0, _panel_alpha * 0.16), false, 0.6)

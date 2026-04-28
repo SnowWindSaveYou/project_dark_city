@@ -28,6 +28,9 @@ var board_layer: Node3D = null
 var _card_materials: Dictionary = {}  # "row_col" -> StandardMaterial3D
 ## 共享卡牌 Mesh
 var _card_mesh: BoxMesh = null
+## 粒子材质缓存 (landmark / home 两套)
+var _particle_mat_landmark: StandardMaterial3D = null
+var _particle_mat_home: StandardMaterial3D = null
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -40,6 +43,10 @@ func setup(main_ref) -> void:
 	# 创建共享 BoxMesh
 	_card_mesh = BoxMesh.new()
 	_card_mesh.size = Vector3(Card.CARD_W, Card.CARD_THICKNESS, Card.CARD_H)
+
+	# 粒子材质 (地标: 金色, 家: 白色)
+	_particle_mat_landmark = _create_particle_material(GameTheme.glow_color)
+	_particle_mat_home = _create_particle_material(Color(0.9, 0.95, 1.0, 0.8))
 
 # ---------------------------------------------------------------------------
 # 卡牌节点创建 (全量重建)
@@ -82,12 +89,14 @@ func rebuild_card_nodes() -> void:
 			# 占位 Label3D (显示卡牌类型文字)
 			var label: Label3D = Label3D.new()
 			label.name = "TypeLabel"
-			label.text = "?"
+			# 初始就显示地点信息 (发牌飞行中也可见)
+			var loc_info: Dictionary = card.get_location_info()
+			label.text = loc_info.get("icon", "?") + "\n" + loc_info.get("label", "")
 			label.font_size = 48
 			label.pixel_size = 0.005
 			label.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.001, 0)
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
-			label.modulate = Color(1, 1, 1, 0)  # 未翻开时隐藏
+			label.modulate = Color(1, 1, 1, 0.85)  # 未翻开时显示地点
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			label.no_depth_test = true
 			label.render_priority = 1
@@ -160,6 +169,11 @@ func update_card_visual(row: int, col: int) -> void:
 				var type_label: String = type_info.get("label", "")
 				label.text = icon + "\n" + type_label
 				label.modulate = Color(1, 1, 1, 0.9)
+			# 地标 / 家: 挂载粒子光晕
+			if card.type == "landmark" or card.type == "home":
+				_attach_glow_particles(card_node, card.type)
+			else:
+				_remove_glow_particles(card_node)
 	else:
 		mat.albedo_color = GameTheme.card_back
 		# 未翻开时显示地点信息
@@ -171,6 +185,7 @@ func update_card_visual(row: int, col: int) -> void:
 				var loc_label: String = loc_info.get("label", "")
 				label.text = loc_icon + "\n" + loc_label
 				label.modulate = Color(1, 1, 1, 0.85)
+			_remove_glow_particles(card_node)
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:
@@ -323,22 +338,31 @@ func start_deal_animation(on_complete: Callable) -> void:
 # ---------------------------------------------------------------------------
 
 ## 播放翻牌动画, 完成后调用 on_complete
+## 使用 scale.z 压扁→换面→展开 (俯视角翻牌效果)
 func play_flip_animation(row: int, col: int, on_complete: Callable) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)
 	if not card_node:
 		on_complete.call()
 		return
 
+	# 翻牌时微微抬起
+	var base_y: float = card_node.position.y
 	var tw: Tween = m.create_tween()
-	# 前半: 旋转到 90° (侧面)
-	tw.tween_property(card_node, "rotation_degrees:y", 90.0, FLIP_HALF_DUR) \
+	# 前半: 压扁 scale.z → 0 + 抬起
+	tw.set_parallel(true)
+	tw.tween_property(card_node, "scale:z", 0.0, FLIP_HALF_DUR) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	# 中间: 更换颜色
-	tw.tween_callback(func(): update_card_visual(row, col))
-	# 后半: 旋转到 180° (完成翻面)
-	tw.tween_property(card_node, "rotation_degrees:y", 180.0, FLIP_HALF_DUR) \
+	tw.tween_property(card_node, "position:y", base_y + 0.06, FLIP_HALF_DUR) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(on_complete)
+	# 中间: 更换颜色/文字
+	tw.chain().tween_callback(func(): update_card_visual(row, col))
+	# 后半: 展开 scale.z → 1 + 落下
+	tw.set_parallel(true)
+	tw.tween_property(card_node, "scale:z", 1.0, FLIP_HALF_DUR) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(card_node, "position:y", base_y, FLIP_HALF_DUR) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.chain().tween_callback(on_complete)
 
 ## 播放驱魔变形动画
 func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
@@ -369,9 +393,11 @@ func play_flip_back_animation(row: int, col: int) -> void:
 	if not card_node:
 		return
 	var tw: Tween = m.create_tween()
-	tw.tween_property(card_node, "rotation_degrees:y", 90.0, 0.1)
+	tw.tween_property(card_node, "scale:z", 0.0, 0.1) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func(): update_card_visual(row, col))
-	tw.tween_property(card_node, "rotation_degrees:y", 0.0, 0.1)
+	tw.tween_property(card_node, "scale:z", 1.0, 0.1) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 # ---------------------------------------------------------------------------
 # Token 移动动画
@@ -390,10 +416,118 @@ func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 # 棋盘叠层效果 (Phase 3 用 3D 节点替代 _draw)
 # ---------------------------------------------------------------------------
 
-## 暂时空实现: 安全光晕/道具/裂隙标记等叠层效果
-## 将在 Phase 3 中用 OmniLight3D / Sprite3D 替代
+## 暂时空实现: 道具/裂隙标记等叠层效果
 func _update_overlays() -> void:
 	pass
+
+# ---------------------------------------------------------------------------
+# 地标 / 安全区粒子特效
+# ---------------------------------------------------------------------------
+
+## 创建粒子用的不透明发光材质
+func _create_particle_material(color: Color) -> StandardMaterial3D:
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mat.vertex_color_use_as_albedo = true
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.no_depth_test = false
+	mat.render_priority = 2
+	return mat
+
+## 为指定卡牌挂载粒子特效 (landmark=金色光辉, home=白色光辉)
+func _attach_glow_particles(card_node: MeshInstance3D, card_type: String) -> void:
+	# 已有粒子则跳过
+	if card_node.get_node_or_null("GlowParticles"):
+		return
+
+	var particles: GPUParticles3D = GPUParticles3D.new()
+	particles.name = "GlowParticles"
+	particles.emitting = true
+	particles.amount = 12
+	particles.lifetime = 1.8
+	particles.explosiveness = 0.0
+	particles.randomness = 0.3
+	particles.visibility_aabb = AABB(Vector3(-0.5, -0.1, -0.6), Vector3(1.0, 0.8, 1.2))
+	# 粒子从卡牌表面上方发射
+	particles.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.02, 0)
+
+	# 粒子材质
+	if card_type == "landmark":
+		particles.draw_pass_1 = _make_particle_quad_mesh(0.03)
+		particles.material_override = _particle_mat_landmark
+	else:
+		particles.draw_pass_1 = _make_particle_quad_mesh(0.025)
+		particles.material_override = _particle_mat_home
+
+	# 粒子行为 (ProcessMaterial)
+	var proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
+	proc.direction = Vector3(0, 1, 0)
+	proc.spread = 25.0
+	proc.initial_velocity_min = 0.05
+	proc.initial_velocity_max = 0.15
+	proc.gravity = Vector3(0, 0.02, 0)  # 微弱上升力
+
+	# 发射范围: 卡牌表面区域
+	proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	proc.emission_box_extents = Vector3(Card.CARD_W * 0.35, 0.01, Card.CARD_H * 0.35)
+
+	# 缩放动画: 从小到大再消失
+	proc.scale_min = 0.6
+	proc.scale_max = 1.2
+	var scale_curve: CurveTexture = CurveTexture.new()
+	var curve: Curve = Curve.new()
+	curve.add_point(Vector2(0.0, 0.0))
+	curve.add_point(Vector2(0.15, 1.0))
+	curve.add_point(Vector2(0.7, 0.8))
+	curve.add_point(Vector2(1.0, 0.0))
+	scale_curve.curve = curve
+	proc.scale_curve = scale_curve
+
+	# 颜色渐变: 从亮到透明
+	var color_ramp: GradientTexture1D = GradientTexture1D.new()
+	var gradient: Gradient = Gradient.new()
+	if card_type == "landmark":
+		gradient.set_color(0, Color(1.0, 0.88, 0.4, 0.9))   # 起始: 暖金色
+		gradient.set_color(1, Color(1.0, 0.7, 0.2, 0.0))     # 结束: 淡出
+	else:
+		gradient.set_color(0, Color(1.0, 1.0, 1.0, 0.7))     # 起始: 柔白
+		gradient.set_color(1, Color(0.85, 0.9, 1.0, 0.0))    # 结束: 淡蓝消失
+	color_ramp.gradient = gradient
+	proc.color_ramp = color_ramp
+
+	particles.process_material = proc
+	card_node.add_child(particles)
+
+	# 同时添加一个柔和的 OmniLight3D 光源
+	var light: OmniLight3D = OmniLight3D.new()
+	light.name = "GlowLight"
+	light.position = Vector3(0, 0.15, 0)
+	light.omni_range = 0.6
+	light.light_energy = 0.4
+	if card_type == "landmark":
+		light.light_color = Color(1.0, 0.85, 0.4)
+	else:
+		light.light_color = Color(0.9, 0.95, 1.0)
+	light.omni_attenuation = 1.5
+	light.shadow_enabled = false
+	card_node.add_child(light)
+
+## 移除卡牌上的粒子特效
+func _remove_glow_particles(card_node: MeshInstance3D) -> void:
+	var particles: Node = card_node.get_node_or_null("GlowParticles")
+	if particles:
+		particles.queue_free()
+	var light: Node = card_node.get_node_or_null("GlowLight")
+	if light:
+		light.queue_free()
+
+## 创建粒子用的微型四边形 Mesh
+func _make_particle_quad_mesh(size: float) -> QuadMesh:
+	var quad: QuadMesh = QuadMesh.new()
+	quad.size = Vector2(size, size)
+	return quad
 
 # ---------------------------------------------------------------------------
 # 点击检测 (3D raycast → Y=0 平面)

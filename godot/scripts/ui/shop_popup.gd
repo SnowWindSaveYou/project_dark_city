@@ -111,8 +111,8 @@ func open_shop() -> void:
 	# 商品卡交错入场
 	for i in range(_card_alphas.size()):
 		var delay_i: float = 0.12 + 0.07 * (i + 2)
-		tw.tween_property(self, "_card_alphas:" + str(i), 1.0, 0.35).set_delay(delay_i).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tw.tween_property(self, "_card_rots:" + str(i), 0.0, 0.35).set_delay(delay_i).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_tween_array(tw, _card_alphas, i, 1.0, 0.35, delay_i, Tween.TRANS_BACK, Tween.EASE_OUT)
+		_tween_array(tw, _card_rots, i, 0.0, 0.35, delay_i, Tween.TRANS_BACK, Tween.EASE_OUT)
 	# 按钮
 	var btn_delay: float = 0.12 + 0.07 * (CARD_COUNT + 3)
 	tw.tween_property(self, "_refresh_t", 1.0, 0.25).set_delay(btn_delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -128,8 +128,8 @@ func close_shop() -> void:
 	tw.set_parallel(true)
 	for i in range(_card_alphas.size()):
 		var spin: Array = [deg_to_rad(-15.0), 0.0, deg_to_rad(15.0)]
-		tw.tween_property(self, "_card_alphas:" + str(i), 0.0, 0.2).set_delay(i * 0.03).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-		tw.tween_property(self, "_card_rots:" + str(i), spin[i] if i < 3 else 0.0, 0.2).set_delay(i * 0.03).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		_tween_array(tw, _card_alphas, i, 0.0, 0.2, i * 0.03, Tween.TRANS_BACK, Tween.EASE_IN)
+		_tween_array(tw, _card_rots, i, spin[i] if i < 3 else 0.0, 0.2, i * 0.03, Tween.TRANS_BACK, Tween.EASE_IN)
 	tw.tween_property(self, "_overlay_alpha", 0.0, 0.25).set_delay(0.08)
 	tw.tween_property(self, "_panel_alpha", 0.0, 0.25).set_delay(0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tw.tween_property(self, "_panel_scale", 0.5, 0.25).set_delay(0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
@@ -164,6 +164,21 @@ func _refresh_goods() -> void:
 		_card_shake_x.append(0.0)
 		_purchase_flash.append(0.0)
 		_hover_card_t.append(0.0)
+
+# ---------------------------------------------------------------------------
+# Array 元素 tween 辅助 (GDScript Array 不支持 property path 访问)
+# ---------------------------------------------------------------------------
+func _tween_array(tw: Tween, arr: Array, idx: int, target: float,
+		dur: float, delay: float = 0.0,
+		trans: Tween.TransitionType = Tween.TRANS_LINEAR,
+		ease_type: Tween.EaseType = Tween.EASE_IN_OUT) -> void:
+	var tweener = tw.tween_method(
+		func(v: float): arr[idx] = v,
+		arr[idx], target, dur
+	)
+	if delay > 0.0:
+		tweener.set_delay(delay)
+	tweener.set_trans(trans).set_ease(ease_type)
 
 # ---------------------------------------------------------------------------
 # 输入
@@ -282,7 +297,7 @@ func _try_purchase(index: int) -> void:
 	# 购买闪光
 	_purchase_flash[index] = 1.0
 	var tw: Tween = create_tween()
-	tw.tween_property(self, "_purchase_flash:" + str(index), 0.0, 0.4)
+	tw.tween_method(func(v: float): _purchase_flash[index] = v, 1.0, 0.0, 0.4)
 
 func _shake_card(index: int) -> void:
 	var tw: Tween = create_tween()
@@ -306,8 +321,8 @@ func _do_refresh() -> void:
 	for i in range(CARD_COUNT):
 		var spin_dir: float = 1.0 if randf() > 0.5 else -1.0
 		var target_rot: float = spin_dir * deg_to_rad(10.0 + randf() * 10.0)
-		tw.tween_property(self, "_card_alphas:" + str(i), 0.0, 0.22).set_delay(i * 0.05).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-		tw.tween_property(self, "_card_rots:" + str(i), target_rot, 0.22).set_delay(i * 0.05).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		_tween_array(tw, _card_alphas, i, 0.0, 0.22, i * 0.05, Tween.TRANS_BACK, Tween.EASE_IN)
+		_tween_array(tw, _card_rots, i, target_rot, 0.22, i * 0.05, Tween.TRANS_BACK, Tween.EASE_IN)
 
 	tw.chain().tween_callback(func():
 		# 生成新商品
@@ -317,10 +332,10 @@ func _do_refresh() -> void:
 		var tw2: Tween = create_tween()
 		tw2.set_parallel(true)
 		for j in range(_card_alphas.size()):
-			var rand_rot: bool = (1.0 if randf() > 0.5 else -1.0) * deg_to_rad(4.0 + randf() * 4.0)
+			var rand_rot: float = (1.0 if randf() > 0.5 else -1.0) * deg_to_rad(4.0 + randf() * 4.0)
 			_card_rots[j] = rand_rot
-			tw2.tween_property(self, "_card_alphas:" + str(j), 1.0, 0.32).set_delay(0.06 + j * 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			tw2.tween_property(self, "_card_rots:" + str(j), 0.0, 0.32).set_delay(0.06 + j * 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			_tween_array(tw2, _card_alphas, j, 1.0, 0.32, 0.06 + j * 0.08, Tween.TRANS_BACK, Tween.EASE_OUT)
+			_tween_array(tw2, _card_rots, j, 0.0, 0.32, 0.06 + j * 0.08, Tween.TRANS_BACK, Tween.EASE_OUT)
 		tw2.chain().tween_callback(func(): _refresh_phase = "idle")
 	)
 

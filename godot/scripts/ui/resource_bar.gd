@@ -351,7 +351,7 @@ func _draw_normal_right(sy: float, scy: float, right_x: float,
 
 	var weather_type: int = Weather.get_weather(day)
 	var weather_icon: String = Weather.get_icon(weather_type)
-	var weather_name: String = Weather.get_name(weather_type)
+	var weather_name: String = Weather.get_weather_name(weather_type)
 
 	# 天气图标
 	draw_string(font, Vector2(right_x - 14, scy + 2), weather_icon,

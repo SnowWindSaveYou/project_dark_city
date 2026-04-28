@@ -149,16 +149,51 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		_handle_trap(card, row, col)
 		return
 
-	# 弹窗延迟
-	GameData.set_demo_state("popup")
-	await m.get_tree().create_timer(0.4).timeout
+	# 判断是否阻断
+	var is_blocking: bool = EventPopup.is_blocking_event(card_type)
 
-	if card_type == "shop":
-		m._shop_popup.open_shop()
+	if is_blocking:
+		# 阻断事件: 商店 (未来: 带选项的剧情)
+		GameData.set_demo_state("popup")
+		await m.get_tree().create_timer(0.4).timeout
+		if card_type == "shop":
+			m._shop_popup.open_shop()
+		else:
+			m._event_popup.show_event(card)
 	else:
-		m._event_popup.show_event(card)
+		# 非阻断事件: monster, safe, reward, plot, clue 等
+		# 立即结算资源
+		var shield_used: bool = false
+		var effects: Dictionary = card.get_effects()
 
-	# 裂隙检查 (延迟到弹窗关闭后, 由 popup_closed 回调处理)
+		# 怪物: 护盾检查
+		if card_type == "monster":
+			if effects.size() > 0 and GameData.has_item("shield"):
+				GameData.remove_item("shield")
+				shield_used = true
+				m._vfx.action_banner("🧿 护身符抵消了伤害!", GameTheme.safe, 0.8)
+				effects = {}  # 清空伤害
+
+		# 应用资源变化
+		if not shield_used:
+			for key in effects:
+				GameData.modify_resource(key, effects[key])
+
+		# 线索: 触发传闻
+		if card_type == "clue":
+			m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+
+		# Toast 通知
+		m._event_popup.show_toast(card_type, effects, shield_used, card.location)
+
+		GameData.set_demo_state("ready")
+
+		# 裂隙检查
+		if card.has_rift:
+			_show_rift_confirm(row, col)
+			return
+
+		m.game_flow.check_defeat()
 
 # ---------------------------------------------------------------------------
 # 陷阱处理 (Toast 非阻塞)

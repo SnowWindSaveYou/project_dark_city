@@ -56,7 +56,7 @@ static func get_weather(day_count: int) -> Type:
 		return Type.STORMY
 
 ## 获取天气名称
-static func get_name(weather_type: Type) -> String:
+static func get_weather_name(weather_type: Type) -> String:
 	return NAMES.get(weather_type, "未知")
 
 ## 获取天气图标
