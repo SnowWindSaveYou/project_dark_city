@@ -519,7 +519,7 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 		var s: Dictionary = _card_manager.schedules[i]
 		var item_y := content_y + i * ITEM_H
 		var center_y := item_y + ITEM_H / 2.0
-		var is_hovered := (_hover_index == i + 1 and s["status"] in ["pending", "deferred"])
+		var is_hovered: bool = (_hover_index == i + 1 and s["status"] in ["pending", "deferred"])
 
 		# hover 高亮
 		if is_hovered:
@@ -750,7 +750,7 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 		var ir := _get_toolbar_item_rect(px, py, pw, idx, total)
 		var icon_cx := ir.position.x + ir.size.x / 2.0
 		var icon_cy := ir.position.y + ir.size.y / 2.0
-		var is_hovered := (_hover_toolbar == entry["key"])
+		var is_hovered: bool = (_hover_toolbar == entry["key"])
 
 		# hover 底色
 		if is_hovered:

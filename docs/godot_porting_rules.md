@@ -103,7 +103,63 @@ var info: Dictionary = some_dict.get("key", {})
 
 ---
 
-## 规则 5: 静态方法中的无类型迭代变量
+## 规则 5: `var t = Autoload` 局部变量也会丢失类型
+
+**问题**: 把 autoload 赋给局部变量后，局部变量类型变为 Variant，后续通过它访问的属性/方法返回值也是 Variant。
+
+**规则**:
+```gdscript
+# ⚠️ t 是 Variant（即使 GameTheme 自身有 class_name）
+var t = GameTheme
+
+# ❌ t.card_type_color() 返回 Variant
+var type_color := t.card_type_color("plot")
+var da := t.dark_accent
+
+# ✅ 显式标注
+var type_color: Color = t.card_type_color("plot")
+var da: Color = t.dark_accent
+```
+
+**安全的情况**: `Color(t.xxx.r, t.xxx.g, t.xxx.b, alpha)` 中的 `:=` 是安全的，因为 `Color()` 构造器返回类型确定。
+
+---
+
+## 规则 6: `Dictionary["key"]` 下标访问返回 Variant
+
+**问题**: Dictionary 下标访问 `dict["key"]` 返回 Variant，用它参与算术后结果仍是 Variant。
+
+**规则**:
+```gdscript
+# ❌ dict["pos_x"] 是 Variant, 算术结果也是 Variant
+var lx := dict["pos_x"] - cos_val * extend
+var font_size := int(h * 0.15 * slot["pop_t"])
+
+# ✅ 显式标注
+var lx: float = dict["pos_x"] - cos_val * extend
+var font_size: int = int(h * 0.15 * slot["pop_t"])
+```
+
+---
+
+## 规则 7: `in` 表达式和比较表达式
+
+**问题**: `x in [...]` 表达式和涉及 Variant 操作数的比较表达式，结果可能无法被 `:=` 推断为 `bool`。
+
+**规则**:
+```gdscript
+# ❌
+var is_safe := card.type in ["safe", "reward"]
+var is_hovered := (_hover_index == entry["key"])
+
+# ✅
+var is_safe: bool = card.type in ["safe", "reward"]
+var is_hovered: bool = (_hover_index == entry["key"])
+```
+
+---
+
+## 规则 8: 静态方法中的无类型迭代变量
 
 **问题**: `for item in array` 中的 `item` 是 Variant（除非 array 有类型标注），对 `item` 的成员访问结果也是 Variant。
 
@@ -120,7 +176,7 @@ for pos in untyped_array:
 
 ---
 
-## 规则 6: 资源路径必须在 `project.godot` 目录内
+## 规则 9: 资源路径必须在 `project.godot` 目录内
 
 **问题**: Godot 的 `res://` 只能解析到 `project.godot` 所在目录内的文件。外部文件引擎无法加载。
 
@@ -143,9 +199,12 @@ godot/
 
 翻译每个文件后执行:
 
-- [ ] 没有使用与 Godot 内置类重名的 autoload
-- [ ] 所有来自 Variant 链的 `:=` 已改为显式类型标注
-- [ ] `Dictionary.get()` 返回值已标注类型
-- [ ] 可能返回 null 的变量没有用 `:=`
-- [ ] 静态方法中的迭代变量成员访问已标注类型
-- [ ] 所有 `res://` 引用的资源文件已存在于 godot/ 目录内
+- [ ] autoload 名没有与 Godot 内置类重名 (规则1)
+- [ ] `var m = null` 的 Variant 链没有用 `:=` (规则2)
+- [ ] `var t = GameTheme` 简写的属性/方法访问没有用 `:=` (规则3, 5)
+- [ ] `Dictionary.get()` 返回值已标注类型 (规则4)
+- [ ] `dict["key"]` 下标参与运算后没有用 `:=` (规则6)
+- [ ] `x in [...]` 和涉及 Variant 的比较表达式标注了 `bool` (规则7)
+- [ ] 无类型数组迭代变量的成员访问已标注类型 (规则8)
+- [ ] 可能返回 null 的变量没有用 `:=`，也没有标注具体类型 (规则2)
+- [ ] 所有 `res://` 引用的资源文件已存在于 godot/ 目录内 (规则9)

@@ -346,7 +346,7 @@ func _process_click(pos: Vector2) -> void:
 			return
 
 	# 棋盘点击检测
-	var grid_pos := board_visual.hit_test(pos)
+	var grid_pos: Vector2i = board_visual.hit_test(pos)
 	if grid_pos == Vector2i.ZERO:
 		return
 

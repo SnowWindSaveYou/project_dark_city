@@ -348,8 +348,8 @@ func _get_walkable_neighbors(layer: LayerData, row: int, col: int) -> Array:
 	var neighbors: Array = []
 	var dirs: Array = [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]
 	for d in dirs:
-		var nr := row + d.x
-		var nc := col + d.y
+		var nr: int = row + d.x
+		var nc: int = col + d.y
 		var key := "%d,%d" % [nr, nc]
 		if layer.walkable.has(key) and layer.walkable[key]:
 			neighbors.append(Vector2i(nr, nc))
@@ -395,8 +395,8 @@ func move_ghosts(player_row: int, player_col: int,
 			else:
 				target = neighbors[randi() % neighbors.size()]
 
-		var old_row := ghost.row
-		var old_col := ghost.col
+		var old_row: int = ghost.row
+		var old_col: int = ghost.col
 		ghost.row = target.x
 		ghost.col = target.y
 

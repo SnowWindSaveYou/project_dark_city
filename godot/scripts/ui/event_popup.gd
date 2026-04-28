@@ -588,7 +588,7 @@ func _draw_event() -> void:
 		return
 
 	# 类型色条
-	var type_color := t.card_type_color(_card.type)
+	var type_color: Color = t.card_type_color(_card.type)
 	type_color.a = _panel_alpha * 0.8
 	draw_rect(Rect2(panel_x + 8, panel_y + 8, scaled_w - 16, 6), type_color)
 
@@ -654,7 +654,7 @@ func _draw_photo() -> void:
 	if _panel_alpha < 0.01:
 		return
 
-	var type_color := t.card_type_color(_card.type)
+	var type_color: Color = t.card_type_color(_card.type)
 	var darkside := _card.get_darkside_info()
 
 	# 使用 draw_set_transform 实现缩放+旋转
@@ -817,7 +817,7 @@ func _draw_rift_confirm() -> void:
 	if _rift_btn_enter_t > 0.01:
 		var bx := start_x
 		var enter_alpha := _rift_popup_alpha * _rift_btn_enter_t
-		var da := t.dark_accent
+		var da: Color = t.dark_accent
 		var hover := _rift_btn_enter_hover
 		var btn_bg := Color(
 			da.r + (1.0 - da.r) * hover * 0.15,
@@ -881,7 +881,7 @@ func _draw_toasts() -> void:
 		draw_rect(Rect2(x, y, TOAST_W, item_h), border_color, false, 1.0)
 
 		# 顶部类型色条
-		var type_color := t.card_type_color(toast["card_type"])
+		var type_color: Color = t.card_type_color(toast["card_type"])
 		var bar_color := Color(type_color.r, type_color.g, type_color.b, alpha * 0.78)
 		draw_rect(Rect2(x + 3, y + 3, TOAST_W - 6, 4), bar_color)
 
@@ -941,7 +941,7 @@ func _draw_toasts() -> void:
 
 		# 进度条 (自动消失倒计时)
 		if toast["phase"] == "idle":
-			var progress := 1.0 - minf(toast["timer"] / TOAST_IDLE_TIME, 1.0)
+			var progress: float = 1.0 - minf(toast["timer"] / TOAST_IDLE_TIME, 1.0)
 			var bar_y := y + item_h - 6.0
 			var bar_w := float(TOAST_W - 20)
 

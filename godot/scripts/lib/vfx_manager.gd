@@ -232,7 +232,7 @@ func _draw() -> void:
 		color.a = clampf(sp["alpha"], 0.0, 1.0)
 		var pos: Vector2 = sp["pos"] + Vector2(0, sp["offset_y"])
 		var font := ThemeDB.fallback_font
-		var font_size := int(20 * sp["scale"])
+		var font_size: int = int(20 * sp["scale"])
 		if font_size < 1:
 			continue
 		# 阴影

@@ -309,10 +309,10 @@ func _draw() -> void:
 			var first_slot: Dictionary = date_slots[0]
 			var last_visible: Dictionary = date_slots[mini(line_end_idx - 1, date_slots.size() - 1)]
 			var extend := diag_len * 0.5
-			var lx1 := first_slot["pos_x"] - _date_cos * extend
-			var ly1 := first_slot["pos_y"] - _date_sin * extend
-			var lx2 := last_visible["pos_x"] + _date_cos * extend
-			var ly2 := last_visible["pos_y"] + _date_sin * extend
+			var lx1: float = first_slot["pos_x"] - _date_cos * extend
+			var ly1: float = first_slot["pos_y"] - _date_sin * extend
+			var lx2: float = last_visible["pos_x"] + _date_cos * extend
+			var ly2: float = last_visible["pos_y"] + _date_sin * extend
 			var line_alpha: float = _clamp01(first_slot["raw_alpha"]) * exit_alpha * 0.6
 			if line_alpha > 0.01:
 				draw_line(Vector2(lx1, ly1), Vector2(lx2, ly2),
@@ -352,7 +352,7 @@ func _draw() -> void:
 			var alpha_scale := 0.4 + render_scale * 0.6
 			var text_alpha: float = alpha_scale * pop_alpha
 
-			var font_size := int(h * 0.15 * slot["pop_t"] * render_scale)
+			var font_size: int = int(h * 0.15 * slot["pop_t"] * render_scale)
 			if font_size < 4:
 				continue
 
