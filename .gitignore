@@ -8,7 +8,7 @@ dist/
 # 日志
 logs/
 
-# 引擎只读资源（非用户代码，运行时由引擎提供）
+# 引擎只读资源
 engine-docs/
 examples/
 templates/
@@ -20,15 +20,18 @@ lua-tools/
 # 引擎 CLI 工具
 .cli/
 
-# AI 工作流配置（skills 等）
+# AI 工作流配置
 .agent/
 .claude/
 
-# 项目配置（引擎自动生成）
+# 项目配置
 .project/
 
-# Lua LSP 配置（自动生成）
+# Lua LSP 配置
 scripts/.luarc.json
 
-# meta 文件（引擎自动生成）
+# meta 文件
 *.meta
+
+# Godot 编辑器缓存
+.godot/
