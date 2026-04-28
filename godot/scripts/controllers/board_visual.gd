@@ -616,28 +616,77 @@ func play_flip_animation(row: int, col: int, on_complete: Callable) -> void:
 		)
 	)
 
-## 播放驱魔变形动画
+## 播放驱魔变形动画 (匹配 Lua Card.transformTo: 抬升→70°翻转+震动→换面→落回+光晕)
 func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)
 	if not card_node:
 		on_complete.call()
 		return
 
-	var target_pos: Vector3 = card_node.position
-	var tw: Tween = m.create_tween()
-	# 缩小 + 升起
-	tw.tween_property(card_node, "scale", Vector3(0.6, 1.5, 0.6), 0.15) \
+	var base_pos: Vector3 = card_node.position
+	var base_x: float = base_pos.x
+
+	# --- Phase 1: 抬升到安全高度 (0.12s) ---
+	var tw_lift: Tween = m.create_tween()
+	tw_lift.tween_property(card_node, "position:y",
+		base_pos.y + FLIP_LIFT, 0.12) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+	# --- Phase 2: 翻转到 70° + 震动 (0.25s, 延迟 0.04s) ---
+	var tw_rot: Tween = m.create_tween()
+	tw_rot.tween_property(card_node, "rotation:z",
+		deg_to_rad(70.0), 0.25) \
+		.set_delay(0.04) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(card_node, "position:y", target_pos.y + 0.15, 0.15) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	# 更新视觉
-	tw.tween_callback(func(): update_card_visual(row, col))
-	# 放大弹回
-	tw.tween_property(card_node, "scale", Vector3(1.15, 1.15, 1.15), 0.2) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(card_node, "position:y", target_pos.y, 0.15)
-	tw.tween_property(card_node, "scale", Vector3.ONE, 0.1)
-	tw.tween_callback(on_complete)
+
+	# 震动 (10Hz, 与翻转并行)
+	var tw_shake: Tween = m.create_tween()
+	tw_shake.tween_method(func(t: float) -> void:
+		var decay: float = 1.0 - t * 0.5
+		var offset: float = sin(t * PI * 10.0) * 0.05 * decay
+		card_node.position.x = base_x + offset
+	, 0.0, 1.0, 0.25).set_delay(0.04)
+
+	# --- Phase 3: 翻转到峰值时换面 + 落回 ---
+	tw_rot.tween_callback(func() -> void:
+		card_node.position.x = base_x  # 重置震动偏移
+		update_card_visual(row, col)
+
+		# 落回: 翻转归零 + 高度归位 + scale 弹性 (0.35s)
+		var tw_back: Tween = m.create_tween()
+		tw_back.set_parallel(true)
+		tw_back.tween_property(card_node, "rotation:z", 0.0, 0.35) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw_back.tween_property(card_node, "position:y", base_pos.y, 0.35) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw_back.tween_property(card_node, "scale", Vector3.ONE, 0.35) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw_back.chain().tween_callback(func() -> void:
+			# 光晕脉冲 (翻牌闪光: glow_intensity 1→0, 0.8s)
+			var card: Card = m.board.get_card(row, col)
+			if card:
+				card.glow_intensity = 1.0
+			var mat: StandardMaterial3D = _get_card_mat(row, col)
+			if mat:
+				var base_color: Color = mat.albedo_color
+				var tw_glow: Tween = m.create_tween()
+				tw_glow.tween_method(func(t: float) -> void:
+					if card:
+						card.glow_intensity = 1.0 - t
+					if mat:
+						mat.emission_enabled = true
+						mat.emission = base_color
+						mat.emission_energy_multiplier = (1.0 - t) * 2.0
+				, 0.0, 1.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+				tw_glow.tween_callback(func() -> void:
+					if mat:
+						mat.emission_enabled = false
+					if card:
+						card.glow_intensity = 0.0
+				)
+			on_complete.call()
+		)
+	)
 
 ## 播放无效操作震动动画 (0.35s, 6Hz 衰减正弦)
 func play_shake_animation(row: int, col: int) -> void:
