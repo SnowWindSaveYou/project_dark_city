@@ -53,6 +53,11 @@ func _on_deal_complete() -> void:
 	m.token.alpha = 1.0
 	m.board_visual.update_token_visual()
 
+	# 刷新所有卡牌视觉 (显示地点文字)
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			m.board_visual.update_card_visual(r, c)
+
 	# 翻开家的卡牌
 	var home_card: Card = m.board.get_card(home_row, home_col)
 	if home_card:

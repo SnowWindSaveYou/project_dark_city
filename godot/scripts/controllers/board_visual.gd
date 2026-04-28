@@ -78,6 +78,21 @@ func rebuild_card_nodes() -> void:
 			card_node.set_meta("row", row)
 			card_node.set_meta("col", col)
 			card_node.set_meta("target_pos", target_pos)
+
+			# 占位 Label3D (显示卡牌类型文字)
+			var label: Label3D = Label3D.new()
+			label.name = "TypeLabel"
+			label.text = "?"
+			label.font_size = 48
+			label.pixel_size = 0.005
+			label.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.001, 0)
+			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
+			label.modulate = Color(1, 1, 1, 0)  # 未翻开时隐藏
+			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+			label.no_depth_test = true
+			label.render_priority = 1
+			card_node.add_child(label)
+
 			board_layer.add_child(card_node)
 
 # ---------------------------------------------------------------------------
@@ -130,13 +145,32 @@ func update_card_visual(row: int, col: int) -> void:
 	if card == null:
 		return
 
+	var card_node: MeshInstance3D = get_card_node(row, col)
+
 	if card.is_flipped:
 		var type_info: Dictionary = GameTheme.card_type_info(card.type)
 		mat.albedo_color = type_info.get("color", GameTheme.card_face)
 		if card.scouted:
 			mat.albedo_color = mat.albedo_color.lightened(0.15)
+		# 翻开后显示事件信息
+		if card_node:
+			var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
+			if label:
+				var icon: String = type_info.get("icon", "?")
+				var type_label: String = type_info.get("label", "")
+				label.text = icon + "\n" + type_label
+				label.modulate = Color(1, 1, 1, 0.9)
 	else:
 		mat.albedo_color = GameTheme.card_back
+		# 未翻开时显示地点信息
+		if card_node:
+			var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
+			if label:
+				var loc_info: Dictionary = card.get_location_info()
+				var loc_icon: String = loc_info.get("icon", "?")
+				var loc_label: String = loc_info.get("label", "")
+				label.text = loc_icon + "\n" + loc_label
+				label.modulate = Color(1, 1, 1, 0.85)
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:
@@ -157,8 +191,20 @@ func update_dark_card_visual(row: int, col: int) -> void:
 	if card.is_flipped:
 		var dark_color: Color = GameTheme.dark_card_type_color(card.dark_type)
 		mat.albedo_color = dark_color
+		# 暗面卡牌显示: 类型图标 + 地点名
+		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
+		if label:
+			var dark_info: Dictionary = GameTheme.dark_card_type_info(card.dark_type)
+			var icon: String = dark_info.get("icon", "?")
+			# 优先使用 dark_name (具体地点名), fallback 到类型通用 label
+			var display_name: String = card.dark_name if card.dark_name != "" else dark_info.get("label", "")
+			label.text = icon + "\n" + display_name
+			label.modulate = Color(1, 1, 1, 0.9)
 	else:
 		mat.albedo_color = GameTheme.card_back_dark
+		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
+		if label:
+			label.modulate = Color(1, 1, 1, 0)
 
 # ---------------------------------------------------------------------------
 # Token 精灵更新 (Sprite3D billboard)

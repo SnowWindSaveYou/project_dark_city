@@ -93,8 +93,9 @@ func generate_cards() -> void:
 	for pos in rift_positions:
 		used_positions.append(pos)
 
-	# 4. 地点池 (普通格子)
-	var normal_slots: int = ROWS * COLS - used_positions.size()
+	# 4. 地点池 (普通格子 + 裂隙也消耗池条目)
+	var rift_count: int = rift_positions.size()
+	var normal_slots: int = ROWS * COLS - used_positions.size() + rift_count
 	var location_pool: Array = []
 	var used_in_pool: Dictionary = {}
 
@@ -144,8 +145,6 @@ func generate_cards() -> void:
 	# 6. 填充棋盘
 	for row in range(1, ROWS + 1):
 		for col in range(1, COLS + 1):
-			if loc_idx>= len(location_pool):
-				continue
 			var key: String = "%d,%d" % [row, col]
 			var special: String = special_map.get(key, "")
 			var card_type: String
@@ -164,12 +163,19 @@ func generate_cards() -> void:
 			elif special == "rift":
 				# 裂隙伪装成普通事件卡，用 has_rift 标记
 				card_type = _weighted_random_event()
-				location = location_pool[loc_idx]
-				loc_idx += 1
+				if loc_idx < len(location_pool):
+					location = location_pool[loc_idx]
+					loc_idx += 1
+				else:
+					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
 			else:
+				if loc_idx >= len(location_pool):
+					# 安全回退: 池耗尽时随机选地点
+					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
+				else:
+					location = location_pool[loc_idx]
+					loc_idx += 1
 				card_type = _weighted_random_event()
-				location = location_pool[loc_idx]
-				loc_idx += 1
 
 			var card: Card = Card.create(location, card_type, row, col)
 			# 陷阱子类型 (仅 trap 类型有)

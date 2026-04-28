@@ -66,6 +66,12 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel_y = _get_viewport_h() + 20
 
+## 只在实际面板区域内拦截鼠标事件, 其余透传到 _unhandled_input
+func _has_point(point: Vector2) -> bool:
+	if not _visible_state or _alpha < 0.1:
+		return false
+	return _get_panel_rect().has_point(point)
+
 func setup(cm: CardManager) -> void:
 	_card_manager = cm
 

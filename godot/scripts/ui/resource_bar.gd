@@ -90,6 +90,12 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_TOP_WIDE)
 	custom_minimum_size.y = 52  # 比纯纸条多一点空间给撕裂边
 
+## 只在暗面退出按钮区域内拦截鼠标, 其余透传
+func _has_point(point: Vector2) -> bool:
+	if _dark_mode and _dark_exit_rect.size.x > 0:
+		return _dark_exit_rect.has_point(point)
+	return false
+
 func _on_resource_changed(key: String, old_value: int, new_value: int) -> void:
 	if key in _flash_timers:
 		_flash_timers[key] = FLASH_DURATION

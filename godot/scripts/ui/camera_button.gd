@@ -52,6 +52,12 @@ var _film_tex_loaded: bool = false
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
+## 只在相机按钮圆形区域内拦截鼠标事件, 其余区域透传到 _unhandled_input
+func _has_point(point: Vector2) -> bool:
+	if not _visible_flag:
+		return false
+	return _hit_test_button(point)
+
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
