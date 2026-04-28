@@ -208,27 +208,7 @@ func _draw() -> void:
 
 ---
 
-## 规则 8: 俯视角 3D 卡牌翻转用 `scale` 压扁，不用 `rotation`
-
-**问题**: 棋盘类游戏中卡牌平铺在 XZ 平面上，相机从正上方俯视。此时绕 Y 轴旋转 180° 看起来是卡牌原地自转，而不是"翻面"效果。
-
-**规则**: 使用 `scale.z`（或 `scale.x`）从 1→0→1 模拟翻牌，中间回调更换正反面内容：
-
-```gdscript
-# ❌ 错误: Y 轴旋转在俯视角下看起来像自转
-tw.tween_property(card_node, "rotation:y", PI, 0.2)
-
-# ✅ 正确: scale 压扁 → 换面 → 展开
-tw.tween_property(card_node, "scale:z", 0.0, 0.12)  # 压扁
-tw.tween_callback(func(): update_card_visual(row, col))  # 换面
-tw.tween_property(card_node, "scale:z", 1.0, 0.12)  # 展开
-```
-
-**适用场景**: 任何俯视/等距视角的卡牌/瓦片翻转效果。侧视角游戏可以正常用旋转。
-
----
-
-## 规则 9: GPUParticles3D 程序化创建要点
+## 规则 8: GPUParticles3D 程序化创建要点
 
 **问题**: Godot 的 `GPUParticles3D` 全程序化创建时，容易遗漏关键属性导致粒子不显示或效果异常。
 
@@ -294,4 +274,3 @@ proc.color_ramp = color_ramp
 - [ ] **Array tween** 未使用 `tween_property` 路径访问数组元素，改用 `tween_method` (规则5)
 - [ ] **方法名** 自定义方法未与 Object/Node 内置方法同名 (规则6)
 - [ ] **`_draw()` 纯净** — 无 `randi()`/`randf()`/随机函数调用，随机内容已缓存 (规则7)
-- [ ] **俯视翻转** 使用 scale 压扁而非 rotation (规则8)

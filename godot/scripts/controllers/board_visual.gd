@@ -334,35 +334,58 @@ func start_deal_animation(on_complete: Callable) -> void:
 	tw_finish.tween_callback(on_complete).set_delay(finish_delay)
 
 # ---------------------------------------------------------------------------
-# 翻牌动画 (绕 Y 轴旋转 180°)
+# 翻牌动画 (绕 Z 轴掀起翻转, 同步原版 Card.flip)
 # ---------------------------------------------------------------------------
 
+## 翻牌安全高度: cardW/2 + 余量, 确保 90° 时底边不穿桌面
+const FLIP_LIFT: float = Card.CARD_W / 2.0 + 0.04  # ~0.36m
+
 ## 播放翻牌动画, 完成后调用 on_complete
-## 使用 scale.z 压扁→换面→展开 (俯视角翻牌效果)
+## 流程: 下压蓄力 → 弹起到安全高度 → 绕Z轴翻转到90° → 换面 → 翻回0° + 落下
 func play_flip_animation(row: int, col: int, on_complete: Callable) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)
 	if not card_node:
 		on_complete.call()
 		return
 
-	# 翻牌时微微抬起
-	var base_y: float = card_node.position.y
-	var tw: Tween = m.create_tween()
-	# 前半: 压扁 scale.z → 0 + 抬起
-	tw.set_parallel(true)
-	tw.tween_property(card_node, "scale:z", 0.0, FLIP_HALF_DUR) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(card_node, "position:y", base_y + 0.06, FLIP_HALF_DUR) \
+	var base_pos: Vector3 = card_node.position
+
+	# --- 阶段 1: 下压蓄力 (0.05s) ---
+	var tw1: Tween = m.create_tween()
+	tw1.set_parallel(true)
+	tw1.tween_property(card_node, "scale", Vector3(1.03, 1.0, 0.97), 0.05) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	# 中间: 更换颜色/文字
-	tw.chain().tween_callback(func(): update_card_visual(row, col))
-	# 后半: 展开 scale.z → 1 + 落下
-	tw.set_parallel(true)
-	tw.tween_property(card_node, "scale:z", 1.0, FLIP_HALF_DUR) \
+	tw1.tween_property(card_node, "position:y", base_pos.y - 0.01, 0.05) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(card_node, "position:y", base_y, FLIP_HALF_DUR) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.chain().tween_callback(on_complete)
+
+	tw1.chain().tween_callback(func():
+		# --- 阶段 2: 弹起 + 缩放恢复 (并行) ---
+		var tw2: Tween = m.create_tween()
+		tw2.tween_property(card_node, "position:y", base_pos.y + FLIP_LIFT, 0.12) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		var tw2s: Tween = m.create_tween()
+		tw2s.tween_property(card_node, "scale", Vector3.ONE, 0.08) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+		# --- 阶段 3: 绕 Z 轴翻转 0→90° (稍延后, 与弹起重叠) ---
+		var tw3: Tween = m.create_tween()
+		tw3.tween_property(card_node, "rotation:z", deg_to_rad(90.0), 0.16) \
+			.set_delay(0.04) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
+		tw3.tween_callback(func():
+			# 90° 时换面 (侧面不可见, 完美切换)
+			update_card_visual(row, col)
+
+			# --- 阶段 4: 翻回 0° + 落下 (同步) ---
+			var tw4: Tween = m.create_tween()
+			tw4.set_parallel(true)
+			tw4.tween_property(card_node, "rotation:z", 0.0, 0.25) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+			tw4.tween_property(card_node, "position:y", base_pos.y, 0.25) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+			tw4.chain().tween_callback(on_complete)
+		)
+	)
 
 ## 播放驱魔变形动画
 func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
@@ -387,17 +410,34 @@ func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 	tw.tween_property(card_node, "scale", Vector3.ONE, 0.1)
 	tw.tween_callback(on_complete)
 
-## 播放翻回动画 (拍照侦察后)
+## 播放翻回动画 (拍照侦察后, 同步原版 Card.flipBack)
 func play_flip_back_animation(row: int, col: int) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)
 	if not card_node:
 		return
-	var tw: Tween = m.create_tween()
-	tw.tween_property(card_node, "scale:z", 0.0, 0.1) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(func(): update_card_visual(row, col))
-	tw.tween_property(card_node, "scale:z", 1.0, 0.1) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	var base_pos: Vector3 = card_node.position
+
+	# 弹起
+	var tw1: Tween = m.create_tween()
+	tw1.tween_property(card_node, "position:y", base_pos.y + FLIP_LIFT * 0.8, 0.10) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+	# 翻转到 90° (稍延后)
+	var tw2: Tween = m.create_tween()
+	tw2.tween_property(card_node, "rotation:z", deg_to_rad(90.0), 0.14) \
+		.set_delay(0.02) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
+	tw2.tween_callback(func():
+		# 换面
+		update_card_visual(row, col)
+		# 翻回 + 落下
+		var tw3: Tween = m.create_tween()
+		tw3.set_parallel(true)
+		tw3.tween_property(card_node, "rotation:z", 0.0, 0.22) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw3.tween_property(card_node, "position:y", base_pos.y, 0.22) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	)
 
 # ---------------------------------------------------------------------------
 # Token 移动动画
