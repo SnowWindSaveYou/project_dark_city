@@ -35,6 +35,16 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		m._vfx.action_banner("裂隙能量不足", Color(0.7, 0.7, 0.7), 0.7)
 		return
 
+	GameData.set_demo_state("transition")
+
+	# 清除所有 MonsterGhost chibi (进入暗面前)
+	m.board_visual.mg_clear_all()
+
+	# 隐藏 Token + 手牌面板
+	m.token.visible = false
+	m.token.alpha = 0.0
+	m._hand_panel.hide_panel()
+
 	# 保存现实棋盘
 	_saved_board = m.board
 	_saved_token_row = m.token.target_row
@@ -45,26 +55,32 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		_on_dark_exit_complete()
 	)
 
-	# 生成暗面棋盘
-	_generate_dark_board()
+	# 收牌动画 → 重建暗面棋盘 → 发牌动画
+	m.board_visual.play_undeal_animation(func():
+		# 清理现实世界物品节点
+		m.board_visual.destroy_item_nodes()
 
-	# UI 切换到暗面模式
-	m._resource_bar.set_dark_mode(true, {
-		"layer_name": m.dark_world.get_layer_name(),
-		"energy": m.dark_world.get_energy(),
-		"max_energy": DarkWorld.MAX_ENERGY,
-	})
-	m._camera_button.show_button()
+		# 生成暗面棋盘
+		_generate_dark_board()
 
-	# 发牌
-	GameData.set_demo_state("dealing")
-	m.board_visual.start_deal_animation(func():
-		m.dark_world.on_enter_complete()
-		_on_dark_deal_complete()
+		# UI 切换到暗面模式
+		m._resource_bar.set_dark_mode(true, {
+			"layer_name": m.dark_world.get_layer_name(),
+			"energy": m.dark_world.get_energy(),
+			"max_energy": DarkWorld.MAX_ENERGY,
+		})
+		m._camera_button.show_button()
+
+		# 背景变暗
+		m._bg_transition_target = 1.0
+
+		# 发牌
+		GameData.set_demo_state("dealing")
+		m.board_visual.start_deal_animation(func():
+			m.dark_world.on_enter_complete()
+			_on_dark_deal_complete()
+		)
 	)
-
-	# 背景变暗
-	m._bg_transition_target = 1.0
 
 func _generate_dark_board() -> void:
 	var layer_idx: int = m.dark_world.current_layer
@@ -380,24 +396,34 @@ func _change_layer(target_layer: int) -> void:
 		m.dark_world.set_ready()
 		return
 
+	GameData.set_demo_state("transition")
+
 	m._vfx.action_banner("进入 %s" % result["layer_name"], Color(0.6, 0.4, 0.8), 1.0)
 	m._vfx.screen_flash(Color(0.3, 0.1, 0.5, 0.5), 0.4)
 
-	# 清理旧层幽灵 & NPC 节点
-	m.board_visual.destroy_ghost_nodes()
-	m.board_visual.destroy_npc_nodes()
+	# 隐藏 Token
+	m.token.visible = false
+	m.token.alpha = 0.0
 
-	# 重新生成棋盘
-	_generate_dark_board()
+	# 收牌动画 → 清理 → 重建新层 → 发牌动画
+	m.board_visual.play_undeal_animation(func():
+		# 清理旧层幽灵 & NPC 节点
+		m.board_visual.destroy_ghost_nodes()
+		m.board_visual.destroy_npc_nodes()
 
-	# 更新 UI
-	m._resource_bar.update_dark_energy(
-		m.dark_world.get_energy(), DarkWorld.MAX_ENERGY)
+		# 重新生成棋盘
+		_generate_dark_board()
 
-	# 发牌
-	m.board_visual.start_deal_animation(func():
-		m.dark_world.on_change_layer_complete()
-		_on_dark_deal_complete()
+		# 更新 UI
+		m._resource_bar.update_dark_energy(
+			m.dark_world.get_energy(), DarkWorld.MAX_ENERGY)
+
+		# 发牌
+		GameData.set_demo_state("dealing")
+		m.board_visual.start_deal_animation(func():
+			m.dark_world.on_change_layer_complete()
+			_on_dark_deal_complete()
+		)
 	)
 
 # =========================================================================
@@ -408,36 +434,52 @@ func on_dark_exit_requested() -> void:
 	if m.dark_world.dark_state != "ready":
 		return
 
+	GameData.set_demo_state("transition")
 	m.dark_world.begin_exit()
 
-	# 清理幽灵 & NPC 节点
-	m.board_visual.destroy_ghost_nodes()
-	m.board_visual.destroy_npc_nodes()
+	# 隐藏 Token
+	m.token.visible = false
+	m.token.alpha = 0.0
 
-	# 恢复现实棋盘
-	m.board = _saved_board
-	_saved_board = null
-	m.board_visual.rebuild_card_nodes()
+	# 收牌动画 → 清理 → 重建现实棋盘 → 发牌动画
+	m.board_visual.play_undeal_animation(func():
+		# 清理幽灵 & NPC 节点
+		m.board_visual.destroy_ghost_nodes()
+		m.board_visual.destroy_npc_nodes()
 
-	# 恢复 Token 位置
-	m.token.target_row = _saved_token_row
-	m.token.target_col = _saved_token_col
-	m.token.set_emotion("relieved")
+		# 恢复现实棋盘
+		m.board = _saved_board
+		_saved_board = null
+		m.board_visual.rebuild_card_nodes()
 
-	# 更新所有卡牌视觉
-	for r in range(1, Board.ROWS + 1):
-		for c in range(1, Board.COLS + 1):
-			m.board_visual.update_card_visual(r, c)
+		# UI 切回正常模式
+		m._resource_bar.set_dark_mode(false)
 
-	m.board_visual.update_token_visual()
+		# 恢复大气
+		m._bg_transition_target = minf(float(GameData.cards_revealed) / 8.0, 1.0)
 
-	# UI 切回正常模式
-	m._resource_bar.set_dark_mode(false)
-	m._bg_transition_target = 0.0
+		# 发牌动画
+		GameData.set_demo_state("dealing")
+		m.board_visual.start_deal_animation(func():
+			# 恢复 Token 位置
+			m.token.target_row = _saved_token_row
+			m.token.target_col = _saved_token_col
+			m.token.visible = true
+			m.token.alpha = 1.0
+			m.token.set_emotion("relieved")
+			m.board_visual.update_token_visual()
 
-	# 完成退出
-	m.dark_world.on_exit_complete()
-	GameData.set_demo_state("ready")
+			# 更新所有卡牌视觉
+			for r in range(1, Board.ROWS + 1):
+				for c in range(1, Board.COLS + 1):
+					m.board_visual.update_card_visual(r, c)
+
+			# 完成退出
+			m.dark_world.on_exit_complete()
+			GameData.set_demo_state("ready")
+			m._hand_panel.show_panel()
+		)
+	)
 
 func _on_dark_exit_complete() -> void:
 	# 由 DarkWorld._on_exit 回调触发

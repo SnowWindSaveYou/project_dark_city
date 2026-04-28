@@ -163,7 +163,7 @@ func show_on_scouted_cards(board: Board, card_screen_positions: Dictionary) -> v
 					card_ghosts.append(ghost)
 
 ## 计算并记录踪迹方向到卡牌数据上
-func calculate_trail(card: Card, board: Board) -> bool:
+static func calculate_trail(card: Card, board: Board) -> bool:
 	var mr: int = -1
 	var mc: int = -1
 	var best_dist: float = 999.0
@@ -173,7 +173,7 @@ func calculate_trail(card: Card, board: Board) -> bool:
 			if r == card.row and c == card.col:
 				continue
 			var cd: Card = board.get_card(r, c)
-			if cd and cd.type == "monster" and not cd.face_up:
+			if cd and cd.type == "monster" and not cd.is_flipped:
 				if not board.is_in_landmark_aura(r, c):
 					var dr: float = float(r - card.row)
 					var dc: float = float(c - card.col)

@@ -214,7 +214,7 @@ func _reveal_random_card() -> void:
 	if unflipped.is_empty():
 		return
 	var pick: Card = unflipped[randi() % unflipped.size()]
-	pick.scouted = true
+	pick.revealed = true
 	m.board_visual.update_card_visual(pick.row, pick.col)
 
 # ---------------------------------------------------------------------------

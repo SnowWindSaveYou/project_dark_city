@@ -32,6 +32,13 @@ var _card_mesh: BoxMesh = null
 var _particle_mat_landmark: StandardMaterial3D = null
 var _particle_mat_home: StandardMaterial3D = null
 
+## 侦察/揭示图标常量
+const ICON_QUAD: float = 0.18        # 图标边长 (米)
+const ICON_Y: float = 0.15           # 图标浮在卡面上方的高度
+## 预加载图标纹理
+var _tex_scouted: Texture2D = null
+var _tex_revealed: Texture2D = null
+
 ## 暗面幽灵 Sprite3D 节点缓存: ghost_index(int) → Dictionary
 var _ghost_nodes: Dictionary = {}
 ## 暗面 NPC Sprite3D 节点缓存: npc_index(int) → Dictionary
@@ -52,6 +59,10 @@ func setup(main_ref) -> void:
 	# 粒子材质 (地标: 金色, 家: 白色)
 	_particle_mat_landmark = _create_particle_material(GameTheme.glow_color)
 	_particle_mat_home = _create_particle_material(Color(0.9, 0.95, 1.0, 0.8))
+
+	# 侦察/揭示图标纹理
+	_tex_scouted = load("res://assets/image/icon_scouted_v2_20260426051601.png")
+	_tex_revealed = load("res://assets/image/icon_revealed_v2_20260426051619.png")
 
 # ---------------------------------------------------------------------------
 # 卡牌节点创建 (全量重建)
@@ -121,6 +132,40 @@ func rebuild_card_nodes() -> void:
 			label.render_priority = 1
 			card_node.add_child(label)
 
+			# 侦察/揭示图标 Sprite3D (右上角, 平铺在卡面上方)
+			var half_w: float = Card.CARD_W / 2.0
+			var half_h: float = Card.CARD_H / 2.0
+			var icon_margin: float = ICON_QUAD * 0.55
+			var icon_x: float = half_w - icon_margin               # 右侧
+			var icon_z1: float = -(half_h - icon_margin)            # 卡面顶部 (-Z = 视觉上方)
+			var icon_z2: float = -(half_h - icon_margin - ICON_QUAD * 1.15)  # 第二个稍下
+
+			if _tex_scouted:
+				var ico_s: Sprite3D = Sprite3D.new()
+				ico_s.name = "IcoScouted"
+				ico_s.texture = _tex_scouted
+				ico_s.pixel_size = ICON_QUAD / float(_tex_scouted.get_width())
+				ico_s.position = Vector3(icon_x, ICON_Y, icon_z1)
+				ico_s.rotation_degrees = Vector3(-90, 0, 0)  # 朝上平铺
+				ico_s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+				ico_s.no_depth_test = true
+				ico_s.render_priority = 200
+				ico_s.visible = card.scouted
+				card_node.add_child(ico_s)
+
+			if _tex_revealed:
+				var ico_r: Sprite3D = Sprite3D.new()
+				ico_r.name = "IcoRevealed"
+				ico_r.texture = _tex_revealed
+				ico_r.pixel_size = ICON_QUAD / float(_tex_revealed.get_width())
+				ico_r.position = Vector3(icon_x, ICON_Y, icon_z2)
+				ico_r.rotation_degrees = Vector3(-90, 0, 0)
+				ico_r.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+				ico_r.no_depth_test = true
+				ico_r.render_priority = 200
+				ico_r.visible = card.revealed
+				card_node.add_child(ico_r)
+
 			# 家/地标: 创建时就挂载光环粒子 (匹配 Lua Card.createNode 行为)
 			if card.should_have_glow():
 				_attach_glow_particles(card_node, card.type)
@@ -182,7 +227,7 @@ func update_card_visual(row: int, col: int) -> void:
 	if card.is_flipped:
 		var type_info: Dictionary = GameTheme.card_type_info(card.type)
 		mat.albedo_color = type_info.get("color", GameTheme.card_face)
-		if card.scouted:
+		if card.scouted or card.revealed:
 			mat.albedo_color = mat.albedo_color.lightened(0.15)
 		# 翻开后显示事件信息
 		if card_node:
@@ -211,6 +256,35 @@ func update_card_visual(row: int, col: int) -> void:
 			# 家/地标即使未翻开也保留光环 (匹配 Lua Card.createNode)
 			if not card.should_have_glow():
 				_remove_glow_particles(card_node)
+
+	# 侦察/揭示图标: 只要卡牌可见就显示 (不论正反面)
+	if card_node:
+		var ico_s: Sprite3D = card_node.get_node_or_null("IcoScouted") as Sprite3D
+		if ico_s:
+			ico_s.visible = card.scouted
+		var ico_r: Sprite3D = card_node.get_node_or_null("IcoRevealed") as Sprite3D
+		if ico_r:
+			ico_r.visible = card.revealed
+
+## 应用所有卡牌的悬停缩放 (hover_t → scale 1.0+0.08)
+## 仅在非动画状态调用; dealing/flipping 等由 Tween 控制 scale
+func apply_hover_scales() -> void:
+	var state: String = GameData.demo_state
+	# 动画状态下不干预卡牌 scale (Tween 正在控制)
+	if state == "dealing" or state == "transition" or state == "flipping" \
+			or state == "exorcising":
+		return
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card == null:
+				continue
+			var card_node: MeshInstance3D = get_card_node(r, c)
+			if card_node == null:
+				continue
+			var hover_scale: float = 1.0 + card.hover_t * 0.08
+			# 仅修改 X 和 Z (保持 Y=1, 卡牌厚度不变)
+			card_node.scale = Vector3(hover_scale, 1.0, hover_scale)
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:
@@ -246,6 +320,14 @@ func update_dark_card_visual(row: int, col: int) -> void:
 		if label:
 			label.modulate = Color(1, 1, 1, 0)
 
+	# 暗面世界隐藏侦察/揭示图标 (表面世界概念)
+	var ico_s: Sprite3D = card_node.get_node_or_null("IcoScouted") as Sprite3D
+	if ico_s:
+		ico_s.visible = false
+	var ico_r: Sprite3D = card_node.get_node_or_null("IcoRevealed") as Sprite3D
+	if ico_r:
+		ico_r.visible = false
+
 # ---------------------------------------------------------------------------
 # Token 精灵更新 (Sprite3D billboard)
 # ---------------------------------------------------------------------------
@@ -256,10 +338,17 @@ const TOKEN_HOVER_Y: float = 0.49
 ## 像素→世界单位的换算 (与 Sprite3D.pixel_size 保持一致)
 const TOKEN_PX_TO_WORLD: float = 0.00065
 
+## Token blob shadow 常量 (匹配 Lua SPRITE_3D_W ≈ 0.335)
+const TOKEN_SHADOW_W: float = 0.335 * 1.1   # 0.369
+const TOKEN_SHADOW_Z: float = 0.335 * 0.5   # 0.168
+const TOKEN_SHADOW_Y: float = 0.015          # 略高于卡面
+
 func update_token_visual() -> void:
 	var token: Token = m.token
 	if not token.visible:
 		m._token_sprite.visible = false
+		if m._token_shadow:
+			m._token_shadow.visible = false
 		return
 
 	m._token_sprite.visible = true
@@ -267,9 +356,19 @@ func update_token_visual() -> void:
 	if tex:
 		m._token_sprite.texture = tex
 
+	# 死亡横版: 调整 pixel_size 匹配 Lua DEAD_3D_H=0.38 (正常 SPRITE_3D_H=0.50)
+	var is_dead: bool = (token.emotion == "dead")
+	m._token_sprite.pixel_size = 0.000738 if is_dead else 0.00065
+
 	# 移动动画期间，位置和缩放由 Tween 驱动，这里只更新纹理/可见性
 	if token.is_moving:
 		m._token_sprite.modulate.a = token.alpha
+		# 阴影跟随 Tween 位置 (XZ 跟随 sprite, Y 固定在地面)
+		if m._token_shadow:
+			m._token_shadow.visible = true
+			m._token_shadow.position = Vector3(
+				m._token_sprite.position.x, TOKEN_SHADOW_Y,
+				m._token_sprite.position.z)
 		return
 
 	# 3D 世界坐标定位
@@ -283,7 +382,20 @@ func update_token_visual() -> void:
 
 	m._token_sprite.position = world_pos
 	m._token_sprite.modulate.a = token.alpha
-	m._token_sprite.scale = Vector3(token.squash_x, token.squash_y, 1.0)
+
+	# 呼吸缩放 + squash/stretch
+	var bs: float = breathe["scale"]
+	m._token_sprite.scale = Vector3(token.squash_x * bs, token.squash_y * bs, 1.0)
+
+	# Blob shadow: 固定在地面, 跳起时变淡变小
+	if m._token_shadow:
+		m._token_shadow.visible = true
+		m._token_shadow.position = Vector3(world_pos.x, TOKEN_SHADOW_Y, world_pos.z)
+		var bounce_world: float = abs(token.bounce_y * TOKEN_PX_TO_WORLD)
+		var shadow_scale: float = maxf(0.6, 1.0 - bounce_world * 4.5)
+		m._token_shadow.scale = Vector3(
+			TOKEN_SHADOW_W * shadow_scale, 0.001,
+			TOKEN_SHADOW_Z * shadow_scale)
 
 # ---------------------------------------------------------------------------
 # 发牌动画
@@ -897,6 +1009,241 @@ func animate_item_collect(item_index: int) -> void:
 			node.queue_free()
 		_item_nodes.erase(item_index)
 	)
+
+# ---------------------------------------------------------------------------
+# 怪物 Chibi 3D 节点 (MonsterGhost — 环绕/卡牌/踪迹)
+# ---------------------------------------------------------------------------
+
+## MonsterGhost 节点缓存
+var _mg_surround_nodes: Array = []   # 环绕玩家的 chibi Sprite3D
+var _mg_card_nodes: Array = []       # 卡牌上的 chibi Sprite3D
+var _mg_trail_nodes: Array = []      # 踪迹箭头 chibi Sprite3D
+
+## 环绕布局 (匹配 Lua SURROUND_LAYOUT — 3D 世界坐标)
+const MG_SURROUND_LAYOUT: Array = [
+	{ "dx":  0.00, "dz":  0.20, "baseY": 0.55, "size": 0.32, "is_main": true },
+	{ "dx": -0.35, "dz": -0.15, "baseY": 0.30, "size": 0.18, "is_main": false },
+	{ "dx":  0.32, "dz":  0.08, "baseY": 0.42, "size": 0.20, "is_main": false },
+	{ "dx": -0.18, "dz":  0.30, "baseY": 0.60, "size": 0.15, "is_main": false },
+	{ "dx":  0.25, "dz": -0.20, "baseY": 0.25, "size": 0.16, "is_main": false },
+]
+## 卡牌 chibi 参数
+const MG_CARD_BASE_Y: float = 0.35
+const MG_CARD_SIZE: float = 0.28
+## 踪迹箭头参数
+const MG_TRAIL_BASE_Y: float = 0.25
+const MG_TRAIL_SIZE: float = 0.14
+const MG_TRAIL_OFFSET_DIST: float = 0.38  # 偏移到卡牌边缘
+
+## 创建单个 MonsterGhost Sprite3D (通用)
+func _mg_create_sprite(tex_path: String, world_x: float, world_z: float,
+		base_y: float, world_size: float, phase: float) -> Dictionary:
+	var tex: Texture2D = load(tex_path) as Texture2D
+	if not tex:
+		return {}
+	var sprite: Sprite3D = Sprite3D.new()
+	sprite.texture = tex
+	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sprite.transparent = true
+	sprite.no_depth_test = false
+	sprite.render_priority = 3
+	var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
+	sprite.pixel_size = world_size / tex_max if tex_max > 0.0 else 0.001
+	sprite.position = Vector3(world_x, base_y, world_z)
+	# 初始不可见 (弹出动画会设置)
+	sprite.modulate = Color(1, 1, 1, 0)
+	sprite.scale = Vector3(0.01, 0.01, 0.01)
+	add_child(sprite)
+	return {
+		"node": sprite,
+		"base_y": base_y,
+		"phase": phase,
+		"anchor_x": world_x,
+		"anchor_z": world_z,
+		"size": world_size,
+	}
+
+## 环绕弹出: 踩到怪物牌时在玩家周围弹出 chibi
+func mg_spawn_around_player(row: int, col: int, location: String) -> void:
+	mg_clear_surround()
+	var world_pos: Vector3 = m.board.grid_to_world(row, col)
+	var wx: float = world_pos.x
+	var wz: float = world_pos.z
+	var main_tex: String = MonsterGhost.get_monster_texture(location)
+
+	for i in range(MG_SURROUND_LAYOUT.size()):
+		var slot: Dictionary = MG_SURROUND_LAYOUT[i]
+		var tex_path: String
+		if slot.get("is_main", false):
+			tex_path = main_tex
+		else:
+			tex_path = MonsterGhost.GHOST_VARIANTS[randi_range(0, MonsterGhost.GHOST_VARIANTS.size() - 1)]
+		var gx: float = wx + slot["dx"]
+		var gz: float = wz + slot["dz"]
+		var phase: float = float(i) * 1.3 + randf() * 0.5
+		var data: Dictionary = _mg_create_sprite(tex_path, gx, gz,
+			slot["baseY"], slot["size"], phase)
+		if data.is_empty():
+			continue
+		_mg_surround_nodes.append(data)
+		# 弹出动画 (交错延迟, easeOutBack)
+		var node: Sprite3D = data["node"]
+		var delay: float = float(i + 1) * 0.07
+		var tw: Tween = m.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(node, "scale", Vector3.ONE, 0.35) \
+			.set_delay(delay).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		tw.tween_property(node, "modulate:a", 1.0, 0.25).set_delay(delay)
+
+## 清除环绕 chibi
+func mg_clear_surround() -> void:
+	for data in _mg_surround_nodes:
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_mg_surround_nodes.clear()
+
+## 在卡牌上方显示怪物 chibi (拍照鉴定后)
+func mg_show_on_card(row: int, col: int, location: String) -> void:
+	var world_pos: Vector3 = m.board.grid_to_world(row, col)
+	var tex_path: String = MonsterGhost.get_monster_texture(location)
+	var phase: float = randf() * 3.0
+	var data: Dictionary = _mg_create_sprite(tex_path, world_pos.x, world_pos.z,
+		MG_CARD_BASE_Y, MG_CARD_SIZE, phase)
+	if data.is_empty():
+		return
+	_mg_card_nodes.append(data)
+	# 弹出动画
+	var node: Sprite3D = data["node"]
+	var tw: Tween = m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "scale", Vector3.ONE, 0.3) \
+		.set_delay(0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(node, "modulate:a", 1.0, 0.2).set_delay(0.15)
+
+## 清除卡牌 chibi
+func mg_clear_card_ghosts() -> void:
+	for data in _mg_card_nodes:
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_mg_card_nodes.clear()
+
+## 显示已侦测的怪物卡牌 chibi (相机模式进入时)
+func mg_show_on_scouted_cards() -> void:
+	mg_clear_card_ghosts()
+	var idx: int = 0
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card and card.scouted and card.type == "monster":
+				var world_pos: Vector3 = m.board.grid_to_world(r, c)
+				var tex_path: String = MonsterGhost.get_monster_texture(card.location)
+				var phase: float = randf() * 3.0
+				var data: Dictionary = _mg_create_sprite(tex_path,
+					world_pos.x, world_pos.z, MG_CARD_BASE_Y, MG_CARD_SIZE, phase)
+				if data.is_empty():
+					continue
+				_mg_card_nodes.append(data)
+				var node: Sprite3D = data["node"]
+				var delay: float = 0.1 + float(idx) * 0.05
+				var tw: Tween = m.create_tween()
+				tw.set_parallel(true)
+				tw.tween_property(node, "scale", Vector3.ONE, 0.3) \
+					.set_delay(delay).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+				tw.tween_property(node, "modulate:a", 1.0, 0.2).set_delay(delay)
+				idx += 1
+
+## 在卡牌边缘显示踪迹箭头 chibi
+func mg_show_trail_on_card(row: int, col: int, dir_x: float, dir_z: float) -> void:
+	var world_pos: Vector3 = m.board.grid_to_world(row, col)
+	var tex_path: String = MonsterGhost.GHOST_VARIANTS[randi_range(0, MonsterGhost.GHOST_VARIANTS.size() - 1)]
+	var len: float = sqrt(dir_x * dir_x + dir_z * dir_z)
+	var offset_x: float = 0.0
+	var offset_z: float = 0.0
+	if len > 0.001:
+		offset_x = (dir_x / len) * MG_TRAIL_OFFSET_DIST
+		offset_z = (dir_z / len) * MG_TRAIL_OFFSET_DIST
+	var phase: float = randf() * 3.0
+	var data: Dictionary = _mg_create_sprite(tex_path,
+		world_pos.x + offset_x, world_pos.z + offset_z,
+		MG_TRAIL_BASE_Y, MG_TRAIL_SIZE, phase)
+	if data.is_empty():
+		return
+	data["offset_x"] = offset_x
+	data["offset_z"] = offset_z
+	data["card_x"] = world_pos.x
+	data["card_z"] = world_pos.z
+	_mg_trail_nodes.append(data)
+	# 弹出动画
+	var node: Sprite3D = data["node"]
+	var tw: Tween = m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "scale", Vector3.ONE, 0.35) \
+		.set_delay(0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(node, "modulate:a", 0.85, 0.25).set_delay(0.2)
+
+## 清除踪迹箭头
+func mg_clear_trail_ghosts() -> void:
+	for data in _mg_trail_nodes:
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_mg_trail_nodes.clear()
+
+## 显示所有已记录的踪迹箭头 (相机模式进入时)
+func mg_show_trails_on_board() -> void:
+	mg_clear_trail_ghosts()
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card and card.trail_dir_x != 0.0 and card.trail_dir_y != 0.0:
+				mg_show_trail_on_card(r, c, card.trail_dir_x, card.trail_dir_y)
+
+## 清除所有 MonsterGhost 节点
+func mg_clear_all() -> void:
+	mg_clear_surround()
+	mg_clear_card_ghosts()
+	mg_clear_trail_ghosts()
+
+## 每帧更新 MonsterGhost 动画 (浮动 + 晃动)
+func update_monster_ghost_visuals(game_time: float) -> void:
+	# 环绕幽灵: sin 浮动 + 水平晃动
+	for data in _mg_surround_nodes:
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * 2.0 + data["phase"]) * 0.025
+		var sway_x: float = sin(game_time * 1.2 + data["phase"] * 0.7) * 0.012
+		node.position = Vector3(
+			data["anchor_x"] + sway_x,
+			data["base_y"] + float_y,
+			data["anchor_z"])
+
+	# 卡牌 chibi: sin 浮动
+	for data in _mg_card_nodes:
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * 2.5 + data["phase"]) * 0.02
+		node.position = Vector3(
+			data["anchor_x"],
+			data["base_y"] + float_y,
+			data["anchor_z"])
+
+	# 踪迹箭头: sin 浮动 + 方向晃动
+	for data in _mg_trail_nodes:
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * 2.0 + data["phase"]) * 0.02
+		var bob_t: float = sin(game_time * 1.8 + data["phase"]) * 0.15
+		var ox: float = data.get("offset_x", 0.0) * (1.0 + bob_t)
+		var oz: float = data.get("offset_z", 0.0) * (1.0 + bob_t)
+		node.position = Vector3(
+			data.get("card_x", 0.0) + ox,
+			data["base_y"] + float_y,
+			data.get("card_z", 0.0) + oz)
 
 # ---------------------------------------------------------------------------
 # 棋盘叠层效果 (Phase 3 用 3D 节点替代 _draw)

@@ -71,6 +71,8 @@ func _flip_current_card(card: Card, row: int, col: int) -> void:
 
 func _move_token(_card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("moving")
+	# 移动前清除环绕幽灵
+	m.board_visual.mg_clear_surround()
 	m.token.target_row = row
 	m.token.target_col = col
 	m.token.set_emotion("running")
@@ -116,6 +118,10 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				GameData.modify_resource(reward[0], reward[1])
 				m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 					Color(0.4, 0.8, 0.5), 0.8)
+
+	# 怪物翻出: 生成环绕幽灵 chibi
+	if card_type == "monster":
+		m.board_visual.mg_spawn_around_player(row, col, card.location)
 
 	# 表情映射
 	var emotion_map: Dictionary = {
@@ -360,6 +366,14 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 			m._vfx.spawn_burst(center, 8, tc)
 			m._vfx.screen_shake(2.0, 0.1)
 
+			# MonsterGhost: 怪物→卡牌上显示 chibi, 非怪物→计算踪迹箭头
+			if card.type == "monster":
+				m.board_visual.mg_show_on_card(row, col, card.location)
+			else:
+				if MonsterGhost.calculate_trail(card, m.board):
+					m.board_visual.mg_show_trail_on_card(
+						row, col, card.trail_dir_x, card.trail_dir_y)
+
 			# 弹窗
 			GameData.set_demo_state("popup")
 			await m.get_tree().create_timer(0.4).timeout
@@ -372,6 +386,9 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 ## 拍照弹窗关闭
 func on_photo_popup_dismissed(_card_type: String) -> void:
 	GameData.cards_revealed += 1
+
+	# 清除踪迹幽灵 (拍照结果弹窗关闭后)
+	m.board_visual.mg_clear_trail_ghosts()
 
 	# 标记侦察 + 翻回
 	for r in range(1, Board.ROWS + 1):
@@ -404,6 +421,10 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 	GameData.set_demo_state("exorcising")
 	m._camera_button.exit_camera_mode()
 	m.token.set_emotion("angry")
+
+	# 清除 MonsterGhost chibi (卡牌上 + 环绕)
+	m.board_visual.mg_clear_card_ghosts()
+	m.board_visual.mg_clear_surround()
 
 	# 闪光 + 震动
 	var pc: Color = GameTheme.card_type_color("plot")

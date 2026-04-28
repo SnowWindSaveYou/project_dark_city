@@ -83,6 +83,7 @@ var _bubble_overlay: Control = null
 # ---------------------------------------------------------------------------
 var _board_layer: Node3D = null
 var _token_sprite: Sprite3D = null
+var _token_shadow: MeshInstance3D = null
 
 # ---------------------------------------------------------------------------
 # 3D 场景组件
@@ -117,6 +118,8 @@ var _drag_state: Dictionary = {
 	"start_pos": Vector2.ZERO,
 	"last_pos": Vector2.ZERO,
 }
+var _hovered_card: Card = null       # 当前鼠标悬停的卡牌 (hover 高亮)
+var _mouse_screen_pos: Vector2 = Vector2.ZERO  # 最新鼠标屏幕坐标
 
 # =========================================================================
 # 初始化
@@ -179,6 +182,25 @@ func _setup_scene_tree() -> void:
 	_token_sprite.no_depth_test = false
 	_token_sprite.render_priority = 1
 	add_child(_token_sprite)
+
+	# === Token Blob Shadow (扁平圆柱体, 脚下阴影) ===
+	_token_shadow = MeshInstance3D.new()
+	_token_shadow.name = "TokenShadow"
+	_token_shadow.visible = false
+	var shadow_cyl: CylinderMesh = CylinderMesh.new()
+	shadow_cyl.top_radius = 0.5
+	shadow_cyl.bottom_radius = 0.5
+	shadow_cyl.height = 1.0  # 单位圆柱, 通过 scale 控制形状
+	_token_shadow.mesh = shadow_cyl
+	var shadow_mat: StandardMaterial3D = StandardMaterial3D.new()
+	shadow_mat.albedo_color = Color(0, 0, 0, 0.3)
+	shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_token_shadow.material_override = shadow_mat
+	# 初始缩放: X=0.369, Y=0.001(扁平), Z=0.168 (匹配 Lua SPRITE_3D_W)
+	_token_shadow.scale = Vector3(0.369, 0.001, 0.168)
+	add_child(_token_shadow)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
 	var ui_layer: CanvasLayer = CanvasLayer.new()
@@ -375,6 +397,8 @@ func _connect_signals() -> void:
 	_camera_button.photograph_requested.connect(_on_photograph_request)
 	_camera_button.exorcise_requested.connect(
 		func(): card_interaction.handle_inventory_exorcism())
+	_camera_button.camera_mode_entered.connect(_on_camera_mode_entered)
+	_camera_button.camera_mode_exited.connect(_on_camera_mode_exited)
 
 	# 资源栏 — 暗面退出
 	_resource_bar.dark_exit_pressed.connect(
@@ -393,6 +417,14 @@ func _on_shop_closed() -> void:
 		dark_world_flow.on_dark_shop_closed()
 	else:
 		card_interaction.on_shop_closed()
+
+func _on_camera_mode_entered() -> void:
+	board_visual.mg_show_on_scouted_cards()
+	board_visual.mg_show_trails_on_board()
+
+func _on_camera_mode_exited() -> void:
+	board_visual.mg_clear_card_ghosts()
+	board_visual.mg_clear_trail_ghosts()
 
 func _on_photograph_request() -> void:
 	if GameData.demo_state != "ready":
@@ -448,6 +480,8 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 		_drag_state["is_dragging"] = false
 
 func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
+	# 始终记录鼠标位置 (用于 hover 检测)
+	_mouse_screen_pos = event.position
 	if not _drag_state["active"]:
 		return
 	var delta: Vector2 = event.position - _drag_state["start_pos"]
@@ -532,14 +566,58 @@ func _process(dt: float) -> void:
 		board_visual.update_ghost_visuals(game_time)
 		board_visual.update_npc_visuals(game_time)
 
+	# MonsterGhost chibi 浮动/摇摆动画
+	board_visual.update_monster_ghost_visuals(game_time)
+
 	# 对话系统 tween 管理
 	_update_dialogue_tweens(dt)
 
 	# 气泡对话
 	_update_bubble_tweens(dt)
 
+	# 卡牌悬停检测 + hover_t 更新
+	_update_card_hover(dt)
+
 	# 3D 氛围过渡 (背景色 + 灯光 + 环境光 + 雾)
 	_apply_atmosphere(_bg_transition)
+
+# ---------------------------------------------------------------------------
+# 卡牌悬停高亮
+# ---------------------------------------------------------------------------
+
+## 每帧检测鼠标悬停卡牌, 平滑更新所有卡牌的 hover_t
+func _update_card_hover(dt: float) -> void:
+	# 确定当前悬停目标
+	if GameData.game_phase != "playing" or GameData.demo_state != "ready" \
+			or _drag_state["is_dragging"]:
+		_hovered_card = null
+	else:
+		var grid_pos: Vector2i = board_visual.hit_test(_mouse_screen_pos)
+		if grid_pos != Vector2i.ZERO:
+			var card: Card = board.get_card(grid_pos.x, grid_pos.y)
+			# 相机模式下: 只悬停未翻开或怪物卡
+			if _camera_button.is_camera_mode() and card:
+				if card.is_flipped and card.type != "monster":
+					card = null
+			_hovered_card = card
+		else:
+			_hovered_card = null
+
+	# 更新所有卡牌的 hover_t (lerp dt*12)
+	if board == null:
+		return
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = board.get_card(r, c)
+			if card == null:
+				continue
+			var target: float = 1.0 if card == _hovered_card else 0.0
+			card.hover_t += (target - card.hover_t) * minf(1.0, dt * 12.0)
+			if absf(card.hover_t - target) < 0.005:
+				card.hover_t = target
+
+	# 应用悬停缩放
+	board_visual.apply_hover_scales()
 
 # ---------------------------------------------------------------------------
 # 3D 氛围过渡

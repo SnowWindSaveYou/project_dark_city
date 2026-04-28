@@ -231,6 +231,7 @@ var col: int = 0                  # 棋盘列 (1-based)
 var is_flipped: bool = false      # 是否已翻开
 var is_dealt: bool = false        # 是否已发到棋盘
 var scouted: bool = false         # 是否被相机侦察过
+var revealed: bool = false        # 是否被地图碎片揭示过
 var is_flipping: bool = false     # 是否正在翻转动画中
 
 # --- 暗面世界字段 ---
@@ -242,9 +243,16 @@ var dark_name: String = ""        # 暗面卡牌显示名
 var trap_subtype: String = ""     # 陷阱子类型 (sanity/money/film/teleport)
 var has_rift: bool = false        # 是否伪装了裂隙入口
 
+# --- MonsterGhost 踪迹 ---
+var trail_dir_x: float = 0.0     # 踪迹方向 (列偏移)
+var trail_dir_y: float = 0.0     # 踪迹方向 (行偏移)
+
 # --- 光晕 ---
 var safe_glow_active: bool = false  # 安全区光环是否激活
 var glow_intensity: float = 0.0     # 翻牌闪光强度 0-1 (渲染层使用)
+
+# --- 悬停 ---
+var hover_t: float = 0.0             # 悬停插值 0→1 (渲染层使用)
 
 # ---------------------------------------------------------------------------
 # 方法
