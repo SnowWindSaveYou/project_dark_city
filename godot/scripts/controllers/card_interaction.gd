@@ -78,10 +78,10 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 	m.token.target_col = col
 	m.token.set_emotion("running")
 
-	# 道具拾取
-	m.game_flow.try_collect_item(row, col)
-
 	m.board_visual.animate_token_move(row, col, func():
+		# 道具拾取 (到达后才触发, 而非移动开始时)
+		m.game_flow.try_collect_item(row, col)
+
 		var arrived_card: Card = m.board.get_card(row, col)
 		if arrived_card and not arrived_card.is_flipped:
 			GameData.set_demo_state("flipping")
