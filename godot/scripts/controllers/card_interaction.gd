@@ -104,12 +104,8 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	var card_type: String = card.type
 	GameData.cards_revealed += 1
 
-	# 地标光环净化
-	if m.board.is_in_landmark_aura(row, col):
-		if card_type == "monster" or card_type == "trap":
-			card_type = "safe"
-			card.type = "safe"
-			m.board_visual.update_card_visual(row, col)
+	# 地标光环净化已在 board.generate_cards() 阶段完成 (_apply_landmark_aura)
+	# 地标邻近的 monster/trap 在生成时已转为 safe，翻牌时无需重复净化
 
 	# 日程完成检查
 	if card.location != "":

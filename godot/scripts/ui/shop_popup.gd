@@ -509,9 +509,8 @@ func _draw_item_card(index: int, card_t: float, game_time: float) -> void:
 	var card_cy: float = card_rect.get_center().y + float_y - hover_lift
 	var s: float = card_t * (1.0 + hover_t * 0.04)
 
-	# 保存当前变换，在卡牌中心进行旋转和缩放
+	# local_rect 以 (0,0) 为中心, 变换: 旋转+缩放 → 平移到卡牌中心
 	var card_xf: Transform2D = Transform2D()
-	card_xf = card_xf.translated(-Vector2(card_cx, card_cy))
 	card_xf = card_xf.rotated(rot)
 	card_xf = card_xf.scaled(Vector2(s, s))
 	card_xf = card_xf.translated(Vector2(card_cx, card_cy))

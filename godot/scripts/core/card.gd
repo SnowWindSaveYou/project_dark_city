@@ -295,6 +295,9 @@ static func create(loc: String, evt_type: String, r: int, c: int) -> Card:
 	card.type = evt_type
 	card.row = r
 	card.col = c
+	# 地标从发牌起就正面朝上 (匹配 Lua: faceUp = (cardType == "landmark"))
+	if evt_type == "landmark":
+		card.is_flipped = true
 	return card
 
 ## 工厂方法 (暗面世界卡牌)

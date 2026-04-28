@@ -54,8 +54,11 @@ func setup(main_ref) -> void:
 
 ## 清空并重新创建所有 3D 卡牌
 func rebuild_card_nodes() -> void:
-	for child in board_layer.get_children():
-		child.queue_free()
+	# 必须立即删除，不能用 queue_free()，否则同名新节点会被旧节点遮蔽
+	var children: Array = board_layer.get_children()
+	for child in children:
+		board_layer.remove_child(child)
+		child.free()
 	_card_materials.clear()
 
 	for r in range(Board.ROWS):
@@ -86,21 +89,36 @@ func rebuild_card_nodes() -> void:
 			card_node.set_meta("col", col)
 			card_node.set_meta("target_pos", target_pos)
 
+			# 地标卡初始就正面朝上: 显示事件面颜色和文字
+			if card.is_flipped:
+				var type_info: Dictionary = GameTheme.card_type_info(card.type)
+				mat.albedo_color = type_info.get("color", GameTheme.card_face)
+
 			# 占位 Label3D (显示卡牌类型文字)
 			var label: Label3D = Label3D.new()
 			label.name = "TypeLabel"
-			# 初始就显示地点信息 (发牌飞行中也可见)
-			var loc_info: Dictionary = card.get_location_info()
-			label.text = loc_info.get("icon", "?") + "\n" + loc_info.get("label", "")
+			if card.is_flipped:
+				# 已翻开 (地标): 显示事件信息
+				var type_info2: Dictionary = GameTheme.card_type_info(card.type)
+				label.text = type_info2.get("icon", "?") + "\n" + type_info2.get("label", "")
+				label.modulate = Color(1, 1, 1, 0.9)
+			else:
+				# 未翻开: 显示地点信息
+				var loc_info: Dictionary = card.get_location_info()
+				label.text = loc_info.get("icon", "?") + "\n" + loc_info.get("label", "")
+				label.modulate = Color(1, 1, 1, 0.85)
 			label.font_size = 48
 			label.pixel_size = 0.005
 			label.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.001, 0)
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
-			label.modulate = Color(1, 1, 1, 0.85)  # 未翻开时显示地点
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			label.no_depth_test = true
 			label.render_priority = 1
 			card_node.add_child(label)
+
+			# 家/地标: 创建时就挂载光环粒子 (匹配 Lua Card.createNode 行为)
+			if card.should_have_glow():
+				_attach_glow_particles(card_node, card.type)
 
 			board_layer.add_child(card_node)
 
@@ -185,7 +203,9 @@ func update_card_visual(row: int, col: int) -> void:
 				var loc_label: String = loc_info.get("label", "")
 				label.text = loc_icon + "\n" + loc_label
 				label.modulate = Color(1, 1, 1, 0.85)
-			_remove_glow_particles(card_node)
+			# 家/地标即使未翻开也保留光环 (匹配 Lua Card.createNode)
+			if not card.should_have_glow():
+				_remove_glow_particles(card_node)
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:
