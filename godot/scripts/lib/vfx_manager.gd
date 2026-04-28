@@ -109,11 +109,11 @@ func screen_flash(color: Color = Color.WHITE, intensity: float = 0.6) -> void:
 # ---------------------------------------------------------------------------
 func _process(delta: float) -> void:
 	# 屏幕震动
-	if _shake_intensity > 0.01:
+	if _shake_intensity > 0.0:
 		_shake_timer += delta
 		_shake_intensity -= _shake_decay * delta
-		if _shake_intensity < 0:
-			_shake_intensity = 0
+		if _shake_intensity <= 0.01:
+			_shake_intensity = 0.0
 			shake_offset = Vector2.ZERO
 			shake_finished.emit()
 		else:
