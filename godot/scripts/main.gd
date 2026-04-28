@@ -287,7 +287,7 @@ func _setup_3d_scene() -> void:
 
 	_camera_3d = Camera3D.new()
 	_camera_3d.name = "MainCamera"
-	_camera_3d.fov = 50.0
+	_camera_3d.fov = 45.0
 	# 45° 俯视: 位于 Y=4.5, Z=-4.5 (与原版 UrhoX 一致)
 	_camera_3d.position = Vector3(0, 4.5, -4.5)
 	_camera_3d.rotation_degrees = Vector3(-45, 180, 0)
