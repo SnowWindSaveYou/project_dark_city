@@ -8,6 +8,10 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 var m = null
 
+## 最近一次拍照的卡牌坐标 (row, col)，用于弹窗关闭后只标记该卡牌
+var _photo_row: int = -1
+var _photo_col: int = -1
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
@@ -343,6 +347,8 @@ func _handle_camera_mode_click(card: Card, row: int, col: int) -> void:
 func do_photograph(card: Card, row: int, col: int) -> void:
 	GameData.modify_resource("film", -1)
 	GameData.photos_used += 1
+	_photo_row = row
+	_photo_col = col
 
 	GameData.set_demo_state("photographing")
 	m._camera_button.exit_camera_mode()
@@ -392,14 +398,15 @@ func on_photo_popup_dismissed(_card_type: String) -> void:
 	# 清除踪迹幽灵 (拍照结果弹窗关闭后)
 	m.board_visual.mg_clear_trail_ghosts()
 
-	# 标记侦察 + 翻回
-	for r in range(1, Board.ROWS + 1):
-		for c in range(1, Board.COLS + 1):
-			var card: Card = m.board.get_card(r, c)
-			if card and card.is_flipped and not card.scouted:
-				card.scouted = true
-				m.board.flip_back(r, c)
-				m.board_visual.play_flip_back_animation(r, c)
+	# 只标记被拍照的那张卡牌为侦察 + 翻回
+	if _photo_row > 0 and _photo_col > 0:
+		var card: Card = m.board.get_card(_photo_row, _photo_col)
+		if card and card.is_flipped and not card.scouted:
+			card.scouted = true
+			m.board.flip_back(_photo_row, _photo_col)
+			m.board_visual.play_flip_back_animation(_photo_row, _photo_col)
+		_photo_row = -1
+		_photo_col = -1
 
 	m.token.set_emotion("happy")
 	GameData.set_demo_state("ready")

@@ -288,14 +288,13 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 			return
 
-	# 日程条目点击
+	# 日程条目点击 — 只发信号，由 main.gd 调用 toggle_defer (避免双重调用)
 	if _card_manager:
 		var content_x: float = px + SPINE_W + PAGE_PAD
 		var content_y: float = py + TAB_H + 4
 		for i in range(_card_manager.schedules.size()):
 			var item_y: float = content_y + i * ITEM_H
 			if ly >= item_y and ly <= item_y + ITEM_H and lx >= content_x and lx <= px + pw - PAGE_PAD:
-				_card_manager.toggle_defer(i)
 				schedule_toggled.emit(i)
 				accept_event()
 				return
