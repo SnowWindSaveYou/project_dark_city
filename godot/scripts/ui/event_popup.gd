@@ -1,6 +1,7 @@
 ## EventPopup - 事件弹窗系统
 ## 对应原版 EventPopup.lua
 ## 功能: 模态事件弹窗 + Toast 通知 + 裂隙确认弹窗 + 相片预览
+class_name EventPopup
 extends Control
 
 # ---------------------------------------------------------------------------
