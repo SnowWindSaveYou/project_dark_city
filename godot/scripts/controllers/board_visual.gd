@@ -1431,19 +1431,24 @@ func _set_glow_visible(card_node: MeshInstance3D, visible: bool) -> void:
 	if light:
 		light.light_energy = 0.4 if visible else 0.0
 
-## 显式激活所有 home/landmark 卡牌的安全区光晕 (发牌完成后调用)
+## 显式激活所有安全区光晕: home/landmark + 地标辐射区 (发牌完成后调用)
 func show_safe_glows() -> void:
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = m.board.get_card(r, c)
 			if card == null:
 				continue
-			if not card.should_have_glow():
+			# home/landmark 自身 + 地标辐射区 (上下左右相邻格)
+			var has_glow: bool = card.should_have_glow() \
+				or m.board.is_in_landmark_aura(r, c)
+			if not has_glow:
 				continue
-			card.show_safe_glow()
 			var card_node: MeshInstance3D = get_card_node(r, c)
 			if card_node:
+				# 辐射区卡牌也挂载粒子 (白色光晕, 与 home 相同)
+				_attach_glow_particles(card_node, "home")
 				_set_glow_visible(card_node, true)
+			card.show_safe_glow()
 
 ## 显式关闭所有卡牌的安全区光晕
 func hide_safe_glows() -> void:
