@@ -233,6 +233,9 @@ func restart_game() -> void:
 	m._bg_transition_target = 0.0
 	m._camera_offset = Vector2.ZERO
 
+	# 重置 VFX (匹配 Lua: VFX.resetAll())
+	m._vfx.reset_all()
+
 	# 重置数据和核心对象
 	GameData.reset()
 	m.card_manager = CardManager.new()

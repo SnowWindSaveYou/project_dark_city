@@ -10,20 +10,35 @@ extends Control
 signal shake_finished
 
 # ---------------------------------------------------------------------------
-# 屏幕震动
+# 屏幕震动 (匹配 Lua VFX.triggerShake: intensity, duration, frequency)
 # ---------------------------------------------------------------------------
 var _shake_intensity: float = 0.0
-var _shake_decay: float = 0.0
-var _shake_frequency: float = 0.0
+var _shake_duration: float = 0.0
+var _shake_frequency: float = 25.0
 var _shake_timer: float = 0.0
 var shake_offset: Vector2 = Vector2.ZERO
 
-## 触发屏幕震动
-func screen_shake(intensity: float = 6.0, decay: float = 5.0, frequency: float = 25.0) -> void:
-	_shake_intensity = intensity
-	_shake_decay = decay
-	_shake_frequency = frequency
+## 重置所有 VFX 状态 (匹配 Lua VFX.resetAll, 用于游戏重启)
+func reset_all() -> void:
+	_shake_intensity = 0.0
+	_shake_duration = 0.0
 	_shake_timer = 0.0
+	shake_offset = Vector2.ZERO
+	_banners.clear()
+	_score_popups.clear()
+	_particles.clear()
+	_flash_alpha = 0.0
+	queue_redraw()
+
+## 触发屏幕震动
+## intensity: 振幅 (像素级)
+## duration: 持续时长 (秒), 到时间后自动停止
+## frequency: 振动频率
+func screen_shake(intensity: float = 6.0, duration: float = 0.4, frequency: float = 25.0) -> void:
+	_shake_intensity = maxf(_shake_intensity, intensity)
+	_shake_duration = maxf(_shake_duration, duration)
+	_shake_timer = 0.0
+	_shake_frequency = frequency
 
 # ---------------------------------------------------------------------------
 # 飞字横幅
@@ -108,19 +123,23 @@ func screen_flash(color: Color = Color.WHITE, intensity: float = 0.6) -> void:
 # 更新
 # ---------------------------------------------------------------------------
 func _process(delta: float) -> void:
-	# 屏幕震动
+	# 屏幕震动 (匹配 Lua updateShake: 基于 duration 的进度衰减)
 	if _shake_intensity > 0.0:
 		_shake_timer += delta
-		_shake_intensity -= _shake_decay * delta
-		if _shake_intensity <= 0.01:
+		var progress: float = _shake_timer / _shake_duration if _shake_duration > 0.0 else 1.0
+		if progress >= 1.0:
 			_shake_intensity = 0.0
+			_shake_duration = 0.0
+			_shake_timer = 0.0
 			shake_offset = Vector2.ZERO
 			shake_finished.emit()
 		else:
+			var decay: float = pow(1.0 - progress, 1.5)
+			var amp: float = _shake_intensity * decay
 			var t: float = _shake_timer * _shake_frequency
 			shake_offset = Vector2(
-				sin(t * 1.1) * _shake_intensity,
-				cos(t * 1.3) * _shake_intensity
+				sin(t * 2.17 + 0.3) * amp + sin(t * 3.51) * amp * 0.3,
+				cos(t * 1.73 + 0.7) * amp + cos(t * 2.89) * amp * 0.3
 			)
 	
 	# 横幅更新
