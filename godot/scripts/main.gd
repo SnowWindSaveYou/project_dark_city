@@ -174,7 +174,7 @@ func _setup_scene_tree() -> void:
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
 	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_token_sprite.pixel_size = 0.005  # 每像素 0.005m ≈ 64px → 0.32m 宽
+	_token_sprite.pixel_size = 0.00065  # 每像素 0.00065m → 515px≈0.335m宽, 768px≈0.50m高 (匹配 Lua SPRITE_3D_W/H)
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
 	_token_sprite.render_priority = 1

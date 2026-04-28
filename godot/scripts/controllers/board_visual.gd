@@ -245,10 +245,11 @@ func update_dark_card_visual(row: int, col: int) -> void:
 # Token 精灵更新 (Sprite3D billboard)
 # ---------------------------------------------------------------------------
 
-## Token 悬浮高度 (Sprite3D 中心点到卡面的距离)
-const TOKEN_HOVER_Y: float = 0.28
+## Token 悬浮高度 (Sprite3D 中心到卡面距离)
+## Lua: nodeY=0.25 + bb内部偏移=SPRITE_3D_H/2=0.25 → 中心 Y=0.50
+const TOKEN_HOVER_Y: float = 0.49
 ## 像素→世界单位的换算 (与 Sprite3D.pixel_size 保持一致)
-const TOKEN_PX_TO_WORLD: float = 0.005
+const TOKEN_PX_TO_WORLD: float = 0.00065
 
 func update_token_visual() -> void:
 	var token: Token = m.token
