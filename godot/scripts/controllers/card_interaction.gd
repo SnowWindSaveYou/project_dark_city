@@ -374,15 +374,66 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 			m._vfx.spawn_burst(center, 8, tc)
 			m._vfx.screen_shake(2.0, 0.1)
 
-			# MonsterGhost: 怪物→卡牌上显示 chibi, 非怪物→计算踪迹箭头
-			if card.type == "monster":
-				m.board_visual.mg_show_on_card(row, col, card.location)
-			else:
-				if MonsterGhost.calculate_trail(card, m.board):
-					m.board_visual.mg_show_trail_on_card(
-						row, col, card.trail_dir_x, card.trail_dir_y)
+			GameData.cards_revealed += 1
 
-			# 弹窗
+			# -----------------------------------------------------------
+			# 侦察=清除: 怪物/陷阱 → 展示后自动驱除, 变为安全格 (photo)
+			# -----------------------------------------------------------
+			if card.type == "monster" or card.type == "trap":
+				var is_monster: bool = (card.type == "monster")
+
+				# 怪物: 在卡牌上显示 chibi
+				if is_monster:
+					m.board_visual.mg_show_on_card(row, col, card.location)
+					GameData.monsters_slain += 1
+
+				# 情绪: 害怕/紧张
+				m.token.set_emotion("scared" if is_monster else "nervous")
+				GameData.set_demo_state("exorcising")
+				_photo_row = -1
+				_photo_col = -1
+
+				# 停顿 0.8s 让玩家看清
+				await m.get_tree().create_timer(0.8).timeout
+
+				# 驱除动效
+				var pc: Color = GameTheme.card_type_color("plot")
+				m._vfx.screen_flash(pc, 0.35)
+				m._vfx.screen_shake(4.0, 0.2)
+				m.token.set_emotion("angry")
+				m.token.hop(0.06)
+
+				# 清除卡牌上的怪物 chibi
+				m.board_visual.mg_clear_card_ghosts()
+
+				# 变形: 当前类型 → photo (安全格)
+				card.type = "photo"
+				m.board_visual.update_card_visual(row, col)
+
+				m.board_visual.play_exorcise_animation(row, col, func():
+					var center2: Vector2 = m.board_visual.get_card_center(row, col)
+					m._vfx.spawn_burst(center2, 16, pc)
+					if is_monster:
+						m._vfx.action_banner(
+							"👻 发现怪物! 已驱除!", pc, 1.0)
+					else:
+						var trap_info: Dictionary = card.get_trap_subtype_info()
+						m._vfx.action_banner(
+							"⚡ 发现%s! 已清除!" % trap_info.get("label", "陷阱"),
+							pc, 1.0)
+					m.token.set_emotion("happy")
+					GameData.set_demo_state("ready")
+					m._camera_button.show_button()
+				)
+				return
+
+			# -----------------------------------------------------------
+			# 非危险格: 显示踪迹箭头 + 侦察预览弹窗
+			# -----------------------------------------------------------
+			if MonsterGhost.calculate_trail(card, m.board):
+				m.board_visual.mg_show_trail_on_card(
+					row, col, card.trail_dir_x, card.trail_dir_y)
+
 			GameData.set_demo_state("popup")
 			await m.get_tree().create_timer(0.4).timeout
 			m._event_popup.show_photo(card)
@@ -393,7 +444,7 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 
 ## 拍照弹窗关闭
 func on_photo_popup_dismissed(_card_type: String) -> void:
-	GameData.cards_revealed += 1
+	# cards_revealed 已在 do_photograph 翻牌回调中计数，此处不再重复
 
 	# 清除踪迹幽灵 (拍照结果弹窗关闭后)
 	m.board_visual.mg_clear_trail_ghosts()
