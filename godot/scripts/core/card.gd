@@ -37,6 +37,7 @@ var is_flipping: bool = false     # 是否正在翻转动画中
 var is_dark: bool = false         # 是否是暗面卡牌
 var dark_type: String = ""        # 暗面卡牌类型 (normal/shop/passage/abyss_core/...)
 var dark_name: String = ""        # 暗面卡牌显示名
+var dark_icon: String = ""        # 暗面卡牌图标
 var dark_collected: bool = false  # 暗面道具/线索是否已被收集
 
 # --- 陷阱/裂隙 ---

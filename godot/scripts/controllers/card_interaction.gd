@@ -214,6 +214,17 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		# Toast 通知
 		m._event_popup.show_toast(card_type, effects, shield_used, card.location)
 
+		# 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready (匹配 Lua 0.6s pauseDummy)
+		if card_type == "monster":
+			await m.get_tree().create_timer(0.6).timeout
+			GameData.set_demo_state("ready")
+			m._camera_button.show_button()
+			if card.has_rift:
+				_show_rift_confirm(row, col)
+				return
+			m.game_flow.check_defeat()
+			return
+
 		GameData.set_demo_state("ready")
 		m._camera_button.show_button()
 

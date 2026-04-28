@@ -241,6 +241,9 @@ func update_card_visual(row: int, col: int) -> void:
 			if card.type == "landmark" or card.type == "home":
 				_attach_glow_particles(card_node, card.type)
 				_set_glow_visible(card_node, card.safe_glow_active)
+			elif card.safe_glow_active:
+				# 地标辐射区: 保留白色光晕
+				_set_glow_visible(card_node, true)
 			else:
 				_remove_glow_particles(card_node)
 	else:
@@ -254,8 +257,8 @@ func update_card_visual(row: int, col: int) -> void:
 				var loc_label: String = loc_info.get("label", "")
 				label.text = loc_icon + "\n" + loc_label
 				label.modulate = Color(1, 1, 1, 0.85)
-			# 家/地标即使未翻开也保留光环 (匹配 Lua Card.createNode)
-			if not card.should_have_glow():
+			# 家/地标/辐射区即使未翻开也保留光环 (匹配 Lua Card.createNode)
+			if not card.should_have_glow() and not card.safe_glow_active:
 				_remove_glow_particles(card_node)
 
 	# 侦察/揭示图标: 只要卡牌可见就显示 (不论正反面)

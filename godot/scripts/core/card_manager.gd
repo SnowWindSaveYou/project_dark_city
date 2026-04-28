@@ -118,14 +118,25 @@ func complete_schedule_at(location: String) -> Dictionary:
 			return s
 	return {}
 
-## 切换延期状态
+## 切换延期状态 (最多只能推迟 1 项, 匹配 Lua CardManager.deferSchedule)
 func toggle_defer(index: int) -> void:
 	if index < 0 or index >= schedules.size():
 		return
 	var s: Dictionary = schedules[index]
 	if s["status"] == "completed":
 		return  # 已完成不可延期
-	s["status"] = "deferred" if s["status"] == "pending" else "pending"
+
+	if s["status"] == "deferred":
+		# 取消推迟 → 恢复 pending
+		s["status"] = "pending"
+	elif s["status"] == "pending":
+		# 检查是否已有推迟项 (含昨日遗留)
+		if _deferred_schedules.size() > 0:
+			return  # 昨日已有推迟项
+		for sched in schedules:
+			if sched["status"] == "deferred":
+				return  # 今日已有一项推迟
+		s["status"] = "deferred"
 
 # ---------------------------------------------------------------------------
 # 传闻
