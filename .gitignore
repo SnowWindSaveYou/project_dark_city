@@ -35,3 +35,5 @@ scripts/.luarc.json
 
 # Godot 编辑器缓存
 .godot/
+/godot/.godot
+/godot/.godot
