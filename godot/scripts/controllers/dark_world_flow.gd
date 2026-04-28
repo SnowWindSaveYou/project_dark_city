@@ -134,12 +134,12 @@ func _generate_dark_board() -> void:
 func _on_dark_deal_complete() -> void:
 	GameData.set_demo_state("dark_world")
 
-	# Token 出现在入口
+	# Token 出现在玩家当前位置 (首次=入口, 换层后=上次位置)
 	var layer_data = m.dark_world.get_layer_data()
-	var entry_r: int = layer_data.entry_row + 1  # 0-based → 1-based
-	var entry_c: int = layer_data.entry_col + 1
-	m.token.target_row = entry_r
-	m.token.target_col = entry_c
+	var pr: int = layer_data.player_row + 1  # 0-based → 1-based
+	var pc: int = layer_data.player_col + 1
+	m.token.target_row = pr
+	m.token.target_col = pc
 	m.token.visible = true
 	m.token.alpha = 1.0
 	m.token.set_emotion("nervous")
@@ -149,11 +149,11 @@ func _on_dark_deal_complete() -> void:
 	m.board_visual.create_ghost_nodes(layer_data.ghosts)
 	m.board_visual.create_npc_nodes(layer_data.npcs)
 
-	# 翻开入口卡牌
-	var entry_card: Card = m.board.get_card(entry_r, entry_c)
+	# 翻开玩家所在卡牌
+	var entry_card: Card = m.board.get_card(pr, pc)
 	if entry_card:
-		m.board.flip_card(entry_r, entry_c)
-		m.board_visual.update_dark_card_visual(entry_r, entry_c)
+		m.board.flip_card(pr, pc)
+		m.board_visual.update_dark_card_visual(pr, pc)
 
 # =========================================================================
 # 暗面卡牌交互
@@ -186,6 +186,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		if move_result["reason"] == "no_energy":
 			m._vfx.action_banner("能量耗尽!", Color(0.86, 0.31, 0.31), 0.7)
 			m._resource_bar.flash_dark_energy()
+			m.dark_world.request_exit()
 		elif move_result["reason"] == "not_adjacent":
 			m._vfx.action_banner("只能移动到相邻格", Color(0.7, 0.7, 0.7), 0.6)
 		return
@@ -226,6 +227,16 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		else:
 			m.token.set_emotion("default")
 			m.dark_world.set_ready()
+
+		# 移动后能量耗尽 → 延迟退出 (匹配 Lua: 0.8s 后 requestExit)
+		if m.dark_world.get_energy() <= 0:
+			var tw_exit: Tween = m.create_tween()
+			tw_exit.tween_interval(0.8)
+			tw_exit.tween_callback(func():
+				m._vfx.action_banner("⚡ 能量耗尽，被迫返回!",
+					Color(0.86, 0.47, 0.31), 1.0)
+				m.dark_world.request_exit()
+			)
 	)
 
 # ---------------------------------------------------------------------------
