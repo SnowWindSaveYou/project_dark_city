@@ -287,7 +287,7 @@ func _setup_3d_scene() -> void:
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	_env.ambient_light_color = ATMO_BRIGHT["ambient_color"]
 	_env.ambient_light_energy = ATMO_BRIGHT["ambient_energy"]
-	_env.tonemap_mode = Environment.TONE_MAP_ACES
+	_env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	_env.fog_enabled = false  # 由 _apply_atmosphere() 动态控制
 
 	_world_env = WorldEnvironment.new()
