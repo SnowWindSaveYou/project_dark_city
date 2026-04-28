@@ -75,6 +75,8 @@ var _camera_button: Control = null
 var _title_screen: Control = null
 var _game_over: Control = null
 var _date_transition: Control = null
+var _dialogue_overlay: Control = null
+var _bubble_overlay: Control = null
 
 # ---------------------------------------------------------------------------
 # 场景节点
@@ -227,6 +229,22 @@ func _setup_scene_tree() -> void:
 	_date_transition.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_date_transition.visible = false
 	ui_layer.add_child(_date_transition)
+
+	# 气泡对话渲染层 (Token 头顶)
+	_bubble_overlay = load("res://scripts/visual/bubble_overlay.gd").new()
+	_bubble_overlay.name = "BubbleOverlay"
+	_bubble_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bubble_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bubble_overlay.m = self
+	ui_layer.add_child(_bubble_overlay)
+
+	# 对话系统渲染层 (遮罩 + 对话框 + 立绘)
+	_dialogue_overlay = load("res://scripts/visual/dialogue_overlay.gd").new()
+	_dialogue_overlay.name = "DialogueOverlay"
+	_dialogue_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dialogue_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialogue_overlay.m = self
+	ui_layer.add_child(_dialogue_overlay)
 
 	# Title Screen (最顶层)
 	_title_screen = load("res://scripts/visual/title_screen.gd").new()
