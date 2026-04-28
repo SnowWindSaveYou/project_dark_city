@@ -799,10 +799,110 @@ func update_npc_visuals(game_time: float) -> void:
 			node.scale = Vector3(breathe, breathe, breathe)
 
 # ---------------------------------------------------------------------------
+# 地图道具 3D 节点 (Sprite3D billboard, 匹配 Lua BoardItems)
+# ---------------------------------------------------------------------------
+
+## 道具 Sprite3D 节点缓存: item_index(int) → Dictionary
+var _item_nodes: Dictionary = {}
+
+func create_item_nodes(items: Array) -> void:
+	destroy_item_nodes()
+	for i in range(items.size()):
+		var item: BoardItems.BoardItem = items[i]
+		if item.collected:
+			continue
+		var tex_path: String = BoardItems.ICON_TEXTURES.get(item.key, "")
+		if tex_path.is_empty():
+			continue
+		var tex: Texture2D = load(tex_path)
+		if not tex:
+			continue
+		var sprite: Sprite3D = Sprite3D.new()
+		sprite.name = "Item_%d_%s" % [i, item.key]
+		sprite.texture = tex
+		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		sprite.transparent = true
+		sprite.no_depth_test = false
+		sprite.render_priority = 1
+		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
+		sprite.pixel_size = BoardItems.ITEM_SIZE_3D / tex_max if tex_max > 0.0 else 0.001
+		var world_pos: Vector3 = m.board.grid_to_world(item.row, item.col)
+		world_pos.y = BoardItems.ITEM_BASE_Y_3D
+		world_pos.z -= 0.18  # CAMERA_OFFSET_Z — 向相机方向偏移
+		sprite.position = world_pos
+		# 初始不可见 (弹出动画会设置)
+		sprite.modulate = Color(1, 1, 1, 0)
+		sprite.scale = Vector3(0.01, 0.01, 0.01)
+		add_child(sprite)
+		_item_nodes[i] = {
+			"node": sprite,
+			"base_y": BoardItems.ITEM_BASE_Y_3D,
+			"phase": item.phase,
+			"pos_x": world_pos.x,
+			"pos_z": world_pos.z,
+		}
+
+func destroy_item_nodes() -> void:
+	for key in _item_nodes:
+		var data: Dictionary = _item_nodes[key]
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_item_nodes.clear()
+
+func update_item_visuals(game_time: float) -> void:
+	for key in _item_nodes:
+		var data: Dictionary = _item_nodes[key]
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * BoardItems.FLOAT_SPEED_3D + data["phase"]) * BoardItems.FLOAT_AMP_3D
+		node.position = Vector3(data["pos_x"], data["base_y"] + float_y, data["pos_z"])
+
+## 道具弹出动画 (scale 0→1, alpha 0→1)
+func animate_item_spawn(item_index: int, delay: float) -> void:
+	if not _item_nodes.has(item_index):
+		return
+	var data: Dictionary = _item_nodes[item_index]
+	var node = data.get("node")
+	if not is_instance_valid(node):
+		return
+	var tw: Tween = m.create_tween()
+	tw.tween_property(node, "scale", Vector3.ONE, 0.3) \
+		.set_delay(delay) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	var tw2: Tween = m.create_tween()
+	tw2.tween_property(node, "modulate:a", 1.0, 0.2).set_delay(delay)
+
+## 道具拾取动画 (上飘 + 淡出 + 移除节点)
+func animate_item_collect(item_index: int) -> void:
+	if not _item_nodes.has(item_index):
+		return
+	var data: Dictionary = _item_nodes[item_index]
+	var node = data.get("node")
+	if not is_instance_valid(node):
+		_item_nodes.erase(item_index)
+		return
+	var start_y: float = node.position.y
+	var tw: Tween = m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "position:y", start_y + 0.3, 0.4) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(node, "modulate:a", 0.0, 0.35) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(node, "scale", Vector3(1.3, 1.3, 1.3), 0.4) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.chain().tween_callback(func() -> void:
+		if is_instance_valid(node):
+			node.queue_free()
+		_item_nodes.erase(item_index)
+	)
+
+# ---------------------------------------------------------------------------
 # 棋盘叠层效果 (Phase 3 用 3D 节点替代 _draw)
 # ---------------------------------------------------------------------------
 
-## 暂时空实现: 道具/裂隙标记等叠层效果
+## 暂时空实现: 裂隙标记等叠层效果
 func _update_overlays() -> void:
 	pass
 

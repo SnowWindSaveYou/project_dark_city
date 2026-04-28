@@ -524,6 +524,9 @@ func _process(dt: float) -> void:
 	token.update(dt)
 	board_visual.update_token_visual()
 
+	# 地图道具浮动动画
+	board_visual.update_item_visuals(game_time)
+
 	# 暗面幽灵浮动 & NPC 呼吸动画
 	if dark_world.active:
 		board_visual.update_ghost_visuals(game_time)

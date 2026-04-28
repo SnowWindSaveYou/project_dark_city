@@ -71,6 +71,7 @@ func _on_deal_complete() -> void:
 
 	# 生成棋盘道具
 	m.board_items.spawn_daily(m.board, home_row, home_col)
+	m.board_visual.create_item_nodes(m.board_items.items)
 	_animate_item_spawn()
 
 	# 通知 HandPanel 刷新并显示
@@ -83,6 +84,7 @@ func _animate_item_spawn() -> void:
 	for i in range(m.board_items.items.size()):
 		var item: BoardItems.BoardItem = m.board_items.items[i]
 		var delay: float = 0.3 + i * 0.15
+		# 数据层 tween (保留兼容 overlay 绘制)
 		var tw: Tween = m.create_tween()
 		tw.tween_property(item, "scale", 1.0, 0.3) \
 			.set_delay(delay) \
@@ -91,6 +93,8 @@ func _animate_item_spawn() -> void:
 		tw2.tween_property(item, "alpha", 1.0, 0.2).set_delay(delay)
 		var tw3: Tween = m.create_tween()
 		tw3.tween_property(item, "glow_alpha", 1.0, 0.3).set_delay(delay)
+		# 3D 节点弹出动画
+		m.board_visual.animate_item_spawn(i, delay)
 
 # ---------------------------------------------------------------------------
 # 日期推进
@@ -118,6 +122,7 @@ func advance_day() -> void:
 	GameData.set_demo_state("dealing")
 	m._camera_button.hide_button()
 	m.token.visible = false
+	m.board_visual.destroy_item_nodes()
 	m.board_items.clear()
 
 	m.day_count += 1
@@ -169,6 +174,11 @@ func try_collect_item(row: int, col: int) -> Dictionary:
 	var result: Dictionary = m.board_items.try_collect(row, col)
 	if result.is_empty():
 		return {}
+
+	# 3D 拾取动画
+	var item_idx: int = result.get("index", -1)
+	if item_idx >= 0:
+		m.board_visual.animate_item_collect(item_idx)
 
 	var item_key: String = result["key"]
 	var item_label: String = result["label"]
@@ -223,6 +233,7 @@ func restart_game() -> void:
 	GameData.reset()
 	m.card_manager = CardManager.new()
 	m.board = Board.new()
+	m.board_visual.destroy_item_nodes()
 	m.board_items.clear()
 	
 	# 重置暗面世界 (用 reset() 保留回调注入)

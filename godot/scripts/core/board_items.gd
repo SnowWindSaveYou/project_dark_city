@@ -16,11 +16,26 @@ const ITEM_POOL: Array = [
 	{ "key": "mapReveal", "weight": 25, "label": "地图碎片", "icon": "🗺️" },
 ]
 
-# 道具图标绘制参数
-const ICON_SIZE: float = 20.0  # 图标显示尺寸 (像素)
-const FLOAT_AMP: float = 2.0  # 上下浮动幅度 (像素)
-const FLOAT_SPEED: float = 2.2  # 浮动频率
-const GLOW_RADIUS: float = 14.0  # 底部光晕半径
+# 道具图标绘制参数 (2D overlay 保留兼容)
+const ICON_SIZE: float = 20.0
+const FLOAT_AMP: float = 2.0
+const FLOAT_SPEED: float = 2.2
+const GLOW_RADIUS: float = 14.0
+
+# 3D Billboard 参数 (匹配 Lua BoardItems)
+const ITEM_SIZE_3D: float = 0.22
+const ITEM_BASE_Y_3D: float = 0.35
+const FLOAT_AMP_3D: float = 0.025
+const FLOAT_SPEED_3D: float = 2.2
+
+# 道具贴图路径映射
+const ICON_TEXTURES: Dictionary = {
+	"coffee":    "res://assets/image/道具_咖啡v2_20260426153856.png",
+	"film":      "res://assets/image/道具_胶卷v2_20260426153757.png",
+	"shield":    "res://assets/image/道具_护身符v2_20260426153859.png",
+	"exorcism":  "res://assets/image/道具_驱魔香v2_20260426153756.png",
+	"mapReveal": "res://assets/image/道具_地图碎片v2_20260426153808.png",
+}
 
 # ---------------------------------------------------------------------------
 # 道具实例
