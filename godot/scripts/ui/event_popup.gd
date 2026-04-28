@@ -112,6 +112,22 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 
+## 选择性命中检测：模态弹窗全屏拦截，toast 仅拦截其矩形区域
+func _has_point(point: Vector2) -> bool:
+	# 模态弹窗或裂隙弹窗：全屏拦截
+	if _active or _rift_active:
+		return true
+	# Toast 模式：仅拦截 toast 矩形内的点击，其余透传
+	if is_toast_active():
+		for t in _toast_queue:
+			if t["phase"] == "done" or t["phase"] == "exit":
+				continue
+			if t["draw_w"] > 0.0 and t["draw_h"] > 0.0:
+				var rect: Rect2 = Rect2(t["draw_x"], t["draw_y"], t["draw_w"], t["draw_h"])
+				if rect.has_point(point):
+					return true
+	return false
+
 # ===========================================================================
 # 模态弹窗 API
 # ===========================================================================

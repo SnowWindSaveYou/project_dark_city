@@ -93,6 +93,7 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 		else:
 			m.token.set_emotion("default")
 			GameData.set_demo_state("ready")
+			m._camera_button.show_button()
 	)
 
 # ---------------------------------------------------------------------------
@@ -137,6 +138,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	if card_type == "home" or card_type == "landmark":
 		m._vfx.action_banner("安全", GameTheme.safe, 0.8)
 		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 		# 裂隙检查
 		if card.has_rift:
 			_show_rift_confirm(row, col)
@@ -155,6 +157,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	if is_blocking:
 		# 阻断事件: 商店 (未来: 带选项的剧情)
 		GameData.set_demo_state("popup")
+		m._camera_button.hide_button()
 		await m.get_tree().create_timer(0.4).timeout
 		if card_type == "shop":
 			m._shop_popup.open_shop()
@@ -187,6 +190,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		m._event_popup.show_toast(card_type, effects, shield_used, card.location)
 
 		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 
 		# 裂隙检查
 		if card.has_rift:
@@ -222,6 +226,7 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 		shield_used, card.location, card.trap_subtype)
 
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 
 	# 裂隙检查
 	if card.has_rift:
@@ -255,10 +260,12 @@ func on_rift_confirmed() -> void:
 	var row: int = m.token.target_row
 	var col: int = m.token.target_col
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 	m.dark_world_flow.enter_dark_world(row, col)
 
 func on_rift_cancelled() -> void:
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 
 # =========================================================================
 # 弹窗关闭回调
@@ -279,6 +286,7 @@ func on_popup_dismissed(card: Card) -> void:
 			m.token.set_emotion("default")
 
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 
 	# 裂隙检查 (弹窗关闭后)
 	if card and card.has_rift:
@@ -289,6 +297,7 @@ func on_popup_dismissed(card: Card) -> void:
 
 func on_shop_closed() -> void:
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 
 # =========================================================================
 # 相机模式
@@ -379,6 +388,7 @@ func on_photo_popup_dismissed(_card_type: String) -> void:
 
 	m.token.set_emotion("happy")
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 
 # ---------------------------------------------------------------------------
 # 驱魔逻辑
@@ -416,6 +426,7 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 		m._vfx.action_banner("驱除成功!", pc, 1.0)
 		m.token.set_emotion("happy")
 		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 	)
 
 ## 道具栏驱魔 (F4 快捷键)

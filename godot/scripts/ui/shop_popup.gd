@@ -378,7 +378,7 @@ func _process(delta: float) -> void:
 	# Hover 插值
 	var speed: float = minf(1.0, delta * 12.0)
 	for i in range(_hover_card_t.size()):
-		var target: bool = 1.0 if _hover_card == i else 0.0
+		var target: float = 1.0 if _hover_card == i else 0.0
 		_hover_card_t[i] += (target - _hover_card_t[i]) * speed
 	var r_target: float = 1.0 if _hover_refresh else 0.0
 	_hover_refresh_t += (r_target - _hover_refresh_t) * speed

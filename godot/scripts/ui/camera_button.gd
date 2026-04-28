@@ -243,7 +243,7 @@ func _draw() -> void:
 
 	# === 胶卷计数 (按钮左侧) ===
 	var film: int = GameData.get_resource("film")
-	var film_alpha: bool = 0.86 if film <= 1 else 0.78
+	var film_alpha: float = 0.86 if film <= 1 else 0.78
 
 	# 胶卷数字
 	var num_text: String = str(film)

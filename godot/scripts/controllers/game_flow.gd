@@ -43,6 +43,7 @@ func start_deal() -> void:
 
 func _on_deal_complete() -> void:
 	GameData.set_demo_state("ready")
+	m._camera_button.show_button()
 
 	# Token 出现在 "家"
 	var home_row: int = m.board.home_row
@@ -115,6 +116,7 @@ func advance_day() -> void:
 	GameData.modify_resource("money", 10)
 
 	GameData.set_demo_state("dealing")
+	m._camera_button.hide_button()
 	m.token.visible = false
 	m.board_items.clear()
 
@@ -125,7 +127,10 @@ func advance_day() -> void:
 		_trigger_victory()
 		return
 
-	m._date_transition.play(m.day_count)
+	# 收牌动画 → 日期过渡
+	m.board_visual.play_undeal_animation(func() -> void:
+		m._date_transition.play(m.day_count)
+	)
 
 ## 日期过渡完成回调 (由 main.gd 信号桥接)
 func on_date_transition_complete() -> void:

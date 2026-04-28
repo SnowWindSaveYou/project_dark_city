@@ -241,6 +241,11 @@ func update_token_visual() -> void:
 	if tex:
 		m._token_sprite.texture = tex
 
+	# 移动动画期间，位置和缩放由 Tween 驱动，这里只更新纹理/可见性
+	if token.is_moving:
+		m._token_sprite.modulate.a = token.alpha
+		return
+
 	# 3D 世界坐标定位
 	var world_pos: Vector3 = get_card_world_pos(token.target_row, token.target_col)
 	world_pos.y = CARD_Y + TOKEN_HOVER_Y
@@ -332,6 +337,92 @@ func start_deal_animation(on_complete: Callable) -> void:
 	var finish_delay: float = last_arrival + 0.4
 	var tw_finish: Tween = m.create_tween()
 	tw_finish.tween_callback(on_complete).set_delay(finish_delay)
+
+# ---------------------------------------------------------------------------
+# 收牌动画 (日终收回牌堆, 匹配原版 Card.undeal)
+# ---------------------------------------------------------------------------
+
+## 播放收牌动画: 反向螺旋顺序, 弹起→飞回牌堆+缩小+旋转+淡出
+func play_undeal_animation(on_complete: Callable) -> void:
+	var order: Array = m.board.get_spiral_order()
+	order.reverse()  # 内→外, 反向收牌
+	var total_cards: int = order.size()
+	if total_cards == 0:
+		on_complete.call()
+		return
+
+	var acc_delay: float = 0.05
+	var last_end: float = acc_delay
+
+	for i in range(total_cards):
+		var pos: Vector2i = order[i]
+		var card_node: MeshInstance3D = get_card_node(pos.x, pos.y)
+		if card_node == null:
+			continue
+
+		var start_pos: Vector3 = card_node.position
+
+		# 随机旋转方向 (±15~25°)
+		var rot_sign: float = 1.0 if randi() % 2 == 0 else -1.0
+		var rot_deg: float = rot_sign * randf_range(15.0, 25.0)
+
+		# Phase A: 弹起 (0.10s)
+		var bounce_pos: Vector3 = Vector3(start_pos.x, start_pos.y + 0.30, start_pos.z)
+		var tw_bounce: Tween = m.create_tween()
+		tw_bounce.tween_property(card_node, "position", bounce_pos, 0.10) \
+			.set_delay(acc_delay) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+		# Phase B: 飞回牌堆 (0.30s, easeInBack)
+		var fly_delay: float = acc_delay + 0.10
+		var fly_dur: float = 0.30
+
+		var tw_fly: Tween = m.create_tween()
+		tw_fly.tween_property(card_node, "position", DECK_SPAWN_POS, fly_dur) \
+			.set_delay(fly_delay) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+
+		# 缩小到 20%
+		var tw_shrink: Tween = m.create_tween()
+		tw_shrink.tween_property(card_node, "scale",
+			Vector3(0.2, 0.2, 0.2), fly_dur) \
+			.set_delay(fly_delay) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
+		# 旋转
+		var tw_rot: Tween = m.create_tween()
+		tw_rot.tween_property(card_node, "rotation_degrees:y", rot_deg, fly_dur) \
+			.set_delay(fly_delay) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
+		# 淡出 (通过材质 alpha)
+		var mat: StandardMaterial3D = _get_card_mat(pos.x, pos.y)
+		if mat:
+			var tw_fade: Tween = m.create_tween()
+			tw_fade.tween_callback(func():
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			).set_delay(fly_delay)
+			tw_fade.tween_method(
+				func(a: float): mat.albedo_color.a = a,
+				1.0, 0.0, fly_dur
+			).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
+		# 飞行结束后隐藏
+		var tw_hide: Tween = m.create_tween()
+		tw_hide.tween_callback(func():
+			card_node.visible = false
+		).set_delay(fly_delay + fly_dur)
+
+		last_end = fly_delay + fly_dur
+
+		# 间隔: 快速连续收牌
+		var progress: float = float(i) / float(total_cards)
+		var interval: float = 0.06 - 0.03 * progress
+		acc_delay += interval
+
+	# 完成回调
+	var tw_done: Tween = m.create_tween()
+	tw_done.tween_callback(on_complete).set_delay(last_end + 0.15)
 
 # ---------------------------------------------------------------------------
 # 翻牌动画 (绕 Z 轴掀起翻转, 同步原版 Card.flip)
@@ -445,12 +536,81 @@ func play_flip_back_animation(row: int, col: int) -> void:
 
 ## Token 移动到目标格 (3D 世界坐标), 完成后调用 on_arrive
 func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
-	var world_pos: Vector3 = get_card_world_pos(row, col)
-	world_pos.y = CARD_Y + TOKEN_HOVER_Y
-	var tween: Tween = m.create_tween()
-	tween.tween_property(m._token_sprite, "position", world_pos, 0.3) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_callback(on_arrive)
+	var token: Token = m.token
+	var start_pos: Vector3 = m._token_sprite.position
+	var end_pos: Vector3 = get_card_world_pos(row, col)
+	var base_y: float = CARD_Y + TOKEN_HOVER_Y
+	end_pos.y = base_y
+
+	# 距离计算 (XZ 平面)
+	var dx: float = end_pos.x - start_pos.x
+	var dz: float = end_pos.z - start_pos.z
+	var dist: float = sqrt(dx * dx + dz * dz)
+
+	# 动画参数 (匹配原版 Lua Token.moveTo)
+	var move_dur: float = clampf(dist / 2.5, 0.25, 0.60)
+	var jump_height: float = minf(0.20, dist * 0.15 + 0.08)
+
+	token.is_moving = true
+
+	# --- Phase 1: 预跳蓄力压扁 ---
+	var t1: Tween = m.create_tween()
+	t1.tween_property(m._token_sprite, "scale",
+		Vector3(1.2, 0.8, 1.0), 0.08) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+	# --- Phase 2: 起跳拉伸 ---
+	t1.tween_property(m._token_sprite, "scale",
+		Vector3(0.85, 1.15, 1.0), 0.06) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+	# --- Phase 3: 空中移动 (多 Tween 并行) ---
+	t1.tween_callback(func() -> void:
+		# Tween A: XZ 水平移动
+		var t_xz: Tween = m.create_tween()
+		t_xz.tween_method(func(ratio: float) -> void:
+			m._token_sprite.position.x = start_pos.x + dx * ratio
+			m._token_sprite.position.z = start_pos.z + dz * ratio
+		, 0.0, 1.0, move_dur) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+
+		# Tween B: Y 弧线 (上升 → 下降, 顺序)
+		var up_dur: float = move_dur * 0.45
+		var down_dur: float = move_dur * 0.55
+		var t_y: Tween = m.create_tween()
+		t_y.tween_method(func(ratio: float) -> void:
+			m._token_sprite.position.y = base_y + jump_height * ratio
+		, 0.0, 1.0, up_dur) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		t_y.tween_method(func(ratio: float) -> void:
+			m._token_sprite.position.y = base_y + jump_height * (1.0 - ratio)
+		, 0.0, 1.0, down_dur) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BOUNCE)
+
+		# Tween C: 空中姿态 → 落地压扁 → 弹性恢复
+		var t_scale: Tween = m.create_tween()
+		# 空中微拉伸
+		t_scale.tween_property(m._token_sprite, "scale",
+			Vector3(0.95, 1.05, 1.0), move_dur * 0.4) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		# 等到飞行结束
+		t_scale.tween_interval(move_dur * 0.6)
+		# 落地压扁
+		t_scale.tween_property(m._token_sprite, "scale",
+			Vector3(1.25, 0.75, 1.0), 0.06) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		# 弹性恢复
+		t_scale.tween_property(m._token_sprite, "scale",
+			Vector3(1.0, 1.0, 1.0), 0.20) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+		t_scale.tween_callback(func() -> void:
+			token.is_moving = false
+			token.squash_x = 1.0
+			token.squash_y = 1.0
+			m._token_sprite.position = end_pos
+			on_arrive.call()
+		)
+	)
 
 # ---------------------------------------------------------------------------
 # 棋盘叠层效果 (Phase 3 用 3D 节点替代 _draw)
