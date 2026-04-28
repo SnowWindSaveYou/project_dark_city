@@ -10,48 +10,48 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 
 ## 打字机速度 (每秒字符数)
-const TYPEWRITER_SPEED := 18
+const TYPEWRITER_SPEED: int = 18
 ## 暗色遮罩最大透明度 (0~1)
-const OVERLAY_ALPHA_MAX := 0.39  # ≈100/255
+const OVERLAY_ALPHA_MAX: float = 0.39  # ≈100/255
 
 ## 对话框布局
-const BOX_H_RATIO := 0.28       # 对话框占屏幕高度
-const BOX_MARGIN_X := 20.0
-const BOX_MARGIN_BOTTOM := 16.0
-const BOX_PAD_X := 28.0
-const BOX_PAD_TOP := 36.0       # 给名牌留空间
-const BOX_PAD_BOTTOM := 16.0
-const BOX_RADIUS := 12.0
-const BOX_LINE_SPACING := 22.0  # 笔记本横线间距
+const BOX_H_RATIO: float = 0.28  # 对话框占屏幕高度
+const BOX_MARGIN_X: float = 20.0
+const BOX_MARGIN_BOTTOM: float = 16.0
+const BOX_PAD_X: float = 28.0
+const BOX_PAD_TOP: float = 36.0  # 给名牌留空间
+const BOX_PAD_BOTTOM: float = 16.0
+const BOX_RADIUS: float = 12.0
+const BOX_LINE_SPACING: float = 22.0  # 笔记本横线间距
 
 ## 名牌
-const NAME_TAG_H := 26.0
-const NAME_TAG_PAD_X := 14.0
-const NAME_TAG_RADIUS := 6.0
-const NAME_TAG_OFFSET_Y := -14.0
+const NAME_TAG_H: float = 26.0
+const NAME_TAG_PAD_X: float = 14.0
+const NAME_TAG_RADIUS: float = 6.0
+const NAME_TAG_OFFSET_Y: float = -14.0
 
 ## 立绘
-const PORTRAIT_H_RATIO := 0.75
-const PORTRAIT_MARGIN_LEFT := 0.05
+const PORTRAIT_H_RATIO: float = 0.75
+const PORTRAIT_MARGIN_LEFT: float = 0.05
 
 ## 闪烁三角
-const ADVANCE_BLINK_SPEED := 2.5
+const ADVANCE_BLINK_SPEED: float = 2.5
 
 ## 字体
-const FONT_SIZE_TEXT := 16
-const FONT_SIZE_NAME := 14
-const LINE_H_MULT := 1.5
+const FONT_SIZE_TEXT: int = 16
+const FONT_SIZE_NAME: int = 14
+const LINE_H_MULT: float = 1.5
 
 # ---------------------------------------------------------------------------
 # 动画属性 (由 main.gd tween 驱动)
 # ---------------------------------------------------------------------------
 
-var overlay_alpha := 0.0   # 遮罩 0~1
-var box_offset_y := 80.0   # 对话框上滑偏移
-var box_alpha := 0.0       # 对话框透明度
-var portrait_alpha := 0.0  # 立绘透明度
-var portrait_offset_y := 40.0
-var portrait_scale := 0.9
+var overlay_alpha: float = 0.0  # 遮罩 0~1
+var box_offset_y: float = 80.0  # 对话框上滑偏移
+var box_alpha: float = 0.0  # 对话框透明度
+var portrait_alpha: float = 0.0  # 立绘透明度
+var portrait_offset_y: float = 40.0
+var portrait_scale: float = 0.9
 
 # ---------------------------------------------------------------------------
 # 内部状态
@@ -152,7 +152,7 @@ func update(dt: float) -> void:
 		return
 
 	_typewriter_accum += dt
-	var chars_to_show := int(_typewriter_accum * TYPEWRITER_SPEED)
+	var chars_to_show: int = int(_typewriter_accum * TYPEWRITER_SPEED)
 	if chars_to_show > _typewriter_pos:
 		_typewriter_pos = mini(chars_to_show, _typewriter_total)
 
@@ -161,7 +161,7 @@ func update(dt: float) -> void:
 
 ## 重置
 func reset() -> void:
-	var was_active := (state != "idle")
+	var was_active: bool = (state != "idle")
 	state = "idle"
 	_script = []
 	_script_index = 0
@@ -233,6 +233,6 @@ func on_exit_complete() -> void:
 	_portrait_tex = null
 	GameData.set_demo_state(_prev_demo_state)  # 恢复对话前的状态
 	if _on_complete.is_valid():
-		var cb := _on_complete
+		var cb: Callable = _on_complete
 		_on_complete = Callable()
 		cb.call()

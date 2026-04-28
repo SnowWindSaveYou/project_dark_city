@@ -9,7 +9,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 怪物 Chibi 贴图映射 (地点 → 主怪物贴图)
 # ---------------------------------------------------------------------------
-const MONSTER_CHIBI := {
+const MONSTER_CHIBI: Dictionary = {
 	"company":  "res://assets/image/怪物_无脸商人_20260426071011.png",
 	"school":   "res://assets/image/怪物_长发女鬼v2_20260426072646.png",
 	"park":     "res://assets/image/怪物_双尾猫妖v3_20260426071805.png",
@@ -19,10 +19,10 @@ const MONSTER_CHIBI := {
 	"library":  "res://assets/image/怪物_长发女鬼v2_20260426072646.png",
 	"bank":     "res://assets/image/edited_怪物_面具使v3_20260426073034.png",
 }
-const DEFAULT_MONSTER := "res://assets/image/怪物_小幽灵_20260426072511.png"
+const DEFAULT_MONSTER: String = "res://assets/image/怪物_小幽灵_20260426072511.png"
 
 # 小幽灵表情变体 (随机伴生)
-const GHOST_VARIANTS := [
+const GHOST_VARIANTS: Array = [
 	"res://assets/image/小幽灵_愤怒v2_20260426073743.png",
 	"res://assets/image/小幽灵_开心v2_20260426073756.png",
 	"res://assets/image/小幽灵_狡猾v2_20260426073758.png",
@@ -75,7 +75,7 @@ func _load_texture(path: String) -> Texture2D:
 	if _tex_cache.has(path):
 		return _tex_cache[path]
 	if ResourceLoader.exists(path):
-		var tex := load(path) as Texture2D
+		var tex: Texture2D = load(path) as Texture2D
 		if tex:
 			_tex_cache[path] = tex
 			return tex
@@ -106,7 +106,7 @@ func spawn_around_player(screen_x: float, screen_y: float, location: String) -> 
 
 	for i in range(SURROUND_LAYOUT.size()):
 		var slot: Dictionary = SURROUND_LAYOUT[i]
-		var ghost := GhostSprite.new()
+		var ghost: GhostSprite = GhostSprite.new()
 
 		if slot.get("is_main", false):
 			ghost.tex_path = main_tex_path
@@ -129,7 +129,7 @@ func spawn_around_player(screen_x: float, screen_y: float, location: String) -> 
 ## 在卡牌上方显示怪物 chibi (拍摄鉴定后)
 func show_on_card(card_screen_x: float, card_screen_y: float, location: String) -> void:
 	var tex_path: String = MONSTER_CHIBI.get(location, DEFAULT_MONSTER)
-	var ghost := GhostSprite.new()
+	var ghost: GhostSprite = GhostSprite.new()
 	ghost.tex_path = tex_path
 	ghost.anchor_x = card_screen_x
 	ghost.anchor_y = card_screen_y - 40.0  # 卡牌上方
@@ -147,10 +147,10 @@ func show_on_scouted_cards(board: Board, card_screen_positions: Dictionary) -> v
 		for c in range(1, Board.COLS + 1):
 			var card: Card = board.get_card(r, c)
 			if card and card.scouted and card.type == "monster":
-				var key := "%d,%d" % [r, c]
+				var key: String = "%d,%d" % [r, c]
 				if card_screen_positions.has(key):
 					var pos: Vector2 = card_screen_positions[key]
-					var ghost := GhostSprite.new()
+					var ghost: GhostSprite = GhostSprite.new()
 					ghost.tex_path = MONSTER_CHIBI.get(card.location, DEFAULT_MONSTER)
 					ghost.anchor_x = pos.x
 					ghost.anchor_y = pos.y - 35.0
@@ -164,9 +164,9 @@ func show_on_scouted_cards(board: Board, card_screen_positions: Dictionary) -> v
 
 ## 计算并记录踪迹方向到卡牌数据上
 func calculate_trail(card: Card, board: Board) -> bool:
-	var mr := -1
-	var mc := -1
-	var best_dist := 999.0
+	var mr: int = -1
+	var mc: int = -1
+	var best_dist: float = 999.0
 
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
@@ -175,9 +175,9 @@ func calculate_trail(card: Card, board: Board) -> bool:
 			var cd: Card = board.get_card(r, c)
 			if cd and cd.type == "monster" and not cd.face_up:
 				if not board.is_in_landmark_aura(r, c):
-					var dr := float(r - card.row)
-					var dc := float(c - card.col)
-					var dist := sqrt(dr * dr + dc * dc)
+					var dr: float = float(r - card.row)
+					var dc: float = float(c - card.col)
+					var dist: float = sqrt(dr * dr + dc * dc)
 					if dist < best_dist:
 						mr = r
 						mc = c
@@ -195,14 +195,14 @@ func calculate_trail(card: Card, board: Board) -> bool:
 ## 显示踪迹箭头 (小幽灵指向最近怪物)
 func show_trail_on_card(card_screen_x: float, card_screen_y: float, dir_x: float, dir_y: float) -> void:
 	var tex_path: String = GHOST_VARIANTS[randi_range(0, GHOST_VARIANTS.size() - 1)]
-	var len := sqrt(dir_x * dir_x + dir_y * dir_y)
-	var offset_x := 0.0
-	var offset_y := 0.0
+	var len: float = sqrt(dir_x * dir_x + dir_y * dir_y)
+	var offset_x: float = 0.0
+	var offset_y: float = 0.0
 	if len > 0.001:
 		offset_x = (dir_x / len) * 30.0  # 偏移到卡牌边缘
 		offset_y = (dir_y / len) * 30.0
 
-	var ghost := GhostSprite.new()
+	var ghost: GhostSprite = GhostSprite.new()
 	ghost.tex_path = tex_path
 	ghost.anchor_x = card_screen_x + offset_x
 	ghost.anchor_y = card_screen_y + offset_y
@@ -221,7 +221,7 @@ func show_trails_on_board(board: Board, card_screen_positions: Dictionary) -> vo
 		for c in range(1, Board.COLS + 1):
 			var card: Card = board.get_card(r, c)
 			if card and card.trail_dir_x != 0.0 and card.trail_dir_y != 0.0:
-				var key := "%d,%d" % [r, c]
+				var key: String = "%d,%d" % [r, c]
 				if card_screen_positions.has(key):
 					var pos: Vector2 = card_screen_positions[key]
 					show_trail_on_card(pos.x, pos.y, card.trail_dir_x, card.trail_dir_y)
@@ -232,7 +232,7 @@ func show_trails_on_board(board: Board, card_screen_positions: Dictionary) -> vo
 
 func update(dt: float, game_time: float) -> void:
 	# 环绕幽灵: 浮动 + 生命周期
-	var i := 0
+	var i: int = 0
 	while i < surround_ghosts.size():
 		var g: GhostSprite = surround_ghosts[i]
 		if g.lifetime > 0:

@@ -12,11 +12,11 @@ signal restart_requested
 # 状态
 # ---------------------------------------------------------------------------
 enum Phase { NONE, ENTER, IDLE, EXIT }
-var _phase := Phase.NONE
-var _is_victory := false
+var _phase: Phase = Phase.NONE
+var _is_victory: bool = false
 
 ## 统计数据
-var _stats := {
+var _stats: Dictionary = {
 	"days_survived": 1,
 	"cards_revealed": 0,
 	"monsters_slain": 0,
@@ -24,17 +24,17 @@ var _stats := {
 }
 
 ## 动画值
-var _overlay_alpha := 0.0
-var _title_scale := 0.0
-var _title_alpha := 0.0
-var _subtitle_alpha := 0.0
-var _stats_alpha := 0.0
-var _button_t := 0.0
-var _btn_hover := false
+var _overlay_alpha: float = 0.0
+var _title_scale: float = 0.0
+var _title_alpha: float = 0.0
+var _subtitle_alpha: float = 0.0
+var _stats_alpha: float = 0.0
+var _button_t: float = 0.0
+var _btn_hover: bool = false
 
 ## 粒子定时
-var _particle_timer := 0.0
-var _game_time := 0.0
+var _particle_timer: float = 0.0
+var _game_time: float = 0.0
 
 # ---------------------------------------------------------------------------
 # API
@@ -61,12 +61,12 @@ func show_result(is_victory: bool, stats: Dictionary = {}) -> void:
 
 	# 入场动画序列
 	# 1. 遮罩淡入
-	var t1 := create_tween()
+	var t1: Tween = create_tween()
 	t1.tween_property(self, "_overlay_alpha", 0.7, 0.6)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 	# 2. 标题弹入
-	var t2 := create_tween()
+	var t2: Tween = create_tween()
 	t2.tween_interval(0.3)
 	t2.set_parallel(true)
 	t2.tween_property(self, "_title_scale", 1.0, 0.5)\
@@ -77,19 +77,19 @@ func show_result(is_victory: bool, stats: Dictionary = {}) -> void:
 	t2.tween_callback(func(): _phase = Phase.IDLE)
 
 	# 3. 副标题
-	var t3 := create_tween()
+	var t3: Tween = create_tween()
 	t3.tween_interval(0.6)
 	t3.tween_property(self, "_subtitle_alpha", 1.0, 0.4)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 	# 4. 统计数据
-	var t4 := create_tween()
+	var t4: Tween = create_tween()
 	t4.tween_interval(0.8)
 	t4.tween_property(self, "_stats_alpha", 1.0, 0.4)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 	# 5. 按钮
-	var t5 := create_tween()
+	var t5: Tween = create_tween()
 	t5.tween_interval(1.1)
 	t5.tween_property(self, "_button_t", 1.0, 0.35)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
@@ -99,7 +99,7 @@ func dismiss() -> void:
 		return
 	_phase = Phase.EXIT
 
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(self, "_overlay_alpha", 0.0, 0.35)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -128,8 +128,8 @@ func is_active() -> bool:
 # ---------------------------------------------------------------------------
 
 func _get_button_rect() -> Rect2:
-	var bw := 120.0
-	var bh := 38.0
+	var bw: float = 120.0
+	var bh: float = 38.0
 	return Rect2(size.x / 2 - bw / 2, size.y * 0.72, bw, bh)
 
 func _input(event: InputEvent) -> void:
@@ -138,7 +138,7 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.pressed:
 		if _button_t > 0.5:
-			var btn_rect := _get_button_rect()
+			var btn_rect: Rect2 = _get_button_rect()
 			if btn_rect.has_point(event.position):
 				dismiss()
 		get_viewport().set_input_as_handled()
@@ -151,7 +151,7 @@ func _input(event: InputEvent) -> void:
 
 	elif event is InputEventMouseMotion:
 		if _button_t > 0.5:
-			var btn_rect := _get_button_rect()
+			var btn_rect: Rect2 = _get_button_rect()
 			_btn_hover = btn_rect.has_point(event.position)
 
 # ---------------------------------------------------------------------------
@@ -166,10 +166,10 @@ func _draw() -> void:
 	if _phase == Phase.NONE:
 		return
 
-	var w := size.x
-	var h := size.y
-	var cx := w * 0.5
-	var default_font := ThemeDB.fallback_font
+	var w: float = size.x
+	var h: float = size.y
+	var cx: float = w * 0.5
+	var default_font: Font = ThemeDB.fallback_font
 
 	# === 遮罩 ===
 	if _overlay_alpha > 0.01:
@@ -184,12 +184,12 @@ func _draw() -> void:
 	if _title_alpha > 0.01 and default_font:
 		var title_text: String = "任务完成" if _is_victory else "意识崩溃"
 		var title_color: Color = GameTheme.safe if _is_victory else GameTheme.danger
-		var title_y := h * 0.28
-		var fs := 36
+		var title_y: float = h * 0.28
+		var fs: int = 36
 
 		# 光晕
 		if _title_alpha > 0.3:
-			var glow_r := 80.0 + 10.0 * sin(_game_time * 2.0)
+			var glow_r: float = 80.0 + 10.0 * sin(_game_time * 2.0)
 			draw_circle(Vector2(cx, title_y), glow_r,
 				Color(title_color.r, title_color.g, title_color.b, _title_alpha * 0.15))
 
@@ -199,7 +199,7 @@ func _draw() -> void:
 			-1, fs, Color(0, 0, 0, _title_alpha * 0.5))
 
 		# 标题文字 (缩放通过字号近似)
-		var scaled_fs := int(fs * _title_scale)
+		var scaled_fs: int = int(fs * _title_scale)
 		draw_string(default_font, Vector2(cx, title_y + 12),
 			title_text, HORIZONTAL_ALIGNMENT_CENTER,
 			-1, scaled_fs,
@@ -220,19 +220,19 @@ func _draw() -> void:
 
 	# === 统计 ===
 	if _stats_alpha > 0.01 and default_font:
-		var lines := [
+		var lines: Array = [
 			{ "icon": "📅", "label": "存活天数", "value": str(_stats.get("days_survived", 1)) },
 			{ "icon": "🃏", "label": "翻开卡牌", "value": str(_stats.get("cards_revealed", 0)) },
 			{ "icon": "👻", "label": "驱除怪物", "value": str(_stats.get("monsters_slain", 0)) },
 			{ "icon": "📷", "label": "消耗胶卷", "value": str(_stats.get("photos_used", 0)) },
 		]
 
-		var line_h := 24.0
-		var start_y := h * 0.44
+		var line_h: float = 24.0
+		var start_y: float = h * 0.44
 
 		for i in range(lines.size()):
 			var line: Dictionary = lines[i]
-			var ly := start_y + i * line_h
+			var ly: float = start_y + i * line_h
 
 			# 图标 + 标签
 			draw_string(default_font, Vector2(cx - 10, ly + 5),
@@ -252,14 +252,14 @@ func _draw() -> void:
 
 	# === 重新开始按钮 ===
 	if _button_t > 0.01:
-		var btn_rect := _get_button_rect()
+		var btn_rect: Rect2 = _get_button_rect()
 		var btn_color: Color = GameTheme.safe if _is_victory else GameTheme.accent
 
 		# Hover 效果
-		var hover_brighten := 0.15 if _btn_hover else 0.0
-		var lift := 2.0 if _btn_hover else 0.0
+		var hover_brighten: float = 0.15 if _btn_hover else 0.0
+		var lift: float = 2.0 if _btn_hover else 0.0
 
-		var final_color := Color(
+		var final_color: Color = Color(
 			minf(btn_color.r + hover_brighten, 1.0),
 			minf(btn_color.g + hover_brighten, 1.0),
 			minf(btn_color.b + hover_brighten, 1.0),
@@ -267,9 +267,9 @@ func _draw() -> void:
 		)
 
 		# 按钮背景 (考虑缩放)
-		var scaled_w := btn_rect.size.x * _button_t
-		var scaled_h := btn_rect.size.y * _button_t
-		var scaled_rect := Rect2(
+		var scaled_w: float = btn_rect.size.x * _button_t
+		var scaled_h: float = btn_rect.size.y * _button_t
+		var scaled_rect: Rect2 = Rect2(
 			cx - scaled_w / 2,
 			btn_rect.position.y + (btn_rect.size.y - scaled_h) / 2 - lift,
 			scaled_w, scaled_h

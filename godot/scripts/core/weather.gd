@@ -18,7 +18,7 @@ enum Type {
 # ---------------------------------------------------------------------------
 # 天气名称
 # ---------------------------------------------------------------------------
-const NAMES := {
+const NAMES: Dictionary = {
 	Type.SUNNY:         "晴",
 	Type.PARTLY_CLOUDY: "多云",
 	Type.CLOUDY:        "阴",
@@ -26,7 +26,7 @@ const NAMES := {
 	Type.STORMY:        "雷暴",
 }
 
-const ICONS := {
+const ICONS: Dictionary = {
 	Type.SUNNY:         "☀️",
 	Type.PARTLY_CLOUDY: "⛅",
 	Type.CLOUDY:        "☁️",
@@ -67,15 +67,15 @@ static func get_icon(weather_type: Type) -> String:
 # 日期计算 (与 DateTransition 共享)
 # ---------------------------------------------------------------------------
 
-const BASE_YEAR  := 2026
-const BASE_MONTH := 4
-const BASE_DAY   := 24
-const WEEKDAY_NAMES := ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-const MONTH_NAMES := [
+const BASE_YEAR: int = 2026
+const BASE_MONTH: int = 4
+const BASE_DAY: int = 24
+const WEEKDAY_NAMES: Array = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+const MONTH_NAMES: Array = [
 	"January", "February", "March", "April", "May", "June",
 	"July", "August", "September", "October", "November", "December",
 ]
-const DAYS_IN_MONTH := [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+const DAYS_IN_MONTH: Array = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 static func is_leap_year(y: int) -> bool:
 	return (y % 4 == 0 and y % 100 != 0) or (y % 400 == 0)
@@ -87,9 +87,9 @@ static func days_in_month(y: int, m: int) -> int:
 
 ## 计算日期 (dayCount → year, month, day)
 static func calc_date(day_count: int) -> Dictionary:
-	var y := BASE_YEAR
-	var m := BASE_MONTH
-	var d := BASE_DAY + (day_count - 1)
+	var y: int = BASE_YEAR
+	var m: int = BASE_MONTH
+	var d: float = BASE_DAY + (day_count - 1)
 	while d < 1:
 		m -= 1
 		if m < 1:
@@ -106,7 +106,7 @@ static func calc_date(day_count: int) -> Dictionary:
 
 ## 计算星期 (Zeller's formula, 返回 1=SUN ... 7=SAT)
 static func calc_weekday(y: int, m: int, d: int) -> int:
-	var t := [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
+	var t: Array = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
 	if m < 3:
 		y -= 1
 	return (y + y / 4 - y / 100 + y / 400 + t[m - 1] + d) % 7 + 1

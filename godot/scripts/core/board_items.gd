@@ -17,10 +17,10 @@ const ITEM_POOL: Array = [
 ]
 
 # 道具图标绘制参数
-const ICON_SIZE := 20.0      # 图标显示尺寸 (像素)
-const FLOAT_AMP := 2.0       # 上下浮动幅度 (像素)
-const FLOAT_SPEED := 2.2     # 浮动频率
-const GLOW_RADIUS := 14.0    # 底部光晕半径
+const ICON_SIZE: float = 20.0  # 图标显示尺寸 (像素)
+const FLOAT_AMP: float = 2.0  # 上下浮动幅度 (像素)
+const FLOAT_SPEED: float = 2.2  # 浮动频率
+const GLOW_RADIUS: float = 14.0  # 底部光晕半径
 
 # ---------------------------------------------------------------------------
 # 道具实例
@@ -46,11 +46,11 @@ var items: Array = []  # Array of BoardItem
 # ---------------------------------------------------------------------------
 
 static func _random_item_entry() -> Dictionary:
-	var total_w := 0
+	var total_w: int = 0
 	for entry in ITEM_POOL:
 		total_w += int(entry["weight"])
-	var roll := randi_range(1, total_w)
-	var acc := 0
+	var roll: int = randi_range(1, total_w)
+	var acc: int = 0
 	for entry in ITEM_POOL:
 		acc += int(entry["weight"])
 		if roll <= acc:
@@ -89,13 +89,13 @@ func spawn_daily(board: Board, exclude_row: int, exclude_col: int) -> void:
 	candidates.shuffle()
 
 	# 放置 1~3 个道具
-	var count := mini(randi_range(1, 3), candidates.size())
+	var count: int = mini(randi_range(1, 3), candidates.size())
 
 	for i in range(count):
 		var pos: Dictionary = candidates[i]
 		var entry: Dictionary = _random_item_entry()
 
-		var item := BoardItem.new()
+		var item: BoardItem = BoardItem.new()
 		item.key = entry["key"]
 		item.label = entry["label"]
 		item.icon = entry["icon"]
@@ -127,7 +127,7 @@ func try_collect(row: int, col: int) -> Dictionary:
 
 ## 获取当前活跃道具数量
 func get_active_count() -> int:
-	var count := 0
+	var count: int = 0
 	for item in items:
 		if not item.collected:
 			count += 1

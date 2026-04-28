@@ -7,7 +7,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 图标路径映射 (key → 资源路径)
 # ---------------------------------------------------------------------------
-const ICON_PATHS := {
+const ICON_PATHS: Dictionary = {
 	"film":        "res://assets/image/道具_胶卷v2_20260426153757.png",
 	"shield":      "res://assets/image/道具_护身符v2_20260426153859.png",
 	"exorcism":    "res://assets/image/道具_驱魔香v2_20260426153756.png",
@@ -32,7 +32,7 @@ static func get_texture(key: String) -> Texture2D:
 	if path == "":
 		return null
 	if ResourceLoader.exists(path):
-		var tex := load(path) as Texture2D
+		var tex: Texture2D = load(path) as Texture2D
 		if tex:
 			_textures[key] = tex
 			return tex

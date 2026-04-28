@@ -10,16 +10,16 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 
 ## 显示尺寸 (像素，实际渲染时由场景缩放)
-const SPRITE_W := 64.0
-const SPRITE_H := 96.0
-const DEAD_W   := 96.0
-const DEAD_H   := 64.0
+const SPRITE_W: float = 64.0
+const SPRITE_H: float = 96.0
+const DEAD_W: float = 96.0
+const DEAD_H: float = 64.0
 
 # ---------------------------------------------------------------------------
 # 表情映射 (路径相对于 assets/textures/)
 # 实际项目中需替换为真实贴图路径
 # ---------------------------------------------------------------------------
-const EMOTIONS := {
+const EMOTIONS: Dictionary = {
 	"default":    "res://assets/textures/token/token_default.png",
 	"happy":      "res://assets/textures/token/token_happy.png",
 	"scared":     "res://assets/textures/token/token_scared.png",
@@ -42,32 +42,32 @@ const EMOTIONS := {
 # ---------------------------------------------------------------------------
 
 ## 逻辑坐标 (棋盘行列)
-var target_row := 1
-var target_col := 1
+var target_row: int = 1
+var target_col: int = 1
 
 ## 渲染坐标 (像素)
-var pos_x := 0.0
-var pos_y := 0.0
-var bounce_y := 0.0   # 跳跃偏移 (负值=向上)
+var pos_x: float = 0.0
+var pos_y: float = 0.0
+var bounce_y: float = 0.0  # 跳跃偏移 (负值=向上)
 
 ## 变换
-var scale_x := 1.0
-var scale_y := 1.0
-var alpha := 0.0
-var squash_x := 1.0
-var squash_y := 1.0
+var scale_x: float = 1.0
+var scale_y: float = 1.0
+var alpha: float = 0.0
+var squash_x: float = 1.0
+var squash_y: float = 1.0
 
 ## 状态
-var is_moving := false
-var visible := false
-var idle_timer := 0.0
+var is_moving: bool = false
+var visible: bool = false
+var idle_timer: float = 0.0
 
 ## 表情
-var emotion := "default"
-var _pending_emotion := ""
+var emotion: String = "default"
+var _pending_emotion: String = ""
 
 ## 纹理缓存 { emotion_name: Texture2D }
-var textures := {}
+var textures: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # 纹理加载
@@ -75,8 +75,8 @@ var textures := {}
 
 ## 加载所有表情纹理，返回加载数量
 func load_textures() -> int:
-	var loaded := 0
-	var loaded_paths := {}
+	var loaded: int = 0
+	var loaded_paths: Dictionary = {}
 	for key in EMOTIONS:
 		var path: String = EMOTIONS[key]
 		if loaded_paths.has(path):
@@ -84,7 +84,7 @@ func load_textures() -> int:
 			loaded += 1
 		else:
 			if ResourceLoader.exists(path):
-				var tex := load(path) as Texture2D
+				var tex: Texture2D = load(path) as Texture2D
 				if tex:
 					textures[key] = tex
 					loaded_paths[path] = tex
@@ -97,8 +97,8 @@ func load_textures() -> int:
 
 ## 生成占位纹理 (纯色 + 文字标签)
 func _generate_placeholder(emotion_name: String) -> Texture2D:
-	var img := Image.create(64, 96, false, Image.FORMAT_RGBA8)
-	var base_color := Color(0.4, 0.35, 0.5)
+	var img: Image = Image.create(64, 96, false, Image.FORMAT_RGBA8)
+	var base_color: Color = Color(0.4, 0.35, 0.5)
 	if emotion_name == "dead":
 		base_color = Color(0.3, 0.2, 0.2)
 	elif emotion_name == "happy":
@@ -139,7 +139,7 @@ func apply_pending_emotion() -> void:
 ## 弹跳 (拍照/驱魔时的小跳)
 func hop(height: float = 0.05) -> void:
 	# height 参数是归一化值，乘以基准高度得到像素偏移
-	var px_height := height * 200.0  # 0.05 → 10px, 0.06 → 12px
+	var px_height: float = height * 200.0  # 0.05 → 10px, 0.06 → 12px
 	bounce_y = -px_height
 
 # ---------------------------------------------------------------------------
@@ -150,8 +150,8 @@ func hop(height: float = 0.05) -> void:
 func get_breathe_offset(game_time: float) -> Dictionary:
 	if is_moving:
 		return { "y": 0.0, "scale": 1.0 }
-	var breathe_y := sin(game_time * 2.5) * 1.5
-	var breathe_scale := 1.0 + sin(game_time * 2.5) * 0.02
+	var breathe_y: float = sin(game_time * 2.5) * 1.5
+	var breathe_scale: float = 1.0 + sin(game_time * 2.5) * 0.02
 	return { "y": breathe_y, "scale": breathe_scale }
 
 ## 获取当前渲染尺寸
@@ -169,16 +169,16 @@ func get_render_size(breathe_scale: float = 1.0) -> Vector2:
 
 ## 计算移动时长 (基于距离)
 func calc_move_duration(target_x: float, target_y: float) -> float:
-	var dx := target_x - pos_x
-	var dy := target_y - pos_y
-	var dist := sqrt(dx * dx + dy * dy)
+	var dx: float = target_x - pos_x
+	var dy: float = target_y - pos_y
+	var dist: float = sqrt(dx * dx + dy * dy)
 	return clampf(dist / 250.0, 0.25, 0.6)
 
 ## 计算跳跃高度 (基于距离)
 func calc_jump_height(target_x: float, target_y: float) -> float:
-	var dx := target_x - pos_x
-	var dy := target_y - pos_y
-	var dist := sqrt(dx * dx + dy * dy)
+	var dx: float = target_x - pos_x
+	var dy: float = target_y - pos_y
+	var dist: float = sqrt(dx * dx + dy * dy)
 	return minf(15.0, dist * 0.1 + 5.0)
 
 # ---------------------------------------------------------------------------

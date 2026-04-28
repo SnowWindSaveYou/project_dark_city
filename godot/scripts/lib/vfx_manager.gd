@@ -12,11 +12,11 @@ signal shake_finished
 # ---------------------------------------------------------------------------
 # 屏幕震动
 # ---------------------------------------------------------------------------
-var _shake_intensity := 0.0
-var _shake_decay := 0.0
-var _shake_frequency := 0.0
-var _shake_timer := 0.0
-var shake_offset := Vector2.ZERO
+var _shake_intensity: float = 0.0
+var _shake_decay: float = 0.0
+var _shake_frequency: float = 0.0
+var _shake_timer: float = 0.0
+var shake_offset: Vector2 = Vector2.ZERO
 
 ## 触发屏幕震动
 func screen_shake(intensity: float = 6.0, decay: float = 5.0, frequency: float = 25.0) -> void:
@@ -32,7 +32,7 @@ var _banners: Array = []
 
 ## 触发飞字横幅
 func action_banner(text: String, color: Color = Color.WHITE, duration: float = 1.8) -> void:
-	var banner := {
+	var banner: Dictionary = {
 		"text": text,
 		"color": color,
 		"timer": 0.0,
@@ -82,7 +82,7 @@ func spawn_burst(pos: Vector2, count: int = 8, color: Color = Color.WHITE, opts:
 	var size_var: float = opts.get("size_var", 1.5)
 
 	for _i in range(count):
-		var angle := randf() * TAU
+		var angle: float = randf() * TAU
 		var spd: float = speed + (randf() - 0.5) * 2.0 * speed_var
 		_particles.append({
 			"pos": pos,
@@ -97,8 +97,8 @@ func spawn_burst(pos: Vector2, count: int = 8, color: Color = Color.WHITE, opts:
 # ---------------------------------------------------------------------------
 # 屏幕闪光
 # ---------------------------------------------------------------------------
-var _flash_alpha := 0.0
-var _flash_color := Color.WHITE
+var _flash_alpha: float = 0.0
+var _flash_color: Color = Color.WHITE
 
 func screen_flash(color: Color = Color.WHITE, intensity: float = 0.6) -> void:
 	_flash_alpha = intensity
@@ -117,14 +117,14 @@ func _process(delta: float) -> void:
 			shake_offset = Vector2.ZERO
 			shake_finished.emit()
 		else:
-			var t := _shake_timer * _shake_frequency
+			var t: float = _shake_timer * _shake_frequency
 			shake_offset = Vector2(
 				sin(t * 1.1) * _shake_intensity,
 				cos(t * 1.3) * _shake_intensity
 			)
 	
 	# 横幅更新
-	var i := _banners.size() - 1
+	var i: float = _banners.size() - 1
 	while i >= 0:
 		var b: Dictionary = _banners[i]
 		b["timer"] += delta
@@ -186,11 +186,11 @@ func _process(delta: float) -> void:
 # 渲染
 # ---------------------------------------------------------------------------
 func _draw() -> void:
-	var vp_size := get_viewport_rect().size
+	var vp_size: Vector2 = get_viewport_rect().size
 
 	# 屏幕闪光
 	if _flash_alpha > 0.01:
-		var fc := _flash_color
+		var fc: Color = _flash_color
 		fc.a = _flash_alpha
 		draw_rect(Rect2(Vector2.ZERO, vp_size), fc)
 
@@ -199,23 +199,23 @@ func _draw() -> void:
 		var text: String = b["text"]
 		var cx: float = vp_size.x / 2.0
 		var cy: float = vp_size.y * 0.35
-		var font := ThemeDB.fallback_font
-		var font_size := 32
+		var font: Font = ThemeDB.fallback_font
+		var font_size: int = 32
 
 		# 计算总宽度用于居中
-		var total_w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		var start_x := cx - total_w / 2.0
+		var total_w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var start_x: float = cx - total_w / 2.0
 
-		var char_x := start_x
+		var char_x: float = start_x
 		for ci in range(text.length()):
-			var ch := text[ci]
+			var ch: String = text[ci]
 			var ch_info: Dictionary = b["char_offsets"][ci]
-			var ch_w := font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			var ch_w: float = font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 			var color: Color = b["color"]
 			color.a = ch_info["alpha"]
 
 			# 阴影
-			var shadow_color := Color(0, 0, 0, color.a * 0.4)
+			var shadow_color: Color = Color(0, 0, 0, color.a * 0.4)
 			draw_string(font, Vector2(char_x + 2, cy + ch_info["y"] + 2), ch,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, shadow_color)
 			# 主体
@@ -231,7 +231,7 @@ func _draw() -> void:
 		var color: Color = sp["color"]
 		color.a = clampf(sp["alpha"], 0.0, 1.0)
 		var pos: Vector2 = sp["pos"] + Vector2(0, sp["offset_y"])
-		var font := ThemeDB.fallback_font
+		var font: Font = ThemeDB.fallback_font
 		var font_size: int = int(20 * sp["scale"])
 		if font_size < 1:
 			continue

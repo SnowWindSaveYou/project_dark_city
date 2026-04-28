@@ -14,8 +14,8 @@ var m = null
 ## 保存的现实棋盘 (进入暗面时保存, 退出时恢复)
 var _saved_board: Board = null
 ## 保存的现实 token 位置
-var _saved_token_row := 0
-var _saved_token_col := 0
+var _saved_token_row: int = 0
+var _saved_token_col: int = 0
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -78,7 +78,7 @@ func _generate_dark_board() -> void:
 		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
 
 		# 将 LayerData 转为 Board.generate_dark_cards 需要的 dict
-		var ld_dict := {
+		var ld_dict: Dictionary = {
 			"walkable": {},
 			"entry_row": 3,
 			"entry_col": 3,
@@ -90,7 +90,7 @@ func _generate_dark_board() -> void:
 		var walkable: Array = ld_dict.get("walkable", [])
 		for r in range(walkable.size()):
 			for c in range(walkable[r].size()):
-				var key := "%d,%d" % [r, c]
+				var key: String = "%d,%d" % [r, c]
 				layer_data.walkable[key] = walkable[r][c]
 
 		# 生成幽灵和 NPC
@@ -100,7 +100,7 @@ func _generate_dark_board() -> void:
 		m.board = Board.new()
 		var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
 		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
-		var ld_dict := {
+		var ld_dict: Dictionary = {
 			"walkable": {},
 			"entry_row": 3,
 			"entry_col": 3,
@@ -157,8 +157,8 @@ func handle_dark_card_click(row: int, col: int) -> void:
 	var player_col: int = layer_data.player_col
 
 	# 转换为 0-based 用于 DarkWorld API
-	var target_r0 := row - 1
-	var target_c0 := col - 1
+	var target_r0: int = row - 1
+	var target_c0: int = col - 1
 
 	# 检查是否可移动
 	var move_result: Dictionary = m.dark_world.try_move(target_r0, target_c0)

@@ -9,10 +9,10 @@ extends RefCounted
 # 常量
 # ---------------------------------------------------------------------------
 
-const MAX_ENERGY := 10       # 每层独立能量
-const GHOST_SAN := -2        # 幽灵碰撞扣理智
+const MAX_ENERGY: int = 10  # 每层独立能量
+const GHOST_SAN: int = -2  # 幽灵碰撞扣理智
 const GHOST_COUNT: Array[int] = [2, 3, 2]  # 各层幽灵数量
-const GHOST_CHASE_DIST := 2  # 曼哈顿距离 ≤ 此值 100% 追逐
+const GHOST_CHASE_DIST: int = 2  # 曼哈顿距离 ≤ 此值 100% 追逐
 
 ## 层级配置
 const LAYER_CONFIG: Array[Dictionary] = [
@@ -186,7 +186,7 @@ func _init() -> void:
 func _reset_layers() -> void:
 	layers.clear()
 	for i in range(3):
-		var ld := LayerData.new()
+		var ld: LayerData = LayerData.new()
 		ld.index = i
 		layers.append(ld)
 
@@ -287,16 +287,16 @@ func generate_ghosts(layer_idx: int) -> void:
 	for key in layer.walkable:
 		if layer.walkable[key]:
 			var parts: PackedStringArray = key.split(",")
-			var r := int(parts[0])
-			var c := int(parts[1])
+			var r: int = int(parts[0])
+			var c: int = int(parts[1])
 			if not (r == 2 and c == 2):
 				walkable_pos.append(Vector2i(r, c))
 	walkable_pos.shuffle()
 
 	layer.ghosts.clear()
-	var count := mini(ghost_count, walkable_pos.size())
+	var count: int = mini(ghost_count, walkable_pos.size())
 	for i in range(count):
-		var gd := GhostData.new()
+		var gd: GhostData = GhostData.new()
 		gd.row = walkable_pos[i].x
 		gd.col = walkable_pos[i].y
 		gd.alive = true
@@ -313,8 +313,8 @@ func generate_npcs(layer_idx: int) -> void:
 	for key in layer.walkable:
 		if layer.walkable[key]:
 			var parts: PackedStringArray = key.split(",")
-			var r := int(parts[0])
-			var c := int(parts[1])
+			var r: int = int(parts[0])
+			var c: int = int(parts[1])
 			if not (r == 2 and c == 2):
 				walkable_pos.append(Vector2i(r, c))
 	walkable_pos.shuffle()
@@ -324,7 +324,7 @@ func generate_npcs(layer_idx: int) -> void:
 		if i >= walkable_pos.size():
 			break
 		var def: Dictionary = npc_defs[i]
-		var npc := DarkNPCData.new()
+		var npc: DarkNPCData = DarkNPCData.new()
 		npc.id = def["id"]
 		npc.npc_name = def["name"]
 		npc.row = walkable_pos[i].x
@@ -350,7 +350,7 @@ func _get_walkable_neighbors(layer: LayerData, row: int, col: int) -> Array:
 	for d in dirs:
 		var nr: int = row + d.x
 		var nc: int = col + d.y
-		var key := "%d,%d" % [nr, nc]
+		var key: String = "%d,%d" % [nr, nc]
 		if layer.walkable.has(key) and layer.walkable[key]:
 			neighbors.append(Vector2i(nr, nc))
 	return neighbors
@@ -366,29 +366,29 @@ func move_ghosts(player_row: int, player_col: int,
 		if not ghost.alive:
 			continue
 
-		var neighbors := _get_walkable_neighbors(layer, ghost.row, ghost.col)
+		var neighbors: Array = _get_walkable_neighbors(layer, ghost.row, ghost.col)
 		if neighbors.is_empty():
 			continue
 
-		var dist := absi(ghost.row - player_row) + absi(ghost.col - player_col)
+		var dist: int = absi(ghost.row - player_row) + absi(ghost.col - player_col)
 		var target: Vector2i
 
 		if dist <= GHOST_CHASE_DIST:
 			# 追逐模式: 100% 朝玩家
-			var best_dist := 999
+			var best_dist: int = 999
 			target = neighbors[0]
 			for nb in neighbors:
-				var d := absi(nb.x - player_row) + absi(nb.y - player_col)
+				var d: int = absi(nb.x - player_row) + absi(nb.y - player_col)
 				if d < best_dist:
 					best_dist = d
 					target = nb
 		else:
 			# 游荡模式: 50% 朝玩家 / 50% 随机
 			if randf() < 0.5:
-				var best_dist := 999
+				var best_dist: int = 999
 				target = neighbors[0]
 				for nb in neighbors:
-					var d := absi(nb.x - player_row) + absi(nb.y - player_col)
+					var d: int = absi(nb.x - player_row) + absi(nb.y - player_col)
 					if d < best_dist:
 						best_dist = d
 						target = nb
@@ -466,7 +466,7 @@ func on_exit_complete() -> void:
 	active = false
 	dark_state = "idle"
 	if _on_exit.is_valid():
-		var cb := _on_exit
+		var cb: Callable = _on_exit
 		_on_exit = Callable()
 		cb.call()
 
@@ -498,7 +498,7 @@ func on_change_layer_complete() -> void:
 func handle_card_effect(card: Card, row: int, col: int,
 		day_count: int) -> Dictionary:
 	var layer: LayerData = layers[current_layer]
-	var key := "%d,%d" % [row, col]
+	var key: String = "%d,%d" % [row, col]
 
 	# NPC 对话检测
 	for npc in layer.npcs:
@@ -532,7 +532,7 @@ func handle_card_effect(card: Card, row: int, col: int,
 		card.dark_collected = true
 		layer.collected[key] = true
 		# 清除线索标记 (变为普通暗巷)
-		var old_name := card.dark_name
+		var old_name: String = card.dark_name
 		card.dark_type = "normal"
 		card.dark_name = "空走廊"
 		card.dark_icon = "🌑"
@@ -552,7 +552,7 @@ func handle_card_effect(card: Card, row: int, col: int,
 		return { "type": "item", "data": { "resource": pick[0], "amount": pick[1] } }
 
 	elif dark_type == "passage":
-		var target_layer := -1
+		var target_layer: int = -1
 		if current_layer == 0:
 			target_layer = 1
 		elif current_layer == 1:
@@ -578,8 +578,8 @@ func try_move(target_row: int, target_col: int) -> Dictionary:
 	var layer: LayerData = layers[current_layer]
 
 	# 只能相邻格
-	var dr := absi(target_row - layer.player_row)
-	var dc := absi(target_col - layer.player_col)
+	var dr: int = absi(target_row - layer.player_row)
+	var dc: int = absi(target_col - layer.player_col)
 	if dr + dc != 1:
 		return { "can_move": false, "reason": "not_adjacent" }
 
@@ -593,8 +593,8 @@ func try_move(target_row: int, target_col: int) -> Dictionary:
 ## 返回 { old_row, old_col }
 func consume_move(target_row: int, target_col: int) -> Dictionary:
 	var layer: LayerData = layers[current_layer]
-	var old_row := layer.player_row
-	var old_col := layer.player_col
+	var old_row: int = layer.player_row
+	var old_col: int = layer.player_col
 	layer.energy -= 1
 	energy_flash = 0.5
 	dark_state = "moving"

@@ -6,7 +6,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 日程模板  reward: [资源key, 变化量]
 # ---------------------------------------------------------------------------
-const SCHEDULE_TEMPLATES := {
+const SCHEDULE_TEMPLATES: Dictionary = {
 	# 普通地点
 	"company":     { "verb": "去公司上班",     "reward": ["money", 10] },
 	"school":      { "verb": "去学校上课",     "reward": ["money",  8] },
@@ -27,12 +27,12 @@ const SCHEDULE_TEMPLATES := {
 # ---------------------------------------------------------------------------
 # 传闻模板
 # ---------------------------------------------------------------------------
-const RUMOR_SAFE_TEXTS := [
+const RUMOR_SAFE_TEXTS: Array = [
 	"今天%s很平静",
 	"%s附近没有异常",
 	"听说%s今天很安全",
 ]
-const RUMOR_DANGER_TEXTS := [
+const RUMOR_DANGER_TEXTS: Array = [
 	"%s有脏东西",
 	"别去%s，有危险",
 	"听说%s闹鬼了",
@@ -66,7 +66,7 @@ func generate_daily(_board: Board) -> void:
 	rumors = []
 
 	# 加入前一天推迟的日程 (最多 1 张, 其地点已在预选列表中)
-	var deferred_count := 0
+	var deferred_count: int = 0
 	if _deferred_schedules.size() > 0:
 		var ds: Dictionary = _deferred_schedules[0].duplicate()
 		ds["status"] = "pending"
@@ -75,8 +75,8 @@ func generate_daily(_board: Board) -> void:
 	_deferred_schedules = []
 
 	# 从预选地点中生成剩余日程卡
-	var max_schedules := 3 + deferred_count
-	var used_locations := {}
+	var max_schedules: int = 3 + deferred_count
+	var used_locations: Dictionary = {}
 	for s in schedules:
 		used_locations[s["location"]] = true
 
@@ -104,7 +104,7 @@ func generate_daily(_board: Board) -> void:
 ## 返回地点列表，Board 需保证这些地点出现在棋盘上
 func pre_select_locations() -> Array:
 	# 排除地标和商店 (它们有专用格子)
-	var exclude_set := { "convenience": true }
+	var exclude_set: Dictionary = { "convenience": true }
 	for lm_loc in Card.LANDMARK_LOCATIONS:
 		exclude_set[lm_loc] = true
 
@@ -115,7 +115,7 @@ func pre_select_locations() -> Array:
 	all_locs.shuffle()
 
 	var required: Array = []
-	var used := {}
+	var used: Dictionary = {}
 
 	# 昨天推迟的日程地点
 	if _deferred_schedules.size() > 0:
@@ -124,7 +124,7 @@ func pre_select_locations() -> Array:
 		used[def_loc] = true
 
 	# 选 3 个新地点
-	var needed := 3
+	var needed: int = 3
 	for loc in all_locs:
 		if needed <= 0:
 			break
@@ -171,7 +171,7 @@ func generate_rumor_from_board(board: Board) -> void:
 	var candidates: Array = []
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
-			var card := board.get_card(r, c)
+			var card: Card = board.get_card(r, c)
 			if card == null or card.location == "home":
 				continue
 			if not card.is_flipped:
@@ -196,14 +196,14 @@ func generate_rumor_from_board(board: Board) -> void:
 ## 从棋盘中添加额外传闻 (线索事件触发)
 func add_rumor_from_board(board: Board) -> bool:
 	# 已有传闻的地点集合
-	var covered := {}
+	var covered: Dictionary = {}
 	for r in rumors:
 		covered[r["location"]] = true
 
 	var candidates: Array = []
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
-			var card := board.get_card(r, c)
+			var card: Card = board.get_card(r, c)
 			if card and card.location != "home" \
 					and not card.is_flipped and not covered.has(card.location):
 				candidates.append(card)
@@ -264,14 +264,14 @@ func settle_day() -> Array:
 # ---------------------------------------------------------------------------
 
 func get_pending_count() -> int:
-	var count := 0
+	var count: int = 0
 	for s in schedules:
 		if s["status"] == "pending":
 			count += 1
 	return count
 
 func get_completed_count() -> int:
-	var count := 0
+	var count: int = 0
 	for s in schedules:
 		if s["status"] == "completed":
 			count += 1
@@ -279,8 +279,8 @@ func get_completed_count() -> int:
 
 ## 获取日程完成统计 → [completed, total]
 func get_progress() -> Array:
-	var completed := 0
-	var total := schedules.size()
+	var completed: int = 0
+	var total: int = schedules.size()
 	for s in schedules:
 		if s["status"] == "completed":
 			completed += 1

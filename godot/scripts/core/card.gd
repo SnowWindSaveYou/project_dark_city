@@ -6,14 +6,14 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 常量: 卡牌物理尺寸 (3D 世界坐标, 单位: 米)
 # ---------------------------------------------------------------------------
-const CARD_W := 0.64
-const CARD_H := 0.90
-const CARD_THICKNESS := 0.015
+const CARD_W: float = 0.64
+const CARD_H: float = 0.90
+const CARD_THICKNESS: float = 0.015
 
 # ---------------------------------------------------------------------------
 # 地点信息 (与 Card.lua LOCATION_INFO 同步)
 # ---------------------------------------------------------------------------
-const LOCATION_INFO := {
+const LOCATION_INFO: Dictionary = {
 	# 特殊地点
 	"home":        { "icon": "🏠", "label": "家" },
 	# 商店地点
@@ -33,17 +33,17 @@ const LOCATION_INFO := {
 	"bank":        { "icon": "🏦", "label": "银行" },
 }
 
-const REGULAR_LOCATIONS := [
+const REGULAR_LOCATIONS: Array = [
 	"company", "school", "park", "alley",
 	"station", "hospital", "library", "bank",
 ]
 
-const LANDMARK_LOCATIONS := ["church", "police", "shrine"]
+const LANDMARK_LOCATIONS: Array = ["church", "police", "shrine"]
 
 # ---------------------------------------------------------------------------
 # 事件权重 (用于随机生成)
 # ---------------------------------------------------------------------------
-const EVENT_WEIGHTS := {
+const EVENT_WEIGHTS: Dictionary = {
 	"safe": 30,
 	"monster": 20,
 	"trap": 15,
@@ -55,7 +55,7 @@ const EVENT_WEIGHTS := {
 # ---------------------------------------------------------------------------
 # 陷阱子类型信息
 # ---------------------------------------------------------------------------
-const TRAP_SUBTYPE_INFO := {
+const TRAP_SUBTYPE_INFO: Dictionary = {
 	"sanity":   { "icon": "😱", "label": "阴气侵蚀", "effect": { "san": -1 } },
 	"money":    { "icon": "💸", "label": "财物散失", "effect": { "money": -10 } },
 	"film":     { "icon": "📷", "label": "灵雾曝光", "effect": { "film": -1 } },
@@ -65,7 +65,7 @@ const TRAP_SUBTYPE_INFO := {
 # ---------------------------------------------------------------------------
 # 暗面信息表 (地点 × 事件类型 → 独特图标和名称)
 # ---------------------------------------------------------------------------
-const DARKSIDE_INFO := {
+const DARKSIDE_INFO: Dictionary = {
 	"company": {
 		"safe":    { "icon": "🏢", "label": "空荡办公室" },
 		"monster": { "icon": "🕴️", "label": "影子上司" },
@@ -135,7 +135,7 @@ const DARKSIDE_INFO := {
 # ---------------------------------------------------------------------------
 # 卡牌事件效果 (注: trap 效果由 trap_subtype 决定)
 # ---------------------------------------------------------------------------
-const CARD_EFFECTS := {
+const CARD_EFFECTS: Dictionary = {
 	"safe":     {},
 	"monster":  { "san": -2, "order": -1 },
 	"trap":     {},  # 由 trap_subtype 决定
@@ -152,7 +152,7 @@ const CARD_EFFECTS := {
 # ---------------------------------------------------------------------------
 # 事件文本模板
 # ---------------------------------------------------------------------------
-const EVENT_TEXTS := {
+const EVENT_TEXTS: Dictionary = {
 	"safe": [
 		"周围一片宁静，什么也没有发生。",
 		"微风拂过，带来一丝安心的感觉。",
@@ -198,7 +198,7 @@ const EVENT_TEXTS := {
 # ---------------------------------------------------------------------------
 # 陷阱子类型文本模板 (每种 3 个变体)
 # ---------------------------------------------------------------------------
-const TRAP_SUBTYPE_TEXTS := {
+const TRAP_SUBTYPE_TEXTS: Dictionary = {
 	"sanity": [
 		"阴气侵蚀，寒意刺骨...",
 		"一阵恶寒掠过全身，精神恍惚...",
@@ -290,7 +290,7 @@ func is_landmark() -> bool:
 
 ## 工厂方法 (现实世界卡牌)
 static func create(loc: String, evt_type: String, r: int, c: int) -> Card:
-	var card := Card.new()
+	var card: Card = Card.new()
 	card.location = loc
 	card.type = evt_type
 	card.row = r
@@ -299,7 +299,7 @@ static func create(loc: String, evt_type: String, r: int, c: int) -> Card:
 
 ## 工厂方法 (暗面世界卡牌)
 static func create_dark(dt: String, dn: String, r: int, c: int) -> Card:
-	var card := Card.new()
+	var card: Card = Card.new()
 	card.is_dark = true
 	card.dark_type = dt
 	card.dark_name = dn

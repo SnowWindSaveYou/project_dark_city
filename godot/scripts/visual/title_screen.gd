@@ -11,27 +11,27 @@ signal start_requested
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const FLOAT_CARD_COUNT := 12
-const CARD_ICONS := ["🏠", "👻", "⚡", "💎", "📖", "🔍", "🛒", "📸", "⛪"]
+const FLOAT_CARD_COUNT: int = 12
+const CARD_ICONS: Array = ["🏠", "👻", "⚡", "💎", "📖", "🔍", "🛒", "📸", "⛪"]
 
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
 enum Phase { NONE, ENTER, IDLE, EXIT }
-var _phase := Phase.NONE
+var _phase: Phase = Phase.NONE
 
 ## 动画值
-var _overlay_alpha := 1.0
-var _title_alpha := 0.0
-var _title_scale := 0.6
-var _subtitle_alpha := 0.0
-var _prompt_alpha := 0.0
+var _overlay_alpha: float = 1.0
+var _title_alpha: float = 0.0
+var _title_scale: float = 0.6
+var _subtitle_alpha: float = 0.0
+var _prompt_alpha: float = 0.0
 
 ## 浮动卡牌数据
 var _floating_cards: Array[Dictionary] = []
 
 ## 计时
-var _game_time := 0.0
+var _game_time: float = 0.0
 
 # ---------------------------------------------------------------------------
 # 浮动卡牌初始化
@@ -71,7 +71,7 @@ func show_title() -> void:
 	_init_floating_cards()
 
 	# 入场动画序列
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.set_parallel(false)
 
 	# 1. 遮罩褪色
@@ -79,7 +79,7 @@ func show_title() -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 	# 2. 标题入场 (与遮罩同步但延迟)
-	var title_tween := create_tween()
+	var title_tween: Tween = create_tween()
 	title_tween.tween_interval(0.4)
 	title_tween.set_parallel(true)
 	title_tween.tween_property(self, "_title_alpha", 1.0, 0.7)\
@@ -88,14 +88,14 @@ func show_title() -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 	# 3. 副标题
-	var sub_tween := create_tween()
+	var sub_tween: Tween = create_tween()
 	sub_tween.tween_interval(0.9)
 	sub_tween.tween_property(self, "_subtitle_alpha", 1.0, 0.5)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	sub_tween.tween_callback(func(): _phase = Phase.IDLE)
 
 	# 4. 提示文字
-	var prompt_tween := create_tween()
+	var prompt_tween: Tween = create_tween()
 	prompt_tween.tween_interval(1.3)
 	prompt_tween.tween_property(self, "_prompt_alpha", 1.0, 0.6)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
@@ -105,7 +105,7 @@ func dismiss() -> void:
 		return
 	_phase = Phase.EXIT
 
-	var tween := create_tween()
+	var tween: Tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(self, "_title_alpha", 0.0, 0.3)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -116,7 +116,7 @@ func dismiss() -> void:
 	tween.tween_property(self, "_prompt_alpha", 0.0, 0.3)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
-	var overlay_tween := create_tween()
+	var overlay_tween: Tween = create_tween()
 	overlay_tween.tween_interval(0.15)
 	overlay_tween.tween_property(self, "_overlay_alpha", 0.0, 0.5)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -158,16 +158,16 @@ func _draw() -> void:
 	if _phase == Phase.NONE:
 		return
 
-	var w := size.x
-	var h := size.y
-	var cx := w * 0.5
+	var w: float = size.x
+	var h: float = size.y
+	var cx: float = w * 0.5
 
 	# === 遮罩 ===
 	draw_rect(Rect2(-50, -50, w + 100, h + 100),
 		Color(12/255.0, 18/255.0, 30/255.0, _overlay_alpha))
 
 	# === 浮动卡牌 ===
-	var default_font := ThemeDB.fallback_font
+	var default_font: Font = ThemeDB.fallback_font
 	for fc in _floating_cards:
 		var fx: float = fc["x"] * w
 		var fy: float = fc["y"] * h
@@ -180,7 +180,7 @@ func _draw() -> void:
 		var card_alpha: float = fc["base_alpha"] * _overlay_alpha
 
 		# 卡牌背景
-		var card_rect := Rect2(fx - 20, fy - 28, 40, 56)
+		var card_rect: Rect2 = Rect2(fx - 20, fy - 28, 40, 56)
 		draw_rect(card_rect,
 			Color(GameTheme.card_back.r, GameTheme.card_back.g, GameTheme.card_back.b, card_alpha * 0.25),
 			true)
@@ -194,14 +194,14 @@ func _draw() -> void:
 
 	# === 标题 ===
 	if _title_alpha > 0.01:
-		var title_y := h * 0.35
-		var font_size := 42
+		var title_y: float = h * 0.35
+		var font_size: int = 42
 
 		if default_font:
 			# 光晕底层
 			if _title_alpha > 0.3:
-				var pulse := 0.8 + 0.2 * sin(_game_time * 1.5)
-				var glow_r := 100.0 * pulse
+				var pulse: float = 0.8 + 0.2 * sin(_game_time * 1.5)
+				var glow_r: float = 100.0 * pulse
 				draw_circle(Vector2(cx, title_y), glow_r,
 					Color(GameTheme.accent.r, GameTheme.accent.g, GameTheme.accent.b,
 						_title_alpha * 0.1 * pulse))
@@ -230,8 +230,8 @@ func _draw() -> void:
 
 	# === 按任意键开始 (呼吸闪烁) ===
 	if _prompt_alpha > 0.01:
-		var breathe := 0.5 + 0.5 * sin(_game_time * 2.5)
-		var pa := _prompt_alpha * breathe
+		var breathe: float = 0.5 + 0.5 * sin(_game_time * 2.5)
+		var pa: float = _prompt_alpha * breathe
 
 		if default_font:
 			draw_string(default_font, Vector2(cx, h * 0.62 + 6),

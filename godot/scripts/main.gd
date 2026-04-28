@@ -10,11 +10,11 @@ extends Node2D
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const DRAG_THRESHOLD := 8.0
-const PAN_LIMIT := Vector2(200, 200)
-const BG_BRIGHT := Color(0.53, 0.76, 0.92)
-const BG_DARK   := Color(0.15, 0.12, 0.18)
-const TOKEN_CLICK_RADIUS := 32.0
+const DRAG_THRESHOLD: float = 8.0
+const PAN_LIMIT: Vector2 = Vector2(200, 200)
+const BG_BRIGHT: Color = Color(0.53, 0.76, 0.92)
+const BG_DARK: Color = Color(0.15, 0.12, 0.18)
+const TOKEN_CLICK_RADIUS: float = 32.0
 
 # ---------------------------------------------------------------------------
 # 核心数据 (控制器通过 m.xxx 访问)
@@ -38,10 +38,10 @@ var dark_world_flow = null    # RefCounted — controllers/dark_world_flow.gd
 # ---------------------------------------------------------------------------
 var _dialogue_system: DialogueSystem = null
 var _bubble_dialogue: BubbleDialogue = null
-var _dlg_enter_tweened := false
-var _dlg_exit_tweened := false
-var _bubble_show_tweened := false
-var _bubble_hide_tweened := false
+var _dlg_enter_tweened: bool = false
+var _dlg_exit_tweened: bool = false
+var _bubble_show_tweened: bool = false
+var _bubble_hide_tweened: bool = false
 
 # ---------------------------------------------------------------------------
 # UI 节点引用
@@ -65,12 +65,12 @@ var _token_sprite: Sprite2D = null
 # ---------------------------------------------------------------------------
 # 运行时状态
 # ---------------------------------------------------------------------------
-var day_count := 1
-var game_time := 0.0
-var _bg_transition := 0.0
-var _bg_transition_target := 0.0
-var _camera_offset := Vector2.ZERO
-var _drag_state := {
+var day_count: int = 1
+var game_time: float = 0.0
+var _bg_transition: float = 0.0
+var _bg_transition_target: float = 0.0
+var _camera_offset: Vector2 = Vector2.ZERO
+var _drag_state: Dictionary = {
 	"active": false,
 	"is_dragging": false,
 	"start_pos": Vector2.ZERO,
@@ -130,7 +130,7 @@ func _setup_scene_tree() -> void:
 	add_child(board_visual)
 
 	# --- UI CanvasLayer ---
-	var ui_layer := CanvasLayer.new()
+	var ui_layer: CanvasLayer = CanvasLayer.new()
 	ui_layer.name = "UILayer"
 	ui_layer.layer = 10
 	add_child(ui_layer)
@@ -261,8 +261,8 @@ func _on_shop_closed() -> void:
 func _on_photograph_request() -> void:
 	if GameData.demo_state != "ready":
 		return
-	var row := token.target_row
-	var col := token.target_col
+	var row: int = token.target_row
+	var col: int = token.target_col
 	var card: Card = board.get_card(row, col)
 	if card and not card.is_flipped and not card.is_flipping:
 		card_interaction.do_photograph(card, row, col)
@@ -383,7 +383,7 @@ func _process(dt: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	var bg_color := BG_BRIGHT.lerp(BG_DARK, _bg_transition)
+	var bg_color: Color = BG_BRIGHT.lerp(BG_DARK, _bg_transition)
 	draw_rect(Rect2(Vector2.ZERO, get_viewport_rect().size), bg_color)
 
 # ---------------------------------------------------------------------------
@@ -410,7 +410,7 @@ func _update_dialogue_tweens(dt: float) -> void:
 			_dlg_exit_tweened = false
 
 func _tween_dialogue_enter() -> void:
-	var tw := create_tween().set_parallel(true)
+	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(_dialogue_system, "overlay_alpha", 1.0, 0.3)
 	tw.tween_property(_dialogue_system, "box_offset_y", 0.0, 0.4) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
@@ -420,11 +420,11 @@ func _tween_dialogue_enter() -> void:
 		.set_delay(0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(_dialogue_system, "portrait_scale", 1.0, 0.3).set_delay(0.1)
 	# 完成回调
-	var tw_cb := create_tween()
+	var tw_cb: Tween = create_tween()
 	tw_cb.tween_callback(_dialogue_system.on_enter_complete).set_delay(0.55)
 
 func _tween_dialogue_exit() -> void:
-	var tw := create_tween().set_parallel(true)
+	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(_dialogue_system, "overlay_alpha", 0.0, 0.25)
 	tw.tween_property(_dialogue_system, "box_offset_y", 60.0, 0.3) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
@@ -432,7 +432,7 @@ func _tween_dialogue_exit() -> void:
 	tw.tween_property(_dialogue_system, "portrait_alpha", 0.0, 0.25)
 	tw.tween_property(_dialogue_system, "portrait_offset_y", 20.0, 0.25)
 	# 完成回调
-	var tw_cb := create_tween()
+	var tw_cb: Tween = create_tween()
 	tw_cb.tween_callback(_dialogue_system.on_exit_complete).set_delay(0.35)
 
 # ---------------------------------------------------------------------------
@@ -443,8 +443,8 @@ func _update_bubble_tweens(dt: float) -> void:
 	if _bubble_dialogue == null:
 		return
 
-	var is_idle := GameData.demo_state == "ready"
-	var can_trigger := GameData.game_phase == "playing" \
+	var is_idle: bool = GameData.demo_state == "ready"
+	var can_trigger: bool = GameData.game_phase == "playing" \
 		and not _dialogue_system.is_active()
 	_bubble_dialogue.update(dt, is_idle, can_trigger)
 
@@ -459,20 +459,20 @@ func _update_bubble_tweens(dt: float) -> void:
 			if not _bubble_show_tweened:
 				_bubble_show_tweened = true
 				_bubble_hide_tweened = false
-				var tw := create_tween().set_parallel(true)
+				var tw: Tween = create_tween().set_parallel(true)
 				tw.tween_property(_bubble_dialogue, "bubble_alpha", 1.0, 0.2)
 				tw.tween_property(_bubble_dialogue, "bubble_scale", 1.0, 0.25) \
 					.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 				tw.tween_property(_bubble_dialogue, "offset_y", 0.0, 0.2)
-				var tw_cb := create_tween()
+				var tw_cb: Tween = create_tween()
 				tw_cb.tween_callback(_bubble_dialogue.on_show_complete).set_delay(0.3)
 		"hiding":
 			if not _bubble_hide_tweened:
 				_bubble_hide_tweened = true
-				var tw := create_tween().set_parallel(true)
+				var tw: Tween = create_tween().set_parallel(true)
 				tw.tween_property(_bubble_dialogue, "bubble_alpha", 0.0, 0.15)
 				tw.tween_property(_bubble_dialogue, "bubble_scale", 0.5, 0.15)
-				var tw_cb := create_tween()
+				var tw_cb: Tween = create_tween()
 				tw_cb.tween_callback(_bubble_dialogue.on_hide_complete).set_delay(0.2)
 		"hidden":
 			_bubble_show_tweened = false

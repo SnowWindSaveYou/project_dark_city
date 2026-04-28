@@ -5,7 +5,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const MAX_DAYS := 3
+const MAX_DAYS: int = 3
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -76,7 +76,7 @@ func _on_deal_complete() -> void:
 func _animate_item_spawn() -> void:
 	for i in range(m.board_items.items.size()):
 		var item: BoardItems.BoardItem = m.board_items.items[i]
-		var delay := 0.3 + i * 0.15
+		var delay: float = 0.3 + i * 0.15
 		var tw: Tween = m.create_tween()
 		tw.tween_property(item, "scale", 1.0, 0.3) \
 			.set_delay(delay) \

@@ -12,20 +12,20 @@ signal demo_state_changed(old_state: String, new_state: String)
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const MAX_DAYS := 3
-const INITIAL_RESOURCES := {
+const MAX_DAYS: int = 3
+const INITIAL_RESOURCES: Dictionary = {
 	"san": 10,
 	"order": 10,
 	"money": 50,
 	"film": 3,
 }
-const RESOURCE_MAX := {
+const RESOURCE_MAX: Dictionary = {
 	"san": 10,
 	"order": 10,
 	"money": -1,   # 无上限
 	"film": -1,    # 无上限
 }
-const RESOURCE_ICONS := {
+const RESOURCE_ICONS: Dictionary = {
 	"san": "🧠",
 	"order": "⚖️",
 	"money": "💰",
@@ -35,22 +35,22 @@ const RESOURCE_ICONS := {
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
-var resources := {}  # { "san": 10, "order": 10, "money": 50, "film": 3 }
+var resources: Dictionary = {}  # { "san": 10, "order": 10, "money": 50, "film": 3 }
 
 ## 两级状态机
-var game_phase := "title"    # "title" | "playing" | "gameover"
-var demo_state := "idle"     # "idle"|"dealing"|"ready"|"flipping"|"popup"|"moving"|"photographing"|"exorcising"|"dialogue"|"rift_confirm"|"dark_world"
+var game_phase: String = "title"  # "title" | "playing" | "gameover"
+var demo_state: String = "idle"  # "idle"|"dealing"|"ready"|"flipping"|"popup"|"moving"|"photographing"|"exorcising"|"dialogue"|"rift_confirm"|"dark_world"
 
 ## 天数
-var current_day := 0
+var current_day: int = 0
 
 ## 统计
-var cards_revealed := 0
-var monsters_slain := 0
-var photos_used := 0
+var cards_revealed: int = 0
+var monsters_slain: int = 0
+var photos_used: int = 0
 
 ## 道具栏 { "coffee": 2, "shield": 1, ... }
-var inventory := {}
+var inventory: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -107,12 +107,12 @@ func apply_effects(effects: Dictionary) -> void:
 # ---------------------------------------------------------------------------
 
 func set_game_phase(new_phase: String) -> void:
-	var old := game_phase
+	var old: String = game_phase
 	game_phase = new_phase
 	game_phase_changed.emit(old, new_phase)
 
 func set_demo_state(new_state: String) -> void:
-	var old := demo_state
+	var old: String = demo_state
 	demo_state = new_state
 	demo_state_changed.emit(old, new_state)
 

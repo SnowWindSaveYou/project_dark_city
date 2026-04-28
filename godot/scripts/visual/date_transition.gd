@@ -11,8 +11,8 @@ signal transition_completed
 # ---------------------------------------------------------------------------
 # 双角度系统
 # ---------------------------------------------------------------------------
-const BAND_ANGLE_DEG := 22.0
-const DATE_ANGLE_DEG := -42.0
+const BAND_ANGLE_DEG: float = 22.0
+const DATE_ANGLE_DEG: float = -42.0
 
 var _band_angle_rad: float
 var _band_cos: float
@@ -25,47 +25,47 @@ var _date_angle_rad: float
 var _date_cos: float
 var _date_sin: float
 
-const BAND_WIDTH_RATIO := 0.22
-const DATE_COUNT := 8
-const CURRENT_INDEX := 4   # 当前日在序列中的位置
+const BAND_WIDTH_RATIO: float = 0.22
+const DATE_COUNT: int = 8
+const CURRENT_INDEX: int = 4  # 当前日在序列中的位置
 
 # ---------------------------------------------------------------------------
 # 动画时间轴
 # ---------------------------------------------------------------------------
-const T_WIPE_START    := 0.0
-const T_WIPE_END      := 0.45
-const T_SHRINK_END    := 0.90
-const T_POPUP_START   := 0.75
-const T_POPUP_STAGGER := 0.07
-const T_POPUP_DUR     := 0.35
-const T_SCROLL_START  := 1.60
-const T_SCROLL_DUR    := 0.50
-const T_RIPPLE_START  := 2.10
-const T_RIPPLE_DUR    := 0.65
-const T_EXIT_START    := 2.80
-const T_EXIT_DUR      := 0.50
-const T_BG_FADE_DUR   := 0.40
-const TOTAL_DUR       := T_EXIT_START + T_EXIT_DUR
+const T_WIPE_START: float = 0.0
+const T_WIPE_END: float = 0.45
+const T_SHRINK_END: float = 0.90
+const T_POPUP_START: float = 0.75
+const T_POPUP_STAGGER: float = 0.07
+const T_POPUP_DUR: float = 0.35
+const T_SCROLL_START: float = 1.60
+const T_SCROLL_DUR: float = 0.50
+const T_RIPPLE_START: float = 2.10
+const T_RIPPLE_DUR: float = 0.65
+const T_EXIT_START: float = 2.80
+const T_EXIT_DUR: float = 0.50
+const T_BG_FADE_DUR: float = 0.40
+const TOTAL_DUR: float = T_EXIT_START + T_EXIT_DUR
 
 # ---------------------------------------------------------------------------
 # 日期系统常量
 # ---------------------------------------------------------------------------
-const BASE_YEAR  := 2026
-const BASE_MONTH := 4
-const BASE_DAY   := 24
-const WEEKDAY_NAMES := ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-const MONTH_NAMES := [
+const BASE_YEAR: int = 2026
+const BASE_MONTH: int = 4
+const BASE_DAY: int = 24
+const WEEKDAY_NAMES: Array = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+const MONTH_NAMES: Array = [
 	"January", "February", "March", "April", "May", "June",
 	"July", "August", "September", "October", "November", "December"
 ]
-const DAYS_IN_MONTH := [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+const DAYS_IN_MONTH: Array = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
-var _active := false
-var _timer := 0.0
-var _day_count := 1
+var _active: bool = false
+var _timer: float = 0.0
+var _day_count: int = 1
 
 ## 背景图 (可选)
 var _bg_texture: Texture2D = null
@@ -88,7 +88,7 @@ func _ready() -> void:
 	set_process(false)
 
 	# 尝试加载背景图
-	var bg_path := "res://assets/images/date_transition_bg.png"
+	var bg_path: String = "res://assets/images/date_transition_bg.png"
 	if ResourceLoader.exists(bg_path):
 		_bg_texture = load(bg_path)
 
@@ -105,9 +105,9 @@ static func _days_in_month(y: int, m: int) -> int:
 	return DAYS_IN_MONTH[m - 1]
 
 static func _calc_date(day_count: int) -> Array:
-	var y := BASE_YEAR
-	var m := BASE_MONTH
-	var d := BASE_DAY + (day_count - 1)
+	var y: int = BASE_YEAR
+	var m: int = BASE_MONTH
+	var d: float = BASE_DAY + (day_count - 1)
 	while d < 1:
 		m -= 1
 		if m < 1:
@@ -123,8 +123,8 @@ static func _calc_date(day_count: int) -> Array:
 	return [y, m, d]
 
 static func _calc_weekday(y: int, m: int, d: int) -> int:
-	var t_arr := [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
-	var yy := y
+	var t_arr: Array = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
+	var yy: int = y
 	if m < 3:
 		yy -= 1
 	return (yy + yy / 4 - yy / 100 + yy / 400 + t_arr[m - 1] + d) % 7
@@ -134,15 +134,15 @@ static func _calc_weekday(y: int, m: int, d: int) -> int:
 # ---------------------------------------------------------------------------
 
 static func _ease_out_cubic(t: float) -> float:
-	var t1 := t - 1.0
+	var t1: float = t - 1.0
 	return t1 * t1 * t1 + 1.0
 
 static func _ease_in_cubic(t: float) -> float:
 	return t * t * t
 
 static func _ease_out_back(t: float) -> float:
-	var c := 1.70158
-	var t1 := t - 1.0
+	var c: float = 1.70158
+	var t1: float = t - 1.0
 	return t1 * t1 * ((c + 1) * t1 + c) + 1.0
 
 static func _ease_out_elastic(t: float) -> float:
@@ -150,7 +150,7 @@ static func _ease_out_elastic(t: float) -> float:
 		return 0.0
 	if t >= 1:
 		return 1.0
-	var p := 0.35
+	var p: float = 0.35
 	return pow(2, -10 * t) * sin((t - p / 4) * TAU / p) + 1.0
 
 static func _clamp01(t: float) -> float:
@@ -194,53 +194,53 @@ func _draw() -> void:
 	if not _active:
 		return
 
-	var t := _timer
-	var w := size.x
-	var h := size.y
-	var diag_len := sqrt(w * w + h * h)
-	var band_target_w := h * BAND_WIDTH_RATIO
-	var center_x := w * 0.5
-	var center_y := h * 0.5
-	var default_font := ThemeDB.fallback_font
+	var t: float = _timer
+	var w: float = size.x
+	var h: float = size.y
+	var diag_len: float = sqrt(w * w + h * h)
+	var band_target_w: float = h * BAND_WIDTH_RATIO
+	var center_x: float = w * 0.5
+	var center_y: float = h * 0.5
+	var default_font: Font = ThemeDB.fallback_font
 
 	# === Phase 5: 退出进度 ===
-	var exit_p := 0.0
+	var exit_p: float = 0.0
 	if t > T_EXIT_START:
 		exit_p = _clamp01((t - T_EXIT_START) / T_EXIT_DUR)
 		exit_p = _ease_in_cubic(exit_p)
-	var band_exit_offset := exit_p * diag_len * 0.6
-	var ui_exit_offset := exit_p * diag_len * 0.6
-	var exit_alpha := 1.0 - exit_p
+	var band_exit_offset: float = exit_p * diag_len * 0.6
+	var ui_exit_offset: float = exit_p * diag_len * 0.6
+	var exit_alpha: float = 1.0 - exit_p
 
 	# === Phase 1: 蓝色遮罩擦入 ===
-	var wipe_p := _clamp01((t - T_WIPE_START) / (T_WIPE_END - T_WIPE_START))
+	var wipe_p: float = _clamp01((t - T_WIPE_START) / (T_WIPE_END - T_WIPE_START))
 	wipe_p = _ease_out_cubic(wipe_p)
 
 	# === Phase 2: 缩窄为光带 ===
-	var shrink_p := 0.0
+	var shrink_p: float = 0.0
 	if t > T_WIPE_END:
 		shrink_p = _clamp01((t - T_WIPE_END) / (T_SHRINK_END - T_WIPE_END))
 		shrink_p = _ease_out_cubic(shrink_p)
 
-	var full_cover_h := diag_len * 1.5
-	var current_band_h := full_cover_h + (band_target_w - full_cover_h) * shrink_p
-	var start_offset := diag_len * 0.9
-	var perp_offset := start_offset * (1.0 - wipe_p)
+	var full_cover_h: float = diag_len * 1.5
+	var current_band_h: float = full_cover_h + (band_target_w - full_cover_h) * shrink_p
+	var start_offset: float = diag_len * 0.9
+	var perp_offset: float = start_offset * (1.0 - wipe_p)
 
 	# === 背景图 (cover 模式) ===
-	var bg_fade_in := _clamp01(shrink_p)
-	var bg_fade_out := 1.0
+	var bg_fade_in: float = _clamp01(shrink_p)
+	var bg_fade_out: float = 1.0
 	if t > T_EXIT_START:
 		bg_fade_out = 1.0 - _clamp01((t - T_EXIT_START) / T_BG_FADE_DUR)
-	var bg_alpha := bg_fade_in * bg_fade_out
+	var bg_alpha: float = bg_fade_in * bg_fade_out
 	if bg_alpha > 0.001:
 		_draw_bg_cover(w, h, bg_alpha)
 
 	# === 蓝色光带 ===
-	var band_alpha := _clamp01(wipe_p) * exit_alpha
+	var band_alpha: float = _clamp01(wipe_p) * exit_alpha
 	if band_alpha > 0.01:
-		var bx := center_x - _band_perp_cos * perp_offset
-		var by := center_y - _band_perp_sin * perp_offset
+		var bx: float = center_x - _band_perp_cos * perp_offset
+		var by: float = center_y - _band_perp_sin * perp_offset
 		if band_exit_offset > 0.1:
 			bx += _band_cos * band_exit_offset
 			by += _band_sin * band_exit_offset
@@ -250,45 +250,45 @@ func _draw() -> void:
 
 	# === 日期元素 ===
 	if t >= T_POPUP_START and wipe_p >= 0.99 and default_font:
-		var date_spacing := w * 0.28
+		var date_spacing: float = w * 0.28
 
 		# Phase 4: 滚动
-		var scroll_p := 0.0
+		var scroll_p: float = 0.0
 		if t > T_SCROLL_START:
-			var raw_scroll := _clamp01((t - T_SCROLL_START) / T_SCROLL_DUR)
+			var raw_scroll: float = _clamp01((t - T_SCROLL_START) / T_SCROLL_DUR)
 			scroll_p = _ease_out_elastic(raw_scroll)
-		var scroll_off_x := -scroll_p * _date_cos * date_spacing
-		var scroll_off_y := -scroll_p * _date_sin * date_spacing
-		var highlight_p := _clamp01(scroll_p)
+		var scroll_off_x: float = -scroll_p * _date_cos * date_spacing
+		var scroll_off_y: float = -scroll_p * _date_sin * date_spacing
+		var highlight_p: float = _clamp01(scroll_p)
 
 		# Phase 5: UI 滑出
-		var ui_slide_x := 0.0
-		var ui_slide_y := 0.0
+		var ui_slide_x: float = 0.0
+		var ui_slide_y: float = 0.0
 		if ui_exit_offset > 0.1:
 			ui_slide_x = -_date_cos * ui_exit_offset
 			ui_slide_y = -_date_sin * ui_exit_offset
 
-		var display_day := _day_count - 1
-		var prev_dc := _day_count - 1
+		var display_day: int = _day_count - 1
+		var prev_dc: int = _day_count - 1
 		var attention_center: float = prev_dc + highlight_p
 
 		# 收集日期 slot 数据
 		var date_slots: Array[Dictionary] = []
 		for i in range(DATE_COUNT):
-			var day_offset := i - (CURRENT_INDEX - 1)
-			var dc := display_day + day_offset
+			var day_offset: int = i - (CURRENT_INDEX - 1)
+			var dc: float = display_day + day_offset
 
-			var base_pos_x := center_x + _date_cos * day_offset * date_spacing
-			var base_pos_y := center_y + _date_sin * day_offset * date_spacing
+			var base_pos_x: float = center_x + _date_cos * day_offset * date_spacing
+			var base_pos_y: float = center_y + _date_sin * day_offset * date_spacing
 
-			var pop_start := T_POPUP_START + i * T_POPUP_STAGGER
-			var raw_t := _clamp01((t - pop_start) / T_POPUP_DUR)
+			var pop_start: float = T_POPUP_START + i * T_POPUP_STAGGER
+			var raw_t: float = _clamp01((t - pop_start) / T_POPUP_DUR)
 			var pop_t: float = _ease_out_back(raw_t) if raw_t > 0 else 0.0
 
-			var final_x := base_pos_x + scroll_off_x + ui_slide_x
-			var final_y := base_pos_y + scroll_off_y + ui_slide_y
+			var final_x: float = base_pos_x + scroll_off_x + ui_slide_x
+			var final_y: float = base_pos_y + scroll_off_y + ui_slide_y
 
-			var highlight_w := 0.0
+			var highlight_w: float = 0.0
 			if dc == prev_dc:
 				highlight_w = 1.0 - highlight_p
 			elif dc == _day_count:
@@ -301,14 +301,14 @@ func _draw() -> void:
 			})
 
 		# 白色对角线
-		var line_end_idx := 0
+		var line_end_idx: int = 0
 		for slot in date_slots:
 			if slot["raw_alpha"] > 0.01:
 				line_end_idx += 1
 		if line_end_idx >= 1:
 			var first_slot: Dictionary = date_slots[0]
 			var last_visible: Dictionary = date_slots[mini(line_end_idx - 1, date_slots.size() - 1)]
-			var extend := diag_len * 0.5
+			var extend: float = diag_len * 0.5
 			var lx1: float = first_slot["pos_x"] - _date_cos * extend
 			var ly1: float = first_slot["pos_y"] - _date_sin * extend
 			var lx2: float = last_visible["pos_x"] + _date_cos * extend
@@ -325,20 +325,20 @@ func _draw() -> void:
 
 			var dc: int = slot["dc"]
 			var hw: float = slot["highlight_w"]
-			var date_arr := _calc_date(dc)
+			var date_arr: Array = _calc_date(dc)
 			var year: int = date_arr[0]
 			var month: int = date_arr[1]
 			var day: int = date_arr[2]
-			var weekday := _calc_weekday(year, month, day)
-			var day_str := str(day)
+			var weekday: int = _calc_weekday(year, month, day)
+			var day_str: String = str(day)
 			var wd_str: String = WEEKDAY_NAMES[weekday]
-			var weather := Weather.get_weather(dc)
+			var weather: int = Weather.get_weather(dc)
 
 			var pop_alpha: float = _clamp01(slot["raw_alpha"] * 2.5) * exit_alpha
 			if pop_alpha <= 0.01:
 				continue
 
-			var bounce_y := 0.0
+			var bounce_y: float = 0.0
 			if t < T_SCROLL_START:
 				bounce_y = (1.0 - _clamp01(slot["raw_alpha"] * 3.0)) * 15.0
 
@@ -346,10 +346,10 @@ func _draw() -> void:
 			var py: float = slot["pos_y"] + bounce_y
 
 			# 距离注意力中心越远越小
-			var day_off := absf(dc - attention_center)
-			var small_scale := maxf(0.25, 0.50 - day_off * 0.04)
-			var render_scale := small_scale + (1.0 - small_scale) * hw
-			var alpha_scale := 0.4 + render_scale * 0.6
+			var day_off: float = absf(dc - attention_center)
+			var small_scale: float = maxf(0.25, 0.50 - day_off * 0.04)
+			var render_scale: float = small_scale + (1.0 - small_scale) * hw
+			var alpha_scale: float = 0.4 + render_scale * 0.6
 			var text_alpha: float = alpha_scale * pop_alpha
 
 			var font_size: int = int(h * 0.15 * slot["pop_t"] * render_scale)
@@ -363,16 +363,16 @@ func _draw() -> void:
 				Color(1, 1, 1, text_alpha))
 
 			# 星期
-			var wd_size := int(font_size * 0.28)
-			var wd_x := px + font_size * 0.15
-			var wd_y := py - font_size * 0.22
+			var wd_size: int = int(font_size * 0.28)
+			var wd_x: float = px + font_size * 0.15
+			var wd_y: float = py - font_size * 0.22
 			draw_string(default_font, Vector2(wd_x, wd_y + wd_size * 0.8),
 				wd_str, HORIZONTAL_ALIGNMENT_LEFT,
 				-1, wd_size,
 				Color(1, 1, 1, text_alpha * 0.85))
 
 			# 星期下划线 (周日/周六/高亮项)
-			var ul_color := Color.WHITE
+			var ul_color: Color = Color.WHITE
 			if weekday == 0:  # SUN
 				ul_color = Color(0.9, 0.23, 0.23)
 			elif weekday == 6:  # SAT
@@ -384,16 +384,16 @@ func _draw() -> void:
 
 		# 波纹 (滚动后)
 		if t > T_RIPPLE_START:
-			var ripple_p := _clamp01((t - T_RIPPLE_START) / T_RIPPLE_DUR)
-			var ripple_cx := center_x + ui_slide_x
-			var ripple_cy := center_y + ui_slide_y
+			var ripple_p: float = _clamp01((t - T_RIPPLE_START) / T_RIPPLE_DUR)
+			var ripple_cx: float = center_x + ui_slide_x
+			var ripple_cy: float = center_y + ui_slide_y
 
 			for ri in range(3):
-				var delay_r := ri * 0.12
-				var local_p := _clamp01((ripple_p - delay_r) / (1.0 - delay_r * 0.75))
+				var delay_r: float = ri * 0.12
+				var local_p: float = _clamp01((ripple_p - delay_r) / (1.0 - delay_r * 0.75))
 				if local_p > 0:
-					var max_r := h * (0.06 + ri * 0.04)
-					var radius := local_p * max_r
+					var max_r: float = h * (0.06 + ri * 0.04)
+					var radius: float = local_p * max_r
 					var a: float = (1.0 - local_p * local_p) * exit_alpha * 0.7
 					if a > 0.01:
 						draw_arc(Vector2(ripple_cx, ripple_cy), radius,
@@ -401,19 +401,19 @@ func _draw() -> void:
 							Color(0.63, 0.78, 1.0, a), 2.0 - local_p)
 
 		# "第 X 天" 文字
-		var month_pop_start := T_POPUP_START + DATE_COUNT * T_POPUP_STAGGER
-		var month_raw_t := _clamp01((t - month_pop_start) / 0.4)
+		var month_pop_start: float = T_POPUP_START + DATE_COUNT * T_POPUP_STAGGER
+		var month_raw_t: float = _clamp01((t - month_pop_start) / 0.4)
 		var month_pop_t: float = _ease_out_back(month_raw_t) if month_raw_t > 0 else 0.0
 		var month_alpha: float = _clamp01(month_raw_t * 2) * exit_alpha
 		if month_alpha > 0.01 and default_font:
-			var band_tan := tan(_band_angle_rad)
-			var hud_x := w * 0.10
-			var hud_y := center_y + band_tan * (hud_x - center_x)
+			var band_tan: float = tan(_band_angle_rad)
+			var hud_x: float = w * 0.10
+			var hud_y: float = center_y + band_tan * (hud_x - center_x)
 			if band_exit_offset > 0.1:
 				hud_x += _band_cos * band_exit_offset
 				hud_y += _band_sin * band_exit_offset
-			var bounce_hud := (1.0 - _clamp01(month_raw_t * 3)) * 20.0
-			var day_label_fs := int(h * 0.09 * month_pop_t)
+			var bounce_hud: float = (1.0 - _clamp01(month_raw_t * 3)) * 20.0
+			var day_label_fs: int = int(h * 0.09 * month_pop_t)
 			if day_label_fs > 2:
 				draw_string(default_font,
 					Vector2(hud_x, hud_y + bounce_hud + day_label_fs * 0.35),
@@ -424,13 +424,13 @@ func _draw() -> void:
 
 		# 右下角年份月份
 		if month_alpha > 0.01 and default_font:
-			var date_arr := _calc_date(_day_count)
+			var date_arr: Array = _calc_date(_day_count)
 			var year: int = date_arr[0]
 			var month: int = date_arr[1]
-			var mx := w * 0.95 + ui_slide_x
-			var my := h * 0.92 + ui_slide_y
-			var bounce_y2 := (1.0 - _clamp01(month_raw_t * 3)) * 12.0
-			var yr_fs := int(h * 0.035 * month_pop_t)
+			var mx: float = w * 0.95 + ui_slide_x
+			var my: float = h * 0.92 + ui_slide_y
+			var bounce_y2: float = (1.0 - _clamp01(month_raw_t * 3)) * 12.0
+			var yr_fs: int = int(h * 0.035 * month_pop_t)
 			if yr_fs > 2:
 				draw_string(default_font,
 					Vector2(mx, my + bounce_y2),
@@ -449,9 +449,9 @@ func _draw() -> void:
 
 func _draw_bg_cover(w: float, h: float, alpha: float) -> void:
 	if _bg_texture:
-		var tex_size := _bg_texture.get_size()
-		var screen_aspect := w / h
-		var tex_aspect := tex_size.x / tex_size.y
+		var tex_size: Vector2 = _bg_texture.get_size()
+		var screen_aspect: float = w / h
+		var tex_aspect: float = tex_size.x / tex_size.y
 		var draw_w: float
 		var draw_h: float
 		var draw_x: float
@@ -476,16 +476,16 @@ func _draw_bg_cover(w: float, h: float, alpha: float) -> void:
 
 func _draw_rotated_band(cx: float, cy: float, length: float, band_h: float, alpha: float) -> void:
 	# 绘制旋转的蓝色光带 (使用多边形)
-	var half_len := length
-	var half_h := band_h * 0.5
+	var half_len: float = length
+	var half_h: float = band_h * 0.5
 
 	# 光带四个角点 (沿 band 方向旋转)
-	var dx := _band_cos * half_len
-	var dy := _band_sin * half_len
-	var nx := -_band_sin * half_h  # 法线方向
-	var ny := _band_cos * half_h
+	var dx: float = _band_cos * half_len
+	var dy: float = _band_sin * half_len
+	var nx: float = -_band_sin * half_h  # 法线方向
+	var ny: float = _band_cos * half_h
 
-	var points := PackedVector2Array([
+	var points: PackedVector2Array = PackedVector2Array([
 		Vector2(cx - dx + nx, cy - dy + ny),
 		Vector2(cx + dx + nx, cy + dy + ny),
 		Vector2(cx + dx - nx, cy + dy - ny),
@@ -493,7 +493,7 @@ func _draw_rotated_band(cx: float, cy: float, length: float, band_h: float, alph
 	])
 
 	# 渐变色 (深蓝 → 亮蓝)
-	var colors := PackedColorArray([
+	var colors: PackedColorArray = PackedColorArray([
 		Color(20/255.0, 50/255.0, 130/255.0, alpha),
 		Color(35/255.0, 80/255.0, 170/255.0, alpha * 0.9),
 		Color(35/255.0, 80/255.0, 170/255.0, alpha * 0.9),

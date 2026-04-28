@@ -121,7 +121,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 					Color(0.4, 0.8, 0.5), 0.8)
 
 	# 表情映射
-	var emotion_map := {
+	var emotion_map: Dictionary = {
 		"monster": "scared", "trap": "nervous", "shop": "confused",
 		"clue": "surprised", "home": "relieved", "landmark": "relieved",
 		"safe": "relieved",
@@ -165,7 +165,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 # ---------------------------------------------------------------------------
 
 func _handle_trap(card: Card, row: int, col: int) -> void:
-	var shield_used := false
+	var shield_used: bool = false
 
 	# 护身符检查
 	if GameData.has_item("shield"):
@@ -174,7 +174,7 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 		m._vfx.action_banner("🧿 护身符抵消了陷阱!", GameTheme.safe, 0.8)
 	else:
 		# 应用陷阱效果
-		var effects := card.get_effects()
+		var effects: Dictionary = card.get_effects()
 		for key in effects:
 			GameData.modify_resource(key, effects[key])
 
@@ -231,13 +231,13 @@ func on_rift_cancelled() -> void:
 
 func on_popup_dismissed(card: Card) -> void:
 	if card:
-		var effects := card.get_effects()
+		var effects: Dictionary = card.get_effects()
 		for key in effects:
 			GameData.modify_resource(key, effects[key])
 
 	# 表情
 	if card:
-		var positive := ["clue", "safe", "home", "landmark"]
+		var positive: Array = ["clue", "safe", "home", "landmark"]
 		if card.type in positive:
 			m.token.set_emotion("happy")
 		else:

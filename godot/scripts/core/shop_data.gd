@@ -6,7 +6,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 商品定义
 # ---------------------------------------------------------------------------
-const ITEMS := {
+const ITEMS: Dictionary = {
 	"coffee": {
 		"name": "咖啡", "icon": "☕", "price": 8,
 		"type": "consumable",
@@ -52,15 +52,15 @@ const ITEMS := {
 }
 
 ## 消耗品的显示排序
-const CONSUMABLE_ORDER := ["shield", "exorcism", "coffee", "sedative", "orderManual"]
+const CONSUMABLE_ORDER: Array = ["shield", "exorcism", "coffee", "sedative", "orderManual"]
 
 ## 商店刷新价格
-const REFRESH_COST := 5
+const REFRESH_COST: int = 5
 
 # ---------------------------------------------------------------------------
 # 商店变体
 # ---------------------------------------------------------------------------
-const SHOP_VARIANTS := [
+const SHOP_VARIANTS: Array = [
 	{ "name": "午夜便利店", "greeting": "深夜好，有什么需要的吗？" },
 	{ "name": "黄昏杂货铺", "greeting": "嘿，看看有什么中意的？" },
 	{ "name": "巷口自贩机", "greeting": "请投币选择商品。" },

@@ -8,19 +8,19 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 配置
 # ---------------------------------------------------------------------------
-const IDLE_TRIGGER_TIME := 4.0   # 静止多久后自动弹出 (秒)
-const DISPLAY_DURATION  := 3.5   # 气泡显示时长 (秒)
-const COOLDOWN          := 5.0   # 自动触发冷却 (秒)
-const CLICK_COOLDOWN    := 1.5   # 点击触发冷却
+const IDLE_TRIGGER_TIME: float = 4.0  # 静止多久后自动弹出 (秒)
+const DISPLAY_DURATION: float = 3.5  # 气泡显示时长 (秒)
+const COOLDOWN: float = 5.0  # 自动触发冷却 (秒)
+const CLICK_COOLDOWN: float = 1.5  # 点击触发冷却
 
-const BUBBLE_MAX_W     := 180.0  # 气泡最大宽度 (像素)
-const BUBBLE_PAD_H     := 10.0   # 水平内边距
-const BUBBLE_PAD_V     := 8.0    # 垂直内边距
-const BUBBLE_RADIUS    := 8.0    # 圆角半径
-const BUBBLE_ARROW_W   := 10.0   # 箭头宽度
-const BUBBLE_ARROW_H   := 8.0    # 箭头高度
-const BUBBLE_OFFSET_Y  := 12.0   # 气泡底部到角色头顶的间距
-const FONT_SIZE        := 13     # 字体大小
+const BUBBLE_MAX_W: float = 180.0  # 气泡最大宽度 (像素)
+const BUBBLE_PAD_H: float = 10.0  # 水平内边距
+const BUBBLE_PAD_V: float = 8.0  # 垂直内边距
+const BUBBLE_RADIUS: float = 8.0  # 圆角半径
+const BUBBLE_ARROW_W: float = 10.0  # 箭头宽度
+const BUBBLE_ARROW_H: float = 8.0  # 箭头高度
+const BUBBLE_OFFSET_Y: float = 12.0  # 气泡底部到角色头顶的间距
+const FONT_SIZE: int = 13  # 字体大小
 
 # ---------------------------------------------------------------------------
 # 通用对话池
@@ -48,7 +48,7 @@ const COMMON_LINES: Array[String] = [
 # ---------------------------------------------------------------------------
 # 区域/地点相关对话池
 # ---------------------------------------------------------------------------
-const LOCATION_LINES := {
+const LOCATION_LINES: Dictionary = {
 	"home": [
 		"至少家里还算安全……大概。",
 		"门锁好了吗？再检查一遍。",
@@ -114,7 +114,7 @@ const LOCATION_LINES := {
 # ---------------------------------------------------------------------------
 # 事件类型相关对话
 # ---------------------------------------------------------------------------
-const EVENT_LINES := {
+const EVENT_LINES: Dictionary = {
 	"monster": [
 		"刚才那个东西……不要再想了。",
 		"心跳还没平复下来。",

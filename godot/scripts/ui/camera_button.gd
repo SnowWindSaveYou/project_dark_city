@@ -13,38 +13,38 @@ signal exorcise_requested    # 请求驱魔 (已翻怪物卡)
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const BUTTON_SIZE := 44.0
-const BTN_MARGIN_R := 20.0
-const BTN_MARGIN_B := 90.0   # 避开底部 HandPanel
-const BRACKET_LEN := 28.0
-const BRACKET_MARGIN := 20.0
-const SCAN_SPEED := 60.0     # px/s
+const BUTTON_SIZE: float = 44.0
+const BTN_MARGIN_R: float = 20.0
+const BTN_MARGIN_B: float = 90.0  # 避开底部 HandPanel
+const BRACKET_LEN: float = 28.0
+const BRACKET_MARGIN: float = 20.0
+const SCAN_SPEED: float = 60.0  # px/s
 
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
-var _visible_flag := false
-var _in_camera_mode := false
+var _visible_flag: bool = false
+var _in_camera_mode: bool = false
 
 # 按钮动画
-var _btn_scale := 0.0
-var _btn_alpha := 0.0
-var _icon_rot := 0.0         # 图标旋转角(度)
-var _hover_t := 0.0
-var _shake_x := 0.0
+var _btn_scale: float = 0.0
+var _btn_alpha: float = 0.0
+var _icon_rot: float = 0.0  # 图标旋转角(度)
+var _hover_t: float = 0.0
+var _shake_x: float = 0.0
 
 # 取景器
-var _viewfinder_alpha := 0.0
-var _scan_line_y := 0.0
-var _rec_blink_timer := 0.0
+var _viewfinder_alpha: float = 0.0
+var _scan_line_y: float = 0.0
+var _rec_blink_timer: float = 0.0
 
 # 内部计时
-var _time := 0.0
+var _time: float = 0.0
 
 # 缓存
-var _btn_center := Vector2.ZERO
+var _btn_center: Vector2 = Vector2.ZERO
 var _film_texture: Texture2D = null
-var _film_tex_loaded := false
+var _film_tex_loaded: bool = false
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -65,7 +65,7 @@ func show_button() -> void:
 	visible = true
 	_btn_scale = 0.3
 	_btn_alpha = 0.0
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "_btn_scale", 1.0, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "_btn_alpha", 1.0, 0.3)
@@ -78,7 +78,7 @@ func hide_button() -> void:
 		_viewfinder_alpha = 0.0
 		_icon_rot = 0.0
 	_visible_flag = false
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "_btn_scale", 0.3, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tw.tween_property(self, "_btn_alpha", 0.0, 0.2)
@@ -91,7 +91,7 @@ func enter_camera_mode() -> void:
 	_scan_line_y = 0.0
 	_rec_blink_timer = 0.0
 
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "_icon_rot", 15.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "_viewfinder_alpha", 1.0, 0.3)
@@ -102,16 +102,16 @@ func exit_camera_mode() -> void:
 		return
 	_in_camera_mode = false
 
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "_icon_rot", 0.0, 0.2)
 	tw.tween_property(self, "_viewfinder_alpha", 0.0, 0.25)
 	camera_mode_exited.emit()
 
 func shake_no_film() -> void:
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_method(func(p: float):
-		var decay := (1.0 - p) * (1.0 - p)
+		var decay: float = (1.0 - p) * (1.0 - p)
 		_shake_x = sin(p * PI * 7.0) * 6.0 * decay
 	, 0.0, 1.0, 0.4)
 	tw.tween_callback(func(): _shake_x = 0.0)
@@ -126,8 +126,8 @@ func _process(delta: float) -> void:
 	_time += delta
 
 	if _in_camera_mode:
-		var vp := get_viewport_rect().size
-		var area_h := vp.y - 80.0 - 14.0  # ResourceBar下方到底部
+		var vp: Vector2 = get_viewport_rect().size
+		var area_h: float = vp.y - 80.0 - 14.0  # ResourceBar下方到底部
 		_scan_line_y += SCAN_SPEED * delta
 		if _scan_line_y > area_h:
 			_scan_line_y = 0.0
@@ -143,14 +143,14 @@ func _gui_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion:
-		var inside := _hit_test_button(event.position)
-		var target := 1.0 if inside else 0.0
+		var inside: bool = _hit_test_button(event.position)
+		var target: float = 1.0 if inside else 0.0
 		# 直接设置，平滑在 _process 中处理也可
 		_hover_t = lerpf(_hover_t, target, 0.3)
 		return
 
 	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
+		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 			return
 
@@ -162,21 +162,21 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 
 func _hit_test_button(pos: Vector2) -> bool:
-	var vp := get_viewport_rect().size
-	var cx := vp.x - BTN_MARGIN_R - BUTTON_SIZE / 2.0
-	var cy := vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
-	var dx := pos.x - cx
-	var dy := pos.y - cy
-	var r := BUTTON_SIZE / 2.0 + 4.0
+	var vp: Vector2 = get_viewport_rect().size
+	var cx: float = vp.x - BTN_MARGIN_R - BUTTON_SIZE / 2.0
+	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
+	var dx: float = pos.x - cx
+	var dy: float = pos.y - cy
+	var r: float = BUTTON_SIZE / 2.0 + 4.0
 	return (dx * dx + dy * dy) <= r * r
 
 # ---------------------------------------------------------------------------
 # 渲染
 # ---------------------------------------------------------------------------
 func _draw() -> void:
-	var vp := get_viewport_rect().size
+	var vp: Vector2 = get_viewport_rect().size
 	var t = GameTheme
-	var font := ThemeDB.fallback_font
+	var font: Font = ThemeDB.fallback_font
 
 	# --- 取景框覆盖 ---
 	if _viewfinder_alpha > 0.01:
@@ -186,14 +186,14 @@ func _draw() -> void:
 	if not _visible_flag or _btn_alpha <= 0.01:
 		return
 
-	var cx := vp.x - BTN_MARGIN_R - BUTTON_SIZE / 2.0 + _shake_x
-	var cy := vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
-	var r := BUTTON_SIZE / 2.0
+	var cx: float = vp.x - BTN_MARGIN_R - BUTTON_SIZE / 2.0 + _shake_x
+	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
+	var r: float = BUTTON_SIZE / 2.0
 
 	# 按钮变换
-	var hover_scale := 1.0 + _hover_t * 0.1
-	var total_scale := _btn_scale * hover_scale
-	var xf := Transform2D()
+	var hover_scale: float = 1.0 + _hover_t * 0.1
+	var total_scale: float = _btn_scale * hover_scale
+	var xf: Transform2D = Transform2D()
 	xf = xf.translated(-Vector2(cx, cy))
 	xf = xf.scaled(Vector2(total_scale, total_scale))
 	xf = xf.translated(Vector2(cx, cy))
@@ -209,9 +209,9 @@ func _draw() -> void:
 
 	# 激活态脉冲光晕
 	if _in_camera_mode:
-		var glow_phase := 0.4 + 0.6 * absf(sin(_time * 2.5))
-		var glow_r := r + 4.0 + glow_phase * 3.0
-		var glow_color := Color(btn_color.r, btn_color.g, btn_color.b, glow_phase * 0.2)
+		var glow_phase: float = 0.4 + 0.6 * absf(sin(_time * 2.5))
+		var glow_r: float = r + 4.0 + glow_phase * 3.0
+		var glow_color: Color = Color(btn_color.r, btn_color.g, btn_color.b, glow_phase * 0.2)
 		draw_circle(Vector2(cx, cy), glow_r, glow_color)
 
 	# Hover 高光
@@ -219,11 +219,11 @@ func _draw() -> void:
 		draw_circle(Vector2(cx, cy), r, Color(1, 1, 1, _hover_t * 0.15))
 
 	# 边框
-	var border_alpha := 0.78 if _in_camera_mode else 0.59
+	var border_alpha: float = 0.78 if _in_camera_mode else 0.59
 	_draw_circle_outline(Vector2(cx, cy), r, Color(1, 1, 1, border_alpha + _hover_t * 0.2), 1.5)
 
 	# 图标 (📷) - 带旋转
-	var icon_xf := Transform2D()
+	var icon_xf: Transform2D = Transform2D()
 	icon_xf = icon_xf.translated(-Vector2(cx, cy))
 	icon_xf = icon_xf.rotated(deg_to_rad(_icon_rot))
 	icon_xf = icon_xf.scaled(Vector2(total_scale, total_scale))
@@ -236,12 +236,12 @@ func _draw() -> void:
 	draw_set_transform_matrix(xf)
 
 	# === 胶卷计数 (按钮左侧) ===
-	var film := GameData.get_resource("film")
-	var film_alpha := 0.86 if film <= 1 else 0.78
+	var film: int = GameData.get_resource("film")
+	var film_alpha: bool = 0.86 if film <= 1 else 0.78
 
 	# 胶卷数字
-	var num_text := str(film)
-	var num_x := cx - r - 8.0
+	var num_text: String = str(film)
+	var num_x: float = cx - r - 8.0
 	var num_color: Color
 	if film <= 1:
 		num_color = Color(0.86, 0.31, 0.31, film_alpha)
@@ -251,11 +251,11 @@ func _draw() -> void:
 		HORIZONTAL_ALIGNMENT_RIGHT, -1, 13, num_color)
 
 	# 胶卷图标 (纹理优先)
-	var icon_x := num_x - 18.0
+	var icon_x: float = num_x - 18.0
 	_ensure_film_texture()
 	if _film_texture:
-		var tex_size := 16.0
-		var tex_rect := Rect2(icon_x - tex_size / 2.0, cy - tex_size / 2.0, tex_size, tex_size)
+		var tex_size: float = 16.0
+		var tex_rect: Rect2 = Rect2(icon_x - tex_size / 2.0, cy - tex_size / 2.0, tex_size, tex_size)
 		draw_texture_rect(_film_texture, tex_rect, false, Color(1, 1, 1, film_alpha))
 	else:
 		draw_string(font, Vector2(icon_x, cy + 5), "🎞️",
@@ -272,30 +272,30 @@ func _ensure_film_texture() -> void:
 	_film_texture = ItemIcons.get_texture("film")
 
 func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
-	var alpha := _viewfinder_alpha
+	var alpha: float = _viewfinder_alpha
 
 	# 取景器区域
-	var area_top := 80.0
-	var area_bottom := vp.y - 14.0
+	var area_top: float = 80.0
+	var area_bottom: float = vp.y - 14.0
 
 	# 四角暗角
-	var vignette := Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, alpha * 0.2)
-	var corner_size := vp.x * 0.15
+	var vignette: Color = Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, alpha * 0.2)
+	var corner_size: float = vp.x * 0.15
 	draw_rect(Rect2(0, 0, corner_size, corner_size), vignette)
 	draw_rect(Rect2(vp.x - corner_size, 0, corner_size, corner_size), vignette)
 	draw_rect(Rect2(0, vp.y - corner_size, corner_size, corner_size), vignette)
 	draw_rect(Rect2(vp.x - corner_size, vp.y - corner_size, corner_size, corner_size), vignette)
 
 	# 四角 L 形标记
-	var bm := BRACKET_MARGIN - 6.0
-	var bl := BRACKET_LEN
-	var bracket_color := Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.7)
-	var bw := 2.5
+	var bm: float = BRACKET_MARGIN - 6.0
+	var bl: float = BRACKET_LEN
+	var bracket_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.7)
+	var bw: float = 2.5
 
-	var left := bm
-	var right_edge := vp.x - bm
-	var top := area_top + bm
-	var bottom := area_bottom - bm
+	var left: float = bm
+	var right_edge: float = vp.x - bm
+	var top: float = area_top + bm
+	var bottom: float = area_bottom - bm
 
 	# 左上
 	draw_rect(Rect2(left, top, bl, bw), bracket_color)
@@ -311,17 +311,17 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 	draw_rect(Rect2(right_edge - bw, bottom - bl, bw, bl), bracket_color)
 
 	# 扫描线
-	var scan_abs_y := area_top + _scan_line_y
+	var scan_abs_y: float = area_top + _scan_line_y
 	if scan_abs_y <= area_bottom:
-		var scan_color := Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.2)
+		var scan_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.2)
 		draw_line(Vector2(0, scan_abs_y), Vector2(vp.x, scan_abs_y), scan_color, 1.5)
 
 	# REC 指示灯
-	var rec_visible := sin(_rec_blink_timer * 3.0) > -0.3
+	var rec_visible: float = sin(_rec_blink_timer * 3.0) > -0.3
 	if rec_visible:
-		var rec_x := left + 8.0
-		var rec_y := top + bl + 12.0
-		var rec_color := Color(t.camera_rec.r, t.camera_rec.g, t.camera_rec.b, alpha)
+		var rec_x: float = left + 8.0
+		var rec_y: float = top + bl + 12.0
+		var rec_color: Color = Color(t.camera_rec.r, t.camera_rec.g, t.camera_rec.b, alpha)
 		draw_circle(Vector2(rec_x, rec_y), 4, rec_color)
 		# 光晕
 		draw_circle(Vector2(rec_x, rec_y), 7, Color(rec_color.r, rec_color.g, rec_color.b, alpha * 0.16))
@@ -334,10 +334,10 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 # 辅助
 # ---------------------------------------------------------------------------
 func _draw_circle_outline(center: Vector2, radius: float, color: Color, width: float) -> void:
-	var segments := 32
-	var prev := center + Vector2(radius, 0)
+	var segments: int = 32
+	var prev: float = center + Vector2(radius, 0)
 	for i in range(1, segments + 1):
-		var angle := TAU * i / segments
-		var next := center + Vector2(cos(angle) * radius, sin(angle) * radius)
+		var angle: float = TAU * i / segments
+		var next: float = center + Vector2(cos(angle) * radius, sin(angle) * radius)
 		draw_line(prev, next, color, width)
 		prev = next

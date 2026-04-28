@@ -10,7 +10,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 
 ## 同格偏移 (Token 左移, NPC 右移)
-const SHARE_OFFSET := 18.0  # 像素
+const SHARE_OFFSET: float = 18.0  # 像素
 
 # ---------------------------------------------------------------------------
 # NPC 数据
@@ -45,7 +45,7 @@ func spawn_npc(id: String, npc_name: String, row: int, col: int,
 	if npcs.has(id):
 		remove_npc(id)
 
-	var npc := NPCData.new()
+	var npc: NPCData = NPCData.new()
 	npc.id = id
 	npc.npc_name = npc_name
 	npc.row = row
