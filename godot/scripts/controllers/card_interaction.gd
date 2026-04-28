@@ -429,13 +429,16 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 
 			# -----------------------------------------------------------
 			# 非危险格: 显示踪迹箭头 + 侦察预览弹窗
+			# (先计算踪迹方向, 等 0.4s 后再显示幽灵 + 弹窗, 匹配 Lua 时序)
 			# -----------------------------------------------------------
-			if MonsterGhost.calculate_trail(card, m.board):
-				m.board_visual.mg_show_trail_on_card(
-					row, col, card.trail_dir_x, card.trail_dir_y)
+			var has_trail: bool = MonsterGhost.calculate_trail(card, m.board)
 
 			GameData.set_demo_state("popup")
 			await m.get_tree().create_timer(0.4).timeout
+
+			if has_trail:
+				m.board_visual.mg_show_trail_on_card(
+					row, col, card.trail_dir_x, card.trail_dir_y)
 			m._event_popup.show_photo(card)
 		)
 	else:

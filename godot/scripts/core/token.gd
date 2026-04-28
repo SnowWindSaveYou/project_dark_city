@@ -138,8 +138,9 @@ func apply_pending_emotion() -> void:
 
 ## 弹跳 (拍照/驱魔时的小跳)
 func hop(height: float = 0.05) -> void:
-	# height 参数是归一化值，乘以基准高度得到像素偏移
-	var px_height: float = height * 200.0  # 0.05 → 10px, 0.06 → 12px
+	# height 直接对应世界米数 (Lua: bounceY = height)
+	# 转为像素: px = meters / TOKEN_PX_TO_WORLD(0.00065)
+	var px_height: float = height / 0.00065  # 0.05m → 76.9px
 	bounce_y = -px_height
 
 # ---------------------------------------------------------------------------
@@ -150,7 +151,7 @@ func hop(height: float = 0.05) -> void:
 func get_breathe_offset(game_time: float) -> Dictionary:
 	if is_moving:
 		return { "y": 0.0, "scale": 1.0 }
-	var breathe_y: float = sin(game_time * 2.5) * 1.5
+	var breathe_y: float = sin(game_time * 2.5) * 12.3  # Lua: 0.008m → 0.008/0.00065≈12.3px
 	var breathe_scale: float = 1.0 + sin(game_time * 2.5) * 0.02
 	return { "y": breathe_y, "scale": breathe_scale }
 

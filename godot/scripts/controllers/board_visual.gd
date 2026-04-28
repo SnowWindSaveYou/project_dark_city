@@ -393,10 +393,12 @@ func update_token_visual() -> void:
 		m._token_shadow.visible = true
 		m._token_shadow.position = Vector3(world_pos.x, TOKEN_SHADOW_Y, world_pos.z)
 		var bounce_world: float = abs(token.bounce_y * TOKEN_PX_TO_WORLD)
-		var shadow_scale: float = maxf(0.6, 1.0 - bounce_world * 4.5)
+		var shadow_scale: float = maxf(0.6, 1.0 - bounce_world * 1.5)  # Lua: 1.0 - bounceY * 1.5
+		var shadow_alpha: float = maxf(0.1, 0.3 - bounce_world * 0.8)  # Lua: 0.3 - bounceY * 0.8
 		m._token_shadow.scale = Vector3(
 			TOKEN_SHADOW_W * shadow_scale, 0.001,
 			TOKEN_SHADOW_Z * shadow_scale)
+		m._token_shadow.modulate.a = shadow_alpha
 
 # ---------------------------------------------------------------------------
 # 发牌动画
