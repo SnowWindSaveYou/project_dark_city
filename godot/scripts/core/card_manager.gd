@@ -4,39 +4,8 @@ class_name CardManager
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 日程模板  reward: [资源key, 变化量]
+# 数据表从 CardConfig autoload 读取 (schedule_templates, rumor_*_texts)
 # ---------------------------------------------------------------------------
-const SCHEDULE_TEMPLATES: Dictionary = {
-	# 普通地点
-	"company":     { "verb": "去公司上班",     "reward": ["money", 10] },
-	"school":      { "verb": "去学校上课",     "reward": ["money",  8] },
-	"park":        { "verb": "去公园散步",     "reward": ["san",    1] },
-	"alley":       { "verb": "穿过小巷",       "reward": ["money",  8] },
-	"station":     { "verb": "去车站接人",     "reward": ["money",  6] },
-	"hospital":    { "verb": "去医院看病",     "reward": ["san",    1] },
-	"library":     { "verb": "去图书馆学习",   "reward": ["order",  1] },
-	"bank":        { "verb": "去银行办事",     "reward": ["money", 12] },
-	# 商店地点
-	"convenience": { "verb": "去便利店购物",   "reward": ["money",  5] },
-	# 地标地点
-	"church":      { "verb": "去教堂祈祷",     "reward": ["san",    1] },
-	"police":      { "verb": "去警察局报案",   "reward": ["order",  1] },
-	"shrine":      { "verb": "去神社参拜",     "reward": ["san",    1] },
-}
-
-# ---------------------------------------------------------------------------
-# 传闻模板
-# ---------------------------------------------------------------------------
-const RUMOR_SAFE_TEXTS: Array = [
-	"今天%s很平静",
-	"%s附近没有异常",
-	"听说%s今天很安全",
-]
-const RUMOR_DANGER_TEXTS: Array = [
-	"%s有脏东西",
-	"别去%s，有危险",
-	"听说%s闹鬼了",
-]
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -83,9 +52,9 @@ func generate_daily(_board: Board) -> void:
 	for loc in _pre_selected:
 		if schedules.size() >= max_schedules:
 			break
-		if not used_locations.has(loc) and SCHEDULE_TEMPLATES.has(loc):
-			var tmpl: Dictionary = SCHEDULE_TEMPLATES[loc]
-			var loc_info: Dictionary = Card.LOCATION_INFO.get(loc, {})
+		if not used_locations.has(loc) and CardConfig.schedule_templates.has(loc):
+			var tmpl: Dictionary = CardConfig.schedule_templates[loc]
+			var loc_info: Dictionary = CardConfig.location_info.get(loc, {})
 			schedules.append({
 				"location": loc,
 				"verb": tmpl["verb"],
@@ -109,7 +78,7 @@ func pre_select_locations() -> Array:
 		exclude_set[lm_loc] = true
 
 	var all_locs: Array = []
-	for loc in SCHEDULE_TEMPLATES.keys():
+	for loc in CardConfig.schedule_templates.keys():
 		if not exclude_set.has(loc):
 			all_locs.append(loc)
 	all_locs.shuffle()
@@ -182,7 +151,7 @@ func generate_rumor_from_board(board: Board) -> void:
 		var is_safe: bool = card.type in ["safe", "reward", "plot", "clue", "landmark"]
 		var loc_info: Dictionary = card.get_location_info()
 		var label: String = loc_info.get("label", "未知")
-		var templates: Array = RUMOR_SAFE_TEXTS if is_safe else RUMOR_DANGER_TEXTS
+		var templates: Array = CardConfig.rumor_safe_texts if is_safe else CardConfig.rumor_danger_texts
 		var text: String = templates[randi() % templates.size()] % label
 		rumors.append({
 			"location": card.location,
@@ -214,7 +183,7 @@ func add_rumor_from_board(board: Board) -> bool:
 	var is_safe: bool = pick.type in ["safe", "reward", "plot", "clue", "landmark"]
 	var loc_info: Dictionary = pick.get_location_info()
 	var label: String = loc_info.get("label", "未知")
-	var templates: Array = RUMOR_SAFE_TEXTS if is_safe else RUMOR_DANGER_TEXTS
+	var templates: Array = CardConfig.rumor_safe_texts if is_safe else CardConfig.rumor_danger_texts
 	var text: String = templates[randi() % templates.size()] % label
 	rumors.append({
 		"location": pick.location,

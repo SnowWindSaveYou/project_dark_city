@@ -130,44 +130,12 @@ const FONT_SIZE_CARD_ICON: int = 28
 const FONT_SIZE_CARD_LABEL: int = 11
 
 # ---------------------------------------------------------------------------
-# 卡牌类型信息 (现实世界)
-# ---------------------------------------------------------------------------
-const CARD_TYPES: Dictionary = {
-	"safe":     { "icon": "✨", "label": "安全",  "color_key": "safe" },
-	"home":     { "icon": "🏠", "label": "家",    "color_key": "safe" },
-	"landmark": { "icon": "🏛️", "label": "地标",  "color_key": "highlight" },
-	"shop":     { "icon": "🛒", "label": "商店",  "color_key": "info" },
-	"monster":  { "icon": "👻", "label": "怪物",  "color_key": "danger" },
-	"trap":     { "icon": "⚡", "label": "陷阱",  "color_key": "warning" },
-	"reward":   { "icon": "💎", "label": "奖励",  "color_key": "highlight" },
-	"plot":     { "icon": "📖", "label": "剧情",  "color_key": "plot" },
-	"clue":     { "icon": "🔍", "label": "线索",  "color_key": "info" },
-	"photo":    { "icon": "📸", "label": "相片",  "color_key": "safe" },
-	"rift":     { "icon": "🌀", "label": "裂隙",  "color_key": "dark_accent" },
-}
-
-# ---------------------------------------------------------------------------
-# 暗面世界卡牌类型信息
-# ---------------------------------------------------------------------------
-const DARK_CARD_TYPES: Dictionary = {
-	"normal":     { "icon": "🌑", "label": "暗巷",    "color_key": "dark_accent" },
-	"shop":       { "icon": "🏪", "label": "暗市",    "color_key": "info" },
-	"intel":      { "icon": "👁️", "label": "情报点",  "color_key": "plot" },
-	"checkpoint": { "icon": "🚧", "label": "关卡",    "color_key": "warning" },
-	"clue":       { "icon": "🔮", "label": "线索",    "color_key": "dark_glow" },
-	"item":       { "icon": "📦", "label": "道具",    "color_key": "highlight" },
-	"passage":    { "icon": "🕳️", "label": "通道",    "color_key": "dark_passage" },
-	"abyss_core": { "icon": "💀", "label": "深渊核心", "color_key": "dark_abyss" },
-	"rift":       { "icon": "🌀", "label": "裂隙",    "color_key": "dark_accent" },
-}
-
-# ---------------------------------------------------------------------------
-# 查询接口
+# 查询接口 (数据从 CardConfig 读取)
 # ---------------------------------------------------------------------------
 
 ## 获取卡牌类型信息 (现实)
 func card_type_info(type_key: String) -> Dictionary:
-	return CARD_TYPES.get(type_key, { "icon": "❓", "label": "未知", "color_key": "accent" })
+	return CardConfig.card_types.get(type_key, { "icon": "❓", "label": "未知", "color_key": "accent" })
 
 ## 获取卡牌类型对应颜色 (现实)
 func card_type_color(type_key: String) -> Color:
@@ -176,7 +144,7 @@ func card_type_color(type_key: String) -> Color:
 
 ## 获取暗面世界卡牌类型信息
 func dark_card_type_info(dark_type: String) -> Dictionary:
-	return DARK_CARD_TYPES.get(dark_type, { "icon": "❓", "label": "未知", "color_key": "dark_accent" })
+	return CardConfig.dark_card_types.get(dark_type, { "icon": "❓", "label": "未知", "color_key": "dark_accent" })
 
 ## 获取暗面世界卡牌类型对应颜色
 func dark_card_type_color(dark_type: String) -> Color:

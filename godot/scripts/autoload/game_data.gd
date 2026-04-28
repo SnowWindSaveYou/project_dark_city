@@ -10,27 +10,12 @@ signal game_phase_changed(old_phase: String, new_phase: String)
 signal demo_state_changed(old_state: String, new_state: String)
 
 # ---------------------------------------------------------------------------
-# 常量
+# 数据表从 game_config.json 读取
 # ---------------------------------------------------------------------------
-const MAX_DAYS: int = 3
-const INITIAL_RESOURCES: Dictionary = {
-	"san": 10,
-	"order": 10,
-	"money": 50,
-	"film": 3,
-}
-const RESOURCE_MAX: Dictionary = {
-	"san": 10,
-	"order": 10,
-	"money": -1,   # 无上限
-	"film": -1,    # 无上限
-}
-const RESOURCE_ICONS: Dictionary = {
-	"san": "🧠",
-	"order": "⚖️",
-	"money": "💰",
-	"film": "📷",
-}
+var MAX_DAYS: int = 3
+var INITIAL_RESOURCES: Dictionary = {}
+var RESOURCE_MAX: Dictionary = {}
+var RESOURCE_ICONS: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -56,7 +41,33 @@ var inventory: Dictionary = {}
 # 初始化
 # ---------------------------------------------------------------------------
 func _ready() -> void:
+	_load_game_config()
 	reset()
+
+func _load_game_config() -> void:
+	var file := FileAccess.open("res://data/game_config.json", FileAccess.READ)
+	if file == null:
+		push_warning("[GameData] game_config.json not found, using defaults")
+		INITIAL_RESOURCES = { "san": 10, "order": 10, "money": 50, "film": 3 }
+		RESOURCE_MAX = { "san": 10, "order": 10, "money": -1, "film": -1 }
+		RESOURCE_ICONS = { "san": "🧠", "order": "⚖️", "money": "💰", "film": "📷" }
+		return
+	var json := JSON.new()
+	var err := json.parse(file.get_as_text())
+	if err != OK:
+		push_warning("[GameData] Failed to parse game_config.json: %s" % json.get_error_message())
+		return
+	var data: Dictionary = json.data
+	MAX_DAYS = int(data.get("max_days", 3))
+	# int conversion for resource dicts
+	var raw_init: Dictionary = data.get("initial_resources", {})
+	for k in raw_init:
+		INITIAL_RESOURCES[k] = int(raw_init[k])
+	var raw_max: Dictionary = data.get("resource_max", {})
+	for k in raw_max:
+		RESOURCE_MAX[k] = int(raw_max[k])
+	RESOURCE_ICONS = data.get("resource_icons", {})
+	print("[GameData] Loaded game_config.json: max_days=%d, resources=%s" % [MAX_DAYS, str(INITIAL_RESOURCES)])
 
 func reset() -> void:
 	resources = INITIAL_RESOURCES.duplicate()

@@ -11,6 +11,7 @@ config/features=PackedStringArray("4.3", "GL Compatibility")
 
 [autoload]
 
+CardConfig="*res://scripts/autoload/card_config.gd"
 GameTheme="*res://scripts/autoload/theme.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 

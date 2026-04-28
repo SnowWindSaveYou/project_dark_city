@@ -206,12 +206,12 @@ static func random_trap_subtype() -> String:
 ## 加权随机事件
 func _weighted_random_event() -> String:
 	var total: int = 0
-	for w in Card.EVENT_WEIGHTS.values():
+	for w in CardConfig.event_weights.values():
 		total += w
 	var roll: int = randi() % total
 	var cumulative: int = 0
-	for evt_type in Card.EVENT_WEIGHTS:
-		cumulative += Card.EVENT_WEIGHTS[evt_type]
+	for evt_type in CardConfig.event_weights:
+		cumulative += CardConfig.event_weights[evt_type]
 		if roll < cumulative:
 			return evt_type
 	return "safe"

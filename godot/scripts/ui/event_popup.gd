@@ -336,14 +336,14 @@ func show_toast(card_type: String, applied_effects: Dictionary = {},
 	# 暗面世界标题
 	var display_title: String = tmpl["title"]
 	if location != "":
-		var dark_info: Dictionary = Card.DARKSIDE_INFO.get(location, {}).get(card_type, {})
+		var dark_info: Dictionary = CardConfig.darkside_info.get(location, {}).get(card_type, {})
 		if dark_info.has("label"):
 			display_title = dark_info["label"]
 
 	# 陷阱子类型图标
 	var display_icon: String = GameTheme.card_type_info(card_type).get("icon", "❓")
 	if card_type == "trap" and trap_subtype != "":
-		var sub_info: Dictionary = Card.TRAP_SUBTYPE_INFO.get(trap_subtype, {})
+		var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
 		if sub_info.has("icon"):
 			display_icon = sub_info["icon"]
 
@@ -539,13 +539,13 @@ func _update_toasts(delta: float) -> void:
 func _pick_template(card_type: String, trap_subtype: String = "") -> Dictionary:
 	# 陷阱子类型使用专属文案池
 	if card_type == "trap" and trap_subtype != "":
-		var sub_texts: Array = Card.TRAP_SUBTYPE_TEXTS.get(trap_subtype, [])
+		var sub_texts: Array = CardConfig.trap_subtype_texts.get(trap_subtype, [])
 		if sub_texts.size() > 0:
 			var text: String = sub_texts[randi() % sub_texts.size()]
-			var sub_info: Dictionary = Card.TRAP_SUBTYPE_INFO.get(trap_subtype, {})
+			var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
 			return { "title": sub_info.get("label", "陷阱"), "desc": text }
 
-	var texts: Array = Card.EVENT_TEXTS.get(card_type, ["发生了一些事情..."])
+	var texts: Array = CardConfig.event_texts.get(card_type, ["发生了一些事情..."])
 	var type_info: Dictionary = GameTheme.card_type_info(card_type)
 	return { "title": type_info.get("label", "未知"), "desc": texts[randi() % texts.size()] }
 
@@ -736,7 +736,7 @@ func _draw_photo() -> void:
 	if _button_t > 0.01:
 		var bottom_y: float = img_y + img_h + 6.0
 		# 地点名
-		var loc_info: Dictionary = Card.LOCATION_INFO.get(_photo_location, {})
+		var loc_info: Dictionary = CardConfig.location_info.get(_photo_location, {})
 		var loc_label: String = loc_info.get("icon", "") + " " + loc_info.get("label", "")
 		var loc_color: Color = Color(0.314, 0.294, 0.255, _panel_alpha * _button_t * 0.78)
 		draw_string(font, Vector2(photo_x + PHOTO_BORDER + 2, bottom_y + 14),

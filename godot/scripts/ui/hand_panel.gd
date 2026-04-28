@@ -356,7 +356,7 @@ func _update_hover(lx: float, ly: float) -> void:
 
 func _get_consumable_entries() -> Array:
 	var result: Array = []
-	for key in ShopData.CONSUMABLE_ORDER:
+	for key in CardConfig.consumable_order:
 		var count: int = GameData.get_item_count(key)
 		if count > 0:
 			result.append({

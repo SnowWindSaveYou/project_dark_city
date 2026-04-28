@@ -1,0 +1,24 @@
+{
+	"max_days": 3,
+
+	"initial_resources": {
+		"san": 10,
+		"order": 10,
+		"money": 50,
+		"film": 3
+	},
+
+	"resource_max": {
+		"san": 10,
+		"order": 10,
+		"money": -1,
+		"film": -1
+	},
+
+	"resource_icons": {
+		"san": "\ud83e\udde0",
+		"order": "\u2696\ufe0f",
+		"money": "\ud83d\udcb0",
+		"film": "\ud83d\udcf7"
+	}
+}

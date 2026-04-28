@@ -259,7 +259,7 @@ func _update_hover(pos: Vector2) -> void:
 
 	# 刷新按钮
 	if _refresh_t > 0.5:
-		var can_afford: bool = GameData.get_resource("money") >= ShopData.REFRESH_COST
+		var can_afford: bool = GameData.get_resource("money") >= CardConfig.shop_refresh_cost
 		if can_afford:
 			var refresh_rect: Rect2 = _get_refresh_button_rect()
 			if refresh_rect.has_point(pos):
@@ -309,10 +309,10 @@ func _shake_card(index: int) -> void:
 func _do_refresh() -> void:
 	if _refresh_phase != "idle":
 		return
-	if GameData.get_resource("money") < ShopData.REFRESH_COST:
+	if GameData.get_resource("money") < CardConfig.shop_refresh_cost:
 		return
 
-	GameData.modify_resource("money", -ShopData.REFRESH_COST)
+	GameData.modify_resource("money", -CardConfig.shop_refresh_cost)
 	_refresh_phase = "exit"
 
 	# 旧卡牌旋转飞出
@@ -635,7 +635,7 @@ func _draw_buttons() -> void:
 	var t = GameTheme
 	var font: Font = ThemeDB.fallback_font
 	var money: int = GameData.get_resource("money")
-	var can_refresh: bool = money >= ShopData.REFRESH_COST and _refresh_phase == "idle"
+	var can_refresh: bool = money >= CardConfig.shop_refresh_cost and _refresh_phase == "idle"
 
 	# ── 刷新按钮 ──
 	if _refresh_t > 0.01:
@@ -666,7 +666,7 @@ func _draw_buttons() -> void:
 
 		var text_a: float = 0.92 if can_refresh else 0.4
 		draw_string(font, Vector2(btn_cx, btn_cy + 5),
-			"🔄 刷新 💰" + str(ShopData.REFRESH_COST),
+			"🔄 刷新 💰" + str(CardConfig.shop_refresh_cost),
 			HORIZONTAL_ALIGNMENT_CENTER, -1, 12,
 			Color(1, 1, 1, text_a * _refresh_t * _panel_alpha))
 
