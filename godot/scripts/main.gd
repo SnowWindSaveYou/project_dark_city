@@ -16,6 +16,26 @@ const BG_BRIGHT: Color = Color(0.53, 0.76, 0.92)
 const BG_DARK: Color = Color(0.15, 0.12, 0.18)
 const TOKEN_CLICK_RADIUS: float = 32.0
 
+# 氛围参数 (明亮 → 暗黑, 由 _bg_transition 0→1 插值)
+const ATMO_BRIGHT: Dictionary = {
+	"light_energy": 2.8,
+	"ambient_color": Color(0.4, 0.45, 0.5),
+	"ambient_energy": 0.6,
+	"fog_enabled": false,
+	"fog_density": 0.0,
+	"fog_color": Color(0.5, 0.6, 0.7),
+	"table_color": Color(0.25, 0.22, 0.20),
+}
+const ATMO_DARK: Dictionary = {
+	"light_energy": 0.6,
+	"ambient_color": Color(0.15, 0.1, 0.25),
+	"ambient_energy": 0.25,
+	"fog_enabled": true,
+	"fog_density": 0.04,
+	"fog_color": Color(0.08, 0.06, 0.12),
+	"table_color": Color(0.12, 0.10, 0.14),
+}
+
 # ---------------------------------------------------------------------------
 # 核心数据 (控制器通过 m.xxx 访问)
 # ---------------------------------------------------------------------------
@@ -70,6 +90,7 @@ var _dir_light: DirectionalLight3D = null
 var _world_env: WorldEnvironment = null
 var _env: Environment = null
 var _table_mesh: MeshInstance3D = null
+var _table_mat: StandardMaterial3D = null
 
 # ---------------------------------------------------------------------------
 # 兼容方法 (Node3D 没有 CanvasItem.get_viewport_rect)
@@ -237,7 +258,7 @@ func _setup_3d_scene() -> void:
 	_dir_light = DirectionalLight3D.new()
 	_dir_light.name = "SunLight"
 	_dir_light.rotation_degrees = Vector3(-50, -30, 0)
-	_dir_light.light_energy = 2.8
+	_dir_light.light_energy = ATMO_BRIGHT["light_energy"]
 	_dir_light.shadow_enabled = true
 	add_child(_dir_light)
 
@@ -246,10 +267,10 @@ func _setup_3d_scene() -> void:
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = BG_BRIGHT
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_color = Color(0.4, 0.45, 0.5)
-	_env.ambient_light_energy = 0.6
+	_env.ambient_light_color = ATMO_BRIGHT["ambient_color"]
+	_env.ambient_light_energy = ATMO_BRIGHT["ambient_energy"]
 	_env.tonemap_mode = Environment.TONE_MAP_ACES
-	_env.fog_enabled = false  # Phase 4 开启
+	_env.fog_enabled = false  # 由 _apply_atmosphere() 动态控制
 
 	_world_env = WorldEnvironment.new()
 	_world_env.name = "WorldEnv"
@@ -272,11 +293,11 @@ func _setup_table() -> void:
 	box.size = table_size
 	_table_mesh.mesh = box
 
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.25, 0.22, 0.20)  # 深木色桌面
-	mat.roughness = 0.85
-	mat.metallic = 0.0
-	_table_mesh.material_override = mat
+	_table_mat = StandardMaterial3D.new()
+	_table_mat.albedo_color = ATMO_BRIGHT["table_color"]
+	_table_mat.roughness = 0.85
+	_table_mat.metallic = 0.0
+	_table_mesh.material_override = _table_mat
 
 	# 桌面位于卡牌下方
 	_table_mesh.position = Vector3(0, -0.03, 0)
@@ -491,10 +512,39 @@ func _process(dt: float) -> void:
 	# 气泡对话
 	_update_bubble_tweens(dt)
 
-	# 背景色过渡 (通过 Environment 背景色实现)
-	var bg_color: Color = BG_BRIGHT.lerp(BG_DARK, _bg_transition)
-	if _env:
-		_env.background_color = bg_color
+	# 3D 氛围过渡 (背景色 + 灯光 + 环境光 + 雾)
+	_apply_atmosphere(_bg_transition)
+
+# ---------------------------------------------------------------------------
+# 3D 氛围过渡
+# ---------------------------------------------------------------------------
+
+## 根据过渡因子 t (0=明亮, 1=暗黑) 更新所有 3D 环境参数
+func _apply_atmosphere(t: float) -> void:
+	if not _env:
+		return
+	# 背景色
+	_env.background_color = BG_BRIGHT.lerp(BG_DARK, t)
+	# 主光源
+	if _dir_light:
+		_dir_light.light_energy = lerpf(
+			ATMO_BRIGHT["light_energy"], ATMO_DARK["light_energy"], t)
+	# 环境光
+	_env.ambient_light_color = ATMO_BRIGHT["ambient_color"].lerp(
+		ATMO_DARK["ambient_color"], t)
+	_env.ambient_light_energy = lerpf(
+		ATMO_BRIGHT["ambient_energy"], ATMO_DARK["ambient_energy"], t)
+	# 雾效 (超过阈值才启用, 避免低值时多余开销)
+	var fog_t: float = clampf((t - 0.3) / 0.7, 0.0, 1.0)  # 30% 后才开始出雾
+	_env.fog_enabled = fog_t > 0.01
+	if _env.fog_enabled:
+		_env.fog_density = lerpf(0.0, ATMO_DARK["fog_density"], fog_t)
+		_env.fog_light_color = ATMO_BRIGHT["fog_color"].lerp(
+			ATMO_DARK["fog_color"], fog_t)
+	# 桌面颜色
+	if _table_mat:
+		_table_mat.albedo_color = ATMO_BRIGHT["table_color"].lerp(
+			ATMO_DARK["table_color"], t)
 
 # ---------------------------------------------------------------------------
 # 对话系统 tween 管理
