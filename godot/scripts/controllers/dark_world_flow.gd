@@ -180,6 +180,20 @@ func handle_dark_card_click(row: int, col: int) -> void:
 	var target_r0: int = row - 1
 	var target_c0: int = col - 1
 
+	# 点击当前格: NPC 对话 (与明面琴馨一致 — 点击触发)
+	var is_current: bool = (target_r0 == player_row and target_c0 == player_col)
+	if is_current:
+		var npc_data: Dictionary = m.dark_world.get_npc_at(target_r0, target_c0)
+		if not npc_data.is_empty() and m._dialogue_system:
+			m.dark_world.dark_state = "popup"
+			m.token.set_emotion("surprised")
+			m._dialogue_system.start(
+				npc_data["dialogue"],
+				npc_data.get("tex", ""),
+				func(): m.dark_world.set_ready()
+			)
+		return
+
 	# 检查是否可移动
 	var move_result: Dictionary = m.dark_world.try_move(target_r0, target_c0)
 	if not move_result["can_move"]:
@@ -253,15 +267,12 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 			m.dark_world.set_ready()
 
 		"npc_dialogue":
-			var data: Dictionary = effect["data"]
+			# 不自动触发对话 — 玩家需要再次点击当前格 (与明面琴馨一致)
+			var npc_name: String = effect["data"].get("npc_name", "NPC")
 			m.token.set_emotion("surprised")
-			# 触发对话系统
-			if m._dialogue_system:
-				m._dialogue_system.start(
-					data["dialogue"],
-					data.get("tex", ""),
-					func(): m.dark_world.set_ready()
-				)
+			m._vfx.action_banner("💬 点击与 %s 对话" % npc_name,
+				Color(0.6, 0.8, 0.9), 0.8)
+			m.dark_world.set_ready()
 
 		"shop":
 			m.token.set_emotion("confused")

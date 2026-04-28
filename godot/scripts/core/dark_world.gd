@@ -492,6 +492,19 @@ func on_change_layer_complete() -> void:
 # ---------------------------------------------------------------------------
 
 ## 处理踩上暗面卡牌的效果
+## 查询指定位置是否有 NPC (0-based 坐标)
+## 返回 NPC 数据 dict 或空 dict
+func get_npc_at(row0: int, col0: int) -> Dictionary:
+	var layer: LayerData = layers[current_layer]
+	for npc in layer.npcs:
+		if npc.row == row0 and npc.col == col0 and not npc.dialogue.is_empty():
+			return {
+				"dialogue": npc.dialogue,
+				"tex": npc.tex_path,
+				"npc_name": npc.npc_name,
+			}
+	return {}
+
 ## 返回 { "type": String, "data": Variant } 供 main.gd 执行 VFX / 弹窗
 ## type: "none" | "npc_dialogue" | "shop" | "intel" | "checkpoint" |
 ##       "clue" | "item" | "passage" | "abyss_core"
@@ -500,10 +513,10 @@ func handle_card_effect(card: Card, row: int, col: int,
 	var layer: LayerData = layers[current_layer]
 	var key: String = "%d,%d" % [row, col]
 
-	# NPC 对话检测
+	# NPC 检测 (npc.row/col 是 0-based, row/col 参数是 1-based)
+	# 不自动触发对话 — 返回 npc_dialogue 让流程知道有 NPC, 但不设 popup
 	for npc in layer.npcs:
-		if npc.row == row and npc.col == col and not npc.dialogue.is_empty():
-			dark_state = "popup"
+		if npc.row == row - 1 and npc.col == col - 1 and not npc.dialogue.is_empty():
 			return {
 				"type": "npc_dialogue",
 				"data": {
