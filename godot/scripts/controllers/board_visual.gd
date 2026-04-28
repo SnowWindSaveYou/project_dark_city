@@ -237,9 +237,10 @@ func update_card_visual(row: int, col: int) -> void:
 				var type_label: String = type_info.get("label", "")
 				label.text = icon + "\n" + type_label
 				label.modulate = Color(1, 1, 1, 0.9)
-			# 地标 / 家: 挂载粒子光晕
+			# 地标 / 家: 挂载粒子光晕 (尊重 safe_glow_active 开关)
 			if card.type == "landmark" or card.type == "home":
 				_attach_glow_particles(card_node, card.type)
+				_set_glow_visible(card_node, card.safe_glow_active)
 			else:
 				_remove_glow_particles(card_node)
 	else:
@@ -1342,7 +1343,7 @@ func _attach_glow_particles(card_node: MeshInstance3D, card_type: String) -> voi
 
 	var particles: GPUParticles3D = GPUParticles3D.new()
 	particles.name = "GlowParticles"
-	particles.emitting = true
+	particles.emitting = false  # 默认关闭, 由 show_safe_glows() 显式激活
 	particles.amount = 12
 	particles.lifetime = 1.8
 	particles.explosiveness = 0.0
@@ -1403,7 +1404,7 @@ func _attach_glow_particles(card_node: MeshInstance3D, card_type: String) -> voi
 	light.name = "GlowLight"
 	light.position = Vector3(0, 0.15, 0)
 	light.omni_range = 0.6
-	light.light_energy = 0.4
+	light.light_energy = 0.0  # 默认关闭, 由 show_safe_glows() 显式激活
 	if card_type == "landmark":
 		light.light_color = Color(1.0, 0.85, 0.4)
 	else:
@@ -1420,6 +1421,41 @@ func _remove_glow_particles(card_node: MeshInstance3D) -> void:
 	var light: Node = card_node.get_node_or_null("GlowLight")
 	if light:
 		light.queue_free()
+
+## 设置单张卡牌光晕可见性
+func _set_glow_visible(card_node: MeshInstance3D, visible: bool) -> void:
+	var particles: GPUParticles3D = card_node.get_node_or_null("GlowParticles") as GPUParticles3D
+	if particles:
+		particles.emitting = visible
+	var light: OmniLight3D = card_node.get_node_or_null("GlowLight") as OmniLight3D
+	if light:
+		light.light_energy = 0.4 if visible else 0.0
+
+## 显式激活所有 home/landmark 卡牌的安全区光晕 (发牌完成后调用)
+func show_safe_glows() -> void:
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card == null:
+				continue
+			if not card.should_have_glow():
+				continue
+			card.show_safe_glow()
+			var card_node: MeshInstance3D = get_card_node(r, c)
+			if card_node:
+				_set_glow_visible(card_node, true)
+
+## 显式关闭所有卡牌的安全区光晕
+func hide_safe_glows() -> void:
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card == null:
+				continue
+			card.hide_safe_glow()
+			var card_node: MeshInstance3D = get_card_node(r, c)
+			if card_node:
+				_set_glow_visible(card_node, false)
 
 ## 创建粒子用的微型四边形 Mesh
 func _make_particle_quad_mesh(size: float) -> QuadMesh:

@@ -44,6 +44,8 @@ func start_deal() -> void:
 func _on_deal_complete() -> void:
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
+	# 安全区光晕: 发牌完成后显式激活 (匹配 Lua showSafeGlow 逻辑)
+	m.board_visual.show_safe_glows()
 
 	# Token 出现在 "家"
 	var home_row: int = m.board.home_row
@@ -132,6 +134,8 @@ func advance_day() -> void:
 		_trigger_victory()
 		return
 
+	# 收牌前关闭安全区光晕
+	m.board_visual.hide_safe_glows()
 	# 收牌动画 → 日期过渡
 	m.board_visual.play_undeal_animation(func() -> void:
 		m._date_transition.play(m.day_count)
