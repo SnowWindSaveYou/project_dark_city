@@ -639,6 +639,22 @@ func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 	tw.tween_property(card_node, "scale", Vector3.ONE, 0.1)
 	tw.tween_callback(on_complete)
 
+## 播放无效操作震动动画 (0.35s, 6Hz 衰减正弦)
+func play_shake_animation(row: int, col: int) -> void:
+	var card_node: MeshInstance3D = get_card_node(row, col)
+	if not card_node:
+		return
+	var base_x: float = card_node.position.x
+	var tw: Tween = m.create_tween()
+	tw.tween_method(func(t: float) -> void:
+		var decay: float = (1.0 - t) * (1.0 - t)  # (1-t)² 衰减
+		var offset: float = sin(t * PI * 6.0) * 0.04 * decay
+		card_node.position.x = base_x + offset
+	, 0.0, 1.0, 0.35).set_ease(Tween.EASE_LINEAR).set_trans(Tween.TRANS_LINEAR)
+	tw.tween_callback(func() -> void:
+		card_node.position.x = base_x
+	)
+
 ## 播放翻回动画 (拍照侦察后, 同步原版 Card.flipBack)
 func play_flip_back_animation(row: int, col: int) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)

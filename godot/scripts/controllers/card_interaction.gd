@@ -44,6 +44,7 @@ func handle_card_click(row: int, col: int) -> void:
 
 	# 检查相邻
 	if not m.board.is_adjacent(m.token.target_row, m.token.target_col, row, col):
+		m.board_visual.play_shake_animation(row, col)
 		m._vfx.action_banner("只能移动到相邻格子", Color(0.7, 0.7, 0.7), 0.6)
 		return
 
@@ -332,6 +333,7 @@ func _handle_camera_mode_click(card: Card, row: int, col: int) -> void:
 	if not card.is_flipped and not card.is_flipping:
 		do_photograph(card, row, col)
 	else:
+		m.board_visual.play_shake_animation(row, col)
 		m._vfx.action_banner("无法拍摄", Color(0.7, 0.7, 0.7), 0.6)
 
 # ---------------------------------------------------------------------------
