@@ -31,6 +31,7 @@ var current_day: int = 0
 
 ## 统计
 var cards_revealed: int = 0
+var day_start_revealed: int = 0
 var monsters_slain: int = 0
 var photos_used: int = 0
 
@@ -75,6 +76,7 @@ func reset() -> void:
 	demo_state = "idle"
 	current_day = 0
 	cards_revealed = 0
+	day_start_revealed = 0
 	monsters_slain = 0
 	photos_used = 0
 	inventory = {}

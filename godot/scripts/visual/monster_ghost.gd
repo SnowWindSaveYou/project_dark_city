@@ -167,14 +167,23 @@ static func calculate_trail(card: Card, board: Board) -> bool:
 	var mr: int = -1
 	var mc: int = -1
 	var best_dist: float = 999.0
+	var monster_count: int = 0
+	var excluded_count: int = 0
 
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			if r == card.row and c == card.col:
 				continue
 			var cd: Card = board.get_card(r, c)
-			if cd and cd.type == "monster" and not cd.is_flipped:
-				if not board.is_in_landmark_aura(r, c):
+			if cd and cd.type == "monster":
+				if cd.is_flipped:
+					excluded_count += 1
+					print("[MonsterGhost] calculate_trail: monster(%d,%d) excluded (is_flipped)" % [r, c])
+				elif board.is_in_landmark_aura(r, c):
+					excluded_count += 1
+					print("[MonsterGhost] calculate_trail: monster(%d,%d) excluded (landmark_aura)" % [r, c])
+				else:
+					monster_count += 1
 					var dr: float = float(r - card.row)
 					var dc: float = float(c - card.col)
 					var dist: float = sqrt(dr * dr + dc * dc)
@@ -184,12 +193,16 @@ static func calculate_trail(card: Card, board: Board) -> bool:
 						best_dist = dist
 
 	if mr < 0:
+		print("[MonsterGhost] calculate_trail(%d,%d): no monster found (excluded=%d)" % [card.row, card.col, excluded_count])
 		card.trail_dir_x = 0.0
 		card.trail_dir_y = 0.0
+		card.has_trail = false
 		return false
 
 	card.trail_dir_x = float(mc - card.col)
 	card.trail_dir_y = float(mr - card.row)
+	card.has_trail = true
+	print("[MonsterGhost] calculate_trail(%d,%d) → nearest monster(%d,%d) dist=%.1f dir=(%.1f,%.1f) candidates=%d excluded=%d" % [card.row, card.col, mr, mc, best_dist, card.trail_dir_x, card.trail_dir_y, monster_count, excluded_count])
 	return true
 
 ## 显示踪迹箭头 (小幽灵指向最近怪物)
@@ -220,7 +233,7 @@ func show_trails_on_board(board: Board, card_screen_positions: Dictionary) -> vo
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = board.get_card(r, c)
-			if card and card.trail_dir_x != 0.0 and card.trail_dir_y != 0.0:
+			if card and card.has_trail:
 				var key: String = "%d,%d" % [r, c]
 				if card_screen_positions.has(key):
 					var pos: Vector2 = card_screen_positions[key]

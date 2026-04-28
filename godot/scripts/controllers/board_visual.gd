@@ -1276,7 +1276,7 @@ func mg_show_trails_on_board() -> void:
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = m.board.get_card(r, c)
-			if card and card.trail_dir_x != 0.0 and card.trail_dir_y != 0.0:
+			if card and card.has_trail:
 				mg_show_trail_on_card(r, c, card.trail_dir_x, card.trail_dir_y)
 
 ## 清除所有 MonsterGhost 节点

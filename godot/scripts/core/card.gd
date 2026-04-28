@@ -37,6 +37,7 @@ var is_flipping: bool = false     # 是否正在翻转动画中
 var is_dark: bool = false         # 是否是暗面卡牌
 var dark_type: String = ""        # 暗面卡牌类型 (normal/shop/passage/abyss_core/...)
 var dark_name: String = ""        # 暗面卡牌显示名
+var dark_collected: bool = false  # 暗面道具/线索是否已被收集
 
 # --- 陷阱/裂隙 ---
 var trap_subtype: String = ""     # 陷阱子类型 (sanity/money/film/teleport)
@@ -45,6 +46,7 @@ var has_rift: bool = false        # 是否伪装了裂隙入口
 # --- MonsterGhost 踪迹 ---
 var trail_dir_x: float = 0.0     # 踪迹方向 (列偏移)
 var trail_dir_y: float = 0.0     # 踪迹方向 (行偏移)
+var has_trail: bool = false      # 是否有踪迹记录
 
 # --- 光晕 ---
 var safe_glow_active: bool = false  # 安全区光环是否激活

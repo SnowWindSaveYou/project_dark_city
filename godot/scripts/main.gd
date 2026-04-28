@@ -67,6 +67,7 @@ var _bubble_hide_tweened: bool = false
 # UI 节点引用
 # ---------------------------------------------------------------------------
 var _vfx: VFXManager = null
+var _ui_layer: CanvasLayer = null
 var _resource_bar: Control = null
 var _event_popup: Control = null
 var _shop_popup: Control = null
@@ -113,6 +114,7 @@ var _bg_transition: float = 0.0
 var _bg_transition_target: float = 0.0
 var _cam_pivot: Node3D = null
 var _camera_offset: Vector2 = Vector2.ZERO
+var _last_shake_offset_3d: Vector3 = Vector3.ZERO
 var _drag_state: Dictionary = {
 	"active": false,
 	"is_dragging": false,
@@ -208,6 +210,7 @@ func _setup_scene_tree() -> void:
 	ui_layer.name = "UILayer"
 	ui_layer.layer = 10
 	add_child(ui_layer)
+	_ui_layer = ui_layer
 
 	# VFX 放在独立的高层 CanvasLayer, 确保屏闪/横幅覆盖所有 UI
 	var vfx_layer: CanvasLayer = CanvasLayer.new()
@@ -559,18 +562,30 @@ func _process(dt: float) -> void:
 	game_time += dt
 
 	# 背景氛围过渡
-	_bg_transition_target = minf(float(GameData.cards_revealed) / 8.0, 1.0)
+	# 当天翻牌数驱动氛围 (匹配 Lua: dailyRevealed = cardsRevealed - dayStartRevealed)
+	var daily_revealed: int = GameData.cards_revealed - GameData.day_start_revealed
+	_bg_transition_target = minf(float(daily_revealed) / 8.0, 1.0)
 	_bg_transition = move_toward(_bg_transition, _bg_transition_target, 2.0 * dt)
 
 	# 3D 相机平移 (平滑跟随 _camera_offset)
 	if _cam_pivot:
 		var target_pivot: Vector3 = Vector3(_camera_offset.x, 0, _camera_offset.y)
-		_cam_pivot.position = _cam_pivot.position.lerp(target_pivot, minf(10.0 * dt, 1.0))
-		# 屏幕震动 → 相机偏移 (Lua: shakeX/Y * 0.005)
+		# 先去掉上一帧的 shake 残留，再 lerp 到干净的 target（匹配 Lua 绝对设置行为）
+		var clean_pos: Vector3 = _cam_pivot.position - _last_shake_offset_3d
+		clean_pos = clean_pos.lerp(target_pivot, minf(10.0 * dt, 1.0))
+		# 在干净的 base 上叠加本帧的 shake
+		var shake_3d := Vector3.ZERO
 		if _vfx:
 			var shake: Vector2 = _vfx.shake_offset
 			if shake != Vector2.ZERO:
-				_cam_pivot.position += Vector3(shake.x * 0.005, shake.y * 0.005, 0)
+				shake_3d = Vector3(shake.x * 0.005, shake.y * 0.005, 0)
+		_cam_pivot.position = clean_pos + shake_3d
+		_last_shake_offset_3d = shake_3d
+
+	# 2D UI 层震动同步 (匹配 Lua: nvgTranslate(vg, sx, sy))
+	if _ui_layer and _vfx:
+		var shake_2d: Vector2 = _vfx.shake_offset
+		_ui_layer.offset = shake_2d
 
 	# Token
 	token.update(dt)

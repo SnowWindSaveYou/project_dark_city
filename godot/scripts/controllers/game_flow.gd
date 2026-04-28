@@ -38,6 +38,8 @@ func generate_board() -> void:
 func start_deal() -> void:
 	GameData.current_day = m.day_count
 	GameData.set_demo_state("dealing")
+	# 每日氛围重置 (匹配 Lua: dayStartRevealed = cardsRevealed)
+	GameData.day_start_revealed = GameData.cards_revealed
 	m._vfx.action_banner("第 %d 天" % m.day_count, Color.WHITE, 1.2)
 	m.board_visual.start_deal_animation(_on_deal_complete)
 

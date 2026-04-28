@@ -262,6 +262,71 @@ proc.color_ramp = color_ramp
 
 ---
 
+## 规则 9: Lua 的 `0` 是 truthy，GDScript 的 `0` 是 falsy 🔴
+
+**问题**: Lua 中只有 `nil` 和 `false` 是 falsy，数字 `0` 和 `0.0` 都是 **truthy**。GDScript 中 `0`/`0.0` 是 **falsy**。移植时如果把 Lua 的 `if x then`（检查字段是否存在）翻译成 GDScript 的 `if x != 0.0`（检查值是否非零），语义就变了。
+
+**典型踩坑**: 怪物方向指示 `trail_dir_x/trail_dir_y`，当怪物和被拍卡在同一行（`dir_y==0`）或同一列（`dir_x==0`）时，Lua 的 `if cd.trailDirX and cd.trailDirZ` 通过（0 是 truthy），GDScript 的 `if card.trail_dir_x != 0.0 and card.trail_dir_y != 0.0` 被过滤掉。
+
+**规则**: 翻译 Lua 的"字段存在性检查"时，使用独立的布尔标记，不要用值是否为零判断：
+
+```gdscript
+# ❌ 错误: 从 Lua 的 `if cd.trailDirX and cd.trailDirZ` 直译
+if card.trail_dir_x != 0.0 and card.trail_dir_y != 0.0:
+    show_trail(card)  # 同行/同列时不显示!
+
+# ✅ 正确: 用布尔标记记录"是否有数据"
+card.has_trail = true  # 在 calculate_trail() 找到怪物时设置
+if card.has_trail:
+    show_trail(card)   # 方向分量为 0 也能正确显示
+```
+
+**速查表**:
+
+| Lua 模式 | 含义 | GDScript 翻译 |
+|---------|------|--------------|
+| `if x then` (x 是数字) | x 不是 nil | 用布尔标记，或 `if x != null` |
+| `if x then` (x 是字符串) | x 不是 nil | `if x != ""` 或布尔标记 |
+| `if not x then` (x 是数字) | x 是 nil | `if not has_x` |
+| `x = nil` (清除字段) | 删除字段 | 设布尔标记为 false |
+
+---
+
+## 规则 10: Sprite3D.render_priority 范围是 -128 ~ 127
+
+**问题**: Godot 的 `Sprite3D.render_priority` 内部用 `int8`，有效范围 `-128 ~ 127`。超出范围会触发 C++ 断言错误。
+
+**规则**: 渲染优先级使用小数值即可区分层级：
+
+```gdscript
+# ❌ 错误: 超出范围
+sprite.render_priority = 200
+
+# ✅ 正确: 用小值区分层级
+sprite.render_priority = 5   # 普通图标
+sprite.render_priority = 10  # 高优先级图标
+```
+
+---
+
+## 规则 11: MeshInstance3D 没有 `modulate` 属性
+
+**问题**: `modulate` 是 `CanvasItem`（2D）的属性。`MeshInstance3D` 是 3D 节点，透明度需要通过材质控制。
+
+**规则**: 3D 节点的透明度通过 `material_override.albedo_color.a` 控制：
+
+```gdscript
+# ❌ 错误: MeshInstance3D 没有 modulate
+mesh_instance.modulate.a = 0.5
+
+# ✅ 正确: 通过材质控制透明度
+var mat: StandardMaterial3D = mesh_instance.material_override as StandardMaterial3D
+if mat:
+    mat.albedo_color.a = 0.5
+```
+
+---
+
 ## 自查清单
 
 翻译每个文件后执行:
@@ -274,3 +339,7 @@ proc.color_ramp = color_ramp
 - [ ] **Array tween** 未使用 `tween_property` 路径访问数组元素，改用 `tween_method` (规则5)
 - [ ] **方法名** 自定义方法未与 Object/Node 内置方法同名 (规则6)
 - [ ] **`_draw()` 纯净** — 无 `randi()`/`randf()`/随机函数调用，随机内容已缓存 (规则7)
+- [ ] **Lua truthy/falsy** — `if x then` 翻译为布尔标记而非 `!= 0` 检查 (规则9)
+- [ ] **render_priority** — Sprite3D 优先级在 -128~127 范围内 (规则10)
+- [ ] **3D 透明度** — MeshInstance3D 用 `material_override.albedo_color.a`，不用 `modulate` (规则11)
+
