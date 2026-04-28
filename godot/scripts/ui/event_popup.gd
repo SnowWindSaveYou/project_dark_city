@@ -321,7 +321,7 @@ func show_toast(card_type: String, applied_effects: Dictionary = {},
 			display_title = dark_info["label"]
 
 	# 陷阱子类型图标
-	var display_icon: String = Theme.card_type_info(card_type).get("icon", "❓")
+	var display_icon: String = GameTheme.card_type_info(card_type).get("icon", "❓")
 	if card_type == "trap" and trap_subtype != "":
 		var sub_info: Dictionary = Card.TRAP_SUBTYPE_INFO.get(trap_subtype, {})
 		if sub_info.has("icon"):
@@ -526,7 +526,7 @@ func _pick_template(card_type: String, trap_subtype: String = "") -> Dictionary:
 			return { "title": sub_info.get("label", "陷阱"), "desc": text }
 
 	var texts: Array = Card.EVENT_TEXTS.get(card_type, ["发生了一些事情..."])
-	var type_info: Dictionary = Theme.card_type_info(card_type)
+	var type_info: Dictionary = GameTheme.card_type_info(card_type)
 	return { "title": type_info.get("label", "未知"), "desc": texts[randi() % texts.size()] }
 
 func _toast_item_h(toast: Dictionary) -> float:
@@ -560,7 +560,7 @@ func _draw() -> void:
 # ===========================================================================
 func _draw_event() -> void:
 	var vp := get_viewport_rect().size
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 
 	# 遮罩
@@ -643,7 +643,7 @@ func _draw_event() -> void:
 # ===========================================================================
 func _draw_photo() -> void:
 	var vp := get_viewport_rect().size
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 	var cx := vp.x / 2.0
 	var cy := vp.y / 2.0
@@ -754,7 +754,7 @@ func _draw_photo() -> void:
 # ===========================================================================
 func _draw_rift_confirm() -> void:
 	var vp := get_viewport_rect().size
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 
 	# 遮罩
@@ -852,7 +852,7 @@ func _draw_toasts() -> void:
 		return
 
 	var vp := get_viewport_rect().size
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 
 	for toast in _toast_queue:

@@ -182,7 +182,7 @@ func _draw() -> void:
 		# 卡牌背景
 		var card_rect := Rect2(fx - 20, fy - 28, 40, 56)
 		draw_rect(card_rect,
-			Color(Theme.card_back.r, Theme.card_back.g, Theme.card_back.b, card_alpha * 0.25),
+			Color(GameTheme.card_back.r, GameTheme.card_back.g, GameTheme.card_back.b, card_alpha * 0.25),
 			true)
 
 		# 图标
@@ -203,7 +203,7 @@ func _draw() -> void:
 				var pulse := 0.8 + 0.2 * sin(_game_time * 1.5)
 				var glow_r := 100.0 * pulse
 				draw_circle(Vector2(cx, title_y), glow_r,
-					Color(Theme.accent.r, Theme.accent.g, Theme.accent.b,
+					Color(GameTheme.accent.r, GameTheme.accent.g, GameTheme.accent.b,
 						_title_alpha * 0.1 * pulse))
 
 			# 阴影
@@ -216,7 +216,7 @@ func _draw() -> void:
 			draw_string(default_font, Vector2(cx, title_y + 14),
 				"暗面都市", HORIZONTAL_ALIGNMENT_CENTER,
 				-1, font_size,
-				Color(Theme.accent.r, Theme.accent.g, Theme.accent.b, _title_alpha))
+				Color(GameTheme.accent.r, GameTheme.accent.g, GameTheme.accent.b, _title_alpha))
 
 	# === 副标题 ===
 	if _subtitle_alpha > 0.01:
@@ -225,8 +225,8 @@ func _draw() -> void:
 				"用镜头记录真相  ·  用光明驱散恐惧",
 				HORIZONTAL_ALIGNMENT_CENTER,
 				-1, 14,
-				Color(Theme.text_secondary.r, Theme.text_secondary.g,
-					Theme.text_secondary.b, _subtitle_alpha * 0.7))
+				Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
+					GameTheme.text_secondary.b, _subtitle_alpha * 0.7))
 
 	# === 按任意键开始 (呼吸闪烁) ===
 	if _prompt_alpha > 0.01:
@@ -238,5 +238,5 @@ func _draw() -> void:
 				"- 点击或按 Enter 开始 -",
 				HORIZONTAL_ALIGNMENT_CENTER,
 				-1, 13,
-				Color(Theme.text_secondary.r, Theme.text_secondary.g,
-					Theme.text_secondary.b, pa * 0.8))
+				Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
+					GameTheme.text_secondary.b, pa * 0.8))

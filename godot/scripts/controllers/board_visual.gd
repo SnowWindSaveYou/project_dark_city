@@ -76,7 +76,7 @@ func rebuild_card_nodes() -> void:
 				start_y + r * (CARD_PX_H + CARD_PX_GAP)
 			)
 			card_node.position = target_pos
-			card_node.color = Theme.card_back
+			card_node.color = GameTheme.card_back
 			card_node.set_meta("row", r + 1)
 			card_node.set_meta("col", c + 1)
 			card_node.set_meta("target_pos", target_pos)
@@ -110,12 +110,12 @@ func update_card_visual(row: int, col: int) -> void:
 		return
 
 	if card.is_flipped:
-		var type_info: Dictionary = Theme.card_type_info(card.type)
-		card_node.color = type_info.get("color", Theme.card_face)
+		var type_info: Dictionary = GameTheme.card_type_info(card.type)
+		card_node.color = type_info.get("color", GameTheme.card_face)
 		if card.scouted:
 			card_node.color = card_node.color.lightened(0.15)
 	else:
-		card_node.color = Theme.card_back
+		card_node.color = GameTheme.card_back
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:
@@ -130,10 +130,10 @@ func update_dark_card_visual(row: int, col: int) -> void:
 
 	card_node.visible = true
 	if card.is_flipped:
-		var dark_color := Theme.dark_card_color(card.dark_type)
+		var dark_color: Color = GameTheme.dark_card_type_color(card.dark_type)
 		card_node.color = dark_color
 	else:
-		card_node.color = Theme.card_back_dark
+		card_node.color = GameTheme.card_back_dark
 
 # ---------------------------------------------------------------------------
 # Token 精灵更新
@@ -167,8 +167,8 @@ func update_token_visual() -> void:
 
 ## 启动螺旋发牌, 完成后调用 on_complete
 func start_deal_animation(on_complete: Callable) -> void:
-	var order := m.board.get_spiral_order()
-	var total_cards := order.size()
+	var order: Array = m.board.get_spiral_order()
+	var total_cards: int = order.size()
 
 	var acc_delay := 0.3
 	var last_arrival := acc_delay
@@ -190,24 +190,24 @@ func start_deal_animation(on_complete: Callable) -> void:
 		var fly_dur := 0.35
 
 		# 淡入
-		var tw := m.create_tween()
+		var tw: Tween = m.create_tween()
 		tw.tween_property(card_node, "modulate:a", 1.0, 0.15).set_delay(acc_delay)
 
 		# 飞行
-		var tw2 := m.create_tween()
+		var tw2: Tween = m.create_tween()
 		tw2.tween_property(card_node, "position", target_pos, fly_dur) \
 			.set_delay(acc_delay) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 		# 缩放
-		var tw3 := m.create_tween()
+		var tw3: Tween = m.create_tween()
 		tw3.tween_property(card_node, "scale", Vector2.ONE, fly_dur) \
 			.set_delay(acc_delay) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 		# 弹跳
 		var bounce_delay := acc_delay + fly_dur * 0.6
-		var tw4 := m.create_tween()
+		var tw4: Tween = m.create_tween()
 		tw4.tween_property(card_node, "scale", Vector2(1.08, 0.92), 0.1) \
 			.set_delay(bounce_delay) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
@@ -222,7 +222,7 @@ func start_deal_animation(on_complete: Callable) -> void:
 
 	# 完成回调
 	var finish_delay := last_arrival + 0.4
-	var tw_finish := m.create_tween()
+	var tw_finish: Tween = m.create_tween()
 	tw_finish.tween_callback(on_complete).set_delay(finish_delay)
 
 # ---------------------------------------------------------------------------
@@ -236,7 +236,7 @@ func play_flip_animation(row: int, col: int, on_complete: Callable) -> void:
 		on_complete.call()
 		return
 
-	var tw := m.create_tween()
+	var tw: Tween = m.create_tween()
 	tw.tween_property(card_node, "scale:x", 0.0, 0.12) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func(): update_card_visual(row, col))
@@ -251,7 +251,7 @@ func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 		on_complete.call()
 		return
 
-	var tw := m.create_tween()
+	var tw: Tween = m.create_tween()
 	tw.tween_property(card_node, "scale", Vector2(0.6, 0.6), 0.15) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func(): update_card_visual(row, col))
@@ -265,7 +265,7 @@ func play_flip_back_animation(row: int, col: int) -> void:
 	var card_node := get_card_node(row, col)
 	if not card_node:
 		return
-	var tw := m.create_tween()
+	var tw: Tween = m.create_tween()
 	tw.tween_property(card_node, "scale:x", 0.0, 0.1)
 	tw.tween_callback(func(): update_card_visual(row, col))
 	tw.tween_property(card_node, "scale:x", 1.0, 0.1)
@@ -277,7 +277,7 @@ func play_flip_back_animation(row: int, col: int) -> void:
 ## Token 移动到目标格, 完成后调用 on_arrive
 func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 	var target_pos := get_card_center(row, col)
-	var tween := m.create_tween()
+	var tween: Tween = m.create_tween()
 	tween.tween_property(m._token_sprite, "position", target_pos, 0.3) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tween.tween_callback(on_arrive)

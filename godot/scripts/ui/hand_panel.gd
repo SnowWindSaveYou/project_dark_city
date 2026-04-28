@@ -387,7 +387,7 @@ func _draw() -> void:
 
 	var vw := _get_viewport_w()
 	var vh := _get_viewport_h()
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 
 	var pr := _get_panel_rect()

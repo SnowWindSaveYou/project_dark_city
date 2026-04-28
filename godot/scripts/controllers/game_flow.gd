@@ -25,7 +25,7 @@ func setup(main_ref) -> void:
 
 ## 生成新棋盘 (含预选地点注入)
 func generate_board() -> void:
-	var req_locs := m.card_manager.pre_select_locations()
+	var req_locs: Array = m.card_manager.pre_select_locations()
 	m.board.required_locations = req_locs
 	m.board.generate_cards()
 	m.board_visual.rebuild_card_nodes()
@@ -45,8 +45,8 @@ func _on_deal_complete() -> void:
 	GameData.set_demo_state("ready")
 
 	# Token 出现在 "家"
-	var home_row := m.board.home_row
-	var home_col := m.board.home_col
+	var home_row: int = m.board.home_row
+	var home_col: int = m.board.home_col
 	m.token.target_row = home_row
 	m.token.target_col = home_col
 	m.token.visible = true
@@ -77,13 +77,13 @@ func _animate_item_spawn() -> void:
 	for i in range(m.board_items.items.size()):
 		var item: BoardItems.BoardItem = m.board_items.items[i]
 		var delay := 0.3 + i * 0.15
-		var tw := m.create_tween()
+		var tw: Tween = m.create_tween()
 		tw.tween_property(item, "scale", 1.0, 0.3) \
 			.set_delay(delay) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-		var tw2 := m.create_tween()
+		var tw2: Tween = m.create_tween()
 		tw2.tween_property(item, "alpha", 1.0, 0.2).set_delay(delay)
-		var tw3 := m.create_tween()
+		var tw3: Tween = m.create_tween()
 		tw3.tween_property(item, "glow_alpha", 1.0, 0.3).set_delay(delay)
 
 # ---------------------------------------------------------------------------
@@ -97,14 +97,14 @@ func advance_day() -> void:
 		return
 
 	# 日终结算
-	var effects := m.card_manager.settle_day()
+	var effects: Array = m.card_manager.settle_day()
 	for eff in effects:
 		GameData.modify_resource(eff[0], eff[1])
 
 	# 恢复资源
 	GameData.modify_resource("san", 1)
 	GameData.modify_resource("order", 1)
-	var current_film := GameData.get_resource("film")
+	var current_film: int = GameData.get_resource("film")
 	if current_film < 3:
 		GameData.modify_resource("film", 3 - current_film)
 	GameData.modify_resource("money", 10)
@@ -156,7 +156,7 @@ func _trigger_victory() -> void:
 
 ## 尝试拾取当前格子道具, 返回拾取结果
 func try_collect_item(row: int, col: int) -> Dictionary:
-	var result := m.board_items.try_collect(row, col)
+	var result: Dictionary = m.board_items.try_collect(row, col)
 	if result.is_empty():
 		return {}
 
@@ -183,14 +183,14 @@ func try_collect_item(row: int, col: int) -> Dictionary:
 			m._vfx.action_banner("%s 地图碎片: 揭示一张卡" % item_icon, Color(0.6, 0.8, 0.6), 0.7)
 
 	# 收集粒子
-	var center := m.board_visual.get_card_center(row, col)
+	var center: Vector2 = m.board_visual.get_card_center(row, col)
 	m._vfx.spawn_burst(center, 6, Color(1.0, 0.9, 0.4))
 
 	return result
 
 ## 地图碎片: 揭示一张随机未翻开的卡牌
 func _reveal_random_card() -> void:
-	var unflipped := m.board.get_unflipped_cards()
+	var unflipped: Array = m.board.get_unflipped_cards()
 	if unflipped.is_empty():
 		return
 	var pick: Card = unflipped[randi() % unflipped.size()]

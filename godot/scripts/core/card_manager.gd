@@ -85,7 +85,7 @@ func generate_daily(_board: Board) -> void:
 			break
 		if not used_locations.has(loc) and SCHEDULE_TEMPLATES.has(loc):
 			var tmpl: Dictionary = SCHEDULE_TEMPLATES[loc]
-			var loc_info := Card.LOCATION_INFO.get(loc, {})
+			var loc_info: Dictionary = Card.LOCATION_INFO.get(loc, {})
 			schedules.append({
 				"location": loc,
 				"verb": tmpl["verb"],

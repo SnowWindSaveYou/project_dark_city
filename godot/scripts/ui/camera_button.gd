@@ -175,7 +175,7 @@ func _hit_test_button(pos: Vector2) -> bool:
 # ---------------------------------------------------------------------------
 func _draw() -> void:
 	var vp := get_viewport_rect().size
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 
 	# --- 取景框覆盖 ---

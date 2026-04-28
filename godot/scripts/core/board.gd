@@ -375,8 +375,8 @@ static func generate_dark_walls(wall_count: int) -> Array:
 	for pos in all_pos:
 		if walls_placed >= wall_count:
 			break
-		var r := pos.x
-		var c := pos.y
+		var r: int = pos.x
+		var c: int = pos.y
 		# 中心保护 (入口)
 		if r == 3 and c == 3:
 			continue
@@ -392,8 +392,8 @@ static func generate_dark_walls(wall_count: int) -> Array:
 			head += 1
 			var dirs := [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]
 			for d in dirs:
-				var nr := cur.x + d.x
-				var nc := cur.y + d.y
+				var nr: int = cur.x + d.x
+				var nc: int = cur.y + d.y
 				var npos := Vector2i(nr, nc)
 				if nr >= 1 and nr <= ROWS and nc >= 1 and nc <= COLS \
 						and not is_wall[nr - 1][nc - 1] and not visited.has(npos):

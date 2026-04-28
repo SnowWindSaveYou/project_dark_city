@@ -183,7 +183,7 @@ func _draw() -> void:
 	# === 标题 ===
 	if _title_alpha > 0.01 and default_font:
 		var title_text: String = "任务完成" if _is_victory else "意识崩溃"
-		var title_color: Color = Theme.safe if _is_victory else Theme.danger
+		var title_color: Color = GameTheme.safe if _is_victory else GameTheme.danger
 		var title_y := h * 0.28
 		var fs := 36
 
@@ -215,8 +215,8 @@ func _draw() -> void:
 		draw_string(default_font, Vector2(cx, h * 0.36 + 7),
 			sub_text, HORIZONTAL_ALIGNMENT_CENTER,
 			-1, 15,
-			Color(Theme.text_secondary.r, Theme.text_secondary.g,
-				Theme.text_secondary.b, _subtitle_alpha * 0.8))
+			Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
+				GameTheme.text_secondary.b, _subtitle_alpha * 0.8))
 
 	# === 统计 ===
 	if _stats_alpha > 0.01 and default_font:
@@ -239,21 +239,21 @@ func _draw() -> void:
 				line["icon"] + " " + line["label"],
 				HORIZONTAL_ALIGNMENT_RIGHT,
 				-1, 16,
-				Color(Theme.text_secondary.r, Theme.text_secondary.g,
-					Theme.text_secondary.b, _stats_alpha))
+				Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
+					GameTheme.text_secondary.b, _stats_alpha))
 
 			# 数值
 			draw_string(default_font, Vector2(cx + 10, ly + 5),
 				line["value"],
 				HORIZONTAL_ALIGNMENT_LEFT,
 				-1, 16,
-				Color(Theme.text_primary.r, Theme.text_primary.g,
-					Theme.text_primary.b, _stats_alpha))
+				Color(GameTheme.text_primary.r, GameTheme.text_primary.g,
+					GameTheme.text_primary.b, _stats_alpha))
 
 	# === 重新开始按钮 ===
 	if _button_t > 0.01:
 		var btn_rect := _get_button_rect()
-		var btn_color: Color = Theme.safe if _is_victory else Theme.accent
+		var btn_color: Color = GameTheme.safe if _is_victory else GameTheme.accent
 
 		# Hover 效果
 		var hover_brighten := 0.15 if _btn_hover else 0.0

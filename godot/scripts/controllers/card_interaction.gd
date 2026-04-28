@@ -34,7 +34,7 @@ func handle_card_click(row: int, col: int) -> void:
 		_handle_camera_mode_click(card, row, col)
 		return
 
-	var is_current := (m.token.target_row == row and m.token.target_col == col)
+	var is_current: bool = (m.token.target_row == row and m.token.target_col == col)
 
 	if is_current:
 		# 翻当前格子
@@ -112,7 +112,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 
 	# 日程完成检查
 	if card.location != "":
-		var completed := m.card_manager.complete_schedule_at(card.location)
+		var completed: Dictionary = m.card_manager.complete_schedule_at(card.location)
 		if not completed.is_empty():
 			var reward: Array = completed.get("reward", [])
 			if reward.size() >= 2:
@@ -129,13 +129,13 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	m.token.set_emotion(emotion_map.get(card_type, "default"))
 
 	# 粒子
-	var center := m.board_visual.get_card_center(row, col)
-	var tc := Theme.card_type_color(card_type)
+	var center: Vector2 = m.board_visual.get_card_center(row, col)
+	var tc: Color = GameTheme.card_type_color(card_type)
 	m._vfx.spawn_burst(center, 8, tc)
 
 	# 安全区域直接通过
 	if card_type == "home" or card_type == "landmark":
-		m._vfx.action_banner("安全", Theme.safe, 0.8)
+		m._vfx.action_banner("安全", GameTheme.safe, 0.8)
 		GameData.set_demo_state("ready")
 		# 裂隙检查
 		if card.has_rift:
@@ -171,7 +171,7 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 	if GameData.has_item("shield"):
 		GameData.remove_item("shield")
 		shield_used = true
-		m._vfx.action_banner("🧿 护身符抵消了陷阱!", Theme.safe, 0.8)
+		m._vfx.action_banner("🧿 护身符抵消了陷阱!", GameTheme.safe, 0.8)
 	else:
 		# 应用陷阱效果
 		var effects := card.get_effects()
@@ -196,7 +196,7 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 
 ## 传送到随机未翻开格子
 func _teleport_to_random() -> void:
-	var unflipped := m.board.get_unflipped_cards()
+	var unflipped: Array = m.board.get_unflipped_cards()
 	if unflipped.is_empty():
 		return
 	var pick: Card = unflipped[randi() % unflipped.size()]
@@ -211,14 +211,14 @@ func _teleport_to_random() -> void:
 # ---------------------------------------------------------------------------
 
 func _show_rift_confirm(row: int, col: int) -> void:
-	var center := m.board_visual.get_card_center(row, col)
+	var center: Vector2 = m.board_visual.get_card_center(row, col)
 	GameData.set_demo_state("rift_confirm")
 	m._event_popup.show_rift_confirm(center.x, center.y)
 
 ## 裂隙确认回调
 func on_rift_confirmed() -> void:
-	var row := m.token.target_row
-	var col := m.token.target_col
+	var row: int = m.token.target_row
+	var col: int = m.token.target_col
 	GameData.set_demo_state("ready")
 	m.dark_world_flow.enter_dark_world(row, col)
 
@@ -260,7 +260,7 @@ func on_shop_closed() -> void:
 # =========================================================================
 
 func _handle_camera_mode_click(card: Card, row: int, col: int) -> void:
-	var film := GameData.get_resource("film")
+	var film: int = GameData.get_resource("film")
 
 	# 已翻开的怪物 → 驱魔
 	if card.is_flipped and card.type == "monster" and not card.is_flipping:
@@ -315,8 +315,8 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 			m.board_visual.update_card_visual(row, col)
 
 			# 粒子
-			var center := m.board_visual.get_card_center(row, col)
-			var tc := Theme.card_type_color(card.type)
+			var center: Vector2 = m.board_visual.get_card_center(row, col)
+			var tc: Color = GameTheme.card_type_color(card.type)
 			m._vfx.spawn_burst(center, 8, tc)
 			m._vfx.screen_shake(2.0, 0.1)
 
@@ -351,9 +351,9 @@ func on_photo_popup_dismissed(_card_type: String) -> void:
 
 func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -> void:
 	if free_exorcise:
-		m._vfx.action_banner("🪔 驱魔香驱除!", Theme.safe, 0.8)
+		m._vfx.action_banner("🪔 驱魔香驱除!", GameTheme.safe, 0.8)
 	elif GameData.remove_item("exorcism"):
-		m._vfx.action_banner("🪔 驱魔香免费驱除!", Theme.safe, 0.8)
+		m._vfx.action_banner("🪔 驱魔香免费驱除!", GameTheme.safe, 0.8)
 	else:
 		GameData.modify_resource("film", -1)
 
@@ -365,7 +365,7 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 	m.token.set_emotion("angry")
 
 	# 闪光 + 震动
-	var pc := Theme.card_type_color("plot")
+	var pc: Color = GameTheme.card_type_color("plot")
 	m._vfx.screen_flash(pc, 0.5)
 	m._vfx.screen_shake(4.0, 0.2)
 	m.token.hop(0.06)
@@ -376,7 +376,7 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 	m.board_visual.update_card_visual(row, col)
 
 	m.board_visual.play_exorcise_animation(row, col, func():
-		var center := m.board_visual.get_card_center(row, col)
+		var center: Vector2 = m.board_visual.get_card_center(row, col)
 		m._vfx.spawn_burst(center, 16, pc)
 		m._vfx.action_banner("驱除成功!", pc, 1.0)
 		m.token.set_emotion("happy")
@@ -392,8 +392,8 @@ func handle_inventory_exorcism() -> void:
 		m._vfx.action_banner("没有驱魔香!", Color(0.86, 0.31, 0.31), 0.7)
 		return
 
-	var row := m.token.target_row
-	var col := m.token.target_col
+	var row: int = m.token.target_row
+	var col: int = m.token.target_col
 	var card: Card = m.board.get_card(row, col)
 
 	if card == null:

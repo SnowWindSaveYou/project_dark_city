@@ -101,7 +101,7 @@ func _on_resource_changed(key: String, old_value: int, new_value: int) -> void:
 				"key": key,
 				"text": prefix + str(delta_val),
 				"timer": 0.0,
-				"color": Theme.safe if delta_val > 0 else Theme.danger,
+				"color": GameTheme.safe if delta_val > 0 else GameTheme.danger,
 			})
 
 # ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var w := size.x
 	var font := ThemeDB.fallback_font
-	var t = Theme  # Autoload
+	var t = GameTheme  # Autoload
 
 	# === 纸条几何 ===
 	var strip_w := minf(w - MARGIN_X * 2, 360.0)

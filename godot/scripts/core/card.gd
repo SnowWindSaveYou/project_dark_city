@@ -258,7 +258,7 @@ func get_darkside_info() -> Dictionary:
 	if location in DARKSIDE_INFO and type in DARKSIDE_INFO[location]:
 		return DARKSIDE_INFO[location][type]
 	# fallback
-	var type_info: Dictionary = Theme.card_type_info(type)
+	var type_info: Dictionary = GameTheme.card_type_info(type)
 	return { "icon": type_info["icon"], "label": type_info["label"] }
 
 ## 获取事件效果 (trap 按子类型返回)
@@ -321,7 +321,7 @@ func should_have_glow() -> bool:
 ## 光晕颜色 (home=白色, landmark=金色)
 func get_glow_color() -> Color:
 	if type == "landmark":
-		return Theme.glow_color  # 金色
+		return GameTheme.glow_color  # 金色
 	return Color(1.0, 1.0, 1.0, 0.6)  # 白色
 
 ## 激活安全区光环

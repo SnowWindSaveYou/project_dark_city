@@ -43,6 +43,7 @@ var card_location_bg := h("#E8EDF5")
 var card_back        := h("#4BA3E3")
 var card_back_alt    := h("#3D8BC7")
 var card_border      := h("#2A5C78")
+var card_back_dark   := h("#3A2F6B")
 var card_shadow      := c(30, 50, 70, 60)
 
 # ---------------------------------------------------------------------------

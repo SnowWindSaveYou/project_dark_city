@@ -377,7 +377,7 @@ func _draw() -> void:
 		return
 
 	var vp := get_viewport_rect().size
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 	var game_time := Time.get_ticks_msec() / 1000.0
 
@@ -469,7 +469,7 @@ func _draw() -> void:
 # 绘制单张商品卡
 # ---------------------------------------------------------------------------
 func _draw_item_card(index: int, card_t: float, game_time: float) -> void:
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 	var item_key: String = _goods[index]
 	var info: Dictionary = ShopData.get_item_info(item_key)
@@ -600,7 +600,7 @@ func _draw_item_card(index: int, card_t: float, game_time: float) -> void:
 # ---------------------------------------------------------------------------
 func _draw_card_icon(info: Dictionary, item_key: String, center: Vector2, alpha: float) -> void:
 	var font := ThemeDB.fallback_font
-	var t = Theme
+	var t = GameTheme
 
 	# 尝试纹理图标
 	var tex: Texture2D = ItemIcons.get_texture(item_key)
@@ -618,7 +618,7 @@ func _draw_card_icon(info: Dictionary, item_key: String, center: Vector2, alpha:
 # 绘制底部按钮
 # ---------------------------------------------------------------------------
 func _draw_buttons() -> void:
-	var t = Theme
+	var t = GameTheme
 	var font := ThemeDB.fallback_font
 	var money := GameData.get_resource("money")
 	var can_refresh := money >= ShopData.REFRESH_COST and _refresh_phase == "idle"

@@ -67,15 +67,15 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 	m._bg_transition_target = 1.0
 
 func _generate_dark_board() -> void:
-	var layer_idx := m.dark_world.current_layer
-	var layer_data := m.dark_world.get_layer_data()
+	var layer_idx: int = m.dark_world.current_layer
+	var layer_data = m.dark_world.get_layer_data()
 
 	# 生成幽灵/NPC (如果该层还没生成过)
 	if not layer_data.generated:
 		# 先生成卡牌地图
 		m.board = Board.new()
-		var dark_config := m.dark_world.get_dark_config(layer_idx)
-		var dark_locs := m.dark_world.get_dark_locations(layer_idx)
+		var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
+		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
 
 		# 将 LayerData 转为 Board.generate_dark_cards 需要的 dict
 		var ld_dict := {
@@ -98,8 +98,8 @@ func _generate_dark_board() -> void:
 	else:
 		# 层已生成, 复用已有数据重建 Board
 		m.board = Board.new()
-		var dark_config := m.dark_world.get_dark_config(layer_idx)
-		var dark_locs := m.dark_world.get_dark_locations(layer_idx)
+		var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
+		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
 		var ld_dict := {
 			"walkable": {},
 			"entry_row": 3,
@@ -119,9 +119,9 @@ func _on_dark_deal_complete() -> void:
 	GameData.set_demo_state("dark_world")
 
 	# Token 出现在入口
-	var layer_data := m.dark_world.get_layer_data()
-	var entry_r := layer_data.entry_row + 1  # 0-based → 1-based
-	var entry_c := layer_data.entry_col + 1
+	var layer_data = m.dark_world.get_layer_data()
+	var entry_r: int = layer_data.entry_row + 1  # 0-based → 1-based
+	var entry_c: int = layer_data.entry_col + 1
 	m.token.target_row = entry_r
 	m.token.target_col = entry_c
 	m.token.visible = true
@@ -152,16 +152,16 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		_handle_dark_camera(row, col)
 		return
 
-	var layer_data := m.dark_world.get_layer_data()
-	var player_row := layer_data.player_row  # 0-based
-	var player_col := layer_data.player_col
+	var layer_data = m.dark_world.get_layer_data()
+	var player_row: int = layer_data.player_row  # 0-based
+	var player_col: int = layer_data.player_col
 
 	# 转换为 0-based 用于 DarkWorld API
 	var target_r0 := row - 1
 	var target_c0 := col - 1
 
 	# 检查是否可移动
-	var move_result := m.dark_world.try_move(target_r0, target_c0)
+	var move_result: Dictionary = m.dark_world.try_move(target_r0, target_c0)
 	if not move_result["can_move"]:
 		if move_result["reason"] == "no_energy":
 			m._vfx.action_banner("能量耗尽!", Color(0.86, 0.31, 0.31), 0.7)
@@ -171,7 +171,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		return
 
 	# 消耗能量
-	var old := m.dark_world.consume_move(target_r0, target_c0)
+	var old: Dictionary = m.dark_world.consume_move(target_r0, target_c0)
 
 	# 更新能量 UI
 	m._resource_bar.update_dark_energy(
@@ -187,12 +187,12 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		m.dark_world.on_move_complete(target_r0, target_c0)
 
 		# 幽灵移动 + 碰撞
-		var collisions := m.dark_world.move_ghosts(
+		var collisions: Array = m.dark_world.move_ghosts(
 			target_r0, target_c0, old["old_row"], old["old_col"])
 		_process_ghost_collisions(collisions)
 
 		# 直接碰撞检测
-		var direct_collision := m.dark_world.check_ghost_collision(target_r0, target_c0)
+		var direct_collision = m.dark_world.check_ghost_collision(target_r0, target_c0)
 		if direct_collision:
 			_process_single_ghost_collision(direct_collision)
 
@@ -212,7 +212,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 # ---------------------------------------------------------------------------
 
 func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
-	var effect := m.dark_world.handle_card_effect(card, row, col, m.day_count)
+	var effect: Dictionary = m.dark_world.handle_card_effect(card, row, col, m.day_count)
 	var effect_type: String = effect["type"]
 
 	match effect_type:
@@ -308,14 +308,14 @@ func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
 # ---------------------------------------------------------------------------
 
 func _handle_dark_camera(row: int, col: int) -> void:
-	var film := GameData.get_resource("film")
+	var film: int = GameData.get_resource("film")
 	if film <= 0:
 		m._vfx.action_banner("胶卷不足!", Color(0.86, 0.31, 0.31), 0.8)
 		m._camera_button.shake_no_film()
 		return
 
 	# 0-based 坐标
-	var ghost := m.dark_world.handle_camera_shot(row - 1, col - 1)
+	var ghost = m.dark_world.handle_camera_shot(row - 1, col - 1)
 	if ghost:
 		GameData.modify_resource("film", -1)
 		GameData.photos_used += 1
@@ -326,7 +326,7 @@ func _handle_dark_camera(row: int, col: int) -> void:
 		m._vfx.screen_shake(3.0, 0.15)
 		m.token.hop(0.05)
 
-		var center := m.board_visual.get_card_center(row, col)
+		var center: Vector2 = m.board_visual.get_card_center(row, col)
 		m._vfx.spawn_burst(center, 12, Color(0.7, 0.3, 0.9))
 		m._vfx.action_banner("驱除幽灵!", Color(0.7, 0.3, 0.9), 0.8)
 	else:
@@ -337,7 +337,7 @@ func _handle_dark_camera(row: int, col: int) -> void:
 # =========================================================================
 
 func _change_layer(target_layer: int) -> void:
-	var result := m.dark_world.begin_change_layer(target_layer, m.day_count)
+	var result: Dictionary = m.dark_world.begin_change_layer(target_layer, m.day_count)
 	if not result["success"]:
 		m._vfx.action_banner("该层尚未解锁", Color(0.7, 0.5, 0.3), 0.7)
 		m.dark_world.set_ready()
