@@ -32,6 +32,9 @@ var _card_mesh: BoxMesh = null
 var _particle_mat_landmark: StandardMaterial3D = null
 var _particle_mat_home: StandardMaterial3D = null
 
+## 暗面幽灵 Sprite3D 节点缓存: ghost_index(int) → Dictionary
+var _ghost_nodes: Dictionary = {}
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
@@ -631,6 +634,117 @@ func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 			m._token_sprite.position = end_pos
 			on_arrive.call()
 		)
+	)
+
+# ---------------------------------------------------------------------------
+# 暗面幽灵 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createGhostNodes)
+# ---------------------------------------------------------------------------
+
+## 幽灵渲染参数 (匹配 Lua: nodeY=0.25, bb.position.y=0.15, bb.size=0.30)
+const GHOST_BASE_Y: float = 0.40     # 中心高度 = 0.25 + 0.15
+const GHOST_WORLD_SIZE: float = 0.30  # 世界空间尺寸 (米)
+const GHOST_FLOAT_AMP: float = 0.04   # 浮动振幅
+const GHOST_FLOAT_SPEED: float = 2.5  # 浮动频率
+
+## 为当前暗面层创建幽灵 Sprite3D 节点
+func create_ghost_nodes(ghosts: Array) -> void:
+	destroy_ghost_nodes()
+	for i in range(ghosts.size()):
+		var ghost: DarkWorld.GhostData = ghosts[i]
+		if not ghost.alive:
+			continue
+
+		var tex_path: String = DarkWorld.GHOST_TEXTURES[ghost.tex_index]
+		var tex: Texture2D = load(tex_path)
+		if not tex:
+			continue
+
+		var sprite: Sprite3D = Sprite3D.new()
+		sprite.name = "Ghost_%d" % i
+		sprite.texture = tex
+		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		sprite.transparent = true
+		sprite.no_depth_test = false
+		sprite.render_priority = 2
+
+		# pixel_size: 使纹理映射到 GHOST_WORLD_SIZE 米
+		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
+		sprite.pixel_size = GHOST_WORLD_SIZE / tex_max if tex_max > 0.0 else 0.001
+
+		# 世界坐标定位 (ghost.row/col 是 0-based)
+		var world_pos: Vector3 = m.board.grid_to_world(ghost.row + 1, ghost.col + 1)
+		world_pos.y = GHOST_BASE_Y
+		sprite.position = world_pos
+
+		# 挂在 board_visual 自身下 (与 board_layer 分离, 避免 rebuild_card_nodes 误删)
+		add_child(sprite)
+
+		_ghost_nodes[i] = {
+			"node": sprite,
+			"base_y": GHOST_BASE_Y,
+			"float_phase": ghost.float_phase,
+			"pos_x": world_pos.x,
+			"pos_z": world_pos.z,
+		}
+
+## 销毁所有幽灵节点
+func destroy_ghost_nodes() -> void:
+	for key in _ghost_nodes:
+		var data: Dictionary = _ghost_nodes[key]
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_ghost_nodes.clear()
+
+## 每帧更新幽灵浮动动画 (sin 波上下飘动)
+func update_ghost_visuals(game_time: float) -> void:
+	for key in _ghost_nodes:
+		var data: Dictionary = _ghost_nodes[key]
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * GHOST_FLOAT_SPEED + data["float_phase"]) * GHOST_FLOAT_AMP
+		node.position = Vector3(data["pos_x"], data["base_y"] + float_y, data["pos_z"])
+
+## 幽灵移动动画 (从当前视觉位置平滑移动到目标格)
+## target_row/col: 0-based
+func animate_ghost_move(ghost_index: int, target_row_0: int, target_col_0: int, duration: float) -> void:
+	if not _ghost_nodes.has(ghost_index):
+		return
+	var data: Dictionary = _ghost_nodes[ghost_index]
+	var node = data.get("node")
+	if not is_instance_valid(node):
+		return
+
+	var target_world: Vector3 = m.board.grid_to_world(target_row_0 + 1, target_col_0 + 1)
+	var start_x: float = data["pos_x"]
+	var start_z: float = data["pos_z"]
+	var end_x: float = target_world.x
+	var end_z: float = target_world.z
+
+	var tw: Tween = m.create_tween()
+	tw.tween_method(func(t: float) -> void:
+		data["pos_x"] = lerpf(start_x, end_x, t)
+		data["pos_z"] = lerpf(start_z, end_z, t)
+	, 0.0, 1.0, duration).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
+
+## 幽灵消灭淡出动画 (0.5s alpha→0, 然后删除节点)
+func animate_ghost_fade(ghost_index: int) -> void:
+	if not _ghost_nodes.has(ghost_index):
+		return
+	var data: Dictionary = _ghost_nodes[ghost_index]
+	var node = data.get("node")
+	if not is_instance_valid(node):
+		_ghost_nodes.erase(ghost_index)
+		return
+
+	var tw: Tween = m.create_tween()
+	tw.tween_property(node, "modulate:a", 0.0, 0.5) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(node):
+			node.queue_free()
+		_ghost_nodes.erase(ghost_index)
 	)
 
 # ---------------------------------------------------------------------------

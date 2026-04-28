@@ -129,6 +129,9 @@ func _on_dark_deal_complete() -> void:
 	m.token.set_emotion("nervous")
 	m.board_visual.update_token_visual()
 
+	# 创建幽灵 3D 节点
+	m.board_visual.create_ghost_nodes(layer_data.ghosts)
+
 	# 翻开入口卡牌
 	var entry_card: Card = m.board.get_card(entry_r, entry_c)
 	if entry_card:
@@ -189,6 +192,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		# 幽灵移动 + 碰撞
 		var collisions: Array = m.dark_world.move_ghosts(
 			target_r0, target_c0, old["old_row"], old["old_col"])
+		_animate_alive_ghost_moves()
 		_process_ghost_collisions(collisions)
 
 		# 直接碰撞检测
@@ -284,6 +288,30 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 			m.dark_world.set_ready()
 
 # ---------------------------------------------------------------------------
+# 幽灵 3D 渲染辅助
+# ---------------------------------------------------------------------------
+
+## 查找幽灵在当前层 ghosts 数组中的索引
+func _find_ghost_index(ghost: DarkWorld.GhostData) -> int:
+	var layer_data = m.dark_world.get_layer_data()
+	if not layer_data:
+		return -1
+	for i in range(layer_data.ghosts.size()):
+		if layer_data.ghosts[i] == ghost:
+			return i
+	return -1
+
+## 动画: 所有存活幽灵平滑移动到数据层的新位置
+func _animate_alive_ghost_moves() -> void:
+	var layer_data = m.dark_world.get_layer_data()
+	if not layer_data:
+		return
+	for i in range(layer_data.ghosts.size()):
+		var ghost: DarkWorld.GhostData = layer_data.ghosts[i]
+		if ghost.alive:
+			m.board_visual.animate_ghost_move(i, ghost.row, ghost.col, 0.35)
+
+# ---------------------------------------------------------------------------
 # 幽灵碰撞处理
 # ---------------------------------------------------------------------------
 
@@ -297,6 +325,10 @@ func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
 	m._vfx.screen_shake(4.0, 0.2)
 	m.token.set_emotion("scared")
 	m.token.hop(0.04)
+
+	var ghost_idx: int = _find_ghost_index(ghost)
+	if ghost_idx >= 0:
+		m.board_visual.animate_ghost_fade(ghost_idx)
 
 	m._vfx.action_banner("幽灵接触! SAN %d" % DarkWorld.GHOST_SAN,
 		Color(0.7, 0.2, 0.8), 0.8)
@@ -326,6 +358,10 @@ func _handle_dark_camera(row: int, col: int) -> void:
 		m._vfx.screen_shake(3.0, 0.15)
 		m.token.hop(0.05)
 
+		var cam_ghost_idx: int = _find_ghost_index(ghost)
+		if cam_ghost_idx >= 0:
+			m.board_visual.animate_ghost_fade(cam_ghost_idx)
+
 		var center: Vector2 = m.board_visual.get_card_center(row, col)
 		m._vfx.spawn_burst(center, 12, Color(0.7, 0.3, 0.9))
 		m._vfx.action_banner("驱除幽灵!", Color(0.7, 0.3, 0.9), 0.8)
@@ -345,6 +381,9 @@ func _change_layer(target_layer: int) -> void:
 
 	m._vfx.action_banner("进入 %s" % result["layer_name"], Color(0.6, 0.4, 0.8), 1.0)
 	m._vfx.screen_flash(Color(0.3, 0.1, 0.5, 0.5), 0.4)
+
+	# 清理旧层幽灵节点
+	m.board_visual.destroy_ghost_nodes()
 
 	# 重新生成棋盘
 	_generate_dark_board()
@@ -368,6 +407,9 @@ func on_dark_exit_requested() -> void:
 		return
 
 	m.dark_world.begin_exit()
+
+	# 清理幽灵节点
+	m.board_visual.destroy_ghost_nodes()
 
 	# 恢复现实棋盘
 	m.board = _saved_board

@@ -524,6 +524,10 @@ func _process(dt: float) -> void:
 	token.update(dt)
 	board_visual.update_token_visual()
 
+	# 暗面幽灵浮动动画
+	if dark_world.active:
+		board_visual.update_ghost_visuals(game_time)
+
 	# 对话系统 tween 管理
 	_update_dialogue_tweens(dt)
 
