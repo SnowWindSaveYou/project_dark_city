@@ -149,7 +149,7 @@ func rebuild_card_nodes() -> void:
 				ico_s.rotation_degrees = Vector3(-90, 0, 0)  # 朝上平铺
 				ico_s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 				ico_s.no_depth_test = true
-				ico_s.render_priority = 200
+				ico_s.render_priority = 10
 				ico_s.visible = card.scouted
 				card_node.add_child(ico_s)
 
@@ -162,7 +162,7 @@ func rebuild_card_nodes() -> void:
 				ico_r.rotation_degrees = Vector3(-90, 0, 0)
 				ico_r.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 				ico_r.no_depth_test = true
-				ico_r.render_priority = 200
+				ico_r.render_priority = 10
 				ico_r.visible = card.revealed
 				card_node.add_child(ico_r)
 
@@ -398,7 +398,9 @@ func update_token_visual() -> void:
 		m._token_shadow.scale = Vector3(
 			TOKEN_SHADOW_W * shadow_scale, 0.001,
 			TOKEN_SHADOW_Z * shadow_scale)
-		m._token_shadow.modulate.a = shadow_alpha
+		var shadow_mat: StandardMaterial3D = m._token_shadow.material_override as StandardMaterial3D
+		if shadow_mat:
+			shadow_mat.albedo_color.a = shadow_alpha
 
 # ---------------------------------------------------------------------------
 # 发牌动画
