@@ -1,11 +1,11 @@
 ## Main - 暗面都市 · 主入口 (模块化版)
-## 场景树组织、信号桥接、输入路由、_process/_draw 主循环
+## 场景树组织、信号桥接、输入路由、_process 主循环
 ## 游戏逻辑委托给 controllers/ 子模块:
 ##   board_visual.gd   — 卡牌节点管理、视觉更新、动画
 ##   game_flow.gd      — 发牌、日期推进、结算、胜负
 ##   card_interaction.gd — 翻牌/移动、相机模式、弹窗回调
 ##   dark_world_flow.gd — 暗面进出、换层、幽灵碰撞
-extends Node2D
+extends Node3D
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -63,6 +63,25 @@ var _board_layer: Node2D = null
 var _token_sprite: Sprite2D = null
 
 # ---------------------------------------------------------------------------
+# 3D 场景组件 (Phase 0)
+# ---------------------------------------------------------------------------
+var _camera_3d: Camera3D = null
+var _dir_light: DirectionalLight3D = null
+var _world_env: WorldEnvironment = null
+var _env: Environment = null
+## 2D 棋盘桥接层 (SubViewport 过渡方案)
+var _board_subviewport: SubViewport = null
+var _bg_color_rect: ColorRect = null
+
+# ---------------------------------------------------------------------------
+# 兼容方法 (Node3D 没有 CanvasItem.get_viewport_rect)
+# ---------------------------------------------------------------------------
+
+## 返回主视口矩形 (替代 CanvasItem.get_viewport_rect)
+func get_viewport_rect() -> Rect2:
+	return get_viewport().get_visible_rect()
+
+# ---------------------------------------------------------------------------
 # 运行时状态
 # ---------------------------------------------------------------------------
 var day_count: int = 1
@@ -112,24 +131,63 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 
 func _setup_scene_tree() -> void:
-	# --- 2D 层 ---
+	# === 3D 场景基础组件 ===
+	_setup_3d_scene()
+
+	# === 背景层 (CanvasLayer layer=-1, 位于 3D 场景下方) ===
+	var bg_layer: CanvasLayer = CanvasLayer.new()
+	bg_layer.name = "BGLayer"
+	bg_layer.layer = -1
+	add_child(bg_layer)
+
+	_bg_color_rect = ColorRect.new()
+	_bg_color_rect.name = "BGColorRect"
+	_bg_color_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bg_color_rect.color = BG_BRIGHT
+	bg_layer.add_child(_bg_color_rect)
+
+	# === 2D 棋盘桥接层 (CanvasLayer layer=0) ===
+	# 用 SubViewportContainer + SubViewport 承载现有 2D 棋盘节点
+	# 这是过渡方案，Phase 1 会将棋盘改为直接 3D 节点
+	var board_canvas: CanvasLayer = CanvasLayer.new()
+	board_canvas.name = "BoardCanvasLayer"
+	board_canvas.layer = 0
+	add_child(board_canvas)
+
+	var svp_container: SubViewportContainer = SubViewportContainer.new()
+	svp_container.name = "BoardViewportContainer"
+	svp_container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	svp_container.stretch = true
+	svp_container.mouse_filter = Control.MOUSE_FILTER_PASS
+	board_canvas.add_child(svp_container)
+
+	_board_subviewport = SubViewport.new()
+	_board_subviewport.name = "BoardSubViewport"
+	_board_subviewport.transparent_bg = true
+	_board_subviewport.handle_input_locally = false
+	# 尺寸会在 _process 中自动同步为主视口尺寸
+	var vp_size: Vector2i = get_viewport().get_visible_rect().size
+	_board_subviewport.size = vp_size
+	svp_container.add_child(_board_subviewport)
+
+	# --- 2D 棋盘内容放入 SubViewport ---
 	_board_layer = Node2D.new()
 	_board_layer.name = "BoardLayer"
-	add_child(_board_layer)
+	_board_subviewport.add_child(_board_layer)
 
 	_token_sprite = Sprite2D.new()
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.z_index = 1
 	_token_sprite.visible = false
-	add_child(_token_sprite)
+	_board_subviewport.add_child(_token_sprite)
 
 	# BoardVisual 叠层 (安全光晕、道具、裂隙标记)
 	board_visual = load("res://scripts/controllers/board_visual.gd").new()
 	board_visual.name = "BoardVisual"
 	board_visual.z_index = 2
-	add_child(board_visual)
+	_board_subviewport.add_child(board_visual)
 
-	# --- UI CanvasLayer ---
+	# === UI CanvasLayer (layer=10, 位于最顶层) ===
 	var ui_layer: CanvasLayer = CanvasLayer.new()
 	ui_layer.name = "UILayer"
 	ui_layer.layer = 10
@@ -184,6 +242,51 @@ func _setup_scene_tree() -> void:
 	_title_screen.name = "TitleScreen"
 	_title_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui_layer.add_child(_title_screen)
+
+# ---------------------------------------------------------------------------
+# 3D 场景初始化 (Phase 0)
+# ---------------------------------------------------------------------------
+
+func _setup_3d_scene() -> void:
+	# Camera3D: 45° 俯视, FOV 50
+	var cam_pivot: Node3D = Node3D.new()
+	cam_pivot.name = "CameraPivot"
+	cam_pivot.position = Vector3(0, 0, 0)
+	add_child(cam_pivot)
+
+	_camera_3d = Camera3D.new()
+	_camera_3d.name = "MainCamera"
+	_camera_3d.fov = 50.0
+	# 45° 俯视: 位于 Y=4.5, Z=-4.5 (与原版 UrhoX 一致)
+	_camera_3d.position = Vector3(0, 4.5, -4.5)
+	_camera_3d.rotation_degrees = Vector3(-45, 180, 0)
+	# Phase 0 先不激活 3D 相机 (让 2D SubViewport 主导显示)
+	# 等 Phase 1 棋盘 3D 化后才切为主相机
+	_camera_3d.current = false
+	cam_pivot.add_child(_camera_3d)
+
+	# DirectionalLight3D: 模拟日光
+	_dir_light = DirectionalLight3D.new()
+	_dir_light.name = "SunLight"
+	_dir_light.rotation_degrees = Vector3(-50, -30, 0)
+	_dir_light.light_energy = 2.8
+	_dir_light.shadow_enabled = true
+	add_child(_dir_light)
+
+	# WorldEnvironment
+	_env = Environment.new()
+	_env.background_mode = Environment.BG_COLOR
+	_env.background_color = BG_BRIGHT
+	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_env.ambient_light_color = Color(0.4, 0.45, 0.5)
+	_env.ambient_light_energy = 0.6
+	_env.tonemap_mode = Environment.TONE_MAP_ACES
+	_env.fog_enabled = false  # Phase 4 开启
+
+	_world_env = WorldEnvironment.new()
+	_world_env.name = "WorldEnv"
+	_world_env.environment = _env
+	add_child(_world_env)
 
 # ---------------------------------------------------------------------------
 # 控制器初始化
@@ -365,6 +468,12 @@ func _process_click(pos: Vector2) -> void:
 func _process(dt: float) -> void:
 	game_time += dt
 
+	# SubViewport 尺寸同步
+	if _board_subviewport:
+		var vp_size: Vector2i = get_viewport().get_visible_rect().size
+		if _board_subviewport.size != vp_size:
+			_board_subviewport.size = vp_size
+
 	# 背景氛围过渡
 	_bg_transition_target = minf(float(GameData.cards_revealed) / 8.0, 1.0)
 	_bg_transition = move_toward(_bg_transition, _bg_transition_target, 2.0 * dt)
@@ -380,11 +489,13 @@ func _process(dt: float) -> void:
 	_update_bubble_tweens(dt)
 
 	board_visual.queue_redraw()
-	queue_redraw()
 
-func _draw() -> void:
+	# 背景色过渡 (取代原 Node2D._draw)
 	var bg_color: Color = BG_BRIGHT.lerp(BG_DARK, _bg_transition)
-	draw_rect(Rect2(Vector2.ZERO, get_viewport_rect().size), bg_color)
+	if _bg_color_rect:
+		_bg_color_rect.color = bg_color
+	if _env:
+		_env.background_color = bg_color
 
 # ---------------------------------------------------------------------------
 # 对话系统 tween 管理
