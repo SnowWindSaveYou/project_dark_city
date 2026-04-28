@@ -176,7 +176,7 @@ func _setup_scene_tree() -> void:
 	_token_sprite = Sprite3D.new()
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
-	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y  # Lua: FC_ROTATE_Y (只绕Y轴旋转, 精灵保持竖直)
 	_token_sprite.pixel_size = 0.00065  # 每像素 0.00065m → 515px≈0.335m宽, 768px≈0.50m高 (匹配 Lua SPRITE_3D_W/H)
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
@@ -208,11 +208,17 @@ func _setup_scene_tree() -> void:
 	ui_layer.layer = 10
 	add_child(ui_layer)
 
+	# VFX 放在独立的高层 CanvasLayer, 确保屏闪/横幅覆盖所有 UI
+	var vfx_layer: CanvasLayer = CanvasLayer.new()
+	vfx_layer.name = "VFXLayer"
+	vfx_layer.layer = 100
+	add_child(vfx_layer)
+
 	_vfx = VFXManager.new()
 	_vfx.name = "VFX"
 	_vfx.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_vfx.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_layer.add_child(_vfx)
+	vfx_layer.add_child(_vfx)
 
 	_resource_bar = load("res://scripts/ui/resource_bar.gd").new()
 	_resource_bar.name = "ResourceBar"
@@ -553,6 +559,11 @@ func _process(dt: float) -> void:
 	if _cam_pivot:
 		var target_pivot: Vector3 = Vector3(_camera_offset.x, 0, _camera_offset.y)
 		_cam_pivot.position = _cam_pivot.position.lerp(target_pivot, minf(10.0 * dt, 1.0))
+		# 屏幕震动 → 相机偏移 (Lua: shakeX/Y * 0.005)
+		if _vfx:
+			var shake: Vector2 = _vfx.shake_offset
+			if shake != Vector2.ZERO:
+				_cam_pivot.position += Vector3(shake.x * 0.005, shake.y * 0.005, 0)
 
 	# Token
 	token.update(dt)

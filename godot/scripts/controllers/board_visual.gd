@@ -652,6 +652,7 @@ func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 
 	# --- Phase 3: 翻转到峰值时换面 + 落回 ---
 	tw_rot.tween_callback(func() -> void:
+		tw_shake.kill()  # 确保震动 tween 已停止
 		card_node.position.x = base_x  # 重置震动偏移
 		update_card_visual(row, col)
 
@@ -691,11 +692,18 @@ func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 		)
 	)
 
+## 正在 shake 的卡牌 key 集合 (防重入, 匹配 Lua: if card._shaking then return end)
+var _shaking_keys: Dictionary = {}
+
 ## 播放无效操作震动动画 (0.35s, 6Hz 衰减正弦)
 func play_shake_animation(row: int, col: int) -> void:
+	var key: int = row * 100 + col
+	if _shaking_keys.has(key):
+		return
 	var card_node: MeshInstance3D = get_card_node(row, col)
 	if not card_node:
 		return
+	_shaking_keys[key] = true
 	var base_x: float = card_node.position.x
 	var tw: Tween = m.create_tween()
 	tw.tween_method(func(t: float) -> void:
@@ -705,6 +713,7 @@ func play_shake_animation(row: int, col: int) -> void:
 	, 0.0, 1.0, 0.35).set_trans(Tween.TRANS_LINEAR)
 	tw.tween_callback(func() -> void:
 		card_node.position.x = base_x
+		_shaking_keys.erase(key)
 	)
 
 ## 播放翻回动画 (拍照侦察后, 同步原版 Card.flipBack)
