@@ -161,8 +161,13 @@ func update_dark_card_visual(row: int, col: int) -> void:
 		mat.albedo_color = GameTheme.card_back_dark
 
 # ---------------------------------------------------------------------------
-# Token 精灵更新
+# Token 精灵更新 (Sprite3D billboard)
 # ---------------------------------------------------------------------------
+
+## Token 悬浮高度 (Sprite3D 中心点到卡面的距离)
+const TOKEN_HOVER_Y: float = 0.28
+## 像素→世界单位的换算 (与 Sprite3D.pixel_size 保持一致)
+const TOKEN_PX_TO_WORLD: float = 0.005
 
 func update_token_visual() -> void:
 	var token: Token = m.token
@@ -175,17 +180,18 @@ func update_token_visual() -> void:
 	if tex:
 		m._token_sprite.texture = tex
 
-	# 获取屏幕坐标
-	var screen_pos: Vector2 = get_card_center(token.target_row, token.target_col)
+	# 3D 世界坐标定位
+	var world_pos: Vector3 = get_card_world_pos(token.target_row, token.target_col)
+	world_pos.y = CARD_Y + TOKEN_HOVER_Y
 
-	# 呼吸动画 (屏幕空间偏移)
+	# 呼吸动画 (转换像素偏移为世界单位)
 	var breathe: Dictionary = token.get_breathe_offset(m.game_time)
-	screen_pos.y += breathe["y"]
-	screen_pos.y += token.bounce_y
+	world_pos.y += breathe["y"] * TOKEN_PX_TO_WORLD
+	world_pos.y += token.bounce_y * TOKEN_PX_TO_WORLD
 
-	m._token_sprite.position = screen_pos
+	m._token_sprite.position = world_pos
 	m._token_sprite.modulate.a = token.alpha
-	m._token_sprite.scale = Vector2(token.squash_x, token.squash_y)
+	m._token_sprite.scale = Vector3(token.squash_x, token.squash_y, 1.0)
 
 # ---------------------------------------------------------------------------
 # 发牌动画
@@ -325,12 +331,12 @@ func play_flip_back_animation(row: int, col: int) -> void:
 # Token 移动动画
 # ---------------------------------------------------------------------------
 
-## Token 移动到目标格, 完成后调用 on_arrive
-## 注意: 仍用屏幕坐标移动 Sprite2D (Phase 3 改为 Sprite3D)
+## Token 移动到目标格 (3D 世界坐标), 完成后调用 on_arrive
 func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
-	var target_pos: Vector2 = get_card_center(row, col)
+	var world_pos: Vector3 = get_card_world_pos(row, col)
+	world_pos.y = CARD_Y + TOKEN_HOVER_Y
 	var tween: Tween = m.create_tween()
-	tween.tween_property(m._token_sprite, "position", target_pos, 0.3) \
+	tween.tween_property(m._token_sprite, "position", world_pos, 0.3) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tween.tween_callback(on_arrive)
 

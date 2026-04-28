@@ -60,7 +60,7 @@ var _date_transition: Control = null
 # 场景节点
 # ---------------------------------------------------------------------------
 var _board_layer: Node3D = null
-var _token_sprite: Sprite2D = null
+var _token_sprite: Sprite3D = null
 
 # ---------------------------------------------------------------------------
 # 3D 场景组件
@@ -146,16 +146,16 @@ func _setup_scene_tree() -> void:
 	# === 3D 桌面 ===
 	_setup_table()
 
-	# === Token 叠层 (CanvasLayer, 2D Sprite 覆盖在 3D 上方, Phase 3 改为 Sprite3D) ===
-	var token_layer: CanvasLayer = CanvasLayer.new()
-	token_layer.name = "TokenLayer"
-	token_layer.layer = 1
-	add_child(token_layer)
-
-	_token_sprite = Sprite2D.new()
+	# === Token (Sprite3D billboard, 始终面向相机) ===
+	_token_sprite = Sprite3D.new()
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
-	token_layer.add_child(_token_sprite)
+	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_token_sprite.pixel_size = 0.005  # 每像素 0.005m ≈ 64px → 0.32m 宽
+	_token_sprite.transparent = true
+	_token_sprite.no_depth_test = false
+	_token_sprite.render_priority = 1
+	add_child(_token_sprite)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
 	var ui_layer: CanvasLayer = CanvasLayer.new()
@@ -444,9 +444,11 @@ func _process_click(pos: Vector2) -> void:
 	if GameData.game_phase != "playing":
 		return
 
-	# 气泡对话 — 点击 Token
-	if _bubble_dialogue and _token_sprite.visible:
-		if pos.distance_to(_token_sprite.position) < TOKEN_CLICK_RADIUS:
+	# 气泡对话 — 点击 Token (投影 3D 位置到屏幕后判断距离)
+	if _bubble_dialogue and _token_sprite.visible and _camera_3d:
+		var token_screen: Vector2 = _camera_3d.unproject_position(
+			_token_sprite.global_position)
+		if pos.distance_to(token_screen) < TOKEN_CLICK_RADIUS:
 			_bubble_dialogue.click_trigger()
 			return
 
