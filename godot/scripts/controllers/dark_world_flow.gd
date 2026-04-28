@@ -129,8 +129,9 @@ func _on_dark_deal_complete() -> void:
 	m.token.set_emotion("nervous")
 	m.board_visual.update_token_visual()
 
-	# 创建幽灵 3D 节点
+	# 创建幽灵 & NPC 3D 节点
 	m.board_visual.create_ghost_nodes(layer_data.ghosts)
+	m.board_visual.create_npc_nodes(layer_data.npcs)
 
 	# 翻开入口卡牌
 	var entry_card: Card = m.board.get_card(entry_r, entry_c)
@@ -382,8 +383,9 @@ func _change_layer(target_layer: int) -> void:
 	m._vfx.action_banner("进入 %s" % result["layer_name"], Color(0.6, 0.4, 0.8), 1.0)
 	m._vfx.screen_flash(Color(0.3, 0.1, 0.5, 0.5), 0.4)
 
-	# 清理旧层幽灵节点
+	# 清理旧层幽灵 & NPC 节点
 	m.board_visual.destroy_ghost_nodes()
+	m.board_visual.destroy_npc_nodes()
 
 	# 重新生成棋盘
 	_generate_dark_board()
@@ -408,8 +410,9 @@ func on_dark_exit_requested() -> void:
 
 	m.dark_world.begin_exit()
 
-	# 清理幽灵节点
+	# 清理幽灵 & NPC 节点
 	m.board_visual.destroy_ghost_nodes()
+	m.board_visual.destroy_npc_nodes()
 
 	# 恢复现实棋盘
 	m.board = _saved_board

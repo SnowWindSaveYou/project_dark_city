@@ -34,6 +34,8 @@ var _particle_mat_home: StandardMaterial3D = null
 
 ## 暗面幽灵 Sprite3D 节点缓存: ghost_index(int) → Dictionary
 var _ghost_nodes: Dictionary = {}
+## 暗面 NPC Sprite3D 节点缓存: npc_index(int) → Dictionary
+var _npc_nodes: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -746,6 +748,55 @@ func animate_ghost_fade(ghost_index: int) -> void:
 			node.queue_free()
 		_ghost_nodes.erase(ghost_index)
 	)
+
+# ---------------------------------------------------------------------------
+# 暗面 NPC 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createNPCNodes)
+# ---------------------------------------------------------------------------
+
+const NPC_BASE_Y: float = 0.43   # node Y=0.25 + billboard offset Y=0.18
+const NPC_WORLD_SIZE: float = 0.35
+const NPC_OFFSET_X: float = 0.15
+const NPC_BREATHE_SPEED: float = 2.0
+const NPC_BREATHE_AMP: float = 0.02
+
+func create_npc_nodes(npcs: Array) -> void:
+	destroy_npc_nodes()
+	for i in range(npcs.size()):
+		var npc: DarkWorld.DarkNPCData = npcs[i]
+		var tex: Texture2D = load(npc.tex_path)
+		if not tex:
+			continue
+		var sprite: Sprite3D = Sprite3D.new()
+		sprite.name = "DarkNPC_%s" % npc.id
+		sprite.texture = tex
+		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		sprite.transparent = true
+		sprite.no_depth_test = false
+		sprite.render_priority = 2
+		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
+		sprite.pixel_size = NPC_WORLD_SIZE / tex_max if tex_max > 0.0 else 0.001
+		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
+		world_pos.x += NPC_OFFSET_X
+		world_pos.y = NPC_BASE_Y
+		sprite.position = world_pos
+		add_child(sprite)
+		_npc_nodes[i] = { "node": sprite }
+
+func destroy_npc_nodes() -> void:
+	for key in _npc_nodes:
+		var data: Dictionary = _npc_nodes[key]
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_npc_nodes.clear()
+
+func update_npc_visuals(game_time: float) -> void:
+	var breathe: float = 1.0 + sin(game_time * NPC_BREATHE_SPEED) * NPC_BREATHE_AMP
+	for key in _npc_nodes:
+		var data: Dictionary = _npc_nodes[key]
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.scale = Vector3(breathe, breathe, breathe)
 
 # ---------------------------------------------------------------------------
 # 棋盘叠层效果 (Phase 3 用 3D 节点替代 _draw)
