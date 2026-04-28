@@ -13,6 +13,7 @@ config/features=PackedStringArray("4.3", "GL Compatibility")
 
 CardConfig="*res://scripts/autoload/card_config.gd"
 GameTheme="*res://scripts/autoload/theme.gd"
+StoryManager="*res://scripts/autoload/story_manager.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 
 [display]

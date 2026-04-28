@@ -189,9 +189,27 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 			for key in effects:
 				GameData.modify_resource(key, effects[key])
 
-		# 线索: 触发传闻
+		# 剧情事件: 条件化选择 + 设置 flag + 收集线索
+		if card_type == "plot":
+			var story_evt: Dictionary = StoryManager.pick_plot_event()
+			if not story_evt.is_empty():
+				var result: Dictionary = StoryManager.apply_event_effects(story_evt)
+				if result["is_new_clue"]:
+					m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+						Color(0.5, 0.8, 0.6), 1.0)
+
+		# 线索事件: 条件化选择 + 收集线索 + 触发传闻
 		if card_type == "clue":
-			m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+			var clue_evt: Dictionary = StoryManager.pick_clue_event()
+			if not clue_evt.is_empty():
+				var result: Dictionary = StoryManager.apply_event_effects(clue_evt)
+				if result["is_new_clue"]:
+					m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+						Color(0.5, 0.8, 0.6), 1.0)
+				else:
+					m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+			else:
+				m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
 		# Toast 通知
 		m._event_popup.show_toast(card_type, effects, shield_used, card.location)

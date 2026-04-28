@@ -78,6 +78,9 @@ func reset() -> void:
 	monsters_slain = 0
 	photos_used = 0
 	inventory = {}
+	# 重置剧情状态
+	if StoryManager:
+		StoryManager.reset()
 
 # ---------------------------------------------------------------------------
 # 资源操作

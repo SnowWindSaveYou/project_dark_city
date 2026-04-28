@@ -1,0 +1,290 @@
+{
+	"chapters": {
+		"prologue": {
+			"name": "序章：迷雾降临",
+			"unlock": null
+		},
+		"chapter1": {
+			"name": "第一章：失踪者的痕迹",
+			"unlock": { "flag": "prologue_done" }
+		},
+		"chapter2": {
+			"name": "第二章：暗面之下",
+			"unlock": { "all": [{ "flag": "chapter1_done" }, { "min_clues": 5 }] }
+		}
+	},
+
+	"clues": {
+		"clue_old_photo": {
+			"name": "泛黄照片",
+			"desc": "一张模糊的合影，背面写着一个日期。照片中的人面容模糊，但似乎都穿着某种制服。",
+			"category": "人物",
+			"icon": "📷"
+		},
+		"clue_blood_stain": {
+			"name": "干涸血迹",
+			"desc": "地下室墙角发现的深色痕迹。经过长时间氧化已变为暗褐色，但形状异常规整。",
+			"category": "现场",
+			"icon": "🩸"
+		},
+		"clue_diary_page": {
+			"name": "日记残页",
+			"desc": "被撕下的日记页，字迹潦草：'第七天……它们从墙里出来了……不要回头看……'",
+			"category": "文献",
+			"icon": "📄"
+		},
+		"clue_strange_symbol": {
+			"name": "奇异符文",
+			"desc": "刻在墙壁上的古老符号，似乎是某种封印的一部分。用相机拍下后符号消失了。",
+			"category": "遗物",
+			"icon": "🔮"
+		},
+		"clue_missing_poster": {
+			"name": "寻人启事",
+			"desc": "褪色的寻人启事，上面的照片已经看不清。但日期是三个月前的——和裂隙首次出现的时间吻合。",
+			"category": "人物",
+			"icon": "📋"
+		},
+		"clue_broken_talisman": {
+			"name": "碎裂护符",
+			"desc": "一枚断成两半的护身符，内侧刻着细小的文字。似乎曾经有很强的驱邪之力。",
+			"category": "遗物",
+			"icon": "🧿"
+		},
+		"clue_audio_tape": {
+			"name": "录音磁带",
+			"desc": "一卷老式磁带，标签上写着"第三次调查记录"。播放后只能听到持续的静电噪声和微弱的低语。",
+			"category": "文献",
+			"icon": "📼"
+		},
+		"clue_dark_map": {
+			"name": "暗面地图残片",
+			"desc": "在暗世界深处发现的地图碎片，标注了几个关键位置。其中一个标记处写着'核心'。",
+			"category": "遗物",
+			"icon": "🗺️"
+		}
+	},
+
+	"plot_events": [
+		{
+			"id": "plot_intro_inscription",
+			"condition": null,
+			"weight": 10,
+			"text": "墙壁上隐约浮现出奇异的纹路，仿佛在诉说着什么古老的秘密……",
+			"set_flags": {},
+			"clue_id": null
+		},
+		{
+			"id": "plot_find_photo",
+			"condition": { "not_flag": "found_photo" },
+			"weight": 15,
+			"text": "一张泛黄的照片从缝隙中滑落。照片背面有人匆匆写下了一行字——'他们知道了'。",
+			"set_flags": { "found_photo": true },
+			"clue_id": "clue_old_photo"
+		},
+		{
+			"id": "plot_symbol_wall",
+			"condition": { "not_flag": "found_symbol" },
+			"weight": 12,
+			"text": "你注意到墙上刻着奇异的符文，手指触碰的瞬间，符文发出了微弱的光……",
+			"set_flags": { "found_symbol": true },
+			"clue_id": "clue_strange_symbol"
+		},
+		{
+			"id": "plot_whisper",
+			"condition": { "flag": "found_symbol" },
+			"weight": 10,
+			"text": "那些符文……你又看到了相似的痕迹。这次它们排列成一个箭头，指向某个方向。",
+			"set_flags": { "symbol_trail": true },
+			"clue_id": null
+		},
+		{
+			"id": "plot_missing_person",
+			"condition": { "min_day": 2 },
+			"weight": 12,
+			"text": "你在废弃的告示栏上发现了一张寻人启事。日期正好是裂隙出现的那天……",
+			"set_flags": { "found_missing_poster": true },
+			"clue_id": "clue_missing_poster"
+		},
+		{
+			"id": "plot_deep_rumble",
+			"condition": { "min_clues": 3 },
+			"weight": 10,
+			"text": "脚下传来低沉的震动，仿佛地底有什么巨大的东西正在苏醒……收集到的线索似乎在你脑中拼凑出了某种图案。",
+			"set_flags": { "felt_rumble": true },
+			"clue_id": null
+		}
+	],
+
+	"clue_events": [
+		{
+			"id": "clue_footprints",
+			"condition": null,
+			"weight": 10,
+			"text": "地上有一串奇怪的脚印，不像是人类留下的。它们消失在一面完整的墙壁前。",
+			"clue_id": null,
+			"set_flags": {}
+		},
+		{
+			"id": "clue_blood_trail",
+			"condition": { "not_flag": "found_blood" },
+			"weight": 12,
+			"text": "你在角落发现了干涸的血迹，痕迹异常规整，像是某种仪式的一部分……",
+			"clue_id": "clue_blood_stain",
+			"set_flags": { "found_blood": true }
+		},
+		{
+			"id": "clue_diary",
+			"condition": { "min_day": 2, "not_flag": "found_diary" },
+			"weight": 12,
+			"text": "一页日记从旧书里飘落，字迹越到后面越潦草，最后一行写着：'不要回头看……'",
+			"clue_id": "clue_diary_page",
+			"set_flags": { "found_diary": true }
+		},
+		{
+			"id": "clue_talisman",
+			"condition": { "flag": "found_symbol", "not_flag": "found_talisman" },
+			"weight": 14,
+			"text": "在符文附近的地面上，你发现了一枚碎裂的护身符。它上面的刻文和墙上的符号一模一样。",
+			"clue_id": "clue_broken_talisman",
+			"set_flags": { "found_talisman": true }
+		},
+		{
+			"id": "clue_generic",
+			"condition": null,
+			"weight": 8,
+			"text": "你注意到一个不寻常的细节，也许之后会派上用场……",
+			"clue_id": null,
+			"set_flags": {}
+		}
+	],
+
+	"npc_dialogues": {
+		"nekomata": [
+			{
+				"condition": null,
+				"lines": [
+					{ "speaker": "双尾猫妖", "text": "喵~你也迷路了吗？这里的巷子会自己改变方向的……" },
+					{ "speaker": "双尾猫妖", "text": "小心那些飘来飘去的家伙，它们可不像我这么友好。" },
+					{ "speaker": "双尾猫妖", "text": "要是走不动了就回去吧，反正下次来还是这条路。" }
+				]
+			},
+			{
+				"condition": { "min_clues": 2 },
+				"lines": [
+					{ "speaker": "双尾猫妖", "text": "喵？你身上的气息变了……是收集了不少东西吧。" },
+					{ "speaker": "双尾猫妖", "text": "那些碎片拼在一起会告诉你一些事情的，喵。" },
+					{ "speaker": "双尾猫妖", "text": "不过有些真相……知道了反而更痛苦呢。" }
+				]
+			},
+			{
+				"condition": { "flag": "found_symbol" },
+				"lines": [
+					{ "speaker": "双尾猫妖", "text": "你看到那些符号了？喵……那可是很久以前的东西。" },
+					{ "speaker": "双尾猫妖", "text": "据说是某个人为了封印什么东西留下的。" },
+					{ "speaker": "双尾猫妖", "text": "封印嘛……总有破裂的一天，喵~" }
+				]
+			}
+		],
+
+		"ghost_girl": [
+			{
+				"condition": null,
+				"lines": [
+					{ "speaker": "幽灵娘", "text": "……你在找什么？" },
+					{ "speaker": "幽灵娘", "text": "她留下过很多东西，散落在各个角落里……" },
+					{ "speaker": "幽灵娘", "text": "那些碎片……拼在一起也许能看到些什么。" }
+				]
+			},
+			{
+				"condition": { "flag": "found_photo" },
+				"lines": [
+					{ "speaker": "幽灵娘", "text": "那张照片……你找到了。" },
+					{ "speaker": "幽灵娘", "text": "照片里的人……已经不在这个世界了。" },
+					{ "speaker": "幽灵娘", "text": "但他们留下的痕迹还在。去找找看吧。" }
+				]
+			},
+			{
+				"condition": { "min_clues": 5 },
+				"lines": [
+					{ "speaker": "幽灵娘", "text": "……你已经知道很多了。" },
+					{ "speaker": "幽灵娘", "text": "最后一块拼图在最深的地方。" },
+					{ "speaker": "幽灵娘", "text": "去那里之前……做好准备。" }
+				]
+			}
+		],
+
+		"faceless": [
+			{
+				"condition": null,
+				"lines": [
+					{ "speaker": "无脸商人", "text": "……" },
+					{ "speaker": "无脸商人", "text": "只认钱。不问来历。" },
+					{ "speaker": "无脸商人", "text": "想要什么……自己看。" }
+				]
+			},
+			{
+				"condition": { "flag": "found_talisman" },
+				"lines": [
+					{ "speaker": "无脸商人", "text": "……那个东西。" },
+					{ "speaker": "无脸商人", "text": "很久没见过了。上一个拿着它的人……" },
+					{ "speaker": "无脸商人", "text": "……算了。不关我的事。" }
+				]
+			}
+		],
+
+		"mask_user": [
+			{
+				"condition": null,
+				"lines": [
+					{ "speaker": "面具使", "text": "到这里来的人……都在找什么东西。" },
+					{ "speaker": "面具使", "text": "最深处有一个地方……但你需要足够的碎片。" },
+					{ "speaker": "面具使", "text": "去看看吧，如果你觉得自己准备好了的话。" }
+				]
+			},
+			{
+				"condition": { "min_clues": 5 },
+				"lines": [
+					{ "speaker": "面具使", "text": "你收集了足够多的碎片。" },
+					{ "speaker": "面具使", "text": "深渊核心……就在前方。" },
+					{ "speaker": "面具使", "text": "不过我建议你三思。看到真相的人，往往无法回头。" }
+				]
+			},
+			{
+				"condition": { "flag": "felt_rumble" },
+				"lines": [
+					{ "speaker": "面具使", "text": "你也感觉到了吧……那个震动。" },
+					{ "speaker": "面具使", "text": "它正在苏醒。封印已经撑不了多久了。" },
+					{ "speaker": "面具使", "text": "你的选择将决定一切的走向。" }
+				]
+			}
+		]
+	},
+
+	"dark_clue_events": [
+		{
+			"id": "dark_clue_tape",
+			"condition": { "not_flag": "found_tape" },
+			"weight": 12,
+			"text": "你在暗世界的角落发现了一卷老式磁带，上面标注着"第三次调查记录"……",
+			"clue_id": "clue_audio_tape",
+			"set_flags": { "found_tape": true }
+		},
+		{
+			"id": "dark_clue_map",
+			"condition": { "min_clues": 3, "not_flag": "found_dark_map" },
+			"weight": 14,
+			"text": "一张残破的地图碎片浮现在虚空中，上面标注了暗世界的几个关键位置……",
+			"clue_id": "clue_dark_map",
+			"set_flags": { "found_dark_map": true }
+		},
+		{
+			"id": "dark_clue_generic",
+			"condition": null,
+			"weight": 8,
+			"text": "暗世界的气息中隐藏着某种信息，你将其记在脑海中。",
+			"clue_id": null,
+			"set_flags": {}
+		}
+	]
+}

@@ -9,6 +9,7 @@ extends Control
 signal end_day_pressed
 signal schedule_toggled(index: int)
 signal use_exorcism_pressed  # 驱魔香特殊回调
+signal open_clue_log         # 打开线索日志
 
 # ---------------------------------------------------------------------------
 # 常量 — 笔记本布局 (与 Lua 版一致)
@@ -56,6 +57,7 @@ var _card_manager: CardManager = null
 var _hover_index: int = 0  # 日程 hover (1-based)
 var _hover_end_day: bool = false
 var _hover_toolbar: String = "" # 工具栏 hover 的 item key
+var _hover_clue_btn: bool = false  # 线索按钮 hover
 var _rumor_page: int = 1  # 传闻翻页 (1-based, 循环)
 
 # ---------------------------------------------------------------------------
@@ -134,6 +136,12 @@ func _get_toolbar_item_rect(px: float, py: float, pw: float,
 	var ix: float = start_x + idx * (TOOLBAR_ICON + TOOLBAR_GAP)
 	var iy: float = toolbar_y + (TOOLBAR_H - TOOLBAR_ICON) / 2.0
 	return Rect2(ix, iy, TOOLBAR_ICON, TOOLBAR_ICON)
+
+## 线索按钮区域 (Tab 栏中央偏右)
+func _get_clue_btn_rect(px: float, py: float, pw: float) -> Rect2:
+	var btn_w: float = 50.0
+	var center_x: float = px + pw / 2.0
+	return Rect2(center_x - btn_w / 2.0, py, btn_w, TAB_H)
 
 # ---------------------------------------------------------------------------
 # 显示 / 隐藏 API
@@ -241,6 +249,12 @@ func _gui_input(event: InputEvent) -> void:
 			_finish_showcase()
 			accept_event()
 			return
+		# 线索按钮 (中央区域)
+		var clue_rect: Rect2 = _get_clue_btn_rect(px, py, pw)
+		if clue_rect.has_point(Vector2(lx, ly)):
+			open_clue_log.emit()
+			accept_event()
+			return
 		toggle_expand()
 		accept_event()
 		return
@@ -316,6 +330,13 @@ func _update_hover(lx: float, ly: float) -> void:
 	_hover_index = 0
 	_hover_end_day = false
 	_hover_toolbar = ""
+	_hover_clue_btn = false
+
+	# 线索按钮 hover (折叠/展开均可触发)
+	var pr2: Rect2 = _get_panel_rect()
+	var clue_rect: Rect2 = _get_clue_btn_rect(pr2.position.x, pr2.position.y, pr2.size.x)
+	if clue_rect.has_point(Vector2(lx, ly)):
+		_hover_clue_btn = true
 
 	if not _expanded or _showcasing:
 		return
@@ -502,13 +523,21 @@ func _draw_tab_bar(px: float, py: float, pw: float, font: Font, t) -> void:
 	draw_string(font, Vector2(px + pw - rumor_w - 10, tab_cy), rumor_label,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(t.text_primary, 0.78))
 
-	# 中间: 拉手 (三条短横线)
-	var handle_x: float = px + pw / 2.0
-	var handle_y: float = py + TAB_H / 2.0
-	for i in range(-1, 2):
-		draw_line(Vector2(handle_x - 8, handle_y + i * 3.5),
-			Vector2(handle_x + 8, handle_y + i * 3.5),
-			Color(t.notebook_border, 0.47), 1.2)
+	# 中间: 线索入口按钮
+	var clue_count: int = StoryManager.get_clue_count() if StoryManager else 0
+	var clue_label: String = "🔍 %d" % clue_count
+	var clue_alpha: float = 0.86 if _hover_clue_btn else 0.55
+	var clue_color: Color = Color(0.45, 0.65, 0.45, clue_alpha) if clue_count > 0 \
+		else Color(t.text_primary, clue_alpha * 0.7)
+	var clue_lw: float = font.get_string_size(clue_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+	var clue_cx: float = px + pw / 2.0
+	draw_string(font, Vector2(clue_cx - clue_lw / 2.0, tab_cy), clue_label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, clue_color)
+	# hover 下划线
+	if _hover_clue_btn:
+		draw_line(Vector2(clue_cx - clue_lw / 2.0, tab_cy + 2),
+			Vector2(clue_cx + clue_lw / 2.0, tab_cy + 2),
+			Color(clue_color, 0.47), 0.8)
 
 # ---------------------------------------------------------------------------
 # 日程条目
@@ -873,4 +902,5 @@ func reset() -> void:
 	_hover_index = 0
 	_hover_end_day = false
 	_hover_toolbar = ""
+	_hover_clue_btn = false
 	_rumor_page = 1

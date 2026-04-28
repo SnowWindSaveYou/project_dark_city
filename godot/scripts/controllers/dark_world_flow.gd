@@ -293,7 +293,19 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 
 		"clue":
 			var clue_name: String = effect["data"].get("name", "线索")
-			m._vfx.action_banner("发现线索: %s" % clue_name, Color(0.6, 0.8, 0.5), 0.8)
+			# 尝试从 StoryManager 选择条件化暗世界线索事件
+			var dark_evt: Dictionary = StoryManager.pick_dark_clue_event()
+			if not dark_evt.is_empty():
+				var result: Dictionary = StoryManager.apply_event_effects(dark_evt)
+				if result["is_new_clue"]:
+					m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+						Color(0.5, 0.8, 0.6), 1.0)
+				else:
+					m._vfx.action_banner("发现线索: %s" % clue_name,
+						Color(0.6, 0.8, 0.5), 0.8)
+			else:
+				m._vfx.action_banner("发现线索: %s" % clue_name,
+					Color(0.6, 0.8, 0.5), 0.8)
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
 			GameData.modify_resource("san", 1)
 			m.dark_world.set_ready()

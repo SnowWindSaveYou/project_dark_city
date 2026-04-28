@@ -71,6 +71,7 @@ var _resource_bar: Control = null
 var _event_popup: Control = null
 var _shop_popup: Control = null
 var _hand_panel: Control = null
+var _clue_log: Control = null
 var _camera_button: Control = null
 var _title_screen: Control = null
 var _game_over: Control = null
@@ -230,6 +231,11 @@ func _setup_scene_tree() -> void:
 	_hand_panel.name = "HandPanel"
 	_hand_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui_layer.add_child(_hand_panel)
+
+	_clue_log = load("res://scripts/ui/clue_log.gd").new()
+	_clue_log.name = "ClueLog"
+	_clue_log.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_layer.add_child(_clue_log)
 
 	_camera_button = load("res://scripts/ui/camera_button.gd").new()
 	_camera_button.name = "CameraButton"
@@ -398,6 +404,7 @@ func _connect_signals() -> void:
 		func(idx: int): card_manager.toggle_defer(idx))
 	_hand_panel.use_exorcism_pressed.connect(
 		func(): card_interaction.handle_inventory_exorcism())
+	_hand_panel.open_clue_log.connect(func(): _clue_log.open())
 
 	# 相机按钮
 	_camera_button.photograph_requested.connect(_on_photograph_request)

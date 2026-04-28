@@ -497,9 +497,14 @@ func on_change_layer_complete() -> void:
 func get_npc_at(row0: int, col0: int) -> Dictionary:
 	var layer: LayerData = layers[current_layer]
 	for npc in layer.npcs:
-		if npc.row == row0 and npc.col == col0 and not npc.dialogue.is_empty():
+		if npc.row == row0 and npc.col == col0:
+			# 优先从 StoryManager 获取条件化对话
+			var story_lines: Array = StoryManager.get_npc_dialogue(npc.id)
+			var dialogue: Array = story_lines if not story_lines.is_empty() else npc.dialogue
+			if dialogue.is_empty():
+				continue
 			return {
-				"dialogue": npc.dialogue,
+				"dialogue": dialogue,
 				"tex": npc.tex_path,
 				"npc_name": npc.npc_name,
 			}
@@ -516,11 +521,16 @@ func handle_card_effect(card: Card, row: int, col: int,
 	# NPC 检测 (npc.row/col 是 0-based, row/col 参数是 1-based)
 	# 不自动触发对话 — 返回 npc_dialogue 让流程知道有 NPC, 但不设 popup
 	for npc in layer.npcs:
-		if npc.row == row - 1 and npc.col == col - 1 and not npc.dialogue.is_empty():
+		if npc.row == row - 1 and npc.col == col - 1:
+			# 优先从 StoryManager 获取条件化对话
+			var story_lines: Array = StoryManager.get_npc_dialogue(npc.id)
+			var dialogue: Array = story_lines if not story_lines.is_empty() else npc.dialogue
+			if dialogue.is_empty():
+				continue
 			return {
 				"type": "npc_dialogue",
 				"data": {
-					"dialogue": npc.dialogue,
+					"dialogue": dialogue,
 					"tex": npc.tex_path,
 					"npc_name": npc.npc_name,
 				},
