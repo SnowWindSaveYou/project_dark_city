@@ -304,7 +304,7 @@ func _do_refresh() -> void:
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	for i in range(CARD_COUNT):
-		var spin_dir: bool = 1.0 if randf() > 0.5 else -1.0
+		var spin_dir: float = 1.0 if randf() > 0.5 else -1.0
 		var target_rot: float = spin_dir * deg_to_rad(10.0 + randf() * 10.0)
 		tw.tween_property(self, "_card_alphas:" + str(i), 0.0, 0.22).set_delay(i * 0.05).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		tw.tween_property(self, "_card_rots:" + str(i), target_rot, 0.22).set_delay(i * 0.05).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
@@ -523,7 +523,7 @@ func _draw_item_card(index: int, card_t: float, game_time: float) -> void:
 	draw_rect(shadow_r, Color(0, 0, 0, 0.12 * draw_alpha))
 
 	# ── 卡牌背景 ──
-	var bg_a: bool = 0.82 if (sold or not can_afford) else 0.96
+	var bg_a: float = 0.82 if (sold or not can_afford) else 0.96
 	draw_rect(local_rect, Color(t.card_face.r, t.card_face.g, t.card_face.b, bg_a * draw_alpha))
 
 	# ── 卡牌边框 ──

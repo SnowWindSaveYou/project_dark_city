@@ -335,9 +335,9 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 # ---------------------------------------------------------------------------
 func _draw_circle_outline(center: Vector2, radius: float, color: Color, width: float) -> void:
 	var segments: int = 32
-	var prev: float = center + Vector2(radius, 0)
+	var prev: Vector2 = center + Vector2(radius, 0)
 	for i in range(1, segments + 1):
 		var angle: float = TAU * i / segments
-		var next: float = center + Vector2(cos(angle) * radius, sin(angle) * radius)
+		var next: Vector2 = center + Vector2(cos(angle) * radius, sin(angle) * radius)
 		draw_line(prev, next, color, width)
 		prev = next

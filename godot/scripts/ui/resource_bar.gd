@@ -412,7 +412,7 @@ func _draw_dark_right(sx: float, sy: float, _sw: float, scy: float,
 	var info_right_x: float = icon_cx - icon_r * 2 - 8.0
 
 	# 层级名称 (主文字)
-	var layer_name: bool = _dark_layer_name if _dark_layer_name != "" else "暗面"
+	var layer_name: String = _dark_layer_name if _dark_layer_name != "" else "暗面"
 	var layer_w: float = font.get_string_size(layer_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	draw_string(font, Vector2(info_right_x - layer_w, scy - 2), layer_name,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.133, 0.827, 0.933, 0.86))  # #22D3EE
@@ -579,9 +579,9 @@ func _draw_dark_seal(center: Vector2, tw: float, th: float, angle: float) -> voi
 func _draw_circle_outline(center: Vector2, radius: float,
 		color: Color, width: float = 1.0) -> void:
 	var segments: int = 24
-	var prev: float = center + Vector2(radius, 0)
+	var prev: Vector2 = center + Vector2(radius, 0)
 	for i in range(1, segments + 1):
 		var angle: float = TAU * float(i) / float(segments)
-		var next: float = center + Vector2(cos(angle) * radius, sin(angle) * radius)
+		var next: Vector2 = center + Vector2(cos(angle) * radius, sin(angle) * radius)
 		draw_line(prev, next, color, width)
 		prev = next

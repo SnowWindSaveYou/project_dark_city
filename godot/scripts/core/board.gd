@@ -144,6 +144,8 @@ func generate_cards() -> void:
 	# 6. 填充棋盘
 	for row in range(1, ROWS + 1):
 		for col in range(1, COLS + 1):
+			if loc_idx>= len(location_pool):
+				continue
 			var key: String = "%d,%d" % [row, col]
 			var special: String = special_map.get(key, "")
 			var card_type: String

@@ -90,7 +90,7 @@ func _get_body_h() -> float:
 	if count > 3:
 		base = BASE_BODY_H + (count - 3) * ITEM_H
 	var toolbar: float = _get_toolbar_h()
-	var btn_space: bool = (BTN_H + BTN_MARGIN * 2) if toolbar > 0 else 0
+	var btn_space: float = (BTN_H + BTN_MARGIN * 2) if toolbar > 0 else 0
 	return base + toolbar + btn_space
 
 func _get_full_h() -> float:

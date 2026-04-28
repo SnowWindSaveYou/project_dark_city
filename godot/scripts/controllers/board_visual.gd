@@ -53,7 +53,7 @@ func rebuild_card_nodes() -> void:
 		child.queue_free()
 
 	_screen_size = m.get_viewport_rect().size
-	var board_center: float = _screen_size * 0.5
+	var board_center: Vector2 = _screen_size * 0.5
 	deck_spawn_pos = Vector2(_screen_size.x + 60, -60)
 
 	var total_w: float = Board.COLS * (CARD_PX_W + CARD_PX_GAP) - CARD_PX_GAP
@@ -325,7 +325,7 @@ func _draw_board_items() -> void:
 			var font: Font = ThemeDB.fallback_font
 			var fsize: int = int(ITEM_ICON_SIZE * item.scale)
 			if font and fsize > 0:
-				var text_pos: float = center - Vector2(float(fsize) * 0.3, -float(fsize) * 0.3)
+				var text_pos: Vector2 = center - Vector2(float(fsize) * 0.3, -float(fsize) * 0.3)
 				draw_string(font, text_pos, item.icon, HORIZONTAL_ALIGNMENT_CENTER,
 					-1, fsize, Color(1, 1, 1, item.alpha))
 
