@@ -11,7 +11,7 @@ extends Node3D
 # 常量
 # ---------------------------------------------------------------------------
 const DRAG_THRESHOLD: float = 8.0
-const PAN_LIMIT: Vector2 = Vector2(200, 200)
+const PAN_LIMIT: Vector2 = Vector2(2.5, 2.5)  # 世界坐标米
 const BG_BRIGHT: Color = Color(0.53, 0.76, 0.92)
 const BG_DARK: Color = Color(0.15, 0.12, 0.18)
 const TOKEN_CLICK_RADIUS: float = 32.0
@@ -86,6 +86,7 @@ var day_count: int = 1
 var game_time: float = 0.0
 var _bg_transition: float = 0.0
 var _bg_transition_target: float = 0.0
+var _cam_pivot: Node3D = null
 var _camera_offset: Vector2 = Vector2.ZERO
 var _drag_state: Dictionary = {
 	"active": false,
@@ -218,10 +219,10 @@ func _setup_scene_tree() -> void:
 
 func _setup_3d_scene() -> void:
 	# Camera3D: 45° 俯视, FOV 50
-	var cam_pivot: Node3D = Node3D.new()
-	cam_pivot.name = "CameraPivot"
-	cam_pivot.position = Vector3(0, 0, 0)
-	add_child(cam_pivot)
+	_cam_pivot = Node3D.new()
+	_cam_pivot.name = "CameraPivot"
+	_cam_pivot.position = Vector3.ZERO
+	add_child(_cam_pivot)
 
 	_camera_3d = Camera3D.new()
 	_camera_3d.name = "MainCamera"
@@ -230,7 +231,7 @@ func _setup_3d_scene() -> void:
 	_camera_3d.position = Vector3(0, 4.5, -4.5)
 	_camera_3d.rotation_degrees = Vector3(-45, 180, 0)
 	_camera_3d.current = true
-	cam_pivot.add_child(_camera_3d)
+	_cam_pivot.add_child(_camera_3d)
 
 	# DirectionalLight3D: 模拟日光
 	_dir_light = DirectionalLight3D.new()
@@ -417,7 +418,15 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	if _drag_state["is_dragging"]:
 		var move_delta: Vector2 = event.position - _drag_state["last_pos"]
 		_drag_state["last_pos"] = event.position
-		_camera_offset -= move_delta
+		# 屏幕像素 → 世界坐标偏移 (基于相机投影比例)
+		var vp_size: Vector2 = get_viewport_rect().size
+		if vp_size.y > 0 and _camera_3d:
+			var cam_dist: float = _camera_3d.position.length()
+			var half_h: float = cam_dist * tan(deg_to_rad(_camera_3d.fov * 0.5))
+			var px_to_world: float = (half_h * 2.0) / vp_size.y
+			# 相机旋转 180° yaw: 屏幕右→世界+X, 屏幕下→世界+Z
+			_camera_offset.x += move_delta.x * px_to_world
+			_camera_offset.y += move_delta.y * px_to_world
 		_camera_offset = _camera_offset.clamp(-PAN_LIMIT, PAN_LIMIT)
 
 func _handle_key(event: InputEventKey) -> void:
@@ -464,6 +473,11 @@ func _process(dt: float) -> void:
 	# 背景氛围过渡
 	_bg_transition_target = minf(float(GameData.cards_revealed) / 8.0, 1.0)
 	_bg_transition = move_toward(_bg_transition, _bg_transition_target, 2.0 * dt)
+
+	# 3D 相机平移 (平滑跟随 _camera_offset)
+	if _cam_pivot:
+		var target_pivot: Vector3 = Vector3(_camera_offset.x, 0, _camera_offset.y)
+		_cam_pivot.position = _cam_pivot.position.lerp(target_pivot, minf(10.0 * dt, 1.0))
 
 	# Token
 	token.update(dt)
