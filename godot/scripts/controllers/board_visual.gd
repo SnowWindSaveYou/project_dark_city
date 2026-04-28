@@ -700,7 +700,7 @@ func play_shake_animation(row: int, col: int) -> void:
 		var decay: float = (1.0 - t) * (1.0 - t)  # (1-t)² 衰减
 		var offset: float = sin(t * PI * 6.0) * 0.04 * decay
 		card_node.position.x = base_x + offset
-	, 0.0, 1.0, 0.35).set_ease(Tween.EASE_LINEAR).set_trans(Tween.TRANS_LINEAR)
+	, 0.0, 1.0, 0.35).set_trans(Tween.TRANS_LINEAR)
 	tw.tween_callback(func() -> void:
 		card_node.position.x = base_x
 	)
