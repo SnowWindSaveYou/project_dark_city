@@ -626,6 +626,19 @@ func play_flip_animation(row: int, col: int, on_complete: Callable) -> void:
 		)
 	)
 
+## 卡牌 emission 蓄力发光 (渐亮到 peak, duration 秒)
+func start_card_emission_glow(row: int, col: int, color: Color,
+		duration: float = 0.6, peak: float = 2.0) -> void:
+	var mat: StandardMaterial3D = _get_card_mat(row, col)
+	if not mat:
+		return
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.0
+	var tw: Tween = m.create_tween()
+	tw.tween_property(mat, "emission_energy_multiplier", peak, duration) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
 ## 播放驱魔变形动画 (匹配 Lua Card.transformTo: 抬升→70°翻转+震动→换面→落回+光晕)
 func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)
@@ -1187,6 +1200,43 @@ func mg_clear_surround() -> void:
 			node.queue_free()
 	_mg_surround_nodes.clear()
 
+## 驱魔: 环绕 chibi 飞散动画 (各自向随机方向飞出 + 缩小 + 淡出)
+func mg_scatter_surround() -> void:
+	for data in _mg_surround_nodes:
+		var node: Sprite3D = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		# 随机飞散方向
+		var angle: float = randf() * TAU
+		var fly_dist: float = 0.4 + randf() * 0.3
+		var target_x: float = node.position.x + cos(angle) * fly_dist
+		var target_z: float = node.position.z + sin(angle) * fly_dist
+		var tw: Tween = m.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(node, "position:x", target_x, 0.4) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(node, "position:z", target_z, 0.4) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(node, "scale", Vector3(0.1, 0.1, 0.1), 0.4) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(node, "modulate:a", 0.0, 0.35) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		tw.chain().tween_callback(func() -> void:
+			if is_instance_valid(node):
+				node.queue_free()
+		)
+	# 延迟清空数组
+	var nodes_ref: Array = _mg_surround_nodes
+	_mg_surround_nodes = []
+	var tw_cleanup: Tween = m.create_tween()
+	tw_cleanup.tween_callback(func() -> void:
+		for d in nodes_ref:
+			var n = d.get("node")
+			if is_instance_valid(n):
+				n.queue_free()
+		nodes_ref.clear()
+	).set_delay(0.5)
+
 ## 在卡牌上方显示怪物 chibi (拍照鉴定后)
 func mg_show_on_card(row: int, col: int, location: String) -> void:
 	var world_pos: Vector3 = m.board.grid_to_world(row, col)
@@ -1212,6 +1262,50 @@ func mg_clear_card_ghosts() -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	_mg_card_nodes.clear()
+
+## 驱魔: 卡牌 chibi 死亡动画 (抖动→膨胀→淡出→清除)
+## on_burst: 膨胀开始时触发一次 (用于同步闪光/粒子)
+func mg_exorcise_card_ghosts(on_burst: Callable = Callable()) -> void:
+	if _mg_card_nodes.is_empty():
+		if on_burst.is_valid():
+			on_burst.call()
+		return
+	var burst_fired: bool = false
+	for data in _mg_card_nodes:
+		var node: Sprite3D = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var anchor_x: float = data.get("anchor_x", node.position.x)
+		# Phase A: 抖动 (0.15s, 高频小幅)
+		var tw_shake: Tween = m.create_tween()
+		tw_shake.tween_method(func(t: float) -> void:
+			if is_instance_valid(node):
+				node.position.x = anchor_x + sin(t * PI * 16.0) * 0.03 * (1.0 - t)
+		, 0.0, 1.0, 0.15)
+		# Phase B: 膨胀 + 淡出 (0.25s)
+		tw_shake.tween_callback(func() -> void:
+			if not burst_fired:
+				burst_fired = true
+				if on_burst.is_valid():
+					on_burst.call()
+			if not is_instance_valid(node):
+				return
+			var tw_die: Tween = m.create_tween()
+			tw_die.set_parallel(true)
+			tw_die.tween_property(node, "scale", Vector3(1.5, 1.5, 1.5), 0.25) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+			tw_die.tween_property(node, "modulate:a", 0.0, 0.25) \
+				.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+			tw_die.chain().tween_callback(func() -> void:
+				if is_instance_valid(node):
+					node.queue_free()
+			)
+		)
+	# 延迟清空数组 (等动画完成)
+	var tw_cleanup: Tween = m.create_tween()
+	tw_cleanup.tween_callback(func() -> void:
+		_mg_card_nodes.clear()
+	).set_delay(0.45)
 
 ## 显示已侦测的怪物卡牌 chibi (相机模式进入时)
 func mg_show_on_scouted_cards() -> void:
