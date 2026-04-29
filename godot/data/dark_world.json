@@ -1,0 +1,139 @@
+{
+	"$schema_comment": "暗面世界配置 — 层级、地点池、NPC、幽灵、层生成参数",
+	"constants": {
+		"max_energy": 10,
+		"ghost_san_damage": 2,
+		"ghost_chase_dist": 2,
+		"ghost_count": [2, 3, 2]
+	},
+	"layers": [
+		{
+			"name": "表层·暗巷",
+			"unlock_day": 2,
+			"unlock_fragments": 0
+		},
+		{
+			"name": "中层·暗市",
+			"unlock_day": 4,
+			"unlock_fragments": 0
+		},
+		{
+			"name": "深层·暗渊",
+			"unlock_day": 6,
+			"unlock_fragments": 1
+		}
+	],
+	"location_pools": {
+		"0": {
+			"normal": ["锈蚀小巷", "断灯走廊", "裂墙弄堂", "落灰阶梯", "无名死路",
+					   "潮湿拐角", "暗影墙根", "废弃车库", "野猫巢穴", "塌陷天桥"],
+			"shop":   [],
+			"intel":  [],
+			"clue":   ["旧档案室", "碎纸堆", "褪色涂鸦"],
+			"item":   ["废弃背包", "暗格"]
+		},
+		"1": {
+			"normal": ["无光集市", "影子摊位", "假面人群", "沉默柜台", "回声茶馆",
+					   "钟表废铺", "药粉小巷", "纸灯笼路", "地下水渠", "迷雾广场"],
+			"shop":   ["无光集市", "暗巷当铺"],
+			"intel":  ["回声茶馆", "低语井"],
+			"clue":   ["密封信件", "帐本残页", "暗号墙"],
+			"item":   ["上锁匣子", "遗落药包"]
+		},
+		"2": {
+			"normal": ["崩塌深穴", "骨架走廊", "回声深渊", "凝视大厅", "泣血石室",
+					   "虚无阶梯", "裂缝祭坛", "悬浮残桥", "镜像迷宫", "最终长廊"],
+			"shop":   [],
+			"intel":  [],
+			"clue":   ["深渊碑文", "模糊日记", "封印遗物"],
+			"item":   ["黑曜石碎片"]
+		}
+	},
+	"npcs": {
+		"0": [
+			{
+				"id": "nekomata",
+				"name": "双尾猫妖",
+				"tex": "res://assets/image/怪物_双尾猫妖v3_20260426071805.png",
+				"dialogue": [
+					{ "speaker": "双尾猫妖", "text": "喵~你也迷路了吗？这里的巷子会自己改变方向的……" },
+					{ "speaker": "双尾猫妖", "text": "小心那些飘来飘去的家伙，它们可不像我这么友好。" },
+					{ "speaker": "双尾猫妖", "text": "要是走不动了就回去吧，反正下次来还是这条路。" }
+				]
+			}
+		],
+		"1": [
+			{
+				"id": "ghost_girl",
+				"name": "幽灵娘",
+				"tex": "res://assets/image/怪物_幽灵娘v3_20260426072315.png",
+				"dialogue": [
+					{ "speaker": "幽灵娘", "text": "……你在找什么？" },
+					{ "speaker": "幽灵娘", "text": "她留下过很多东西，散落在各个角落里……" },
+					{ "speaker": "幽灵娘", "text": "那些碎片……拼在一起也许能看到些什么。" }
+				]
+			},
+			{
+				"id": "faceless",
+				"name": "无脸商人",
+				"tex": "res://assets/image/怪物_无脸商人_20260426071011.png",
+				"dialogue": [
+					{ "speaker": "无脸商人", "text": "……" },
+					{ "speaker": "无脸商人", "text": "只认钱。不问来历。" },
+					{ "speaker": "无脸商人", "text": "想要什么……自己看。" }
+				]
+			}
+		],
+		"2": [
+			{
+				"id": "mask_user",
+				"name": "面具使",
+				"tex": "res://assets/image/edited_怪物_面具使v3_20260426073034.png",
+				"dialogue": [
+					{ "speaker": "面具使", "text": "到这里来的人……都在找什么东西。" },
+					{ "speaker": "面具使", "text": "最深处有一个地方……但你需要足够的碎片。" },
+					{ "speaker": "面具使", "text": "去看看吧，如果你觉得自己准备好了的话。" }
+				]
+			}
+		]
+	},
+	"ghost_textures": [
+		"res://assets/image/小幽灵_愤怒v2_20260426073743.png",
+		"res://assets/image/小幽灵_开心v2_20260426073756.png",
+		"res://assets/image/小幽灵_狡猾v2_20260426073758.png",
+		"res://assets/image/小幽灵_委屈v2_20260426073907.png",
+		"res://assets/image/小幽灵_瞌睡v2_20260426073910.png"
+	],
+	"layer_generation": {
+		"0": {
+			"wall_count": [5, 7],
+			"passage_count": 1,
+			"shop_count": 0,
+			"intel_count": 0,
+			"checkpoint_count": 0,
+			"clue_count": [3, 5],
+			"item_count": [1, 3],
+			"has_abyss_core": false
+		},
+		"1": {
+			"wall_count": [4, 6],
+			"passage_count": 2,
+			"shop_count": [1, 2],
+			"intel_count": [1, 2],
+			"checkpoint_count": [1, 2],
+			"clue_count": [3, 5],
+			"item_count": [1, 3],
+			"has_abyss_core": false
+		},
+		"2": {
+			"wall_count": [6, 8],
+			"passage_count": 0,
+			"shop_count": 0,
+			"intel_count": 0,
+			"checkpoint_count": [1, 2],
+			"clue_count": [3, 5],
+			"item_count": [1, 3],
+			"has_abyss_core": true
+		}
+	}
+}

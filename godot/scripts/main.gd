@@ -1,10 +1,17 @@
 ## Main - 暗面都市 · 主入口 (模块化版)
 ## 场景树组织、信号桥接、输入路由、_process 主循环
-## 游戏逻辑委托给 controllers/ 子模块:
-##   board_visual.gd   — 3D 卡牌节点管理、视觉更新、动画
-##   game_flow.gd      — 发牌、日期推进、结算、胜负
-##   card_interaction.gd — 翻牌/移动、相机模式、弹窗回调
-##   dark_world_flow.gd — 暗面进出、换层、幽灵碰撞
+##
+## 架构说明:
+##   - core/    核心数据模型 (Board, Card, Token, DarkWorld)
+##   - controllers/ 业务控制器 (game_flow, card_interaction, board_visual, dark_world_flow)
+##   - ui/      UI组件 (DialogueSystem, EventPopup, ShopPopup 等)
+##   - lib/     工具库 (Enums, GameConfig, WeatherSystem, VFXManager)
+##
+## 初始化顺序:
+##   1. 核心数据 (Board, Token, CardManager, DarkWorld)
+##   2. UI系统 (DialogueSystem, VFXManager)
+##   3. 控制器 (game_flow, card_interaction, board_visual, dark_world_flow)
+##   4. 信号连接
 extends Node3D
 
 # ---------------------------------------------------------------------------
@@ -48,10 +55,11 @@ var dark_world: DarkWorld = null
 # ---------------------------------------------------------------------------
 # 控制器
 # ---------------------------------------------------------------------------
-var board_visual = null       # Node3D — controllers/board_visual.gd
-var game_flow = null          # RefCounted — controllers/game_flow.gd
-var card_interaction = null   # RefCounted — controllers/card_interaction.gd
-var dark_world_flow = null    # RefCounted — controllers/dark_world_flow.gd
+var board_visual: Node3D = null       # Node3D — controllers/board_visual.gd
+var game_flow: RefCounted = null          # RefCounted — controllers/game_flow.gd
+var card_interaction: RefCounted = null   # RefCounted — controllers/card_interaction.gd
+var dark_world_flow: RefCounted = null    # RefCounted — controllers/dark_world_flow.gd
+var consumable_controller: RefCounted = null  # RefCounted — controllers/consumable_controller.gd
 
 # ---------------------------------------------------------------------------
 # 对话系统
@@ -374,6 +382,9 @@ func _setup_controllers() -> void:
 	dark_world_flow = load("res://scripts/controllers/dark_world_flow.gd").new()
 	dark_world_flow.setup(self)
 
+	consumable_controller = load("res://scripts/controllers/consumable_controller.gd").new()
+	consumable_controller.setup(self)
+
 # ---------------------------------------------------------------------------
 # 信号连接
 # ---------------------------------------------------------------------------
@@ -457,7 +468,7 @@ func _on_photograph_request() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# 日期过渡中阻断所有输入
-	if _date_transition.visible and _date_transition.is_active():
+	if _date_transition and _date_transition.visible and _date_transition.is_active():
 		return
 
 	# 对话系统优先消费

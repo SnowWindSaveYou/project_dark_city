@@ -187,9 +187,9 @@ func _draw() -> void:
 
 		# 图标
 		if default_font:
-			draw_string(default_font, Vector2(fx, fy + 6),
+			draw_string(default_font, Vector2(fx - 20, fy + 6),
 				fc["icon"], HORIZONTAL_ALIGNMENT_CENTER,
-				-1, int(fc["font_size"]),
+				40, int(fc["font_size"]),
 				Color(1, 1, 1, card_alpha * 0.2))
 
 	# === 标题 ===
@@ -207,24 +207,24 @@ func _draw() -> void:
 						_title_alpha * 0.1 * pulse))
 
 			# 阴影
-			draw_string(default_font, Vector2(cx + 2, title_y + 2 + 14),
+			draw_string(default_font, Vector2(2, title_y + 2 + 14),
 				"暗面都市", HORIZONTAL_ALIGNMENT_CENTER,
-				-1, font_size,
+				w, font_size,
 				Color(0, 0, 0, _title_alpha * 0.5))
 
 			# 主标题
-			draw_string(default_font, Vector2(cx, title_y + 14),
+			draw_string(default_font, Vector2(0, title_y + 14),
 				"暗面都市", HORIZONTAL_ALIGNMENT_CENTER,
-				-1, font_size,
+				w, font_size,
 				Color(GameTheme.accent.r, GameTheme.accent.g, GameTheme.accent.b, _title_alpha))
 
 	# === 副标题 ===
 	if _subtitle_alpha > 0.01:
 		if default_font:
-			draw_string(default_font, Vector2(cx, h * 0.44 + 7),
+			draw_string(default_font, Vector2(0, h * 0.44 + 7),
 				"用镜头记录真相  ·  用光明驱散恐惧",
 				HORIZONTAL_ALIGNMENT_CENTER,
-				-1, 14,
+				w, 14,
 				Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 					GameTheme.text_secondary.b, _subtitle_alpha * 0.7))
 
@@ -234,9 +234,9 @@ func _draw() -> void:
 		var pa: float = _prompt_alpha * breathe
 
 		if default_font:
-			draw_string(default_font, Vector2(cx, h * 0.62 + 6),
+			draw_string(default_font, Vector2(0, h * 0.62 + 6),
 				"- 点击或按 Enter 开始 -",
 				HORIZONTAL_ALIGNMENT_CENTER,
-				-1, 13,
+				w, 13,
 				Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 					GameTheme.text_secondary.b, pa * 0.8))

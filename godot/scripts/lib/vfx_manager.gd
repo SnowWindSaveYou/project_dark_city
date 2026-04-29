@@ -255,10 +255,10 @@ func _draw() -> void:
 		if font_size < 1:
 			continue
 		# 阴影
-		draw_string(font, pos + Vector2(1, 1), sp["text"],
-			HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0, 0, 0, color.a * 0.5))
-		draw_string(font, pos, sp["text"],
-			HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, color)
+		draw_string(font, Vector2(pos.x - 100 + 1, pos.y + 1), sp["text"],
+			HORIZONTAL_ALIGNMENT_CENTER, 200, font_size, Color(0, 0, 0, color.a * 0.5))
+		draw_string(font, Vector2(pos.x - 100, pos.y), sp["text"],
+			HORIZONTAL_ALIGNMENT_CENTER, 200, font_size, color)
 
 	# 粒子
 	for p in _particles:

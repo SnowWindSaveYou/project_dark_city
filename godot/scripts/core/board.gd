@@ -5,10 +5,13 @@ class_name Board
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 (建议通过 GameConfig 读取)
 # ---------------------------------------------------------------------------
+## @deprecated 请使用 GameConfig.get_board_rows()
 const ROWS: int = 5
+## @deprecated 请使用 GameConfig.get_board_cols()
 const COLS: int = 5
+## @deprecated 请使用 GameConfig.get_board_gap()
 const GAP: float = 0.12  # 卡牌间隔 (米)
 
 ## 牌堆位置 (3D 世界坐标)
@@ -290,6 +293,10 @@ func get_spiral_order() -> Array:
 
 ## 棋盘格子 (row, col) → 3D 世界坐标
 func grid_to_world(row: int, col: int) -> Vector3:
+	# 边界检查
+	if row < 1 or row > ROWS or col < 1 or col > COLS:
+		push_warning("[Board] grid_to_world: invalid position (%d, %d)" % [row, col])
+		return Vector3.ZERO
 	var total_w: float = COLS * Card.CARD_W + (COLS - 1) * GAP
 	var total_h: float = ROWS * Card.CARD_H + (ROWS - 1) * GAP
 	var start_x: float = -total_w / 2.0 + Card.CARD_W / 2.0
@@ -307,22 +314,22 @@ func is_adjacent(r1: int, c1: int, r2: int, c2: int) -> bool:
 	return (absi(r1 - r2) + absi(c1 - c2)) == 1
 
 ## 获取所有未翻开的卡
-func get_unflipped_cards() -> Array:
-	var result: Array = []
+func get_unflipped_cards() -> Array[Card]:
+	var result: Array[Card] = []
 	for r in range(1, ROWS + 1):
 		for c in range(1, COLS + 1):
 			var card: Card = get_card(r, c)
-			if card and not card.is_flipped:
+			if card != null and not card.is_flipped:
 				result.append(card)
 	return result
 
 ## 获取所有已翻开的指定类型卡
-func get_flipped_cards_of_type(type_key: String) -> Array:
-	var result: Array = []
+func get_flipped_cards_of_type(type_key: String) -> Array[Card]:
+	var result: Array[Card] = []
 	for r in range(1, ROWS + 1):
 		for c in range(1, COLS + 1):
 			var card: Card = get_card(r, c)
-			if card and card.is_flipped and card.type == type_key:
+			if card != null and card.is_flipped and card.type == type_key:
 				result.append(card)
 	return result
 
@@ -348,11 +355,17 @@ func flip_back(row: int, col: int) -> void:
 
 ## 检查 (row,col) 是否在某个地标的光环范围内
 func is_in_landmark_aura(row: int, col: int) -> bool:
-	var neighbors: Array = [
+	# 边界检查
+	if row < 1 or row > ROWS or col < 1 or col > COLS:
+		return false
+	var neighbors: Array[Vector2i] = [
 		Vector2i(row - 1, col), Vector2i(row + 1, col),
 		Vector2i(row, col - 1), Vector2i(row, col + 1),
 	]
 	for nb in neighbors:
+		# 边界检查
+		if nb.x < 1 or nb.x > ROWS or nb.y < 1 or nb.y > COLS:
+			continue
 		var nb_card: Card = get_card(nb.x, nb.y)
 		if nb_card and nb_card.is_landmark():
 			return true
@@ -584,9 +597,13 @@ func generate_dark_cards(layer_data: Dictionary, dark_locations: Dictionary, dar
 
 				# 恢复已收集状态
 				var collected: Dictionary = layer_data.get("collected", {})
-				if collected.has(key):
+				var original_type: Variant = collected.get(key, null)
+				if original_type != null:
 					card.dark_type = "normal"
 					card.dark_name = "空走廊"
+					# 标记为已收集，以便 EventHandler 正确处理
+					if original_type == "clue" or original_type == "item":
+						card.dark_collected = true
 				set_card(r, c, card)
 
 	print("[Board] Generated dark cards: layer=%d, walkable=%d, walls=%d" % [

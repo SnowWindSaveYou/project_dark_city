@@ -194,15 +194,15 @@ func _draw() -> void:
 				Color(title_color.r, title_color.g, title_color.b, _title_alpha * 0.15))
 
 		# 阴影
-		draw_string(default_font, Vector2(cx + 2, title_y + 2 + 12),
+		draw_string(default_font, Vector2(2, title_y + 2 + 12),
 			title_text, HORIZONTAL_ALIGNMENT_CENTER,
-			-1, fs, Color(0, 0, 0, _title_alpha * 0.5))
+			w, fs, Color(0, 0, 0, _title_alpha * 0.5))
 
 		# 标题文字 (缩放通过字号近似)
 		var scaled_fs: int = int(fs * _title_scale)
-		draw_string(default_font, Vector2(cx, title_y + 12),
+		draw_string(default_font, Vector2(0, title_y + 12),
 			title_text, HORIZONTAL_ALIGNMENT_CENTER,
-			-1, scaled_fs,
+			w, scaled_fs,
 			Color(title_color.r, title_color.g, title_color.b, _title_alpha))
 
 	# === 副标题 ===
@@ -212,9 +212,9 @@ func _draw() -> void:
 			sub_text = "你在暗面都市中幸存了下来。"
 		else:
 			sub_text = "黑暗吞噬了你最后的理智..."
-		draw_string(default_font, Vector2(cx, h * 0.36 + 7),
+		draw_string(default_font, Vector2(0, h * 0.36 + 7),
 			sub_text, HORIZONTAL_ALIGNMENT_CENTER,
-			-1, 15,
+			w, 15,
 			Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 				GameTheme.text_secondary.b, _subtitle_alpha * 0.8))
 
@@ -235,10 +235,10 @@ func _draw() -> void:
 			var ly: float = start_y + i * line_h
 
 			# 图标 + 标签
-			draw_string(default_font, Vector2(cx - 10, ly + 5),
+			draw_string(default_font, Vector2(0, ly + 5),
 				line["icon"] + " " + line["label"],
 				HORIZONTAL_ALIGNMENT_RIGHT,
-				-1, 16,
+				cx - 10, 16,
 				Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 					GameTheme.text_secondary.b, _stats_alpha))
 
@@ -279,7 +279,7 @@ func _draw() -> void:
 		# 按钮文字
 		if default_font and _button_t > 0.3:
 			draw_string(default_font,
-				Vector2(cx, scaled_rect.position.y + scaled_rect.size.y / 2 + 6),
+				Vector2(scaled_rect.position.x, scaled_rect.position.y + scaled_rect.size.y / 2 + 6),
 				"重新开始", HORIZONTAL_ALIGNMENT_CENTER,
-				-1, 15,
+				scaled_rect.size.x, 15,
 				Color(1, 1, 1, _button_t))

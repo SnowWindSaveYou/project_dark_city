@@ -54,6 +54,7 @@ var _panel_y: float = 0.0
 var _alpha: float = 0.0
 var _visible_state: bool = false
 var _card_manager: CardManager = null
+var _consumable_controller = null  # 消耗品控制器引用
 var _hover_index: int = 0  # 日程 hover (1-based)
 var _hover_end_day: bool = false
 var _hover_toolbar: String = "" # 工具栏 hover 的 item key
@@ -74,8 +75,9 @@ func _has_point(point: Vector2) -> bool:
 		return false
 	return _get_panel_rect().has_point(point)
 
-func setup(cm: CardManager) -> void:
+func setup(cm: CardManager, cc) -> void:
 	_card_manager = cm
+	_consumable_controller = cc
 
 # ---------------------------------------------------------------------------
 # 布局辅助
@@ -376,26 +378,11 @@ func _update_hover(lx: float, ly: float) -> void:
 # ---------------------------------------------------------------------------
 
 func _get_consumable_entries() -> Array:
-	var result: Array = []
-	for key in CardConfig.consumable_order:
-		var count: int = GameData.get_item_count(key)
-		if count > 0:
-			result.append({
-				"key": key,
-				"count": count,
-				"info": ShopData.get_item_info(key),
-			})
-	return result
+	return _consumable_controller.get_consumable_entries()
 
 func _use_consumable(key: String) -> void:
-	var info: Dictionary = ShopData.get_item_info(key)
-	if info.is_empty():
-		return
-	if not GameData.remove_item(key):
-		return
-	# 应用效果
-	var effects: Dictionary = info.get("effect", {})
-	GameData.apply_effects(effects)
+	if _consumable_controller.use_consumable(key):
+		queue_redraw()
 
 # ---------------------------------------------------------------------------
 # 更新
@@ -821,24 +808,7 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 
 		# hover 提示气泡
 		if is_hovered:
-			var info: Dictionary = entry["info"]
-			var label: String = info.get("name", "")
-			var effect: Dictionary = info.get("effect", {})
-			var parts: Array = []
-			var res_names: Dictionary = { "san": "理智", "order": "秩序", "film": "胶卷" }
-			if icon_key == "exorcism":
-				parts.append("驱除当前怪物")
-			elif icon_key == "shield":
-				parts.append("抵挡一次伤害")
-			elif icon_key == "mapReveal":
-				parts.append("揭示周围")
-			else:
-				for ek in effect:
-					var rn: String = res_names.get(ek, ek)
-					var ev: int = effect[ek]
-					var sign: String = "+" if ev > 0 else ""
-					parts.append(rn + sign + str(ev))
-			var tip: String = label + ": " + ", ".join(parts)
+			var tip: String = _consumable_controller.get_consumable_tooltip(icon_key)
 			var tip_w: float = font.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x
 			var tip_x: float = icon_cx
 			var tip_y: float = ir.position.y - 4
