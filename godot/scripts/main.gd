@@ -238,9 +238,8 @@ func _setup_scene_tree() -> void:
 	_resource_bar = resource_bar_scene.instantiate()
 	ui_layer.add_child(_resource_bar)
 
-	_hand_panel = load("res://scripts/ui/hand_panel.gd").new()
-	_hand_panel.name = "HandPanel"
-	_hand_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# HandPanel — Scene 化（保留 _draw() 笔记本渲染）
+	_hand_panel = load("res://scenes/ui/hand_panel.tscn").instantiate()
 	ui_layer.add_child(_hand_panel)
 
 	_clue_log = load("res://scripts/ui/clue_log.gd").new()
@@ -272,10 +271,8 @@ func _setup_scene_tree() -> void:
 	_shop_popup = shop_popup_scene.instantiate()
 	ui_layer.add_child(_shop_popup)
 
-	_game_over = load("res://scripts/visual/game_over.gd").new()
-	_game_over.name = "GameOver"
-	_game_over.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_game_over.visible = false
+	# GameOver — Scene 化
+	_game_over = load("res://scenes/screens/game_over.tscn").instantiate()
 	ui_layer.add_child(_game_over)
 
 	_date_transition = load("res://scripts/visual/date_transition.gd").new()
@@ -300,10 +297,8 @@ func _setup_scene_tree() -> void:
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
-	# Title Screen (最顶层)
-	_title_screen = load("res://scripts/visual/title_screen.gd").new()
-	_title_screen.name = "TitleScreen"
-	_title_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Title Screen (最顶层) — Scene 化
+	_title_screen = load("res://scenes/screens/title_screen.tscn").instantiate()
 	ui_layer.add_child(_title_screen)
 
 # ---------------------------------------------------------------------------
