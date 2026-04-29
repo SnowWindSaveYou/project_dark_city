@@ -116,6 +116,10 @@ func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
+	# 模态弹窗初始隐藏（仅 show_event 时显示）
+	_overlay.visible = false
+	$PanelAnchor.visible = false
+
 	# 预加载 Toast 场景
 	_toast_item_packed = load(TOAST_ITEM_SCENE)
 
@@ -192,6 +196,8 @@ func show_event(card: Card) -> void:
 	_phase = "enter"
 	_cached_desc = card.get_event_text()
 	visible = true
+	_overlay.visible = true
+	$PanelAnchor.visible = true
 
 	# 填充内容
 	var darkside: Dictionary = card.get_darkside_info()
@@ -265,6 +271,8 @@ func dismiss() -> void:
 func _on_dismiss_complete() -> void:
 	_active = false
 	_phase = "none"
+	_overlay.visible = false
+	$PanelAnchor.visible = false
 	visible = _has_active_toasts()
 	popup_closed.emit(_card)
 	_card = null
