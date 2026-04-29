@@ -418,6 +418,8 @@ func move_ghosts(player_row: int, player_col: int,
 ## 检测玩家当前格子是否有幽灵 (移动到达后调用)
 ## 返回碰撞的 GhostData 或 null
 func check_ghost_collision(player_row: int, player_col: int) -> GhostData:
+	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
+		return null
 	var layer: LayerData = layers[current_layer]
 	for ghost in layer.ghosts:
 		if ghost.alive and ghost.row == player_row and ghost.col == player_col:
@@ -646,6 +648,8 @@ func request_exit() -> void:
 ## 返回被驱除的 GhostData 或 null
 func handle_camera_shot(target_row: int, target_col: int) -> GhostData:
 	if not active or dark_state != "ready":
+		return null
+	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
 		return null
 
 	var layer: LayerData = layers[current_layer]

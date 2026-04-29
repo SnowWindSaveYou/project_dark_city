@@ -60,9 +60,9 @@ func setup(main_ref) -> void:
 	_particle_mat_landmark = _create_particle_material(GameTheme.glow_color)
 	_particle_mat_home = _create_particle_material(Color(0.9, 0.95, 1.0, 0.8))
 
-	# 侦察/揭示图标纹理
-	_tex_scouted = load("res://assets/image/icon_scouted_v2_20260426051601.png")
-	_tex_revealed = load("res://assets/image/icon_revealed_v2_20260426051619.png")
+	# 侦察/揭示图标纹理 (预加载)
+	_tex_scouted = preload("res://assets/image/icon_scouted_v2_20260426051601.png")
+	_tex_revealed = preload("res://assets/image/icon_revealed_v2_20260426051619.png")
 
 # ---------------------------------------------------------------------------
 # 卡牌节点创建 (全量重建)
@@ -177,6 +177,8 @@ func rebuild_card_nodes() -> void:
 # ---------------------------------------------------------------------------
 
 func get_card_node(row: int, col: int) -> MeshInstance3D:
+	if board_layer == null:
+		return null
 	var card_name: String = "Card_%d_%d" % [row, col]
 	return board_layer.get_node_or_null(card_name) as MeshInstance3D
 

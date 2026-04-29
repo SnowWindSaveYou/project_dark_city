@@ -13,17 +13,17 @@ extends RefCounted
 
 ## 当天日程列表
 ## 每个元素: { "location": "park", "verb": "在公园取景", "reward": { "san": 1 }, "status": "pending" }
-var schedules: Array = []
+var schedules: Array[Dictionary] = []
 
 ## 传闻列表
 ## 每个元素: { "type": "safe"|"danger", "text": "..." }
-var rumors: Array = []
+var rumors: Array[Dictionary] = []
 
 ## 延期日程 (留到下一天, 最多 1 张)
-var _deferred_schedules: Array = []
+var _deferred_schedules: Array[Dictionary] = []
 
 ## 预选地点缓存
-var _pre_selected: Array = []
+var _pre_selected: Array[String] = []
 
 # ---------------------------------------------------------------------------
 # 每日生成
@@ -83,7 +83,7 @@ func pre_select_locations() -> Array:
 			all_locs.append(loc)
 	all_locs.shuffle()
 
-	var required: Array = []
+	var required: Array[String] = []
 	var used: Dictionary = {}
 
 	# 昨天推迟的日程地点
@@ -177,14 +177,14 @@ func generate_rumor_from_board(board: Board) -> void:
 func add_rumor_from_board(board: Board) -> bool:
 	# 已有传闻的地点集合
 	var covered: Dictionary = {}
-	for r in rumors:
-		covered[r["location"]] = true
+	for rumor in rumors:
+		covered[rumor.get("location", "")] = true
 
-	var candidates: Array = []
+	var candidates: Array[Card] = []
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = board.get_card(r, c)
-			if card and card.location != "home" \
+			if card != null and card.location != "home" \
 					and not card.is_flipped and not covered.has(card.location):
 				candidates.append(card)
 	if candidates.is_empty():
@@ -207,9 +207,9 @@ func add_rumor_from_board(board: Board) -> bool:
 
 ## 查询指定地点是否有传闻
 func get_rumor_for(location: String) -> Dictionary:
-	for r in rumors:
-		if r["location"] == location:
-			return r
+	for rumor in rumors:
+		if rumor.get("location", "") == location:
+			return rumor
 	return {}
 
 # ---------------------------------------------------------------------------

@@ -9,3 +9,5 @@ res://scenes/main.tscn
 res://scripts/core/dark_world.gd
 res://scripts/controllers/card_interaction.gd
 res://scripts/core/card_manager.gd
+res://scripts/core/board.gd
+res://scripts/ui/event_popup.gd

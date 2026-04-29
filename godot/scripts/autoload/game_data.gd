@@ -36,7 +36,7 @@ var monsters_slain: int = 0
 var photos_used: int = 0
 
 ## 道具栏 { "coffee": 2, "shield": 1, ... }
-var inventory: Dictionary = {}
+var inventory: Dictionary[String, int] = {}
 
 # ---------------------------------------------------------------------------
 # 初始化

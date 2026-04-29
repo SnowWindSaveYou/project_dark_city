@@ -102,7 +102,7 @@ var _rift_btn_stay_hover: float = 0.0
 # ===========================================================================
 # Toast 系统状态
 # ===========================================================================
-var _toast_queue: Array = []  # Array of ToastInstance dictionaries
+var _toast_queue: Array[Dictionary] = []  # Array of ToastInstance dictionaries
 var _toast_next_id: int = 1
 
 # ---------------------------------------------------------------------------

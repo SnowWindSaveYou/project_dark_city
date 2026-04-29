@@ -48,10 +48,10 @@ var dark_world: DarkWorld = null
 # ---------------------------------------------------------------------------
 # 控制器
 # ---------------------------------------------------------------------------
-var board_visual = null       # Node3D — controllers/board_visual.gd
-var game_flow = null          # RefCounted — controllers/game_flow.gd
-var card_interaction = null   # RefCounted — controllers/card_interaction.gd
-var dark_world_flow = null    # RefCounted — controllers/dark_world_flow.gd
+var board_visual: Node3D = null       # Node3D — controllers/board_visual.gd
+var game_flow: RefCounted = null          # RefCounted — controllers/game_flow.gd
+var card_interaction: RefCounted = null   # RefCounted — controllers/card_interaction.gd
+var dark_world_flow: RefCounted = null    # RefCounted — controllers/dark_world_flow.gd
 
 # ---------------------------------------------------------------------------
 # 对话系统
