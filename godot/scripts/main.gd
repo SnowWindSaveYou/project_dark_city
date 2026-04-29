@@ -79,6 +79,8 @@ var _ui_layer: CanvasLayer = null
 var _resource_bar: Control = null
 var _event_popup: Control = null
 var _shop_popup: Control = null
+var _rift_popup: Control = null
+var _photo_popup: Control = null
 var _hand_panel: Control = null
 var _clue_log: Control = null
 var _camera_button: Control = null
@@ -232,10 +234,8 @@ func _setup_scene_tree() -> void:
 	_vfx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vfx_layer.add_child(_vfx)
 
-	_resource_bar = load("res://scripts/ui/resource_bar.gd").new()
-	_resource_bar.name = "ResourceBar"
-	_resource_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_resource_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var resource_bar_scene: PackedScene = load("res://scenes/ui/resource_bar.tscn")
+	_resource_bar = resource_bar_scene.instantiate()
 	ui_layer.add_child(_resource_bar)
 
 	_hand_panel = load("res://scripts/ui/hand_panel.gd").new()
@@ -253,14 +253,23 @@ func _setup_scene_tree() -> void:
 	_camera_button.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui_layer.add_child(_camera_button)
 
-	_event_popup = load("res://scripts/ui/event_popup.gd").new()
-	_event_popup.name = "EventPopup"
-	_event_popup.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var event_popup_scene: PackedScene = load("res://scenes/ui/event_popup.tscn")
+	_event_popup = event_popup_scene.instantiate()
 	ui_layer.add_child(_event_popup)
 
-	_shop_popup = load("res://scripts/ui/shop_popup.gd").new()
-	_shop_popup.name = "ShopPopup"
-	_shop_popup.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var rift_popup_scene: PackedScene = load("res://scenes/ui/rift_popup.tscn")
+	_rift_popup = rift_popup_scene.instantiate()
+	ui_layer.add_child(_rift_popup)
+
+	var photo_popup_scene: PackedScene = load("res://scenes/ui/photo_popup.tscn")
+	_photo_popup = photo_popup_scene.instantiate()
+	ui_layer.add_child(_photo_popup)
+
+	# 注入子弹窗引用 (保持控制器代码兼容)
+	_event_popup.bind_sub_popups(_rift_popup, _photo_popup)
+
+	var shop_popup_scene: PackedScene = load("res://scenes/ui/shop_popup.tscn")
+	_shop_popup = shop_popup_scene.instantiate()
 	ui_layer.add_child(_shop_popup)
 
 	_game_over = load("res://scripts/visual/game_over.gd").new()
@@ -398,16 +407,20 @@ func _connect_signals() -> void:
 	_date_transition.transition_completed.connect(
 		func(): game_flow.on_date_transition_complete())
 
-	# 事件弹窗
+	# 事件弹窗 (场景化拆分后信号分布在三个组件)
 	_event_popup.popup_closed.connect(
 		func(card: Card): card_interaction.on_popup_dismissed(card))
-	_event_popup.photo_popup_closed.connect(
-		func(card_type: String): card_interaction.on_photo_popup_dismissed(card_type))
-	_event_popup.rift_confirmed.connect(
-		func(): card_interaction.on_rift_confirmed())
-	_event_popup.rift_cancelled.connect(
-		func(): card_interaction.on_rift_cancelled())
 	_event_popup.toast_dismissed.connect(func(_ct: String): pass)
+
+	# 裂隙确认 (独立组件)
+	_rift_popup.rift_confirmed.connect(
+		func(): card_interaction.on_rift_confirmed())
+	_rift_popup.rift_cancelled.connect(
+		func(): card_interaction.on_rift_cancelled())
+
+	# 拍照预览 (独立组件)
+	_photo_popup.photo_popup_closed.connect(
+		func(card_type: String): card_interaction.on_photo_popup_dismissed(card_type))
 
 	# 商店 (需区分普通/暗面)
 	_shop_popup.shop_closed.connect(_on_shop_closed)
