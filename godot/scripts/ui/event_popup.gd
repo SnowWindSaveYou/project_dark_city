@@ -619,21 +619,21 @@ func _draw_event() -> void:
 	# 图标
 	if _icon_t > 0.01:
 		var icon_color: Color = Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, content_alpha * _icon_t)
-		draw_string(font, Vector2(cx - 20, cy - 50 + (1.0 - _icon_t) * 15),
+		draw_string(font, Vector2(panel_x, cy - 50 + (1.0 - _icon_t) * 15),
 			darkside.get("icon", "❓"),
-			HORIZONTAL_ALIGNMENT_CENTER, -1, 42, icon_color)
+			HORIZONTAL_ALIGNMENT_CENTER, scaled_w, 42, icon_color)
 
 	# 标题
 	if _title_t > 0.01:
 		var title_color: Color = Color(type_color.r, type_color.g, type_color.b, content_alpha * _title_t)
 		var label_text: String = darkside.get("label", "未知事件")
-		draw_string(font, Vector2(cx, cy - 8 + (1.0 - _title_t) * 10),
-			label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 18, title_color)
+		draw_string(font, Vector2(panel_x, cy - 8 + (1.0 - _title_t) * 10),
+			label_text, HORIZONTAL_ALIGNMENT_CENTER, scaled_w, 18, title_color)
 
 	# 描述
 	if _desc_t > 0.01:
 		var desc_color: Color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, content_alpha * _desc_t)
-		draw_string(font, Vector2(cx, cy + 22 + (1.0 - _desc_t) * 10),
+		draw_string(font, Vector2(cx - scaled_w * 0.4, cy + 22 + (1.0 - _desc_t) * 10),
 			_cached_desc, HORIZONTAL_ALIGNMENT_CENTER, scaled_w * 0.8, 12, desc_color)
 
 	# 效果徽章
@@ -647,15 +647,15 @@ func _draw_event() -> void:
 			var effect_text: String = icon_str + " " + prefix + str(delta_val)
 			var effect_color: Color = t.safe if delta_val > 0 else t.danger
 			effect_color.a = content_alpha * _effects_t
-			draw_string(font, Vector2(cx, ey), effect_text,
-				HORIZONTAL_ALIGNMENT_CENTER, -1, 14, effect_color)
+			draw_string(font, Vector2(panel_x, ey), effect_text,
+				HORIZONTAL_ALIGNMENT_CENTER, scaled_w, 14, effect_color)
 			ey += 22.0
 
 	# 关闭提示
 	if _button_t > 0.01:
 		var btn_color: Color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, _button_t * 0.6)
-		draw_string(font, Vector2(cx, panel_y + scaled_h - 24), "点击关闭",
-			HORIZONTAL_ALIGNMENT_CENTER, -1, 12, btn_color)
+		draw_string(font, Vector2(panel_x, panel_y + scaled_h - 24), "点击关闭",
+			HORIZONTAL_ALIGNMENT_CENTER, scaled_w, 12, btn_color)
 
 # ===========================================================================
 # 渲染: 相片预览 (拍立得风格)
@@ -713,15 +713,15 @@ func _draw_photo() -> void:
 	# 事件图标
 	if _icon_t > 0.01:
 		var icon_color: Color = Color(1, 1, 1, _panel_alpha * _icon_t * 0.9)
-		draw_string(font, Vector2(img_x + img_w / 2.0 - 20, img_y + img_h / 2.0 - 12),
+		draw_string(font, Vector2(img_x, img_y + img_h / 2.0 - 12),
 			darkside.get("icon", "❓"),
-			HORIZONTAL_ALIGNMENT_CENTER, -1, 42, icon_color)
+			HORIZONTAL_ALIGNMENT_CENTER, img_w, 42, icon_color)
 
 	# 事件标题
 	if _title_t > 0.01:
 		var title_color: Color = Color(type_color.r, type_color.g, type_color.b, _panel_alpha * _title_t * 0.9)
-		draw_string(font, Vector2(img_x + img_w / 2.0, img_y + img_h / 2.0 + 24 + (1.0 - _title_t) * 10),
-			darkside.get("label", ""), HORIZONTAL_ALIGNMENT_CENTER, -1, 16, title_color)
+		draw_string(font, Vector2(img_x, img_y + img_h / 2.0 + 24 + (1.0 - _title_t) * 10),
+			darkside.get("label", ""), HORIZONTAL_ALIGNMENT_CENTER, img_w, 16, title_color)
 
 	# 描述
 	if _desc_t > 0.01:
@@ -761,8 +761,8 @@ func _draw_photo() -> void:
 	# 关闭提示
 	if _button_t > 0.01:
 		var hint_color: Color = Color(0.706, 0.667, 0.608, _panel_alpha * _button_t * 0.7)
-		draw_string(font, Vector2(cx, photo_y + PHOTO_H + 14),
-			"点击任意处关闭", HORIZONTAL_ALIGNMENT_CENTER, -1, 10, hint_color)
+		draw_string(font, Vector2(photo_x, photo_y + PHOTO_H + 14),
+			"点击任意处关闭", HORIZONTAL_ALIGNMENT_CENTER, PHOTO_W, 10, hint_color)
 
 	# 重置 transform
 	draw_set_transform_matrix(Transform2D.IDENTITY)
@@ -809,22 +809,22 @@ func _draw_rift_confirm() -> void:
 	# 图标
 	if _rift_icon_t > 0.01:
 		var icon_color: Color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, _rift_popup_alpha * _rift_icon_t)
-		draw_string(font, Vector2(_rift_cx - 18, py + 40 + (1.0 - _rift_icon_t) * 15),
-			"🌀", HORIZONTAL_ALIGNMENT_CENTER, -1, 36, icon_color)
+		draw_string(font, Vector2(px, py + 40 + (1.0 - _rift_icon_t) * 15),
+			"🌀", HORIZONTAL_ALIGNMENT_CENTER, RIFT_POPUP_W, 36, icon_color)
 
 	# 标题
 	if _rift_title_t > 0.01:
 		var title_color: Color = Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, _rift_popup_alpha * _rift_title_t)
-		draw_string(font, Vector2(_rift_cx, py + 70 + (1.0 - _rift_title_t) * 10),
-			"发现空间裂隙", HORIZONTAL_ALIGNMENT_CENTER, -1, 16, title_color)
+		draw_string(font, Vector2(px, py + 70 + (1.0 - _rift_title_t) * 10),
+			"发现空间裂隙", HORIZONTAL_ALIGNMENT_CENTER, RIFT_POPUP_W, 16, title_color)
 
 	# 描述
 	if _rift_desc_t > 0.01:
 		var desc_color: Color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, _rift_popup_alpha * _rift_desc_t * 0.7)
-		draw_string(font, Vector2(_rift_cx, py + 92 + (1.0 - _rift_desc_t) * 8),
-			"此处出现通往暗面世界的裂隙", HORIZONTAL_ALIGNMENT_CENTER, -1, 12, desc_color)
-		draw_string(font, Vector2(_rift_cx, py + 108 + (1.0 - _rift_desc_t) * 8),
-			"是否要进入？", HORIZONTAL_ALIGNMENT_CENTER, -1, 12, desc_color)
+		draw_string(font, Vector2(px, py + 92 + (1.0 - _rift_desc_t) * 8),
+			"此处出现通往暗面世界的裂隙", HORIZONTAL_ALIGNMENT_CENTER, RIFT_POPUP_W, 12, desc_color)
+		draw_string(font, Vector2(px, py + 108 + (1.0 - _rift_desc_t) * 8),
+			"是否要进入？", HORIZONTAL_ALIGNMENT_CENTER, RIFT_POPUP_W, 12, desc_color)
 
 	# 双按钮
 	var btn_y: float = _rift_cy + hh - RIFT_BTN_H - 14.0
@@ -844,8 +844,8 @@ func _draw_rift_confirm() -> void:
 			enter_alpha * 0.86)
 		draw_rect(Rect2(bx, btn_y + (1.0 - _rift_btn_enter_t) * 15, RIFT_BTN_W, RIFT_BTN_H), btn_bg)
 		var btn_text_color: Color = Color(1, 1, 1, enter_alpha * 0.94)
-		draw_string(font, Vector2(bx + RIFT_BTN_W / 2.0, btn_y + RIFT_BTN_H / 2.0 + 5 + (1.0 - _rift_btn_enter_t) * 15),
-			"进入暗面", HORIZONTAL_ALIGNMENT_CENTER, -1, 13, btn_text_color)
+		draw_string(font, Vector2(bx, btn_y + RIFT_BTN_H / 2.0 + 5 + (1.0 - _rift_btn_enter_t) * 15),
+			"进入暗面", HORIZONTAL_ALIGNMENT_CENTER, RIFT_BTN_W, 13, btn_text_color)
 
 	# "留在原地" 按钮
 	if _rift_btn_stay_t > 0.01:
@@ -856,8 +856,8 @@ func _draw_rift_confirm() -> void:
 		var stay_border: Color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, stay_alpha * 0.47)
 		draw_rect(Rect2(bx, btn_y + (1.0 - _rift_btn_stay_t) * 15, RIFT_BTN_W, RIFT_BTN_H), stay_border, false, 1.0)
 		var stay_text_color: Color = Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, stay_alpha * 0.78)
-		draw_string(font, Vector2(bx + RIFT_BTN_W / 2.0, btn_y + RIFT_BTN_H / 2.0 + 5 + (1.0 - _rift_btn_stay_t) * 15),
-			"留在原地", HORIZONTAL_ALIGNMENT_CENTER, -1, 13, stay_text_color)
+		draw_string(font, Vector2(bx, btn_y + RIFT_BTN_H / 2.0 + 5 + (1.0 - _rift_btn_stay_t) * 15),
+			"留在原地", HORIZONTAL_ALIGNMENT_CENTER, RIFT_BTN_W, 13, stay_text_color)
 
 	# 重置 transform
 	draw_set_transform_matrix(Transform2D.IDENTITY)
@@ -952,8 +952,8 @@ func _draw_toasts() -> void:
 				draw_rect(Rect2(badge_x, content_y, bw, bh), badge_border, false, 0.8)
 
 				var badge_text_color: Color = Color(bg_c.r, bg_c.g, bg_c.b, alpha * 0.86)
-				draw_string(font, Vector2(badge_x + bw / 2.0, content_y + bh / 2.0 + 4),
-					label, HORIZONTAL_ALIGNMENT_CENTER, -1, 10, badge_text_color)
+				draw_string(font, Vector2(badge_x, content_y + bh / 2.0 + 4),
+					label, HORIZONTAL_ALIGNMENT_CENTER, bw, 10, badge_text_color)
 				badge_x += bw + 6.0
 			content_y += 24.0
 

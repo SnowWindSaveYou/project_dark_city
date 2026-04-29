@@ -327,6 +327,65 @@ if mat:
 
 ---
 
+## 规则 12: `draw_string` 居中/右对齐必须指定 `width` 🔴
+
+**问题**: NanoVG 的 `NVG_ALIGN_CENTER` 将 x 视为文本**中心点**，直接居中。Godot 的 `draw_string` 使用 `HORIZONTAL_ALIGNMENT_CENTER` 时，如果 `width = -1`（默认值），**对齐参数被忽略**，x 始终作为文本左边缘。必须提供正数 `width`，文本才会在 `[x, x+width]` 范围内居中。
+
+**典型表现**: 所有文字都偏向右侧，因为"中心点"被当成了"左边缘"。
+
+**规则**:
+
+```gdscript
+# ━━━ CENTER 对齐 ━━━
+
+# ❌ 错误: width=-1 → 对齐无效, cx 成了文字左边缘
+draw_string(font, Vector2(cx, y), text, HORIZONTAL_ALIGNMENT_CENTER, -1, size, color)
+
+# ✅ 正确: x=容器左边缘, width=容器宽度 → 文字在容器内居中
+draw_string(font, Vector2(left_edge, y), text, HORIZONTAL_ALIGNMENT_CENTER, container_width, size, color)
+
+# ━━━ RIGHT 对齐 ━━━
+
+# ❌ 错误: width=-1 → 对齐无效, right_x 成了文字左边缘
+draw_string(font, Vector2(right_x, y), text, HORIZONTAL_ALIGNMENT_RIGHT, -1, size, color)
+
+# ✅ 正确: x=左边界, width=右边界位置 → 文字右对齐到 x+width 处
+draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_RIGHT, right_x, size, color)
+```
+
+**从 NanoVG 翻译的转换公式**:
+
+| NanoVG 原版 | Godot 翻译 |
+|------------|-----------|
+| `nvgTextAlign(vg, NVG_ALIGN_CENTER)` + `nvgText(vg, cx, y, text)` | `draw_string(font, Vector2(container_left, y), text, HORIZONTAL_ALIGNMENT_CENTER, container_width, ...)` |
+| `nvgTextAlign(vg, NVG_ALIGN_RIGHT)` + `nvgText(vg, rx, y, text)` | `draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_RIGHT, rx, ...)` |
+
+**常见变体**:
+
+```gdscript
+# 全屏宽度居中 (标题、副标题等)
+var w: float = get_viewport_rect().size.x
+draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, w, size, color)
+
+# 在面板内居中 (弹窗标题、按钮文字)
+draw_string(font, Vector2(panel_x, y), text, HORIZONTAL_ALIGNMENT_CENTER, panel_width, size, color)
+
+# 阴影 + 主体文字 (阴影偏移 2px)
+draw_string(font, Vector2(2, y + 2), text, HORIZONTAL_ALIGNMENT_CENTER, w, size, shadow_color)
+draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, w, size, main_color)
+```
+
+**图标/Emoji 居中**: 手动偏移 (如 `cx - 20`) 同样不可靠，应使用 width 居中：
+```gdscript
+# ❌ 错误: 手动偏移近似居中
+draw_string(font, Vector2(cx - 20, y), "📷", HORIZONTAL_ALIGNMENT_CENTER, -1, ...)
+
+# ✅ 正确: 在容器内居中
+draw_string(font, Vector2(container_x, y), "📷", HORIZONTAL_ALIGNMENT_CENTER, container_w, ...)
+```
+
+---
+
 ## 自查清单
 
 翻译每个文件后执行:
@@ -342,4 +401,5 @@ if mat:
 - [ ] **Lua truthy/falsy** — `if x then` 翻译为布尔标记而非 `!= 0` 检查 (规则9)
 - [ ] **render_priority** — Sprite3D 优先级在 -128~127 范围内 (规则10)
 - [ ] **3D 透明度** — MeshInstance3D 用 `material_override.albedo_color.a`，不用 `modulate` (规则11)
+- [ ] **draw_string 对齐** — `HORIZONTAL_ALIGNMENT_CENTER/RIGHT` 都指定了正数 `width`，未使用 `-1` (规则12)
 

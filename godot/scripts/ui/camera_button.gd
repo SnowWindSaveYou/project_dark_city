@@ -235,8 +235,8 @@ func _draw() -> void:
 	icon_xf = icon_xf.scaled(Vector2(total_scale, total_scale))
 	icon_xf = icon_xf.translated(Vector2(cx, cy))
 	draw_set_transform_matrix(icon_xf)
-	draw_string(font, Vector2(cx, cy + 7), "📷",
-		HORIZONTAL_ALIGNMENT_CENTER, -1, 20, Color.WHITE)
+	draw_string(font, Vector2(cx - BUTTON_SIZE / 2.0, cy + 7), "📷",
+		HORIZONTAL_ALIGNMENT_CENTER, BUTTON_SIZE, 20, Color.WHITE)
 
 	# 恢复变换到按钮级别
 	draw_set_transform_matrix(xf)
@@ -253,8 +253,8 @@ func _draw() -> void:
 		num_color = Color(0.86, 0.31, 0.31, film_alpha)
 	else:
 		num_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, film_alpha)
-	draw_string(font, Vector2(num_x, cy + 5), num_text,
-		HORIZONTAL_ALIGNMENT_RIGHT, -1, 13, num_color)
+	draw_string(font, Vector2(num_x - 40, cy + 5), num_text,
+		HORIZONTAL_ALIGNMENT_RIGHT, 40, 13, num_color)
 
 	# 胶卷图标 (纹理优先)
 	var icon_x: float = num_x - 18.0
@@ -264,8 +264,8 @@ func _draw() -> void:
 		var tex_rect: Rect2 = Rect2(icon_x - tex_size / 2.0, cy - tex_size / 2.0, tex_size, tex_size)
 		draw_texture_rect(_film_texture, tex_rect, false, Color(1, 1, 1, film_alpha))
 	else:
-		draw_string(font, Vector2(icon_x, cy + 5), "🎞️",
-			HORIZONTAL_ALIGNMENT_CENTER, -1, 13, num_color)
+		draw_string(font, Vector2(icon_x - 10, cy + 5), "🎞️",
+			HORIZONTAL_ALIGNMENT_CENTER, 20, 13, num_color)
 
 	# 重置
 	draw_set_transform_matrix(Transform2D.IDENTITY)

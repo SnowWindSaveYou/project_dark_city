@@ -438,20 +438,20 @@ func _draw() -> void:
 	if _header_t > 0.01:
 		var ha: float = _panel_alpha * _header_t
 		# 购物车图标
-		draw_string(font, Vector2(cx, panel_top + HEADER_Y + 18),
-			"🛒", HORIZONTAL_ALIGNMENT_CENTER, -1, 26,
+		draw_string(font, Vector2(panel_left, panel_top + HEADER_Y + 18),
+			"🛒", HORIZONTAL_ALIGNMENT_CENTER, _popup_w, 26,
 			Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, ha))
 		# 店名
-		draw_string(font, Vector2(cx, panel_top + TITLE_Y + 12),
-			_variant.get("name", "商店"), HORIZONTAL_ALIGNMENT_CENTER, -1, 15,
+		draw_string(font, Vector2(panel_left, panel_top + TITLE_Y + 12),
+			_variant.get("name", "商店"), HORIZONTAL_ALIGNMENT_CENTER, _popup_w, 15,
 			Color(shop_color.r, shop_color.g, shop_color.b, ha))
 
 	# === 描述 ===
 	if _desc_t > 0.01:
 		var da: float = _panel_alpha * _desc_t
 		var desc_offset: float = (1.0 - _desc_t) * 6.0
-		draw_string(font, Vector2(cx, panel_top + DESC_Y + 10 + desc_offset),
-			_variant.get("greeting", ""), HORIZONTAL_ALIGNMENT_CENTER, -1, 11,
+		draw_string(font, Vector2(panel_left, panel_top + DESC_Y + 10 + desc_offset),
+			_variant.get("greeting", ""), HORIZONTAL_ALIGNMENT_CENTER, _popup_w, 11,
 			Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, da * 0.7))
 
 	# === 分割线 ===
@@ -559,16 +559,16 @@ func _draw_item_card(index: int, card_t: float, game_time: float) -> void:
 		# 暗淡的图标
 		_draw_card_icon(info, item_key, Vector2(0, -hh + 22), draw_alpha)
 		# 暗淡的名称
-		draw_string(font, Vector2(0, -hh + 48),
-			info.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, -1, 11,
+		draw_string(font, Vector2(-hw, -hh + 48),
+			info.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 11,
 			Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, draw_alpha))
 		# ✓ 大勾
-		draw_string(font, Vector2(0, 14),
-			"✓", HORIZONTAL_ALIGNMENT_CENTER, -1, 34,
+		draw_string(font, Vector2(-hw, 14),
+			"✓", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 34,
 			Color(t.safe.r, t.safe.g, t.safe.b, 0.82 * base_alpha))
 		# "已购" 小字
-		draw_string(font, Vector2(0, hh - 8),
-			"已购", HORIZONTAL_ALIGNMENT_CENTER, -1, 11,
+		draw_string(font, Vector2(-hw, hh - 8),
+			"已购", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 11,
 			Color(t.safe.r, t.safe.g, t.safe.b, 0.7 * base_alpha))
 	else:
 		# === 可购 / 不可购 ===
@@ -578,28 +578,28 @@ func _draw_item_card(index: int, card_t: float, game_time: float) -> void:
 		_draw_card_icon(info, item_key, Vector2(0, -hh + 22), content_alpha)
 
 		# 名称
-		draw_string(font, Vector2(0, -hh + 48),
-			info.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, -1, 11,
+		draw_string(font, Vector2(-hw, -hh + 48),
+			info.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 11,
 			Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, content_alpha))
 
 		# 效果描述
 		var desc_text: String = info.get("desc", "")
 		if desc_text != "":
 			var desc_c: Color = Color(t.info.r, t.info.g, t.info.b, content_alpha * 0.78)
-			draw_string(font, Vector2(0, -hh + 66),
+			draw_string(font, Vector2(-(CARD_W - 8) / 2.0, -hh + 66),
 				desc_text, HORIZONTAL_ALIGNMENT_CENTER, CARD_W - 8, 10, desc_c)
 
 		# 价格 (底部)
 		var price_color: Color = t.highlight if can_afford else t.danger
 		var price_alpha: float = content_alpha if can_afford else draw_alpha * 0.67
-		draw_string(font, Vector2(0, hh - 8),
-			"💰 " + str(price), HORIZONTAL_ALIGNMENT_CENTER, -1, 12,
+		draw_string(font, Vector2(-hw, hh - 8),
+			"💰 " + str(price), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 12,
 			Color(price_color.r, price_color.g, price_color.b, price_alpha))
 
 		# Hover 提示
 		if hover_t > 0.3 and can_afford:
-			draw_string(font, Vector2(0, hh - 22),
-				"点击购买", HORIZONTAL_ALIGNMENT_CENTER, -1, 9,
+			draw_string(font, Vector2(-hw, hh - 22),
+				"点击购买", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 9,
 				Color(t.info.r, t.info.g, t.info.b, hover_t * 0.63 * base_alpha))
 
 	# 恢复面板变换
@@ -624,8 +624,8 @@ func _draw_card_icon(info: Dictionary, item_key: String, center: Vector2, alpha:
 		draw_texture_rect(tex, tex_rect, false, Color(1, 1, 1, alpha))
 	else:
 		# Fallback: emoji
-		draw_string(font, Vector2(center.x, center.y + 8),
-			info.get("icon", "?"), HORIZONTAL_ALIGNMENT_CENTER, -1, 22,
+		draw_string(font, Vector2(-CARD_W / 2.0, center.y + 8),
+			info.get("icon", "?"), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 22,
 			Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, alpha))
 
 # ---------------------------------------------------------------------------
@@ -665,9 +665,9 @@ func _draw_buttons() -> void:
 		draw_rect(scaled_rect, bg_color)
 
 		var text_a: float = 0.92 if can_refresh else 0.4
-		draw_string(font, Vector2(btn_cx, btn_cy + 5),
+		draw_string(font, Vector2(scaled_rect.position.x, btn_cy + 5),
 			"🔄 刷新 💰" + str(CardConfig.shop_refresh_cost),
-			HORIZONTAL_ALIGNMENT_CENTER, -1, 12,
+			HORIZONTAL_ALIGNMENT_CENTER, scaled_rect.size.x, 12,
 			Color(1, 1, 1, text_a * _refresh_t * _panel_alpha))
 
 	# ── 离开按钮 ──
@@ -691,6 +691,6 @@ func _draw_buttons() -> void:
 			rect.size.y * s_btn)
 		draw_rect(scaled_rect, bg_color)
 
-		draw_string(font, Vector2(btn_cx, btn_cy + 5),
-			"离开", HORIZONTAL_ALIGNMENT_CENTER, -1, 13,
+		draw_string(font, Vector2(scaled_rect.position.x, btn_cy + 5),
+			"离开", HORIZONTAL_ALIGNMENT_CENTER, scaled_rect.size.x, 13,
 			Color(1, 1, 1, 0.9 * _leave_t * _panel_alpha))

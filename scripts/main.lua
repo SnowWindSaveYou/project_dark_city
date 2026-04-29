@@ -29,6 +29,7 @@ local BoardItems       = require "BoardItems"
 local NPCManager       = require "NPCManager"
 local DialogueSystem   = require "DialogueSystem"
 local DarkWorld        = require "DarkWorld"
+local DarkTransition   = require "DarkTransition"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -511,6 +512,9 @@ function Start()
 
     -- 日期转场
     DateTransition.init(vg)
+
+    -- 暗面过渡
+    DarkTransition.init(vg)
 
     -- 对话系统
     DialogueSystem.init(vg)
@@ -1427,8 +1431,14 @@ enterDarkWorld = function(riftRow, riftCol)
         )
         bgTransitionTarget = 1.0  -- 暗面世界全暗大气
 
-        -- 5.5 立即切换 ResourceBar 到暗面模式 (收牌后、发牌前, 让 HUD 先变)
+        -- 5.1 启动暗面过渡动画 (覆盖下方卡牌重建过程)
         local layerIdx = DarkWorld.getCurrentLayer()
+        DarkTransition.playEnter(DarkWorld.getLayerName(), layerIdx, function()
+            demoState = "ready"
+            CameraButton.show()
+        end)
+
+        -- 5.5 立即切换 ResourceBar 到暗面模式 (收牌后、发牌前, 让 HUD 先变)
         ResourceBar.setDarkMode(true, {
             layerName = DarkWorld.getLayerName(),
             energy = DarkWorld.getEnergy(),
@@ -1480,8 +1490,7 @@ enterDarkWorld = function(riftRow, riftCol)
                 end
             end
 
-            demoState = "ready"
-            CameraButton.show()
+            -- demoState 和 CameraButton 由 DarkTransition.onComplete 控制
             DarkWorld.onEnterComplete()
             print("[Main] Dark world entered, layer=" .. layerIdx)
         end)
@@ -1495,6 +1504,13 @@ exitDarkWorld = function()
     demoState = "transition"
     CameraButton.hide()
     if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+
+    -- 0. 启动退出过渡动画
+    DarkTransition.playExit(function()
+        demoState = "ready"
+        CameraButton.show()
+        HandPanel.show(logicalH, { showcase = false })
+    end)
 
     -- 1. 保存暗面卡牌状态
     local layerData = DarkWorld.getLayerData()
@@ -1569,9 +1585,7 @@ exitDarkWorld = function()
             token.targetCol = riftCol
             Token.setEmotion(token, "normal")
 
-            demoState = "ready"
-            CameraButton.show()
-            HandPanel.show(logicalH, { showcase = false })
+            -- demoState / CameraButton / HandPanel 由 DarkTransition.onComplete 控制
             print("[Main] Returned to reality from dark world")
         end)
     end)
@@ -1594,13 +1608,16 @@ changeDarkLayer = function(targetLayer, dc)
         return
     end
 
-    -- 3. 隐藏 Token
+    -- 3. 启动层间过渡动画
+    DarkTransition.playLayerChange(layerName, targetLayer, function()
+        demoState = "ready"
+    end)
+
+    -- 4. 隐藏 Token
     token.visible = false
     token.alpha = 0
 
-    VFX.spawnBanner("前往 " .. (layerName or "未知区域"), 200, 180, 255, 20, 1.0)
-
-    -- 4. 收牌 → 销毁 → 生成新层
+    -- 5. 收牌 → 销毁 → 生成新层
     Tween.cancelTag("cardflip")
     Tween.cancelTag("cardshake")
     Board.undealAll(board, function()
@@ -1657,7 +1674,7 @@ changeDarkLayer = function(targetLayer, dc)
                 end
             end
 
-            demoState = "ready"
+            -- demoState 由 DarkTransition.onComplete 控制
             DarkWorld.onChangeLayerComplete()
             print("[Main] Dark layer changed to " .. newLayerIdx)
         end)
@@ -1838,7 +1855,7 @@ local function handleClick(inputX, inputY)
     local lx = inputX / dpr
     local ly = inputY / dpr
 
-    if DateTransition.isActive() then return end
+    if DateTransition.isActive() or DarkTransition.isActive() then return end
 
     if TitleScreen.isActive() then
         TitleScreen.handleClick()
@@ -1997,7 +2014,7 @@ end
 function HandleKeyDown(eventType, eventData)
     local key = eventData:GetInt("Key")
 
-    if DateTransition.isActive() then return end
+    if DateTransition.isActive() or DarkTransition.isActive() then return end
 
     if TitleScreen.isActive() then
         TitleScreen.handleKey(key)
@@ -2125,6 +2142,7 @@ function HandleUpdate(eventType, eventData)
     Tween.update(dt)
     VFX.updateAll(dt)
     DateTransition.update(dt)
+    DarkTransition.update(dt)
     Board.update(board, dt)
     Token.update(token, dt)
     ResourceBar.update(dt)
@@ -2141,7 +2159,8 @@ function HandleUpdate(eventType, eventData)
         local isIdle = not token.isMoving and demoState == "ready"
         local canTrigger = (gamePhase == "playing" and demoState == "ready"
             and not EventPopup.isActive() and not ShopPopup.isActive()
-            and not CameraButton.isActive() and not DateTransition.isActive())
+            and not CameraButton.isActive() and not DateTransition.isActive()
+            and not DarkTransition.isActive())
         BubbleDialogue.update(playerBubble, dt, isIdle, canTrigger)
     end
 
@@ -2320,6 +2339,9 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 结算画面 ===
     GameOver.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 暗面过渡转场 ===
+    DarkTransition.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 日期转场 ===
     DateTransition.draw(vg, logicalW, logicalH, gameTime)
