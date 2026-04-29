@@ -242,14 +242,12 @@ func _setup_scene_tree() -> void:
 	_hand_panel = load("res://scenes/ui/hand_panel.tscn").instantiate()
 	ui_layer.add_child(_hand_panel)
 
-	_clue_log = load("res://scripts/ui/clue_log.gd").new()
-	_clue_log.name = "ClueLog"
-	_clue_log.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# ClueLog — Scene 化
+	_clue_log = load("res://scenes/ui/clue_log.tscn").instantiate()
 	ui_layer.add_child(_clue_log)
 
-	_camera_button = load("res://scripts/ui/camera_button.gd").new()
-	_camera_button.name = "CameraButton"
-	_camera_button.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# CameraButton — Scene 化
+	_camera_button = load("res://scenes/ui/camera_button.tscn").instantiate()
 	ui_layer.add_child(_camera_button)
 
 	var event_popup_scene: PackedScene = load("res://scenes/ui/event_popup.tscn")
@@ -281,19 +279,13 @@ func _setup_scene_tree() -> void:
 	_date_transition.visible = false
 	ui_layer.add_child(_date_transition)
 
-	# 气泡对话渲染层 (Token 头顶)
-	_bubble_overlay = load("res://scripts/visual/bubble_overlay.gd").new()
-	_bubble_overlay.name = "BubbleOverlay"
-	_bubble_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bubble_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# BubbleOverlay — Scene 化 (Token 头顶气泡)
+	_bubble_overlay = load("res://scenes/screens/bubble_overlay.tscn").instantiate()
 	_bubble_overlay.m = self
 	ui_layer.add_child(_bubble_overlay)
 
-	# 对话系统渲染层 (遮罩 + 对话框 + 立绘)
-	_dialogue_overlay = load("res://scripts/visual/dialogue_overlay.gd").new()
-	_dialogue_overlay.name = "DialogueOverlay"
-	_dialogue_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_dialogue_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# DialogueOverlay — Scene 化 (遮罩 + 对话框 + 立绘)
+	_dialogue_overlay = load("res://scenes/screens/dialogue_overlay.tscn").instantiate()
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
