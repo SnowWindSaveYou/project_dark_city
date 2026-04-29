@@ -59,6 +59,7 @@ var board_visual: Node3D = null       # Node3D — controllers/board_visual.gd
 var game_flow: RefCounted = null          # RefCounted — controllers/game_flow.gd
 var card_interaction: RefCounted = null   # RefCounted — controllers/card_interaction.gd
 var dark_world_flow: RefCounted = null    # RefCounted — controllers/dark_world_flow.gd
+var consumable_controller: RefCounted = null  # RefCounted — controllers/consumable_controller.gd
 
 # ---------------------------------------------------------------------------
 # 对话系统
@@ -380,6 +381,9 @@ func _setup_controllers() -> void:
 
 	dark_world_flow = load("res://scripts/controllers/dark_world_flow.gd").new()
 	dark_world_flow.setup(self)
+
+	consumable_controller = load("res://scripts/controllers/consumable_controller.gd").new()
+	consumable_controller.setup(self)
 
 # ---------------------------------------------------------------------------
 # 信号连接

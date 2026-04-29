@@ -78,9 +78,9 @@ func _on_deal_complete() -> void:
 	m.board_visual.create_item_nodes(m.board_items.items)
 	_animate_item_spawn()
 
-	# 通知 HandPanel 刷新并显示
+	# 通知 HandPanel 刷新并显示 (注入 ConsumableController 解耦数据访问)
 	if m._hand_panel:
-		m._hand_panel.setup(m.card_manager)
+		m._hand_panel.setup(m.card_manager, m.consumable_controller)
 		m._hand_panel.show_panel()
 
 ## 道具弹出动画
@@ -288,8 +288,8 @@ func restart_game() -> void:
 	m.token = Token.new()
 	m.token.load_textures()
 
-	# 重新显示手牌面板
-	m._hand_panel.setup(m.card_manager)
+	# 重新显示手牌面板 (注入 ConsumableController 解耦数据访问)
+	m._hand_panel.setup(m.card_manager, m.consumable_controller)
 	m._hand_panel.show_panel()
 
 	GameData.set_game_phase("playing")

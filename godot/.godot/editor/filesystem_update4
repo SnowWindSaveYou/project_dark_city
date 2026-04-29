@@ -5,3 +5,6 @@ res://scripts/autoload/card_config.gd
 res://scripts/ui/event_popup.gd
 res://scripts/controllers/card_interaction.gd
 res://scripts/core/board.gd
+res://scripts/main.gd
+res://scripts/controllers/game_flow.gd
+res://scripts/ui/hand_panel.gd

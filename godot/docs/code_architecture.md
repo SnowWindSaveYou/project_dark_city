@@ -18,6 +18,7 @@ scripts/
 ├── controllers/       # 游戏控制器 (逻辑层)
 │   ├── board_visual.gd    # 棋盘视觉渲染
 │   ├── card_interaction.gd # 卡牌交互逻辑
+│   ├── consumable_controller.gd # 消耗品操作逻辑 [NEW]
 │   ├── game_flow.gd       # 游戏主流程
 │   └── dark_world_flow.gd # 暗世界探索流程
 ├── core/             # 核心数据模型
@@ -134,7 +135,7 @@ scripts/
 | 问题 | 状态 | 说明 |
 |------|------|------|
 | #1 dark_world.gd 重构 | 🔄 部分完成 | 已集成天气系统，事件处理移至 EventHandler |
-| #2 UI与核心解耦 | 🔄 待开始 | 需要进一步分析 hand_panel 和 board_visual |
+| #2 UI与核心解耦 | ✅ 已完成 | 创建 ConsumableController 解耦 hand_panel 与 GameData/ShopData |
 | #5 初始化顺序 | 🔄 待开始 | main.gd 已添加注释，暂无 bootstrap 需求 |
 
 ### ⏳ 待处理
@@ -157,10 +158,34 @@ scripts/
 - ✅ 事件处理移至 `event_handler.gd`
 - ⏳ 待拆分：层间移动逻辑
 
-#### 2. **UI层直接操作核心数据** [待处理]
-- `hand_panel.gd` (907行) 包含大量卡牌操作逻辑
-- `board_visual.gd` (1555行) 混合了渲染与业务逻辑
-- 建议：UI只负责展示，通过信号/控制器与核心层通信
+#### 2. **UI层直接操作核心数据** [已完成 ✅]
+
+**已修复**：
+
+| 问题 | 解决方案 |
+|------|----------|
+| `hand_panel.gd` → `_get_consumable_entries()` | 创建 `ConsumableController` 封装查询逻辑 |
+| `hand_panel.gd` → `_use_consumable()` | 通过 `ConsumableController.use_consumable()` 调用 |
+| Tooltip 生成逻辑 | 通过 `ConsumableController.get_consumable_tooltip()` 获取 |
+
+**新增文件**：
+- `scripts/controllers/consumable_controller.gd` - 消耗品控制器
+
+**改进后的数据流**：
+```
+hand_panel.gd (UI层)
+    ↓ 信号调用
+game_flow.gd (Controller层)
+    ↓ 初始化时注入
+hand_panel.setup(cm, consumable_controller)
+    ↓ 调用
+ConsumableController.get_consumable_entries()
+    ↓ 访问
+GameData / ShopData (核心数据层)
+```
+
+**遗留优化点**（可选）：
+- `board_visual.gd` 的视觉更新逻辑仍有部分数据读取，可进一步封装为 `BoardVisualController`
 
 #### 3. **枚举与常量分散** [已完成 ✅]
 - ✅ 已建立 `lib/enums.gd` 统一管理
