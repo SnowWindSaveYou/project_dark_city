@@ -159,7 +159,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		return
 
 	# 判断是否阻断
-	var is_blocking: bool = EventPopup.is_blocking_event(card_type)
+	var is_blocking: bool = EventPopupScene.is_blocking_event(card_type)
 
 	if is_blocking:
 		# 阻断事件: 商店 (未来: 带选项的剧情)
@@ -212,7 +212,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
 		# Toast 通知
-		var toast: EventPopup.ToastData = EventPopup.ToastData.new(card_type) \
+		var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card_type) \
 			.set_effects(effects) \
 			.set_shield_used(shield_used) \
 			.set_location(card.location)
@@ -262,7 +262,7 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 			_teleport_to_random()
 
 	# Toast 通知
-	var trap_toast: EventPopup.ToastData = EventPopup.ToastData.new(card.type) \
+	var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
 		.set_effects(card.get_effects()) \
 		.set_shield_used(shield_used) \
 		.set_location(card.location) \
