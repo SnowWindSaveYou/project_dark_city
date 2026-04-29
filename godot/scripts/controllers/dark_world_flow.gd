@@ -67,7 +67,7 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		m._resource_bar.set_dark_mode(true, {
 			"layer_name": m.dark_world.get_layer_name(),
 			"energy": m.dark_world.get_energy(),
-			"max_energy": DarkWorld.MAX_ENERGY,
+			"max_energy": CardConfig.get_dw_max_energy(),
 		})
 		m._camera_button.show_button()
 
@@ -210,7 +210,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 
 	# 更新能量 UI
 	m._resource_bar.update_dark_energy(
-		m.dark_world.get_energy(), DarkWorld.MAX_ENERGY)
+		m.dark_world.get_energy(), CardConfig.get_dw_max_energy())
 
 	# Token 移动
 	m.token.target_row = row
@@ -369,7 +369,7 @@ func _process_ghost_collisions(collisions: Array) -> void:
 		_process_single_ghost_collision(ghost)
 
 func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
-	GameData.modify_resource("san", DarkWorld.GHOST_SAN)
+	GameData.modify_resource("san", CardConfig.get_dw_ghost_san_damage())
 	m._vfx.screen_flash(Color(0.5, 0.1, 0.6, 0.6), 0.3)
 	m._vfx.screen_shake(4.0, 0.2)
 	m.token.set_emotion("scared")
@@ -379,7 +379,7 @@ func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
 	if ghost_idx >= 0:
 		m.board_visual.animate_ghost_fade(ghost_idx)
 
-	m._vfx.action_banner("幽灵接触! SAN %d" % DarkWorld.GHOST_SAN,
+	m._vfx.action_banner("幽灵接触! SAN %d" % CardConfig.get_dw_ghost_san_damage(),
 		Color(0.7, 0.2, 0.8), 0.8)
 
 	m.game_flow.check_defeat()
@@ -448,7 +448,7 @@ func _change_layer(target_layer: int) -> void:
 
 		# 更新 UI
 		m._resource_bar.update_dark_energy(
-			m.dark_world.get_energy(), DarkWorld.MAX_ENERGY)
+			m.dark_world.get_energy(), CardConfig.get_dw_max_energy())
 
 		# 发牌
 		GameData.set_demo_state("dealing")

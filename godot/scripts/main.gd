@@ -457,7 +457,7 @@ func _on_photograph_request() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# 日期过渡中阻断所有输入
-	if _date_transition.visible and _date_transition.is_active():
+	if _date_transition and _date_transition.visible and _date_transition.is_active():
 		return
 
 	# 对话系统优先消费

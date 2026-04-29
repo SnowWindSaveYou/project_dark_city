@@ -11,3 +11,7 @@ res://scripts/controllers/card_interaction.gd
 res://scripts/core/card_manager.gd
 res://scripts/core/board.gd
 res://scripts/ui/event_popup.gd
+res://scripts/ui/camera_button.gd
+res://scripts/ui/shop_popup.gd
+res://scripts/controllers/game_flow.gd
+res://scripts/autoload/card_config.gd

@@ -1,0 +1,127 @@
+{
+	"$schema_comment": "卡牌类型显示配置 — icon 为临时 Unicode 占位，image_path 为未来图片资源路径",
+	"reality": {
+		"safe": {
+			"icon": "✨",
+			"label": "安全",
+			"color_key": "safe",
+			"image_path": ""
+		},
+		"home": {
+			"icon": "🏠",
+			"label": "家",
+			"color_key": "safe",
+			"image_path": ""
+		},
+		"landmark": {
+			"icon": "🏛️",
+			"label": "地标",
+			"color_key": "highlight",
+			"image_path": ""
+		},
+		"shop": {
+			"icon": "🛒",
+			"label": "商店",
+			"color_key": "info",
+			"image_path": ""
+		},
+		"monster": {
+			"icon": "👻",
+			"label": "怪物",
+			"color_key": "danger",
+			"image_path": ""
+		},
+		"trap": {
+			"icon": "⚡",
+			"label": "陷阱",
+			"color_key": "warning",
+			"image_path": ""
+		},
+		"reward": {
+			"icon": "💎",
+			"label": "奖励",
+			"color_key": "highlight",
+			"image_path": ""
+		},
+		"plot": {
+			"icon": "📖",
+			"label": "剧情",
+			"color_key": "plot",
+			"image_path": ""
+		},
+		"clue": {
+			"icon": "🔍",
+			"label": "线索",
+			"color_key": "info",
+			"image_path": ""
+		},
+		"photo": {
+			"icon": "📸",
+			"label": "相片",
+			"color_key": "safe",
+			"image_path": ""
+		},
+		"rift": {
+			"icon": "🌀",
+			"label": "裂隙",
+			"color_key": "dark_accent",
+			"image_path": ""
+		}
+	},
+	"dark": {
+		"normal": {
+			"icon": "🌑",
+			"label": "暗巷",
+			"color_key": "dark_accent",
+			"image_path": ""
+		},
+		"shop": {
+			"icon": "🏪",
+			"label": "暗市",
+			"color_key": "info",
+			"image_path": ""
+		},
+		"intel": {
+			"icon": "👁️",
+			"label": "情报点",
+			"color_key": "plot",
+			"image_path": ""
+		},
+		"checkpoint": {
+			"icon": "🚧",
+			"label": "关卡",
+			"color_key": "warning",
+			"image_path": ""
+		},
+		"clue": {
+			"icon": "🔮",
+			"label": "线索",
+			"color_key": "dark_glow",
+			"image_path": ""
+		},
+		"item": {
+			"icon": "📦",
+			"label": "道具",
+			"color_key": "highlight",
+			"image_path": ""
+		},
+		"passage": {
+			"icon": "🕳️",
+			"label": "通道",
+			"color_key": "dark_passage",
+			"image_path": ""
+		},
+		"abyss_core": {
+			"icon": "💀",
+			"label": "深渊核心",
+			"color_key": "dark_abyss",
+			"image_path": ""
+		},
+		"rift": {
+			"icon": "🌀",
+			"label": "裂隙",
+			"color_key": "dark_accent",
+			"image_path": ""
+		}
+	}
+}

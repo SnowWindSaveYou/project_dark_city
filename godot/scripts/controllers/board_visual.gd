@@ -865,7 +865,10 @@ func create_ghost_nodes(ghosts: Array) -> void:
 		if not ghost.alive:
 			continue
 
-		var tex_path: String = DarkWorld.GHOST_TEXTURES[ghost.tex_index]
+		var ghost_textures: Array = CardConfig.get_dw_ghost_textures()
+		if ghost.tex_index < 0 or ghost.tex_index >= ghost_textures.size():
+			continue
+		var tex_path: String = ghost_textures[ghost.tex_index]
 		var tex: Texture2D = load(tex_path)
 		if not tex:
 			continue

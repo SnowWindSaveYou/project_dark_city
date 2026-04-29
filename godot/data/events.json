@@ -1,0 +1,196 @@
+{
+	"$schema_comment": "事件系统配置 — defaults 为全局默认，locations 可按地点覆盖个别字段",
+	"defaults": {
+		"weights": {
+			"safe": 30,
+			"monster": 20,
+			"trap": 15,
+			"reward": 15,
+			"plot": 10,
+			"clue": 10
+		},
+		"effects": {
+			"safe": {},
+			"monster": { "san": -2, "order": -1 },
+			"trap": {},
+			"reward": { "money": 15, "film": 1 },
+			"plot": { "san": -1 },
+			"clue": { "order": 1 },
+			"photo": { "money": 5 },
+			"landmark": { "san": 1, "order": 1 },
+			"home": { "san": 1 },
+			"shop": {},
+			"rift": {}
+		},
+		"texts": {
+			"safe": [
+				"周围一片宁静，什么也没有发生。",
+				"微风拂过，带来一丝安心的感觉。",
+				"这里很安全，可以稍作休息。"
+			],
+			"monster": [
+				"阴影从角落窜出，一股寒意直冲脑门...",
+				"黑暗中传来沉重的呼吸声，越来越近...",
+				"地板上浮现诡异的符文，空气凝固了..."
+			],
+			"trap": [
+				"脚下突然传来咔嚓声，是陷阱！",
+				"一股无形的力量困住了你的脚步...",
+				"周围的墙壁开始缓缓合拢..."
+			],
+			"reward": [
+				"角落里发现了一个被遗忘的保险箱！",
+				"在废壟中找到了一袋未开封的补给品。",
+				"一道神秘的光芒指引你找到了宝物。"
+			],
+			"plot": [
+				"你发现了一段被掩盖的真相...",
+				"墙上的涂鸦似乎在诉说着什么...",
+				"一张泛黄的照片掉落在你面前..."
+			],
+			"clue": [
+				"地上有一串奇怪的脚印，值得追踪。",
+				"角落里有人留下了一条隐秘的信息。",
+				"你注意到了一个不寻常的细节..."
+			],
+			"photo": [
+				"快门声响起，画面被永远定格。",
+				"镜头捕捉到了肉眼看不见的东西...",
+				"照片慢慢显影，真相浮出水面。"
+			],
+			"rift": [
+				"空间仿佛被撕裂开一道口子...",
+				"脚下的阴影开始漩涡般旋转...",
+				"一股来自深处的力量在召唤你..."
+			]
+		},
+		"trap_subtypes": {
+			"sanity": {
+				"icon": "😱",
+				"label": "阴气侵蚀",
+				"effect": { "san": -1 },
+				"texts": [
+					"阴气侵蚀，寒意刺骨...",
+					"一阵恶寒掠过全身，精神恍惚...",
+					"黑暗低语萦绕耳边，心智动摇..."
+				],
+				"image_path": ""
+			},
+			"money": {
+				"icon": "💸",
+				"label": "财物散失",
+				"effect": { "money": -10 },
+				"texts": [
+					"口袋里的东西莫名消失了...",
+					"财物不翼而飞，像是被什么拿走了...",
+					"一阵诡异的风过后，钱包空了..."
+				],
+				"image_path": ""
+			},
+			"film": {
+				"icon": "📷",
+				"label": "灵雾曝光",
+				"effect": { "film": -1 },
+				"texts": [
+					"相机镜头突然起雾，胶卷曝光了！",
+					"灵雾渗入相机，一卷胶卷报废了...",
+					"闪光灯自行触发，浪费了珍贵的胶卷..."
+				],
+				"image_path": ""
+			},
+			"teleport": {
+				"icon": "🌀",
+				"label": "空间错位",
+				"effect": {},
+				"texts": [
+					"脚下空间扭曲，瞬间转移到了别处！",
+					"眼前一花，人已经不在原地了...",
+					"一股力量将你拽向了未知的方向..."
+				],
+				"image_path": ""
+			}
+		}
+	},
+	"locations": {
+		"company": {
+			"dark_display": {
+				"safe":   { "icon": "🏢", "label": "空荡办公室", "image_path": "" },
+				"monster": { "icon": "🕴️", "label": "影子上司",   "image_path": "" },
+				"trap":   { "icon": "📋", "label": "无尽加班令",  "image_path": "" },
+				"reward": { "icon": "💼", "label": "遗落的公文包", "image_path": "" },
+				"plot":   { "icon": "🖥️", "label": "异常邮件",    "image_path": "" },
+				"clue":   { "icon": "📂", "label": "机密档案",    "image_path": "" }
+			}
+		},
+		"school": {
+			"dark_display": {
+				"safe":   { "icon": "🏫", "label": "安静教室",   "image_path": "" },
+				"monster": { "icon": "👤", "label": "无面教师",   "image_path": "" },
+				"trap":   { "icon": "🔔", "label": "永不下课",   "image_path": "" },
+				"reward": { "icon": "📒", "label": "旧笔记本",   "image_path": "" },
+				"plot":   { "icon": "🎒", "label": "无主书包",   "image_path": "" },
+				"clue":   { "icon": "📝", "label": "黑板留言",   "image_path": "" }
+			}
+		},
+		"park": {
+			"dark_display": {
+				"safe":   { "icon": "🌳", "label": "寂静长椅",   "image_path": "" },
+				"monster": { "icon": "🌑", "label": "树影低语",   "image_path": "" },
+				"trap":   { "icon": "🕸️", "label": "缠绕藤蔓",   "image_path": "" },
+				"reward": { "icon": "🍃", "label": "净化之风",   "image_path": "" },
+				"plot":   { "icon": "🗿", "label": "奇怪雕像",   "image_path": "" },
+				"clue":   { "icon": "🪶", "label": "地上羽毛",   "image_path": "" }
+			}
+		},
+		"alley": {
+			"dark_display": {
+				"safe":   { "icon": "🌙", "label": "寂静小巷",   "image_path": "" },
+				"monster": { "icon": "👁️", "label": "墙缝窥视",   "image_path": "" },
+				"trap":   { "icon": "🕳️", "label": "地面塌陷",   "image_path": "" },
+				"reward": { "icon": "📦", "label": "角落包裹",   "image_path": "" },
+				"plot":   { "icon": "🚪", "label": "不存在的门", "image_path": "" },
+				"clue":   { "icon": "✍️", "label": "涂鸦暗号",   "image_path": "" }
+			}
+		},
+		"station": {
+			"dark_display": {
+				"safe":   { "icon": "🚉", "label": "末班列车",   "image_path": "" },
+				"monster": { "icon": "🚇", "label": "不停靠的车", "image_path": "" },
+				"trap":   { "icon": "🌀", "label": "循环站台",   "image_path": "" },
+				"reward": { "icon": "🎫", "label": "神秘车票",   "image_path": "" },
+				"plot":   { "icon": "📻", "label": "广播异响",   "image_path": "" },
+				"clue":   { "icon": "🗺️", "label": "失落线路图", "image_path": "" }
+			}
+		},
+		"hospital": {
+			"dark_display": {
+				"safe":   { "icon": "🏥", "label": "空病房",     "image_path": "" },
+				"monster": { "icon": "💉", "label": "游走护士",   "image_path": "" },
+				"trap":   { "icon": "🩺", "label": "错误诊断",   "image_path": "" },
+				"reward": { "icon": "💊", "label": "遗留药品",   "image_path": "" },
+				"plot":   { "icon": "📋", "label": "诡异病历",   "image_path": "" },
+				"clue":   { "icon": "🔬", "label": "实验记录",   "image_path": "" }
+			}
+		},
+		"library": {
+			"dark_display": {
+				"safe":   { "icon": "📚", "label": "安静角落",   "image_path": "" },
+				"monster": { "icon": "📖", "label": "自翻的书",   "image_path": "" },
+				"trap":   { "icon": "🔇", "label": "沉默诅咒",   "image_path": "" },
+				"reward": { "icon": "📜", "label": "古老卷轴",   "image_path": "" },
+				"plot":   { "icon": "📕", "label": "禁书",       "image_path": "" },
+				"clue":   { "icon": "🔖", "label": "夹页纸条",   "image_path": "" }
+			}
+		},
+		"bank": {
+			"dark_display": {
+				"safe":   { "icon": "🏦", "label": "空金库",     "image_path": "" },
+				"monster": { "icon": "🎭", "label": "面具柜员",   "image_path": "" },
+				"trap":   { "icon": "🔒", "label": "锁死的门",   "image_path": "" },
+				"reward": { "icon": "💰", "label": "无主存款",   "image_path": "" },
+				"plot":   { "icon": "🏧", "label": "异常终端",   "image_path": "" },
+				"clue":   { "icon": "🧾", "label": "可疑账单",   "image_path": "" }
+			}
+		}
+	}
+}

@@ -2,109 +2,18 @@
 ## 对应原版 DarkWorld.lua
 ## 3 层持久化地图 + 能量系统 + 小幽灵 AI + 进出/层间转移
 ## Godot 2D: 数据层，幽灵/NPC 节点 + HUD 绘制由 main.gd 统一处理
+## 配置来源: CardConfig (加载自 data/dark_world.json + data/card_types.json)
 class_name DarkWorld
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 (现从 CardConfig 动态读取，此处保留默认值以防配置缺失)
 # ---------------------------------------------------------------------------
 
-const MAX_ENERGY: int = 10  # 每层独立能量
-const GHOST_SAN: int = -2  # 幽灵碰撞扣理智
-const GHOST_COUNT: Array[int] = [2, 3, 2]  # 各层幽灵数量
-const GHOST_CHASE_DIST: int = 2  # 曼哈顿距离 ≤ 此值 100% 追逐
-
-## 层级配置
-const LAYER_CONFIG: Array[Dictionary] = [
-	{ "name": "表层·暗巷", "unlock_day": 2, "unlock_fragments": 0 },
-	{ "name": "中层·暗市", "unlock_day": 4, "unlock_fragments": 0 },
-	{ "name": "深层·暗渊", "unlock_day": 6, "unlock_fragments": 1 },
-]
-
-## 暗面地点名称池 (按层级, 0-indexed)
-const DARK_LOCATIONS: Array[Dictionary] = [
-	# Layer 0 (表层·暗巷)
-	{
-		"normal": ["锈蚀小巷", "断灯走廊", "裂墙弄堂", "落灰阶梯", "无名死路",
-				   "潮湿拐角", "暗影墙根", "废弃车库", "野猫巢穴", "塌陷天桥"],
-		"shop":   [],
-		"intel":  [],
-		"clue":   ["旧档案室", "碎纸堆", "褪色涂鸦"],
-		"item":   ["废弃背包", "暗格"],
-	},
-	# Layer 1 (中层·暗市)
-	{
-		"normal": ["无光集市", "影子摊位", "假面人群", "沉默柜台", "回声茶馆",
-				   "钟表废铺", "药粉小巷", "纸灯笼路", "地下水渠", "迷雾广场"],
-		"shop":   ["无光集市", "暗巷当铺"],
-		"intel":  ["回声茶馆", "低语井"],
-		"clue":   ["密封信件", "帐本残页", "暗号墙"],
-		"item":   ["上锁匣子", "遗落药包"],
-	},
-	# Layer 2 (深层·暗渊)
-	{
-		"normal": ["崩塌深穴", "骨架走廊", "回声深渊", "凝视大厅", "泣血石室",
-				   "虚无阶梯", "裂缝祭坛", "悬浮残桥", "镜像迷宫", "最终长廊"],
-		"shop":   [],
-		"intel":  [],
-		"clue":   ["深渊碑文", "模糊日记", "封印遗物"],
-		"item":   ["黑曜石碎片"],
-	},
-]
-
-## 暗面 NPC 配置 (按层级, 0-indexed)
-const DARK_NPCS: Array[Array] = [
-	# Layer 0: 双尾猫妖
-	[
-		{ "id": "nekomata", "name": "双尾猫妖",
-		  "tex": "res://assets/image/怪物_双尾猫妖v3_20260426071805.png",
-		  "dialogue": [
-			  { "speaker": "双尾猫妖", "text": "喵~你也迷路了吗？这里的巷子会自己改变方向的……" },
-			  { "speaker": "双尾猫妖", "text": "小心那些飘来飘去的家伙，它们可不像我这么友好。" },
-			  { "speaker": "双尾猫妖", "text": "要是走不动了就回去吧，反正下次来还是这条路。" },
-		  ],
-		},
-	],
-	# Layer 1: 幽灵娘 + 无脸商人
-	[
-		{ "id": "ghost_girl", "name": "幽灵娘",
-		  "tex": "res://assets/image/怪物_幽灵娘v3_20260426072315.png",
-		  "dialogue": [
-			  { "speaker": "幽灵娘", "text": "……你在找什么？" },
-			  { "speaker": "幽灵娘", "text": "她留下过很多东西，散落在各个角落里……" },
-			  { "speaker": "幽灵娘", "text": "那些碎片……拼在一起也许能看到些什么。" },
-		  ],
-		},
-		{ "id": "faceless", "name": "无脸商人",
-		  "tex": "res://assets/image/怪物_无脸商人_20260426071011.png",
-		  "dialogue": [
-			  { "speaker": "无脸商人", "text": "……" },
-			  { "speaker": "无脸商人", "text": "只认钱。不问来历。" },
-			  { "speaker": "无脸商人", "text": "想要什么……自己看。" },
-		  ],
-		},
-	],
-	# Layer 2: 面具使
-	[
-		{ "id": "mask_user", "name": "面具使",
-		  "tex": "res://assets/image/edited_怪物_面具使v3_20260426073034.png",
-		  "dialogue": [
-			  { "speaker": "面具使", "text": "到这里来的人……都在找什么东西。" },
-			  { "speaker": "面具使", "text": "最深处有一个地方……但你需要足够的碎片。" },
-			  { "speaker": "面具使", "text": "去看看吧，如果你觉得自己准备好了的话。" },
-		  ],
-		},
-	],
-]
-
-## 小幽灵贴图
-const GHOST_TEXTURES: Array[String] = [
-	"res://assets/image/小幽灵_愤怒v2_20260426073743.png",
-	"res://assets/image/小幽灵_开心v2_20260426073756.png",
-	"res://assets/image/小幽灵_狡猾v2_20260426073758.png",
-	"res://assets/image/小幽灵_委屈v2_20260426073907.png",
-	"res://assets/image/小幽灵_瞌睡v2_20260426073910.png",
-]
+const DEFAULT_MAX_ENERGY: int = 10
+const DEFAULT_GHOST_SAN: int = -2
+const DEFAULT_GHOST_COUNT: Array[int] = [2, 3, 2]
+const DEFAULT_GHOST_CHASE_DIST: int = 2
 
 # ---------------------------------------------------------------------------
 # 幽灵数据
@@ -114,7 +23,7 @@ class GhostData:
 	var row: int
 	var col: int
 	var alive: bool = true
-	var tex_index: int = 0  # → GHOST_TEXTURES 索引
+	var tex_index: int = 0  # → CardConfig.get_dw_ghost_textures() 索引
 	## 动画属性 (由 main.gd 驱动)
 	var alpha: float = 1.0
 	var float_phase: float = 0.0
@@ -146,7 +55,7 @@ class LayerData:
 	var npcs: Array = []      # Array of DarkNPCData
 	var player_row: int = 2   # 0-based (对应 Board 中心 3行/3列)
 	var player_col: int = 2
-	var energy: int = MAX_ENERGY
+	var energy: int = DEFAULT_MAX_ENERGY
 	var entry_row: int = 2
 	var entry_col: int = 2
 	var collected: Dictionary = {}  # "row,col" → true
@@ -199,17 +108,18 @@ func reset() -> void:
 	energy_flash = 0.0
 
 # ---------------------------------------------------------------------------
-# 层级查询
+# 层级查询 (配置来源: CardConfig / dark_world.json)
 # ---------------------------------------------------------------------------
 
 func can_enter(day_count: int) -> bool:
-	return day_count >= LAYER_CONFIG[0]["unlock_day"]
+	var cfg: Dictionary = CardConfig.get_dw_layer_config(0)
+	return day_count >= cfg.get("unlock_day", 999)
 
 func is_layer_unlocked(layer_idx: int, day_count: int, fragments: int = 0) -> bool:
 	if layer_idx < 0 or layer_idx >= 3:
 		return false
-	var cfg: Dictionary = LAYER_CONFIG[layer_idx]
-	return day_count >= cfg["unlock_day"] and fragments >= cfg["unlock_fragments"]
+	var cfg: Dictionary = CardConfig.get_dw_layer_config(layer_idx)
+	return day_count >= cfg.get("unlock_day", 999) and fragments >= cfg.get("unlock_fragments", 0)
 
 func get_energy() -> int:
 	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
@@ -217,7 +127,8 @@ func get_energy() -> int:
 	return layers[current_layer].energy
 
 func get_layer_name() -> String:
-	return LAYER_CONFIG[current_layer]["name"]
+	var cfg: Dictionary = CardConfig.get_dw_layer_config(current_layer)
+	return cfg.get("name", "")
 
 func get_layer_data() -> LayerData:
 	if layers.is_empty():
@@ -229,58 +140,43 @@ func get_layer_data() -> LayerData:
 # ---------------------------------------------------------------------------
 
 ## 返回指定层的卡牌生成配置 (layer_idx 0-based)
+## 配置来源: CardConfig.get_dw_layer_gen() → dark_world.json → layer_generation
 func get_dark_config(layer_idx: int) -> Dictionary:
-	if layer_idx == 0:
+	var gen: Dictionary = CardConfig.get_dw_layer_gen(layer_idx)
+	if gen.is_empty():
+		# 兜底默认值
 		return {
-			"layer_idx": 0,
-			"wall_count": randi_range(5, 7),
+			"layer_idx": layer_idx,
+			"wall_count": 5,
 			"passage_count": 1,
 			"shop_count": 0,
 			"intel_count": 0,
 			"checkpoint_count": 0,
-			"clue_count": randi_range(3, 5),
-			"item_count": randi_range(1, 3),
+			"clue_count": 3,
+			"item_count": 1,
 			"has_abyss_core": false,
 		}
-	elif layer_idx == 1:
-		return {
-			"layer_idx": 1,
-			"wall_count": randi_range(4, 6),
-			"passage_count": 2,
-			"shop_count": randi_range(1, 2),
-			"intel_count": randi_range(1, 2),
-			"checkpoint_count": randi_range(1, 2),
-			"clue_count": randi_range(3, 5),
-			"item_count": randi_range(1, 3),
-			"has_abyss_core": false,
-		}
-	else:
-		return {
-			"layer_idx": 2,
-			"wall_count": randi_range(6, 8),
-			"passage_count": 0,
-			"shop_count": 0,
-			"intel_count": 0,
-			"checkpoint_count": randi_range(1, 2),
-			"clue_count": randi_range(3, 5),
-			"item_count": randi_range(1, 3),
-			"has_abyss_core": true,
-		}
+	gen["layer_idx"] = layer_idx
+	return gen
 
 ## 获取指定层的地点名称池 (0-based)
+## 配置来源: CardConfig.get_dw_location_pool() → dark_world.json → location_pools
 func get_dark_locations(layer_idx: int) -> Dictionary:
-	if layer_idx < 0 or layer_idx >= DARK_LOCATIONS.size():
-		return DARK_LOCATIONS[0]
-	return DARK_LOCATIONS[layer_idx]
+	var pool: Dictionary = CardConfig.get_dw_location_pool(layer_idx)
+	if pool.is_empty() and layer_idx != 0:
+		return CardConfig.get_dw_location_pool(0)
+	return pool
 
 # ---------------------------------------------------------------------------
 # 幽灵 & NPC 生成
 # ---------------------------------------------------------------------------
 
 ## 为指定层生成幽灵数据 (在 Board 生成卡牌后调用)
+## 配置来源: CardConfig.get_dw_ghost_count() / get_dw_ghost_textures()
 func generate_ghosts(layer_idx: int) -> void:
 	var layer: LayerData = layers[layer_idx]
-	var ghost_count: int = GHOST_COUNT[layer_idx]
+	var ghost_count: int = CardConfig.get_dw_ghost_count(layer_idx)
+	var ghost_textures: Array = CardConfig.get_dw_ghost_textures()
 
 	# 收集可通行格子 (排除入口 2,2)
 	var walkable_pos: Array = []
@@ -300,14 +196,16 @@ func generate_ghosts(layer_idx: int) -> void:
 		gd.row = walkable_pos[i].x
 		gd.col = walkable_pos[i].y
 		gd.alive = true
-		gd.tex_index = randi() % GHOST_TEXTURES.size()
+		if ghost_textures.size() > 0:
+			gd.tex_index = randi() % ghost_textures.size()
 		gd.float_phase = randf() * TAU
 		layer.ghosts.append(gd)
 
 ## 为指定层生成 NPC 数据
+## 配置来源: CardConfig.get_dw_npcs() → dark_world.json → npcs
 func generate_npcs(layer_idx: int) -> void:
 	var layer: LayerData = layers[layer_idx]
-	var npc_defs: Array = DARK_NPCS[layer_idx]
+	var npc_defs: Array = CardConfig.get_dw_npcs(layer_idx)
 
 	var walkable_pos: Array = []
 	for key in layer.walkable:
@@ -373,7 +271,7 @@ func move_ghosts(player_row: int, player_col: int,
 		var dist: int = absi(ghost.row - player_row) + absi(ghost.col - player_col)
 		var target: Vector2i
 
-		if dist <= GHOST_CHASE_DIST:
+		if dist <= CardConfig.get_dw_ghost_chase_dist():
 			# 追逐模式: 100% 朝玩家
 			var best_dist: int = 999
 			target = neighbors[0]
@@ -450,7 +348,7 @@ func enter(day_count: int, rift_r: int, rift_c: int,
 			layers[i].unlocked = true
 
 	var layer: LayerData = layers[current_layer]
-	layer.energy = MAX_ENERGY
+	layer.energy = CardConfig.get_dw_max_energy()
 	dark_state = "transition"
 
 ## 暗面完全进入 (发牌完成后)
@@ -481,9 +379,9 @@ func begin_change_layer(target_layer: int, day_count: int) -> Dictionary:
 
 	dark_state = "transition"
 	current_layer = target_layer
-	layers[current_layer].energy = MAX_ENERGY
+	layers[current_layer].energy = CardConfig.get_dw_max_energy()
 
-	return { "success": true, "layer_name": LAYER_CONFIG[target_layer]["name"] }
+	return { "success": true, "layer_name": CardConfig.get_dw_layer_config(target_layer).get("name", "") }
 
 ## 新层发牌完成
 func on_change_layer_complete() -> void:
@@ -561,7 +459,6 @@ func handle_card_effect(card: Card, row: int, col: int,
 		card.dark_type = "normal"
 		card.dark_name = "空走廊"
 		card.dark_icon = "🌑"
-		card.dark_label = "暗巷"
 		return { "type": "clue", "data": { "name": old_name } }
 
 	elif dark_type == "item" and not card.dark_collected:
@@ -573,7 +470,6 @@ func handle_card_effect(card: Card, row: int, col: int,
 		card.dark_type = "normal"
 		card.dark_name = "空走廊"
 		card.dark_icon = "🌑"
-		card.dark_label = "暗巷"
 		return { "type": "item", "data": { "resource": pick[0], "amount": pick[1] } }
 
 	elif dark_type == "passage":
