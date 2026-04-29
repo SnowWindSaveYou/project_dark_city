@@ -1,10 +1,17 @@
 ## Main - 暗面都市 · 主入口 (模块化版)
 ## 场景树组织、信号桥接、输入路由、_process 主循环
-## 游戏逻辑委托给 controllers/ 子模块:
-##   board_visual.gd   — 3D 卡牌节点管理、视觉更新、动画
-##   game_flow.gd      — 发牌、日期推进、结算、胜负
-##   card_interaction.gd — 翻牌/移动、相机模式、弹窗回调
-##   dark_world_flow.gd — 暗面进出、换层、幽灵碰撞
+##
+## 架构说明:
+##   - core/    核心数据模型 (Board, Card, Token, DarkWorld)
+##   - controllers/ 业务控制器 (game_flow, card_interaction, board_visual, dark_world_flow)
+##   - ui/      UI组件 (DialogueSystem, EventPopup, ShopPopup 等)
+##   - lib/     工具库 (Enums, GameConfig, WeatherSystem, VFXManager)
+##
+## 初始化顺序:
+##   1. 核心数据 (Board, Token, CardManager, DarkWorld)
+##   2. UI系统 (DialogueSystem, VFXManager)
+##   3. 控制器 (game_flow, card_interaction, board_visual, dark_world_flow)
+##   4. 信号连接
 extends Node3D
 
 # ---------------------------------------------------------------------------

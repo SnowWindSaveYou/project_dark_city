@@ -5,10 +5,13 @@ class_name Board
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 (建议通过 GameConfig 读取)
 # ---------------------------------------------------------------------------
+## @deprecated 请使用 GameConfig.get_board_rows()
 const ROWS: int = 5
+## @deprecated 请使用 GameConfig.get_board_cols()
 const COLS: int = 5
+## @deprecated 请使用 GameConfig.get_board_gap()
 const GAP: float = 0.12  # 卡牌间隔 (米)
 
 ## 牌堆位置 (3D 世界坐标)

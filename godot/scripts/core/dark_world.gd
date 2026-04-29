@@ -6,13 +6,21 @@
 class_name DarkWorld
 extends RefCounted
 
+# 引用天气系统
+var _weather: WeatherSystem = null
+
 # ---------------------------------------------------------------------------
 # 常量 (现从 CardConfig 动态读取，此处保留默认值以防配置缺失)
+# @deprecated 建议使用 CardConfig 或 GameConfig 读取
 # ---------------------------------------------------------------------------
 
+## @deprecated 请使用 CardConfig.get_dw_max_energy()
 const DEFAULT_MAX_ENERGY: int = 10
+## @deprecated 建议使用 CardConfig.get_dw_ghost_san()
 const DEFAULT_GHOST_SAN: int = -2
+## @deprecated 建议使用 CardConfig.get_dw_ghost_count()
 const DEFAULT_GHOST_COUNT: Array[int] = [2, 3, 2]
+## @deprecated 建议使用 CardConfig.get_dw_ghost_chase_dist()
 const DEFAULT_GHOST_CHASE_DIST: int = 2
 
 # ---------------------------------------------------------------------------
@@ -70,6 +78,7 @@ var layers: Array = []            # Array[LayerData] x3
 var energy_flash: float = 0.0
 
 ## 暗面子状态: "idle" | "ready" | "moving" | "popup" | "transition"
+## @deprecated 建议使用 Enums.DarkState 枚举
 var dark_state: String = "idle"
 
 ## 裂隙位置 (现实世界, 1-based external)
@@ -90,6 +99,7 @@ var exit_request_callback: Callable = Callable()
 # ---------------------------------------------------------------------------
 
 func _init() -> void:
+	_weather = WeatherSystem.new()
 	_reset_layers()
 
 func _reset_layers() -> void:
@@ -106,6 +116,8 @@ func reset() -> void:
 	current_layer = 0
 	dark_state = "idle"
 	energy_flash = 0.0
+	if _weather:
+		_weather.weather_duration = 0.0
 
 # ---------------------------------------------------------------------------
 # 层级查询 (配置来源: CardConfig / dark_world.json)
@@ -565,3 +577,11 @@ func update(dt: float, _game_time: float) -> void:
 
 	if energy_flash > 0.0:
 		energy_flash = maxf(0.0, energy_flash - dt * 2.0)
+
+	# 更新天气系统
+	if _weather:
+		_weather.update(dt)
+
+## 获取天气系统实例
+func get_weather() -> WeatherSystem:
+	return _weather
