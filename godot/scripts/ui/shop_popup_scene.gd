@@ -92,7 +92,12 @@ func _ready() -> void:
 	_refresh_button.add_theme_stylebox_override("pressed", refresh_pressed)
 	_refresh_button.add_theme_color_override("font_color", Color.WHITE)
 	_refresh_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	_refresh_button.add_theme_color_override("font_pressed_color", Color.WHITE)
 	_refresh_button.add_theme_font_size_override("font_size", 12)
+	# 消除 focus 边框
+	var empty_focus := StyleBoxEmpty.new()
+	_refresh_button.add_theme_stylebox_override("focus", empty_focus)
+	_refresh_button.focus_mode = Control.FOCUS_NONE
 
 	# 离开按钮样式
 	var leave_style := StyleBoxFlat.new()
@@ -103,9 +108,21 @@ func _ready() -> void:
 	var leave_hover := leave_style.duplicate()
 	leave_hover.bg_color = GameTheme.lighten(t.text_secondary, 0.3)
 	_leave_button.add_theme_stylebox_override("hover", leave_hover)
+	var leave_pressed := leave_style.duplicate()
+	leave_pressed.bg_color = GameTheme.darken(t.text_secondary, 0.85)
+	_leave_button.add_theme_stylebox_override("pressed", leave_pressed)
 	_leave_button.add_theme_color_override("font_color", Color.WHITE)
 	_leave_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	_leave_button.add_theme_color_override("font_pressed_color", Color.WHITE)
 	_leave_button.add_theme_font_size_override("font_size", 13)
+	_leave_button.add_theme_stylebox_override("focus", empty_focus)
+	_leave_button.focus_mode = Control.FOCUS_NONE
+
+	# Hover 放大动效
+	_refresh_button.mouse_entered.connect(func(): _btn_hover_tween(_refresh_button, true))
+	_refresh_button.mouse_exited.connect(func(): _btn_hover_tween(_refresh_button, false))
+	_leave_button.mouse_entered.connect(func(): _btn_hover_tween(_leave_button, true))
+	_leave_button.mouse_exited.connect(func(): _btn_hover_tween(_leave_button, false))
 
 	# 信号连接
 	_refresh_button.pressed.connect(_on_refresh_pressed)
@@ -220,6 +237,17 @@ func _tween_array(tw: Tween, arr: Array, idx: int, target: float,
 	if delay > 0.0:
 		tweener.set_delay(delay)
 	tweener.set_trans(trans).set_ease(ease_type)
+
+# ---------------------------------------------------------------------------
+# 按钮动效
+# ---------------------------------------------------------------------------
+
+func _btn_hover_tween(btn: Button, enter: bool) -> void:
+	var target_scale: Vector2 = Vector2(1.05, 1.05) if enter else Vector2.ONE
+	btn.pivot_offset = btn.size / 2.0
+	var tw: Tween = btn.create_tween()
+	tw.tween_property(btn, "scale", target_scale, 0.12) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 # ---------------------------------------------------------------------------
 # 按钮回调
