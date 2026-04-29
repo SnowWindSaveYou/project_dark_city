@@ -22,6 +22,7 @@ var event_texts: Dictionary = {}
 var trap_subtype_info: Dictionary = {}
 var trap_subtype_texts: Dictionary = {}  # 兼容旧代码 { subtype: [text, ...] }
 var darkside_info: Dictionary = {}  # 兼容旧代码 { loc: { type: {icon, label, image_path} } }
+var dark_texts: Dictionary = {}  # 暗面事件文本 { type: {icon, label, texts: []} }
 var _event_locations: Dictionary = {}  # per-location overrides
 
 # shop.json
@@ -104,6 +105,9 @@ func _load_events() -> void:
 		var loc: Dictionary = _event_locations[loc_name]
 		if loc.has("dark_display"):
 			darkside_info[loc_name] = loc["dark_display"]
+
+	# 加载暗面事件文本
+	dark_texts = data.get("dark_texts", {})
 
 	_convert_events_to_int()
 
@@ -218,6 +222,19 @@ func get_dark_display(location: String, event_type: String) -> Dictionary:
 		if loc.has("dark_display") and loc["dark_display"].has(event_type):
 			return loc["dark_display"][event_type]
 	return {}
+
+## 获取暗面事件文本信息
+## 返回 { "icon": String, "label": String, "texts": Array } 或空 Dictionary
+func get_dark_event_info(dark_type: String) -> Dictionary:
+	return dark_texts.get(dark_type, {})
+
+## 获取暗面事件随机文本
+func get_dark_event_text(dark_type: String) -> String:
+	var info: Dictionary = dark_texts.get(dark_type, {})
+	var texts: Array = info.get("texts", [])
+	if texts.size() > 0:
+		return texts[randi() % texts.size()]
+	return "发生了什么..."
 
 ## 合并字典：base 为基础值，override 为覆盖值（override 优先级更高）
 func _merge_dict(base: Dictionary, override: Dictionary) -> Dictionary:

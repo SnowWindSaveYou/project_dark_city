@@ -9,6 +9,13 @@ extends RefCounted
 # 引用天气系统
 var _weather: WeatherSystem = null
 
+## Main 引用 (用于跨模块通信)
+var _main: Node = null
+
+## 设置 Main 引用
+func set_main(main_ref: Node) -> void:
+	_main = main_ref
+
 # ---------------------------------------------------------------------------
 # 常量 (现从 CardConfig 动态读取，此处保留默认值以防配置缺失)
 # @deprecated 建议使用 CardConfig 或 GameConfig 读取
@@ -404,102 +411,50 @@ func on_change_layer_complete() -> void:
 # ---------------------------------------------------------------------------
 
 ## 处理踩上暗面卡牌的效果
-## 查询指定位置是否有 NPC (0-based 坐标)
-## 返回 NPC 数据 dict 或空 dict
-func get_npc_at(row0: int, col0: int) -> Dictionary:
-	var layer: LayerData = layers[current_layer]
-	for npc in layer.npcs:
-		if npc.row == row0 and npc.col == col0:
-			# 优先从 StoryManager 获取条件化对话
-			var story_lines: Array = StoryManager.get_npc_dialogue(npc.id)
-			var dialogue: Array = story_lines if not story_lines.is_empty() else npc.dialogue
-			if dialogue.is_empty():
-				continue
-			return {
-				"dialogue": dialogue,
-				"tex": npc.tex_path,
-				"npc_name": npc.npc_name,
-			}
-	return {}
-
-## 返回 { "type": String, "data": Variant } 供 main.gd 执行 VFX / 弹窗
-## type: "none" | "npc_dialogue" | "shop" | "intel" | "checkpoint" |
-##       "clue" | "item" | "passage" | "abyss_core"
-func handle_card_effect(card: Card, row: int, col: int,
-		day_count: int) -> Dictionary:
+## @deprecated 建议使用 EventHandler.parse_dark_world_card() 统一处理
+## @param row: 1-based 坐标
+## @param col: 1-based 坐标
+## @return EventHandler.EventResult 统一事件结果
+func handle_card_effect(card: Card, row: int, col: int, day_count: int) -> Dictionary:
 	var layer: LayerData = layers[current_layer]
 	var key: String = "%d,%d" % [row, col]
 
-	# NPC 检测 (npc.row/col 是 0-based, row/col 参数是 1-based)
-	# 不自动触发对话 — 返回 npc_dialogue 让流程知道有 NPC, 但不设 popup
-	for npc in layer.npcs:
-		if npc.row == row - 1 and npc.col == col - 1:
-			# 优先从 StoryManager 获取条件化对话
-			var story_lines: Array = StoryManager.get_npc_dialogue(npc.id)
-			var dialogue: Array = story_lines if not story_lines.is_empty() else npc.dialogue
-			if dialogue.is_empty():
-				continue
-			return {
-				"type": "npc_dialogue",
-				"data": {
-					"dialogue": dialogue,
-					"tex": npc.tex_path,
-					"npc_name": npc.npc_name,
-				},
-			}
-
-	var dark_type: String = card.dark_type
-
-	if dark_type == "normal":
-		return { "type": "none", "data": null }
-
-	elif dark_type == "shop":
-		dark_state = "popup"
-		return { "type": "shop", "data": { "name": card.dark_name } }
-
-	elif dark_type == "intel":
-		return { "type": "intel", "data": { "cost": 15 } }
-
-	elif dark_type == "checkpoint":
-		return { "type": "checkpoint", "data": { "name": card.dark_name } }
-
-	elif dark_type == "clue" and not card.dark_collected:
-		card.dark_collected = true
+	# 标记为已收集
+	if card.dark_collected:
 		layer.collected[key] = true
-		# 清除线索标记 (变为普通暗巷)
-		var old_name: String = card.dark_name
+
+	# 返回统一格式供 EventHandler 处理
+	# 具体效果逻辑已移至 EventHandler.parse_dark_world_card()
+	return {
+		"type": card.dark_type,
+		"data": {
+			"card": card,
+			"row": row,
+			"col": col,
+			"layer": current_layer,
+			"dark_name": card.dark_name,
+		}
+	}
+
+## 收集暗面卡牌 (线索/道具被拾取后调用)
+## @param row: 1-based 坐标
+## @param col: 1-based 坐标
+## @param card: 可选的 Card 对象，用于更新卡牌显示状态
+func collect_card(row: int, col: int, card: Card = null) -> void:
+	var layer: LayerData = layers[current_layer]
+	var key: String = "%d,%d" % [row, col]
+	# 存储原始类型，用于重建棋盘时判断
+	if card != null:
+		layer.collected[key] = card.dark_type
+	else:
+		layer.collected[key] = "normal"
+	
+	# 如果提供了 card 对象，更新卡牌显示状态
+	if card:
+		card.dark_collected = true
 		card.dark_type = "normal"
 		card.dark_name = "空走廊"
 		card.dark_icon = "🌑"
-		return { "type": "clue", "data": { "name": old_name } }
-
-	elif dark_type == "item" and not card.dark_collected:
-		card.dark_collected = true
-		layer.collected[key] = true
-		# 随机奖励
-		var rewards: Array = [["san", 10], ["money", 20], ["film", 1]]
-		var pick: Array = rewards[randi() % rewards.size()]
-		card.dark_type = "normal"
-		card.dark_name = "空走廊"
-		card.dark_icon = "🌑"
-		return { "type": "item", "data": { "resource": pick[0], "amount": pick[1] } }
-
-	elif dark_type == "passage":
-		var target_layer: int = -1
-		if current_layer == 0:
-			target_layer = 1
-		elif current_layer == 1:
-			# L2 双通道 → 由 main.gd 判断 passage 序号
-			target_layer = -1  # 需要 main.gd 传入 passage_index
-		elif current_layer == 2:
-			target_layer = 1
-
-		return { "type": "passage", "data": { "target_layer": target_layer } }
-
-	elif dark_type == "abyss_core":
-		return { "type": "abyss_core", "data": null }
-
-	return { "type": "none", "data": null }
 
 # ---------------------------------------------------------------------------
 # 玩家移动处理 (核心流程, 由 main.gd 调用)

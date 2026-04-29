@@ -212,7 +212,11 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
 		# Toast 通知
-		m._event_popup.show_toast(card_type, effects, shield_used, card.location)
+		var toast: EventPopup.ToastData = EventPopup.ToastData.new(card_type) \
+			.set_effects(effects) \
+			.set_shield_used(shield_used) \
+			.set_location(card.location)
+		m._event_popup.show_toast(toast)
 
 		# 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready (匹配 Lua 0.6s pauseDummy)
 		if card_type == "monster":
@@ -258,8 +262,12 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 			_teleport_to_random()
 
 	# Toast 通知
-	m._event_popup.show_toast(card.type, card.get_effects(),
-		shield_used, card.location, card.trap_subtype)
+	var trap_toast: EventPopup.ToastData = EventPopup.ToastData.new(card.type) \
+		.set_effects(card.get_effects()) \
+		.set_shield_used(shield_used) \
+		.set_location(card.location) \
+		.set_trap_subtype(card.trap_subtype)
+	m._event_popup.show_toast(trap_toast)
 
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()

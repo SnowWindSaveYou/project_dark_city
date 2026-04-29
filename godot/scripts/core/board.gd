@@ -597,9 +597,13 @@ func generate_dark_cards(layer_data: Dictionary, dark_locations: Dictionary, dar
 
 				# 恢复已收集状态
 				var collected: Dictionary = layer_data.get("collected", {})
-				if collected.has(key):
+				var original_type: Variant = collected.get(key, null)
+				if original_type != null:
 					card.dark_type = "normal"
 					card.dark_name = "空走廊"
+					# 标记为已收集，以便 EventHandler 正确处理
+					if original_type == "clue" or original_type == "item":
+						card.dark_collected = true
 				set_card(r, c, card)
 
 	print("[Board] Generated dark cards: layer=%d, walkable=%d, walls=%d" % [

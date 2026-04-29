@@ -5,6 +5,62 @@ class_name EventPopup
 extends Control
 
 # ---------------------------------------------------------------------------
+# Toast 数据结构
+# ---------------------------------------------------------------------------
+class ToastData:
+	var card_type: String = "safe"
+	var title: String = ""
+	var desc: String = ""
+	var icon: String = ""
+	var effects: Dictionary = {}
+	var shield_used: bool = false
+	var trap_subtype: String = ""
+	var location: String = ""  # 用于暗面世界标题
+	
+	func _init(p_card_type: String = "safe") -> void:
+		card_type = p_card_type
+	
+	func set_title(p_title: String) -> ToastData:
+		title = p_title
+		return self
+	
+	func set_desc(p_desc: String) -> ToastData:
+		desc = p_desc
+		return self
+	
+	func set_icon(p_icon: String) -> ToastData:
+		icon = p_icon
+		return self
+	
+	func set_effects(p_effects: Dictionary) -> ToastData:
+		effects = p_effects
+		return self
+	
+	func set_shield_used(p_used: bool) -> ToastData:
+		shield_used = p_used
+		return self
+	
+	func set_trap_subtype(p_subtype: String) -> ToastData:
+		trap_subtype = p_subtype
+		return self
+	
+	func set_location(p_location: String) -> ToastData:
+		location = p_location
+		return self
+	
+	func to_dict() -> Dictionary:
+		return {
+			"card_type": card_type,
+			"title": title,
+			"desc": desc,
+			"icon": icon,
+			"effects": effects,
+			"shield_used": shield_used,
+			"trap_subtype": trap_subtype,
+			"location": location,
+		}
+
+# ---------------------------------------------------------------------------
 # 信号
 # ---------------------------------------------------------------------------
 signal popup_closed(card: Card)
@@ -321,66 +377,88 @@ func is_rift_confirm_active() -> bool:
 # Toast API
 # ===========================================================================
 
-## 推送一条非阻塞事件 Toast
-func show_toast(card_type: String, applied_effects: Dictionary = {},
-		shield_used: bool = false, location: String = "",
-		trap_subtype: String = "") -> void:
+## 推送一条 Toast 通知
+## @param data: ToastData 对象，包含所有显示参数
+func show_toast(data: ToastData) -> void:
+	var card_type: String = data.card_type
+	var effects: Dictionary = data.effects
+	var location: String = data.location
+	var trap_subtype: String = data.trap_subtype
+	
+	# 文案处理
+	var tmpl: Dictionary = _pick_template(card_type, trap_subtype)
+	
+	# 标题
+	var display_title: String = data.title
+	if display_title == "":
+		display_title = tmpl["title"]
+		if location != "":
+			var dark_info: Dictionary = CardConfig.darkside_info.get(location, {}).get(card_type, {})
+			if dark_info.has("label"):
+				display_title = dark_info["label"]
+	
+	# 图标
+	var display_icon: String = data.icon
+	if display_icon == "":
+		display_icon = GameTheme.card_type_info(card_type).get("icon", "❓")
+		if card_type == "trap" and trap_subtype != "":
+			var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
+			if sub_info.has("icon"):
+				display_icon = sub_info["icon"]
+	
+	# 描述
+	var display_desc: String = data.desc
+	if display_desc == "":
+		display_desc = tmpl["desc"]
+	
+	var toast_dict: Dictionary = {
+		"card_type": card_type,
+		"title": display_title,
+		"desc": display_desc,
+		"icon": display_icon,
+		"effects": effects,
+		"shield_used": data.shield_used,
+		"trap_subtype": trap_subtype,
+	}
+	_show_toast_internal(toast_dict)
+
+## 内部方法：接收 Dictionary
+func _show_toast_internal(data: Dictionary) -> void:
 	visible = true
 
 	var tid: int = _toast_next_id
 	_toast_next_id += 1
 
-	# 文案
-	var tmpl: Dictionary = _pick_template(card_type, trap_subtype)
-
-	# 暗面世界标题
-	var display_title: String = tmpl["title"]
-	if location != "":
-		var dark_info: Dictionary = CardConfig.darkside_info.get(location, {}).get(card_type, {})
-		if dark_info.has("label"):
-			display_title = dark_info["label"]
-
-	# 陷阱子类型图标
-	var display_icon: String = GameTheme.card_type_info(card_type).get("icon", "❓")
-	if card_type == "trap" and trap_subtype != "":
-		var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
-		if sub_info.has("icon"):
-			display_icon = sub_info["icon"]
+	var card_type: String = data.get("card_type", "safe")
+	var title: String = data.get("title", "")
+	var desc: String = data.get("desc", "")
+	var icon: String = data.get("icon", GameTheme.card_type_info(card_type).get("icon", "❓"))
+	var effects: Dictionary = data.get("effects", {})
+	var shield_used: bool = data.get("shield_used", false)
 
 	var toast: Dictionary = {
 		"id": tid,
 		"card_type": card_type,
-		"trap_subtype": trap_subtype,
-		"title": display_title,
-		"desc": tmpl["desc"],
-		"icon": display_icon,
-		"effects": applied_effects,
+		"trap_subtype": data.get("trap_subtype", ""),
+		"title": title,
+		"desc": desc,
+		"icon": icon,
+		"effects": effects,
 		"shield_used": shield_used,
-		"phase": "enter",  # enter → idle → exit → done
+		"phase": "enter",
 		"timer": 0.0,
-		# 动画属性
 		"slide_x": TOAST_W + TOAST_MARGIN_R + 20.0,
 		"alpha": 0.0,
 		"scale_val": 0.8,
 		"target_y": 0.0,
 		"current_y": 0.0,
-		# 碰撞区域 (draw 时更新)
 		"draw_x": 0.0, "draw_y": 0.0,
 		"draw_w": 0.0, "draw_h": 0.0,
 	}
 
 	_toast_queue.append(toast)
-
-	# 溢出：强制退场最老的
-	var visible_count: int = 0
-	for t in _toast_queue:
-		if t["phase"] != "exit" and t["phase"] != "done":
-			visible_count += 1
-	if visible_count > TOAST_MAX:
-		for t in _toast_queue:
-			if t["phase"] != "exit" and t["phase"] != "done":
-				_start_toast_exit(t)
-				break
+	_enforce_toast_limit()
+	visible = true
 
 	# 入场 tween
 	var tw: Tween = create_tween()
@@ -395,6 +473,17 @@ func show_toast(card_type: String, applied_effects: Dictionary = {},
 			toast["phase"] = "idle"
 			toast["timer"] = 0.0
 	)
+
+func _enforce_toast_limit() -> void:
+	var visible_count: int = 0
+	for t in _toast_queue:
+		if t["phase"] != "exit" and t["phase"] != "done":
+			visible_count += 1
+	if visible_count > TOAST_MAX:
+		for t in _toast_queue:
+			if t["phase"] != "exit" and t["phase"] != "done":
+				_start_toast_exit(t)
+				break
 
 func _start_toast_exit(toast: Dictionary) -> void:
 	toast["phase"] = "exit"

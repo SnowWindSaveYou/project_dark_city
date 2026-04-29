@@ -31,9 +31,10 @@ scripts/
 │   ├── token.gd          # 资源代币
 │   └── weather.gd        # 天气系统
 ├── lib/              # 工具库
-│   ├── enums.gd          # 统一枚举定义 [NEW]
-│   ├── game_config.gd    # 游戏配置管理器 [NEW]
-│   ├── weather_system.gd # 天气系统 [NEW]
+│   ├── enums.gd          # 统一枚举定义
+│   ├── game_config.gd    # 游戏配置管理器
+│   ├── weather_system.gd # 天气系统
+│   ├── event_handler.gd  # 统一事件处理 [NEW]
 │   ├── item_icons.gd     # 物品图标
 │   └── vfx_manager.gd    # 特效管理
 ├── ui/               # UI组件
@@ -124,14 +125,15 @@ scripts/
 | #3 枚举分散 | ✅ 完成 | 创建 `lib/enums.gd` 统一管理所有枚举 |
 | #7 硬编码数值 | ✅ 完成 | 创建 `lib/game_config.gd` 配置管理器 |
 | #1 天气系统耦合 | ✅ 完成 | 拆分 `lib/weather_system.gd` |
-| #6 文档注释 | ✅ 进行中 | 为核心文件添加 GDScript 文档注释 |
+| #6 文档注释 | ✅ 完成 | 为核心文件添加 GDScript 文档注释 |
 | #8 信号语法 | ✅ 完成 | 已统一使用 Godot 4 的 `.emit()` 语法 |
+| **#11 Real/Dark 事件不统一** | ✅ 完成 | 创建 `lib/event_handler.gd` 统一事件处理 |
 
 ### 🔄 进行中
 
 | 问题 | 状态 | 说明 |
 |------|------|------|
-| #1 dark_world.gd 重构 | 🔄 部分完成 | 已集成天气系统，状态机待进一步拆分 |
+| #1 dark_world.gd 重构 | 🔄 部分完成 | 已集成天气系统，事件处理移至 EventHandler |
 | #2 UI与核心解耦 | 🔄 待开始 | 需要进一步分析 hand_panel 和 board_visual |
 | #5 初始化顺序 | 🔄 待开始 | main.gd 已添加注释，暂无 bootstrap 需求 |
 
@@ -152,7 +154,8 @@ scripts/
 #### 1. **耦合严重 - `dark_world.gd` 过于臃肿** [部分完成]
 - 状态机 + 地图 + 事件 + 天气 + 流程控制
 - ✅ 已拆分 `weather_system.gd`
-- ⏳ 待拆分：事件处理、层间移动逻辑
+- ✅ 事件处理移至 `event_handler.gd`
+- ⏳ 待拆分：层间移动逻辑
 
 #### 2. **UI层直接操作核心数据** [待处理]
 - `hand_panel.gd` (907行) 包含大量卡牌操作逻辑
@@ -162,6 +165,24 @@ scripts/
 #### 3. **枚举与常量分散** [已完成 ✅]
 - ✅ 已建立 `lib/enums.gd` 统一管理
 - ✅ 已建立 `lib/game_config.gd` 配置管理
+
+#### 4. **Real World / Dark World 事件处理不统一** [已完成 ✅]
+- 问题：两套事件类型、处理逻辑各有一套
+- 解决：创建 `EventHandler` 统一事件处理
+
+```gdscript
+# 统一事件类型
+enum EventType {
+    NONE, SAFE, MONSTER, TRAP, SHOP, CLUE,
+    PLOT, ITEM, INTEL, CHECKPOINT, PASSAGE,
+    ABYSS_CORE, NPC_DIALOGUE, PHOTO
+}
+
+# 统一入口
+func parse_real_world_card(card: Card) -> EventResult
+func parse_dark_world_card(card: Card, row: int, col: int, day: int) -> EventResult
+func execute_event(result: EventResult, card: Card = null)
+```
 
 ---
 
