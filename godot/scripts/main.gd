@@ -190,7 +190,7 @@ func _setup_scene_tree() -> void:
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
 	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y  # Lua: FC_ROTATE_Y (只绕Y轴旋转, 精灵保持竖直)
-	_token_sprite.pixel_size = 0.00091  # 每像素 0.00091m → 515px≈0.47m宽, 768px≈0.70m高 (CHIBI_SCALE=1.4, 匹配 Lua 视觉效果)
+	_token_sprite.pixel_size = 0.00065  # 精确匹配 Lua: 768px×0.00065=0.50m高, 515px×0.00065=0.335m宽
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
 	_token_sprite.render_priority = 1
@@ -211,8 +211,8 @@ func _setup_scene_tree() -> void:
 	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_token_shadow.material_override = shadow_mat
-	# 初始缩放: 匹配放大后的 Token 宽度 (CHIBI_SCALE=1.4, 宽≈0.469m)
-	_token_shadow.scale = Vector3(0.516, 0.001, 0.235)
+	# 初始缩放: 匹配 Lua SPRITE_3D_W≈0.335m (shadow_w=0.335*1.1, shadow_z=0.335*0.5)
+	_token_shadow.scale = Vector3(0.369, 0.001, 0.168)
 	add_child(_token_shadow)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
@@ -309,9 +309,11 @@ func _setup_3d_scene() -> void:
 	_camera_3d.fov = 45.0
 	# 45° 俯视: 位于 Y=4.5, Z=-4.5 (与原版 UrhoX 一致)
 	_camera_3d.position = Vector3(0, 4.5, -4.5)
-	_camera_3d.rotation_degrees = Vector3(-45, 180, 0)
 	_camera_3d.current = true
 	_cam_pivot.add_child(_camera_3d)
+	# 精确匹配 Lua: cameraNode:LookAt(Vector3(0, 0, -0.3))
+	# 必须在 add_child 后调用 look_at, 否则 global_position 不可用
+	_camera_3d.look_at(Vector3(0, 0, -0.3), Vector3.UP)
 
 	# DirectionalLight3D: 模拟日光
 	_dir_light = DirectionalLight3D.new()
