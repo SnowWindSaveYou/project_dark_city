@@ -121,13 +121,13 @@ var dark_abyss: Color = h("#DC2626")
 # ---------------------------------------------------------------------------
 # 字号
 # ---------------------------------------------------------------------------
-const FONT_SIZE_TITLE: int = 84
-const FONT_SIZE_SUBTITLE: int = 54
-const FONT_SIZE_BODY: int = 42
-const FONT_SIZE_CAPTION: int = 33
-const FONT_SIZE_HUD: int = 39
-const FONT_SIZE_CARD_ICON: int = 84
-const FONT_SIZE_CARD_LABEL: int = 33
+const FONT_SIZE_TITLE: int = 28
+const FONT_SIZE_SUBTITLE: int = 18
+const FONT_SIZE_BODY: int = 14
+const FONT_SIZE_CAPTION: int = 11
+const FONT_SIZE_HUD: int = 13
+const FONT_SIZE_CARD_ICON: int = 28
+const FONT_SIZE_CARD_LABEL: int = 11
 
 # ---------------------------------------------------------------------------
 # 查询接口 (数据从 CardConfig 读取)

@@ -60,9 +60,9 @@ func setup(main_ref) -> void:
 	_particle_mat_landmark = _create_particle_material(GameTheme.glow_color)
 	_particle_mat_home = _create_particle_material(Color(0.9, 0.95, 1.0, 0.8))
 
-	# 侦察/揭示图标纹理 (预加载)
-	_tex_scouted = preload("res://assets/image/icon_scouted_v2_20260426051601.png")
-	_tex_revealed = preload("res://assets/image/icon_revealed_v2_20260426051619.png")
+	# 侦察/揭示图标纹理
+	_tex_scouted = load("res://assets/image/icon_scouted_v2_20260426051601.png")
+	_tex_revealed = load("res://assets/image/icon_revealed_v2_20260426051619.png")
 
 # ---------------------------------------------------------------------------
 # 卡牌节点创建 (全量重建)
@@ -177,8 +177,6 @@ func rebuild_card_nodes() -> void:
 # ---------------------------------------------------------------------------
 
 func get_card_node(row: int, col: int) -> MeshInstance3D:
-	if board_layer == null:
-		return null
 	var card_name: String = "Card_%d_%d" % [row, col]
 	return board_layer.get_node_or_null(card_name) as MeshInstance3D
 
@@ -338,29 +336,15 @@ func update_dark_card_visual(row: int, col: int) -> void:
 # Token 精灵更新 (Sprite3D billboard)
 # ---------------------------------------------------------------------------
 
-## Chibi 全局放大系数 (Godot Sprite3D 视觉效果与 Lua BillboardSet 存在差异,
-## 需要放大以匹配 Lua 版原始视觉体验)
-const CHIBI_SCALE: float = 1.4
-
-## Token 基础 pixel_size (未放大)
-const TOKEN_BASE_PX: float = 0.00065
-## Token 实际 pixel_size (放大后)
-## 515px × 0.00091 = 0.469m 宽, 768px × 0.00091 = 0.699m 高
-const TOKEN_PIXEL_SIZE: float = TOKEN_BASE_PX * CHIBI_SCALE
-## 死亡横版基础 pixel_size (未放大)
-const TOKEN_DEAD_BASE_PX: float = 0.000738
-const TOKEN_DEAD_PIXEL_SIZE: float = TOKEN_DEAD_BASE_PX * CHIBI_SCALE
-
-## Token 悬浮高度 (Sprite3D 中心 Y)
-## 底边锚定 Y≈0.25: center = 0.25 + (768 * TOKEN_PIXEL_SIZE) / 2 ≈ 0.60
-const TOKEN_HOVER_Y: float = 0.60
-## 像素→世界单位换算 (用于呼吸/弹跳动画位移, 保持与 Lua 相同的动画幅度)
+## Token 悬浮高度 (Sprite3D 中心到卡面距离)
+## Lua: nodeY=0.25 + bb内部偏移=SPRITE_3D_H/2=0.25 → 中心 Y=0.50
+const TOKEN_HOVER_Y: float = 0.49
+## 像素→世界单位的换算 (与 Sprite3D.pixel_size 保持一致)
 const TOKEN_PX_TO_WORLD: float = 0.00065
 
-## Token blob shadow 常量 (匹配放大后的 Token 宽度)
-const TOKEN_WORLD_W: float = 515.0 * TOKEN_PIXEL_SIZE   # ≈ 0.469
-const TOKEN_SHADOW_W: float = TOKEN_WORLD_W * 1.1
-const TOKEN_SHADOW_Z: float = TOKEN_WORLD_W * 0.5
+## Token blob shadow 常量 (匹配 Lua SPRITE_3D_W ≈ 0.335)
+const TOKEN_SHADOW_W: float = 0.335 * 1.1   # 0.369
+const TOKEN_SHADOW_Z: float = 0.335 * 0.5   # 0.168
 const TOKEN_SHADOW_Y: float = 0.015          # 略高于卡面
 
 func update_token_visual() -> void:
@@ -378,7 +362,7 @@ func update_token_visual() -> void:
 
 	# 死亡横版: 调整 pixel_size 匹配 Lua DEAD_3D_H=0.38 (正常 SPRITE_3D_H=0.50)
 	var is_dead: bool = (token.emotion == "dead")
-	m._token_sprite.pixel_size = TOKEN_DEAD_PIXEL_SIZE if is_dead else TOKEN_PIXEL_SIZE
+	m._token_sprite.pixel_size = 0.000738 if is_dead else 0.00065
 
 	# 移动动画期间，位置和缩放由 Tween 驱动，这里只更新纹理/可见性
 	if token.is_moving:
@@ -640,19 +624,6 @@ func play_flip_animation(row: int, col: int, on_complete: Callable) -> void:
 		)
 	)
 
-## 卡牌 emission 蓄力发光 (渐亮到 peak, duration 秒)
-func start_card_emission_glow(row: int, col: int, color: Color,
-		duration: float = 0.6, peak: float = 2.0) -> void:
-	var mat: StandardMaterial3D = _get_card_mat(row, col)
-	if not mat:
-		return
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 0.0
-	var tw: Tween = m.create_tween()
-	tw.tween_property(mat, "emission_energy_multiplier", peak, duration) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-
 ## 播放驱魔变形动画 (匹配 Lua Card.transformTo: 抬升→70°翻转+震动→换面→落回+光晕)
 func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 	var card_node: MeshInstance3D = get_card_node(row, col)
@@ -865,11 +836,9 @@ func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 # 暗面幽灵 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createGhostNodes)
 # ---------------------------------------------------------------------------
 
-## 幽灵渲染参数 (Lua DarkWorld: nodeY=0.25, bb.position.y=0.15, bb.size=0.30)
-## Lua 原值: size=0.30, centerY=0.40 → 底边 Y=0.25
-## CHIBI_SCALE 放大后: size=0.42, 底边保持 0.25 → centerY=0.46
-const GHOST_BASE_Y: float = 0.46
-const GHOST_WORLD_SIZE: float = 0.30 * CHIBI_SCALE  # 0.42
+## 幽灵渲染参数 (匹配 Lua: nodeY=0.25, bb.position.y=0.15, bb.size=0.30)
+const GHOST_BASE_Y: float = 0.40     # 中心高度 = 0.25 + 0.15
+const GHOST_WORLD_SIZE: float = 0.30  # 世界空间尺寸 (米)
 const GHOST_FLOAT_AMP: float = 0.04   # 浮动振幅
 const GHOST_FLOAT_SPEED: float = 2.5  # 浮动频率
 
@@ -881,10 +850,7 @@ func create_ghost_nodes(ghosts: Array) -> void:
 		if not ghost.alive:
 			continue
 
-		var ghost_textures: Array = CardConfig.get_dw_ghost_textures()
-		if ghost.tex_index < 0 or ghost.tex_index >= ghost_textures.size():
-			continue
-		var tex_path: String = ghost_textures[ghost.tex_index]
+		var tex_path: String = DarkWorld.GHOST_TEXTURES[ghost.tex_index]
 		var tex: Texture2D = load(tex_path)
 		if not tex:
 			continue
@@ -981,11 +947,9 @@ func animate_ghost_fade(ghost_index: int) -> void:
 # 暗面 NPC 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createNPCNodes)
 # ---------------------------------------------------------------------------
 
-## Lua DarkWorld NPC 原值: bb.size=0.35, centerY=0.43, offset_x=0.15
-## CHIBI_SCALE 放大后: size=0.49, 底边保持 0.255 → centerY=0.50
-const NPC_BASE_Y: float = 0.50
-const NPC_WORLD_SIZE: float = 0.35 * CHIBI_SCALE  # 0.49
-const NPC_OFFSET_X: float = 0.15  # Lua DarkWorld: wx + 0.15
+const NPC_BASE_Y: float = 0.43   # node Y=0.25 + billboard offset Y=0.18
+const NPC_WORLD_SIZE: float = 0.35
+const NPC_OFFSET_X: float = 0.15
 const NPC_BREATHE_SPEED: float = 2.0
 const NPC_BREATHE_AMP: float = 0.02
 
@@ -1031,10 +995,6 @@ func update_npc_visuals(game_time: float) -> void:
 # ---------------------------------------------------------------------------
 # 地图道具 3D 节点 (Sprite3D billboard, 匹配 Lua BoardItems)
 # ---------------------------------------------------------------------------
-## Lua BoardItems: ITEM_SIZE=0.22, ITEM_BASE_Y=0.35
-## CHIBI_SCALE 放大后: size=0.308, bottom=0.35-0.11=0.24, newBaseY=0.24+0.154=0.394
-const ITEM_SCALED_SIZE: float = 0.22 * CHIBI_SCALE   # 0.308
-const ITEM_SCALED_BASE_Y: float = 0.394
 
 ## 道具 Sprite3D 节点缓存: item_index(int) → Dictionary
 var _item_nodes: Dictionary = {}
@@ -1059,9 +1019,9 @@ func create_item_nodes(items: Array) -> void:
 		sprite.no_depth_test = false
 		sprite.render_priority = 1
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
-		sprite.pixel_size = ITEM_SCALED_SIZE / tex_max if tex_max > 0.0 else 0.001
+		sprite.pixel_size = BoardItems.ITEM_SIZE_3D / tex_max if tex_max > 0.0 else 0.001
 		var world_pos: Vector3 = m.board.grid_to_world(item.row, item.col)
-		world_pos.y = ITEM_SCALED_BASE_Y
+		world_pos.y = BoardItems.ITEM_BASE_Y_3D
 		world_pos.z -= 0.18  # CAMERA_OFFSET_Z — 向相机方向偏移
 		sprite.position = world_pos
 		# 初始不可见 (弹出动画会设置)
@@ -1070,7 +1030,7 @@ func create_item_nodes(items: Array) -> void:
 		add_child(sprite)
 		_item_nodes[i] = {
 			"node": sprite,
-			"base_y": ITEM_SCALED_BASE_Y,
+			"base_y": BoardItems.ITEM_BASE_Y_3D,
 			"phase": item.phase,
 			"pos_x": world_pos.x,
 			"pos_z": world_pos.z,
@@ -1141,29 +1101,20 @@ var _mg_surround_nodes: Array = []   # 环绕玩家的 chibi Sprite3D
 var _mg_card_nodes: Array = []       # 卡牌上的 chibi Sprite3D
 var _mg_trail_nodes: Array = []      # 踪迹箭头 chibi Sprite3D
 
-## 环绕布局 (Lua SURROUND_LAYOUT 原值 × CHIBI_SCALE)
-## baseY 按底边锚定调整: newBaseY = oldBottom + newSize/2
-##   oldBottom = oldBaseY - oldSize/2
+## 环绕布局 (匹配 Lua SURROUND_LAYOUT — 3D 世界坐标)
 const MG_SURROUND_LAYOUT: Array = [
-	# 主怪: Lua size=0.32→0.448, bottom=0.55-0.16=0.39, newBaseY=0.39+0.224=0.614
-	{ "dx":  0.00, "dz":  0.20, "baseY": 0.614, "size": 0.448, "is_main": true },
-	# 小幽灵: Lua size=0.18→0.252, bottom=0.30-0.09=0.21, newBaseY=0.21+0.126=0.336
-	{ "dx": -0.35, "dz": -0.15, "baseY": 0.336, "size": 0.252, "is_main": false },
-	# Lua size=0.20→0.280, bottom=0.42-0.10=0.32, newBaseY=0.32+0.140=0.460
-	{ "dx":  0.32, "dz":  0.08, "baseY": 0.460, "size": 0.280, "is_main": false },
-	# Lua size=0.15→0.210, bottom=0.60-0.075=0.525, newBaseY=0.525+0.105=0.630
-	{ "dx": -0.18, "dz":  0.30, "baseY": 0.630, "size": 0.210, "is_main": false },
-	# Lua size=0.16→0.224, bottom=0.25-0.08=0.17, newBaseY=0.17+0.112=0.282
-	{ "dx":  0.25, "dz": -0.20, "baseY": 0.282, "size": 0.224, "is_main": false },
+	{ "dx":  0.00, "dz":  0.20, "baseY": 0.55, "size": 0.32, "is_main": true },
+	{ "dx": -0.35, "dz": -0.15, "baseY": 0.30, "size": 0.18, "is_main": false },
+	{ "dx":  0.32, "dz":  0.08, "baseY": 0.42, "size": 0.20, "is_main": false },
+	{ "dx": -0.18, "dz":  0.30, "baseY": 0.60, "size": 0.15, "is_main": false },
+	{ "dx":  0.25, "dz": -0.20, "baseY": 0.25, "size": 0.16, "is_main": false },
 ]
-## 卡牌 chibi 参数 (Lua: baseY=0.35, size=0.28)
-## CHIBI_SCALE: size=0.392, bottom=0.35-0.14=0.21, newBaseY=0.21+0.196=0.406
-const MG_CARD_BASE_Y: float = 0.406
-const MG_CARD_SIZE: float = 0.28 * CHIBI_SCALE  # 0.392
-## 踪迹箭头参数 (Lua: baseY=0.25, size=0.14)
-## CHIBI_SCALE: size=0.196, bottom=0.25-0.07=0.18, newBaseY=0.18+0.098=0.278
-const MG_TRAIL_BASE_Y: float = 0.278
-const MG_TRAIL_SIZE: float = 0.14 * CHIBI_SCALE  # 0.196
+## 卡牌 chibi 参数
+const MG_CARD_BASE_Y: float = 0.35
+const MG_CARD_SIZE: float = 0.28
+## 踪迹箭头参数
+const MG_TRAIL_BASE_Y: float = 0.25
+const MG_TRAIL_SIZE: float = 0.14
 const MG_TRAIL_OFFSET_DIST: float = 0.38  # 偏移到卡牌边缘
 
 ## 创建单个 MonsterGhost Sprite3D (通用)
@@ -1234,43 +1185,6 @@ func mg_clear_surround() -> void:
 			node.queue_free()
 	_mg_surround_nodes.clear()
 
-## 驱魔: 环绕 chibi 飞散动画 (各自向随机方向飞出 + 缩小 + 淡出)
-func mg_scatter_surround() -> void:
-	for data in _mg_surround_nodes:
-		var node: Sprite3D = data.get("node")
-		if not is_instance_valid(node):
-			continue
-		# 随机飞散方向
-		var angle: float = randf() * TAU
-		var fly_dist: float = 0.4 + randf() * 0.3
-		var target_x: float = node.position.x + cos(angle) * fly_dist
-		var target_z: float = node.position.z + sin(angle) * fly_dist
-		var tw: Tween = m.create_tween()
-		tw.set_parallel(true)
-		tw.tween_property(node, "position:x", target_x, 0.4) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-		tw.tween_property(node, "position:z", target_z, 0.4) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-		tw.tween_property(node, "scale", Vector3(0.1, 0.1, 0.1), 0.4) \
-			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-		tw.tween_property(node, "modulate:a", 0.0, 0.35) \
-			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-		tw.chain().tween_callback(func() -> void:
-			if is_instance_valid(node):
-				node.queue_free()
-		)
-	# 延迟清空数组
-	var nodes_ref: Array = _mg_surround_nodes
-	_mg_surround_nodes = []
-	var tw_cleanup: Tween = m.create_tween()
-	tw_cleanup.tween_callback(func() -> void:
-		for d in nodes_ref:
-			var n = d.get("node")
-			if is_instance_valid(n):
-				n.queue_free()
-		nodes_ref.clear()
-	).set_delay(0.5)
-
 ## 在卡牌上方显示怪物 chibi (拍照鉴定后)
 func mg_show_on_card(row: int, col: int, location: String) -> void:
 	var world_pos: Vector3 = m.board.grid_to_world(row, col)
@@ -1296,50 +1210,6 @@ func mg_clear_card_ghosts() -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	_mg_card_nodes.clear()
-
-## 驱魔: 卡牌 chibi 死亡动画 (抖动→膨胀→淡出→清除)
-## on_burst: 膨胀开始时触发一次 (用于同步闪光/粒子)
-func mg_exorcise_card_ghosts(on_burst: Callable = Callable()) -> void:
-	if _mg_card_nodes.is_empty():
-		if on_burst.is_valid():
-			on_burst.call()
-		return
-	var burst_fired: bool = false
-	for data in _mg_card_nodes:
-		var node: Sprite3D = data.get("node")
-		if not is_instance_valid(node):
-			continue
-		var anchor_x: float = data.get("anchor_x", node.position.x)
-		# Phase A: 抖动 (0.15s, 高频小幅)
-		var tw_shake: Tween = m.create_tween()
-		tw_shake.tween_method(func(t: float) -> void:
-			if is_instance_valid(node):
-				node.position.x = anchor_x + sin(t * PI * 16.0) * 0.03 * (1.0 - t)
-		, 0.0, 1.0, 0.15)
-		# Phase B: 膨胀 + 淡出 (0.25s)
-		tw_shake.tween_callback(func() -> void:
-			if not burst_fired:
-				burst_fired = true
-				if on_burst.is_valid():
-					on_burst.call()
-			if not is_instance_valid(node):
-				return
-			var tw_die: Tween = m.create_tween()
-			tw_die.set_parallel(true)
-			tw_die.tween_property(node, "scale", Vector3(1.5, 1.5, 1.5), 0.25) \
-				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-			tw_die.tween_property(node, "modulate:a", 0.0, 0.25) \
-				.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-			tw_die.chain().tween_callback(func() -> void:
-				if is_instance_valid(node):
-					node.queue_free()
-			)
-		)
-	# 延迟清空数组 (等动画完成)
-	var tw_cleanup: Tween = m.create_tween()
-	tw_cleanup.tween_callback(func() -> void:
-		_mg_card_nodes.clear()
-	).set_delay(0.45)
 
 ## 显示已侦测的怪物卡牌 chibi (相机模式进入时)
 func mg_show_on_scouted_cards() -> void:

@@ -1,15 +1,12 @@
 ## DarkWorldFlow - 暗面世界流程控制器
 ## 负责: 暗面进出(棋盘保存/交换/恢复)、层间移动、
 ##       暗面卡牌翻牌效果分发、幽灵碰撞处理、暗面相机驱除
-##
-## 事件处理: 统一使用 EventHandler 处理所有事件效果
 extends RefCounted
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
 # ---------------------------------------------------------------------------
 var m = null
-var _event_handler: EventHandler = null
 
 # ---------------------------------------------------------------------------
 # 暗面世界状态
@@ -26,9 +23,6 @@ var _saved_token_col: int = 0
 
 func setup(main_ref) -> void:
 	m = main_ref
-	# 初始化事件处理器
-	_event_handler = EventHandler.new()
-	_event_handler.setup(main_ref)
 	# 注入退出回调
 	m.dark_world.exit_request_callback = func(): on_dark_exit_requested()
 
@@ -73,7 +67,7 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		m._resource_bar.set_dark_mode(true, {
 			"layer_name": m.dark_world.get_layer_name(),
 			"energy": m.dark_world.get_energy(),
-			"max_energy": CardConfig.get_dw_max_energy(),
+			"max_energy": DarkWorld.MAX_ENERGY,
 		})
 		m._camera_button.show_button()
 
@@ -216,7 +210,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 
 	# 更新能量 UI
 	m._resource_bar.update_dark_energy(
-		m.dark_world.get_energy(), CardConfig.get_dw_max_energy())
+		m.dark_world.get_energy(), DarkWorld.MAX_ENERGY)
 
 	# Token 移动
 	m.token.target_row = row
@@ -258,74 +252,89 @@ func handle_dark_card_click(row: int, col: int) -> void:
 	)
 
 # ---------------------------------------------------------------------------
-# 暗面卡牌效果 (统一使用 EventHandler)
+# 暗面卡牌效果
 # ---------------------------------------------------------------------------
 
 func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
-	var result: EventHandler.EventResult = _event_handler.parse_dark_world_card(
-		card, row, col, m.day_count)
-	
-	# 特殊处理：标记收集状态
-	if card.dark_collected and (card.dark_type == "clue" or card.dark_type == "item"):
-		m.dark_world.collect_card(row, col, card)
-	
-	# 统一表情
-	m.token.set_emotion(EventHandler.get_emotion_for_event(result.event_type))
-	
-	# 显示 Toast 通知 (仅对有事件类型的卡牌显示)
-	if result.event_type != EventHandler.EventType.NONE:
-		_show_dark_toast(card.dark_type, result.effects)
-	
-	# 根据事件类型处理
-	match result.event_type:
-		EventHandler.EventType.NONE:
+	var effect: Dictionary = m.dark_world.handle_card_effect(card, row, col, m.day_count)
+	var effect_type: String = effect["type"]
+
+	match effect_type:
+		"none":
+			m.token.set_emotion("default")
 			m.dark_world.set_ready()
-		
-		EventHandler.EventType.CLUE:
-			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
-			_event_handler.execute_event(result, card)
+
+		"npc_dialogue":
+			# 不自动触发对话 — 玩家需要再次点击当前格 (与明面琴馨一致)
+			var npc_name: String = effect["data"].get("npc_name", "NPC")
+			m.token.set_emotion("surprised")
+			m._vfx.action_banner("💬 点击与 %s 对话" % npc_name,
+				Color(0.6, 0.8, 0.9), 0.8)
 			m.dark_world.set_ready()
-		
-		EventHandler.EventType.ITEM:
-			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 8, Color(0.8, 0.7, 0.3))
-			_event_handler.execute_event(result, card)
-			m.dark_world.set_ready()
-		
-		EventHandler.EventType.SHOP:
-			_event_handler.execute_event(result, card)
-		
-		EventHandler.EventType.INTEL:
-			# 情报需要额外添加传闻
-			if GameData.get_resource("money") >= result.effects.get("money", 15):
-				_event_handler.execute_event(result, card)
+
+		"shop":
+			m.token.set_emotion("confused")
+			m._shop_popup.open_shop()
+
+		"intel":
+			var cost: int = effect["data"].get("cost", 15)
+			if GameData.get_resource("money") >= cost:
+				GameData.modify_resource("money", -cost)
+				# 添加传闻
 				m.card_manager.add_rumor_from_board(m.board)
+				m._vfx.action_banner("获得情报! -$%d" % cost, Color(0.5, 0.7, 0.9), 0.8)
 			else:
 				m._vfx.action_banner("金钱不足", Color(0.86, 0.63, 0.31), 0.7)
 			m.dark_world.set_ready()
-		
-		EventHandler.EventType.PASSAGE:
-			_change_layer(1)  # 默认往 L1 走
+
+		"checkpoint":
+			m._vfx.action_banner("检查点", Color(0.7, 0.6, 0.4), 0.8)
 			m.dark_world.set_ready()
-		
-		EventHandler.EventType.ABYSS_CORE:
-			_event_handler.execute_event(result, card)
+
+		"clue":
+			var clue_name: String = effect["data"].get("name", "线索")
+			# 尝试从 StoryManager 选择条件化暗世界线索事件
+			var dark_evt: Dictionary = StoryManager.pick_dark_clue_event()
+			if not dark_evt.is_empty():
+				var result: Dictionary = StoryManager.apply_event_effects(dark_evt)
+				if result["is_new_clue"]:
+					m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+						Color(0.5, 0.8, 0.6), 1.0)
+				else:
+					m._vfx.action_banner("发现线索: %s" % clue_name,
+						Color(0.6, 0.8, 0.5), 0.8)
+			else:
+				m._vfx.action_banner("发现线索: %s" % clue_name,
+					Color(0.6, 0.8, 0.5), 0.8)
+			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
+			GameData.modify_resource("san", 1)
+			m.dark_world.set_ready()
+
+		"item":
+			var res_key: String = effect["data"].get("resource", "money")
+			var amount: int = effect["data"].get("amount", 10)
+			GameData.modify_resource(res_key, amount)
+			m._vfx.action_banner("获得 %s +%d" % [res_key, amount], Color(0.8, 0.7, 0.3), 0.8)
+			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 8, Color(0.8, 0.7, 0.3))
+			m.dark_world.set_ready()
+
+		"passage":
+			var target_layer: int = effect["data"].get("target_layer", -1)
+			if target_layer >= 0:
+				_change_layer(target_layer)
+			else:
+				# L2 双通道 → 选择目标层
+				m._vfx.action_banner("通道连接更深处...", Color(0.5, 0.4, 0.7), 0.8)
+				_change_layer(2)  # 默认往更深走
+
+		"abyss_core":
+			m._vfx.action_banner("🌑 深渊核心...", Color(0.3, 0.1, 0.5), 1.0)
 			m._vfx.screen_flash(Color(0.3, 0.1, 0.5, 0.6), 0.5)
 			m._vfx.screen_shake(5.0, 0.3)
 			m.dark_world.set_ready()
-		
-		_:
-			_event_handler.execute_event(result, card)
-			m.dark_world.set_ready()
 
-## 显示暗面事件 Toast (统一使用 Toast 消息窗口)
-func _show_dark_toast(dark_type: String, effects: Dictionary) -> void:
-	var dark_info: Dictionary = CardConfig.get_dark_event_info(dark_type)
-	var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(dark_type) \
-		.set_title(dark_info.get("label", dark_type)) \
-		.set_desc(CardConfig.get_dark_event_text(dark_type)) \
-		.set_icon(dark_info.get("icon", "🌑")) \
-		.set_effects(effects)
-	m._event_popup.show_toast(toast)
+		_:
+			m.dark_world.set_ready()
 
 # ---------------------------------------------------------------------------
 # 幽灵 3D 渲染辅助
@@ -360,7 +369,7 @@ func _process_ghost_collisions(collisions: Array) -> void:
 		_process_single_ghost_collision(ghost)
 
 func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
-	GameData.modify_resource("san", CardConfig.get_dw_ghost_san_damage())
+	GameData.modify_resource("san", DarkWorld.GHOST_SAN)
 	m._vfx.screen_flash(Color(0.5, 0.1, 0.6, 0.6), 0.3)
 	m._vfx.screen_shake(4.0, 0.2)
 	m.token.set_emotion("scared")
@@ -370,7 +379,7 @@ func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
 	if ghost_idx >= 0:
 		m.board_visual.animate_ghost_fade(ghost_idx)
 
-	m._vfx.action_banner("幽灵接触! SAN %d" % CardConfig.get_dw_ghost_san_damage(),
+	m._vfx.action_banner("幽灵接触! SAN %d" % DarkWorld.GHOST_SAN,
 		Color(0.7, 0.2, 0.8), 0.8)
 
 	m.game_flow.check_defeat()
@@ -439,7 +448,7 @@ func _change_layer(target_layer: int) -> void:
 
 		# 更新 UI
 		m._resource_bar.update_dark_energy(
-			m.dark_world.get_energy(), CardConfig.get_dw_max_energy())
+			m.dark_world.get_energy(), DarkWorld.MAX_ENERGY)
 
 		# 发牌
 		GameData.set_demo_state("dealing")

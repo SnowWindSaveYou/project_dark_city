@@ -27,7 +27,7 @@ local DECOR_DEFS = {
     { name = "Bench",         texture = "image/长椅_20260426032215.png",
       x = 3.5, z = -0.5,  w = 1.1, h = 0.8 },
     -- 左后方偏远 - 行道树 (384x512 → 比例 0.75:1, 稍大一些)
-    { name = "RooftopTree",   texture = "image/行道树_20260426031426.png",
+    { name = "RooftopTree",   texture = "image/行道树正面_20260426031819.png",
       x = -3.5, z = 3.5, w = 1.0, h = 1.4 },
 }
 

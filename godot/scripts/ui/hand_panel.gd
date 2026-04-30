@@ -14,36 +14,36 @@ signal open_clue_log         # 打开线索日志
 # ---------------------------------------------------------------------------
 # 常量 — 笔记本布局 (与 Lua 版一致)
 # ---------------------------------------------------------------------------
-const SPINE_W: int = 30
-const TAB_H: int = 84
-const BASE_BODY_H: int = 420
-const LINE_SPACING: float = 54.0
-const MARGIN_BOTTOM: int = 24
-const MARGIN_X: int = 60
-const MAX_W: int = 1020
-const PAGE_PAD: int = 36
-const CORNER_R: float = 12.0
-const OVERFLOW: int = 72  # 底部溢出屏幕量
+const SPINE_W: int = 10
+const TAB_H: int = 28
+const BASE_BODY_H: int = 140
+const LINE_SPACING: float = 18.0
+const MARGIN_BOTTOM: int = 8
+const MARGIN_X: int = 20
+const MAX_W: int = 340
+const PAGE_PAD: int = 12
+const CORNER_R: float = 4.0
+const OVERFLOW: int = 24  # 底部溢出屏幕量
 
 # 日程条目
-const ITEM_H: int = 84
-const CHECK_SIZE: int = 36
+const ITEM_H: int = 28
+const CHECK_SIZE: int = 12
 
 # 传闻便签
-const NOTE_W: int = 234
-const NOTE_H: int = 132
+const NOTE_W: int = 78
+const NOTE_H: int = 44
 
 # 道具工具栏
-const TOOLBAR_H: int = 96
-const TOOLBAR_ICON: int = 72
-const TOOLBAR_GAP: int = 18
+const TOOLBAR_H: int = 32
+const TOOLBAR_ICON: int = 24
+const TOOLBAR_GAP: int = 6
 
 # 结束今天按钮
-const BTN_H: int = 78
-const BTN_MARGIN: int = 18
+const BTN_H: int = 26
+const BTN_MARGIN: int = 6
 
 # 折叠时露出高度
-const COLLAPSED_H: float = 108.0
+const COLLAPSED_H: float = 36.0
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -54,7 +54,6 @@ var _panel_y: float = 0.0
 var _alpha: float = 0.0
 var _visible_state: bool = false
 var _card_manager: CardManager = null
-var _consumable_controller = null  # 消耗品控制器引用
 var _hover_index: int = 0  # 日程 hover (1-based)
 var _hover_end_day: bool = false
 var _hover_toolbar: String = "" # 工具栏 hover 的 item key
@@ -67,7 +66,7 @@ var _rumor_page: int = 1  # 传闻翻页 (1-based, 循环)
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	_panel_y = _get_viewport_h() + 60
+	_panel_y = _get_viewport_h() + 20
 
 ## 只在实际面板区域内拦截鼠标事件, 其余透传到 _unhandled_input
 func _has_point(point: Vector2) -> bool:
@@ -75,9 +74,8 @@ func _has_point(point: Vector2) -> bool:
 		return false
 	return _get_panel_rect().has_point(point)
 
-func setup(cm: CardManager, cc) -> void:
+func setup(cm: CardManager) -> void:
 	_card_manager = cm
-	_consumable_controller = cc
 
 # ---------------------------------------------------------------------------
 # 布局辅助
@@ -141,7 +139,7 @@ func _get_toolbar_item_rect(px: float, py: float, pw: float,
 
 ## 线索按钮区域 (Tab 栏中央偏右)
 func _get_clue_btn_rect(px: float, py: float, pw: float) -> Rect2:
-	var btn_w: float = 150.0
+	var btn_w: float = 50.0
 	var center_x: float = px + pw / 2.0
 	return Rect2(center_x - btn_w / 2.0, py, btn_w, TAB_H)
 
@@ -154,7 +152,7 @@ func show_panel(showcase: bool = false) -> void:
 		return
 	_visible_state = true
 	_alpha = 0.0
-	_panel_y = _get_viewport_h() + 60
+	_panel_y = _get_viewport_h() + 20
 
 	if showcase:
 		_expanded = true
@@ -188,7 +186,7 @@ func hide_panel() -> void:
 	_showcasing = false
 	var tw: Tween = create_tween()
 	tw.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(self, "_panel_y", _panel_y + _get_full_h() + 90, 0.3)
+	tw.tween_property(self, "_panel_y", _panel_y + _get_full_h() + 30, 0.3)
 	tw.parallel().tween_property(self, "_alpha", 0.0, 0.3)
 	tw.tween_callback(func():
 		_visible_state = false
@@ -294,9 +292,9 @@ func _gui_input(event: InputEvent) -> void:
 			sched_h = BASE_BODY_H + (sched_count - 3) * ITEM_H
 		var note_x: float = px + pw - NOTE_W - PAGE_PAD + 2
 		var note_base_y: float = py + TAB_H + (sched_h - NOTE_H) / 2.0
-		var hit_pad: float = 12.0
+		var hit_pad: float = 4.0
 		if lx >= note_x - hit_pad and lx <= note_x + NOTE_W + hit_pad \
-				and ly >= note_base_y - hit_pad and ly <= note_base_y + NOTE_H + hit_pad + 30:
+				and ly >= note_base_y - hit_pad and ly <= note_base_y + NOTE_H + hit_pad + 10:
 			_rumor_page += 1
 			if _rumor_page > _card_manager.rumors.size():
 				_rumor_page = 1
@@ -307,7 +305,7 @@ func _gui_input(event: InputEvent) -> void:
 	# 日程条目点击 — 只发信号，由 main.gd 调用 toggle_defer (避免双重调用)
 	if _card_manager:
 		var content_x: float = px + SPINE_W + PAGE_PAD
-		var content_y: float = py + TAB_H + 12
+		var content_y: float = py + TAB_H + 4
 		for i in range(_card_manager.schedules.size()):
 			var item_y: float = content_y + i * ITEM_H
 			if ly >= item_y and ly <= item_y + ITEM_H and lx >= content_x and lx <= px + pw - PAGE_PAD:
@@ -364,7 +362,7 @@ func _update_hover(lx: float, ly: float) -> void:
 	# 日程条目
 	if _card_manager:
 		var content_x: float = px + SPINE_W + PAGE_PAD
-		var content_y: float = py + TAB_H + 12
+		var content_y: float = py + TAB_H + 4
 		for i in range(_card_manager.schedules.size()):
 			var item_y: float = content_y + i * ITEM_H
 			if ly >= item_y and ly <= item_y + ITEM_H and lx >= content_x and lx <= px + pw - PAGE_PAD:
@@ -378,11 +376,26 @@ func _update_hover(lx: float, ly: float) -> void:
 # ---------------------------------------------------------------------------
 
 func _get_consumable_entries() -> Array:
-	return _consumable_controller.get_consumable_entries()
+	var result: Array = []
+	for key in CardConfig.consumable_order:
+		var count: int = GameData.get_item_count(key)
+		if count > 0:
+			result.append({
+				"key": key,
+				"count": count,
+				"info": ShopData.get_item_info(key),
+			})
+	return result
 
 func _use_consumable(key: String) -> void:
-	if _consumable_controller.use_consumable(key):
-		queue_redraw()
+	var info: Dictionary = ShopData.get_item_info(key)
+	if info.is_empty():
+		return
+	if not GameData.remove_item(key):
+		return
+	# 应用效果
+	var effects: Dictionary = info.get("effect", {})
+	GameData.apply_effects(effects)
 
 # ---------------------------------------------------------------------------
 # 更新
@@ -413,27 +426,27 @@ func _draw() -> void:
 	modulate.a = _alpha
 
 	# === 纸张阴影 ===
-	draw_rect(Rect2(px + 6, py + 9, pw, ph), Color(0.23, 0.16, 0.08, 0.15))
+	draw_rect(Rect2(px + 2, py + 3, pw, ph), Color(0.23, 0.16, 0.08, 0.15))
 
 	# === 纸张主体 ===
 	draw_rect(Rect2(px, py, pw, ph), Color(t.notebook_paper, 0.98))
 
 	# === 纸张边框 ===
-	draw_rect(Rect2(px, py, pw, ph), Color(t.notebook_border, 0.55), false, 3.0)
+	draw_rect(Rect2(px, py, pw, ph), Color(t.notebook_border, 0.55), false, 1.0)
 
 	# === 左侧书脊 ===
 	draw_rect(Rect2(px, py, SPINE_W, ph), t.notebook_spine)
 	# 书脊高光线
-	draw_line(Vector2(px + SPINE_W - 4.5, py + 6),
-		Vector2(px + SPINE_W - 4.5, py + ph - 6),
-		Color(t.notebook_spine_h, 0.47), 3.0)
+	draw_line(Vector2(px + SPINE_W - 1.5, py + 2),
+		Vector2(px + SPINE_W - 1.5, py + ph - 2),
+		Color(t.notebook_spine_h, 0.47), 1.0)
 	# 书脊缝线装饰
-	var stitch_y: float = py + 42.0
-	while stitch_y < py + ph - 30:
-		draw_line(Vector2(px + 9, stitch_y),
-			Vector2(px + 9, stitch_y + 18),
-			Color(t.notebook_spine_h, 0.27), 3.6)
-		stitch_y += 48.0
+	var stitch_y: float = py + 14.0
+	while stitch_y < py + ph - 10:
+		draw_line(Vector2(px + 3, stitch_y),
+			Vector2(px + 3, stitch_y + 6),
+			Color(t.notebook_spine_h, 0.27), 1.2)
+		stitch_y += 16.0
 
 	# === 横线 ===
 	_draw_lines(px, py, pw, ph, t)
@@ -463,19 +476,19 @@ func _draw() -> void:
 # 横线
 # ---------------------------------------------------------------------------
 func _draw_lines(px: float, py: float, pw: float, ph: float, t) -> void:
-	var start_x: float = px + SPINE_W + 18
-	var end_x: float = px + pw - 18
+	var start_x: float = px + SPINE_W + 6
+	var end_x: float = px + pw - 6
 	var y: float = py + TAB_H + LINE_SPACING * 0.5
-	while y < py + ph - 12:
+	while y < py + ph - 4:
 		draw_line(Vector2(start_x, y), Vector2(end_x, y),
-			Color(t.notebook_line, 0.27), 1.5)
+			Color(t.notebook_line, 0.27), 0.5)
 		y += LINE_SPACING
 
 	# 红色左边距竖线
-	var margin_x: float = px + SPINE_W + PAGE_PAD + CHECK_SIZE + 24
-	draw_line(Vector2(margin_x, py + TAB_H + 6),
-		Vector2(margin_x, py + ph - 12),
-		Color(0.82, 0.47, 0.47, 0.18), 2.4)
+	var margin_x: float = px + SPINE_W + PAGE_PAD + CHECK_SIZE + 8
+	draw_line(Vector2(margin_x, py + TAB_H + 2),
+		Vector2(margin_x, py + ph - 4),
+		Color(0.82, 0.47, 0.47, 0.18), 0.8)
 
 # ---------------------------------------------------------------------------
 # Tab 栏
@@ -486,17 +499,17 @@ func _draw_tab_bar(px: float, py: float, pw: float, font: Font, t) -> void:
 		Color(t.notebook_tab, 0.7))
 
 	# 底部分隔线
-	draw_line(Vector2(px + SPINE_W + 18, py + TAB_H - 1.5),
-		Vector2(px + pw - 18, py + TAB_H - 1.5),
-		Color(t.notebook_border, 0.39), 2.4)
+	draw_line(Vector2(px + SPINE_W + 6, py + TAB_H - 0.5),
+		Vector2(px + pw - 6, py + TAB_H - 0.5),
+		Color(t.notebook_border, 0.39), 0.8)
 
-	var tab_cy: float = py + TAB_H / 2.0 + 12
+	var tab_cy: float = py + TAB_H / 2.0 + 4
 
 	# 左: 日程
 	var progress: Array = _card_manager.get_progress() if _card_manager else [0, 0]
 	var sched_label: String = "📋 日程 %d/%d" % [progress[0], progress[1]]
-	draw_string(font, Vector2(px + SPINE_W + 42, tab_cy), sched_label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(t.text_primary, 0.78))
+	draw_string(font, Vector2(px + SPINE_W + 14, tab_cy), sched_label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(t.text_primary, 0.78))
 
 	# 右: 传闻
 	var rumor_count: int = _card_manager.rumors.size() if _card_manager else 0
@@ -506,9 +519,9 @@ func _draw_tab_bar(px: float, py: float, pw: float, font: Font, t) -> void:
 		rumor_label = "传闻 %d/%d 📰" % [page, rumor_count]
 	else:
 		rumor_label = "传闻 %d 📰" % rumor_count
-	var rumor_w: float = font.get_string_size(rumor_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-	draw_string(font, Vector2(px + pw - rumor_w - 30, tab_cy), rumor_label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(t.text_primary, 0.78))
+	var rumor_w: float = font.get_string_size(rumor_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	draw_string(font, Vector2(px + pw - rumor_w - 10, tab_cy), rumor_label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(t.text_primary, 0.78))
 
 	# 中间: 线索入口按钮
 	var clue_count: int = StoryManager.get_clue_count() if StoryManager else 0
@@ -516,15 +529,15 @@ func _draw_tab_bar(px: float, py: float, pw: float, font: Font, t) -> void:
 	var clue_alpha: float = 0.86 if _hover_clue_btn else 0.55
 	var clue_color: Color = Color(0.45, 0.65, 0.45, clue_alpha) if clue_count > 0 \
 		else Color(t.text_primary, clue_alpha * 0.7)
-	var clue_lw: float = font.get_string_size(clue_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 33).x
+	var clue_lw: float = font.get_string_size(clue_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 	var clue_cx: float = px + pw / 2.0
 	draw_string(font, Vector2(clue_cx - clue_lw / 2.0, tab_cy), clue_label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 33, clue_color)
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, clue_color)
 	# hover 下划线
 	if _hover_clue_btn:
-		draw_line(Vector2(clue_cx - clue_lw / 2.0, tab_cy + 6),
-			Vector2(clue_cx + clue_lw / 2.0, tab_cy + 6),
-			Color(clue_color, 0.47), 2.4)
+		draw_line(Vector2(clue_cx - clue_lw / 2.0, tab_cy + 2),
+			Vector2(clue_cx + clue_lw / 2.0, tab_cy + 2),
+			Color(clue_color, 0.47), 0.8)
 
 # ---------------------------------------------------------------------------
 # 日程条目
@@ -533,8 +546,8 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 	if not _card_manager:
 		return
 	var content_x: float = px + SPINE_W + PAGE_PAD
-	var content_y: float = py + TAB_H + 12
-	var reward_right_x: float = px + pw - PAGE_PAD - NOTE_W - 24
+	var content_y: float = py + TAB_H + 4
+	var reward_right_x: float = px + pw - PAGE_PAD - NOTE_W - 8
 
 	for i in range(_card_manager.schedules.size()):
 		var s: Dictionary = _card_manager.schedules[i]
@@ -544,8 +557,8 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 
 		# hover 高亮
 		if is_hovered:
-			draw_rect(Rect2(content_x - 6, item_y + 6,
-				pw - SPINE_W - PAGE_PAD * 2 + 12, ITEM_H - 12),
+			draw_rect(Rect2(content_x - 2, item_y + 2,
+				pw - SPINE_W - PAGE_PAD * 2 + 4, ITEM_H - 4),
 				Color(0.294, 0.639, 0.89, 0.07))
 
 		# 勾选框
@@ -557,25 +570,25 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
 				Color(t.completed, 0.71))
 			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.completed, 0.86), false, 3.0)
+				Color(t.completed, 0.86), false, 1.0)
 			# 勾号 ✓
-			draw_string(font, Vector2(check_x + 3, center_y + 15), "✓",
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color.WHITE)
+			draw_string(font, Vector2(check_x + 1, center_y + 5), "✓",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 		elif status == "deferred":
 			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.deferred, 0.47), false, 3.0)
-			draw_string(font, Vector2(check_x + 3, center_y + 12), "↗",
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(t.deferred, 0.63))
+				Color(t.deferred, 0.47), false, 1.0)
+			draw_string(font, Vector2(check_x + 1, center_y + 4), "↗",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(t.deferred, 0.63))
 		else:
 			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.notebook_border, 0.55), false, 3.0)
+				Color(t.notebook_border, 0.55), false, 1.0)
 
 		# 地点图标
-		var text_start_x: float = content_x + CHECK_SIZE + 30
+		var text_start_x: float = content_x + CHECK_SIZE + 10
 		var icon_str: String = s.get("icon", "📋")
-		draw_string(font, Vector2(text_start_x, center_y + 15), icon_str,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 42, t.text_primary)
-		var icon_w: float = font.get_string_size(icon_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 42).x
+		draw_string(font, Vector2(text_start_x, center_y + 5), icon_str,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 14, t.text_primary)
+		var icon_w: float = font.get_string_size(icon_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 
 		# 日程描述
 		var verb: String = s.get("verb", "")
@@ -587,16 +600,16 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 			verb_color = Color(t.deferred, 0.63)
 		else:
 			verb_color = Color(t.text_primary, 0.86)
-		draw_string(font, Vector2(text_start_x + icon_w + 12, center_y + 15), verb,
-			HORIZONTAL_ALIGNMENT_LEFT, pw - 360, 36, verb_color)
+		draw_string(font, Vector2(text_start_x + icon_w + 4, center_y + 5), verb,
+			HORIZONTAL_ALIGNMENT_LEFT, pw - 120, 12, verb_color)
 
 		# 删除线 (已完成)
 		if status == "completed":
-			var verb_w: float = font.get_string_size(verb, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-			var line_x1: float = text_start_x + icon_w + 9
+			var verb_w: float = font.get_string_size(verb, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+			var line_x1: float = text_start_x + icon_w + 3
 			draw_line(Vector2(line_x1, center_y),
-				Vector2(line_x1 + verb_w + 6, center_y),
-				Color(t.text_secondary, 0.39), 2.4)
+				Vector2(line_x1 + verb_w + 2, center_y),
+				Color(t.text_secondary, 0.39), 0.8)
 
 		# 奖励标记
 		if status != "deferred":
@@ -604,17 +617,17 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 			if reward.size() >= 2:
 				var res_icon: String = GameData.RESOURCE_ICONS.get(reward[0], "?")
 				var reward_text: String = res_icon + "+" + str(reward[1])
-				var rw: float = font.get_string_size(reward_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
-				draw_string(font, Vector2(reward_right_x - rw, center_y + 12), reward_text,
-					HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.55))
+				var rw: float = font.get_string_size(reward_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x
+				draw_string(font, Vector2(reward_right_x - rw, center_y + 4), reward_text,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(t.text_secondary, 0.55))
 
 		# hover 提示
 		if is_hovered:
 			var tip: String = "点击取消" if status == "deferred" else "点击推迟"
 			var tip_color: Color = Color(t.deferred, 0.63) if status == "deferred" \
 				else Color(t.schedule, 0.63)
-			draw_string(font, Vector2(reward_right_x - 180, center_y + 12), tip,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 27, tip_color)
+			draw_string(font, Vector2(reward_right_x - 60, center_y + 4), tip,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 9, tip_color)
 
 # ---------------------------------------------------------------------------
 # 传闻便签 (翻页 + 堆叠)
@@ -649,7 +662,7 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 			var peek_idx: int = ((_rumor_page - 1 + layer) % total)
 			var peek_rumor: Dictionary = rumors[peek_idx]
 
-			var stack_off: float = layer * 12.0
+			var stack_off: float = layer * 4.0
 			var rot_deg: bool = (1.5 + layer * 1.8) * (-1.0 if (peek_idx % 2 == 0) else 1.0)
 			var layer_alpha: float = (0.4 - (layer - 1) * 0.12) * _alpha
 
@@ -670,7 +683,7 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 				bg_col = Color(0.941, 0.878, 0.824, 0.82 * layer_alpha / _alpha)
 			draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H), bg_col)
 			draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H),
-				Color(0.706, 0.647, 0.549, 0.2 * layer_alpha / _alpha), false, 1.8)
+				Color(0.706, 0.647, 0.549, 0.2 * layer_alpha / _alpha), false, 0.6)
 
 			draw_set_transform_matrix(Transform2D.IDENTITY)
 
@@ -687,7 +700,7 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 	draw_set_transform_matrix(xf)
 
 	# 阴影
-	draw_rect(Rect2(note_x + 6, note_base_y + 6, NOTE_W, NOTE_H),
+	draw_rect(Rect2(note_x + 2, note_base_y + 2, NOTE_W, NOTE_H),
 		Color(0.31, 0.235, 0.157, 0.1))
 
 	# 底色
@@ -700,16 +713,16 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 
 	# 边框
 	draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H),
-		Color(0.706, 0.647, 0.549, 0.27), false, 2.4)
+		Color(0.706, 0.647, 0.549, 0.27), false, 0.8)
 
 	# 胶带
-	draw_rect(Rect2(cx - 48, note_base_y - 9, 96, 21),
+	draw_rect(Rect2(cx - 16, note_base_y - 3, 32, 7),
 		Color(0.824, 0.804, 0.745, 0.31))
 
 	# 图标
 	var icon_str: String = rumor.get("icon", "📋")
-	draw_string(font, Vector2(cx - 18, note_base_y + 48), icon_str,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 45, t.text_primary)
+	draw_string(font, Vector2(cx - 6, note_base_y + 16), icon_str,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 15, t.text_primary)
 
 	# 安全/危险
 	var safe_text: String
@@ -720,22 +733,22 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 	else:
 		safe_text = "⚠ 危险"
 		safe_color = t.danger
-	var safe_w: float = font.get_string_size(safe_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
-	draw_string(font, Vector2(cx - safe_w / 2.0, note_base_y + 90), safe_text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 30, safe_color)
+	var safe_w: float = font.get_string_size(safe_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+	draw_string(font, Vector2(cx - safe_w / 2.0, note_base_y + 30), safe_text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, safe_color)
 
 	# 传闻文字
 	var rumor_text: String = rumor.get("text", "")
-	var text_w: float = font.get_string_size(rumor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
-	draw_string(font, Vector2(cx - text_w / 2.0, note_base_y + 126), rumor_text,
-		HORIZONTAL_ALIGNMENT_LEFT, NOTE_W - 12, 21, Color(t.text_secondary, 0.71))
+	var text_w: float = font.get_string_size(rumor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7).x
+	draw_string(font, Vector2(cx - text_w / 2.0, note_base_y + 42), rumor_text,
+		HORIZONTAL_ALIGNMENT_LEFT, NOTE_W - 4, 7, Color(t.text_secondary, 0.71))
 
 	# 多条时: 翻页指示器
 	if total > 1:
 		var page_text: String = "▶ %d/%d" % [_rumor_page, total]
-		var pw2: float = font.get_string_size(page_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
-		draw_string(font, Vector2(cx - pw2 / 2.0, note_base_y + NOTE_H + 30), page_text,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(t.text_secondary, 0.59))
+		var pw2: float = font.get_string_size(page_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7).x
+		draw_string(font, Vector2(cx - pw2 / 2.0, note_base_y + NOTE_H + 10), page_text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(t.text_secondary, 0.59))
 
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
@@ -752,17 +765,17 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 	# 虚线分隔
 	var dash_x: float = px + SPINE_W + PAGE_PAD
 	var dash_end: float = px + pw - PAGE_PAD
-	var dash_y: float = toolbar_y + 6
+	var dash_y: float = toolbar_y + 2
 	var dx: float = dash_x
 	while dx < dash_end:
 		draw_line(Vector2(dx, dash_y),
-			Vector2(minf(dx + 9, dash_end), dash_y),
-			Color(t.notebook_border, 0.24), 1.5)
-		dx += 21
+			Vector2(minf(dx + 3, dash_end), dash_y),
+			Color(t.notebook_border, 0.24), 0.5)
+		dx += 7
 
 	# "🎒 道具" 小标签
-	draw_string(font, Vector2(dash_x, dash_y + 30), "🎒 道具",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(t.text_secondary, 0.47))
+	draw_string(font, Vector2(dash_x, dash_y + 10), "🎒 道具",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(t.text_secondary, 0.47))
 
 	# 图标列表
 	var total: int = consumables.size()
@@ -775,8 +788,8 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 
 		# hover 底色
 		if is_hovered:
-			draw_rect(Rect2(ir.position.x - 6, ir.position.y - 6,
-				ir.size.x + 12, ir.size.y + 12),
+			draw_rect(Rect2(ir.position.x - 2, ir.position.y - 2,
+				ir.size.x + 4, ir.size.y + 4),
 				Color(0.294, 0.639, 0.89, 0.12))
 
 		# 图标背景圆
@@ -795,38 +808,55 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 		else:
 			var info: Dictionary = entry["info"]
 			var icon_str: String = info.get("icon", "?")
-			draw_string(font, Vector2(icon_cx - 21, icon_cy + 15), icon_str,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 42, t.text_primary)
+			draw_string(font, Vector2(icon_cx - 7, icon_cy + 5), icon_str,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 14, t.text_primary)
 
 		# 数量角标
 		var count: int = entry["count"]
 		if count > 1:
-			var badge_pos: Vector2 = Vector2(ir.position.x + ir.size.x - 3, ir.position.y + 6)
-			draw_circle(badge_pos, 15.0, Color(t.info, 0.78))
-			draw_string(font, Vector2(badge_pos.x - 9, badge_pos.y + 9), str(count),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.WHITE)
+			var badge_pos: Vector2 = Vector2(ir.position.x + ir.size.x - 1, ir.position.y + 2)
+			draw_circle(badge_pos, 5.0, Color(t.info, 0.78))
+			draw_string(font, Vector2(badge_pos.x - 3, badge_pos.y + 3), str(count),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
 
 		# hover 提示气泡
 		if is_hovered:
-			var tip: String = _consumable_controller.get_consumable_tooltip(icon_key)
-			var tip_w: float = font.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
+			var info: Dictionary = entry["info"]
+			var label: String = info.get("name", "")
+			var effect: Dictionary = info.get("effect", {})
+			var parts: Array = []
+			var res_names: Dictionary = { "san": "理智", "order": "秩序", "film": "胶卷" }
+			if icon_key == "exorcism":
+				parts.append("驱除当前怪物")
+			elif icon_key == "shield":
+				parts.append("抵挡一次伤害")
+			elif icon_key == "mapReveal":
+				parts.append("揭示周围")
+			else:
+				for ek in effect:
+					var rn: String = res_names.get(ek, ek)
+					var ev: int = effect[ek]
+					var sign: String = "+" if ev > 0 else ""
+					parts.append(rn + sign + str(ev))
+			var tip: String = label + ": " + ", ".join(parts)
+			var tip_w: float = font.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x
 			var tip_x: float = icon_cx
-			var tip_y: float = ir.position.y - 12
-			var pad_x: float = 18.0
-			var pad_y: float = 9.0
+			var tip_y: float = ir.position.y - 4
+			var pad_x: float = 6.0
+			var pad_y: float = 3.0
 			var bx: float = tip_x - tip_w / 2 - pad_x
-			var by: float = tip_y - 27 - pad_y
+			var by: float = tip_y - 9 - pad_y
 			var bw: float = tip_w + pad_x * 2
-			var bh: float = 30 + pad_y * 2
+			var bh: float = 10 + pad_y * 2
 			# 阴影
-			draw_rect(Rect2(bx + 3, by + 3, bw, bh), Color(t.notebook_border, 0.16))
+			draw_rect(Rect2(bx + 1, by + 1, bw, bh), Color(t.notebook_border, 0.16))
 			# 填充
 			draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_paper, 0.96))
 			# 边框
-			draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_border, 0.47), false, 1.5)
+			draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_border, 0.47), false, 0.5)
 			# 文字
 			draw_string(font, Vector2(bx + pad_x, by + bh - pad_y), tip,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 27, t.text_primary)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 9, t.text_primary)
 
 # ---------------------------------------------------------------------------
 # "结束今天" 按钮 (手写风)
@@ -844,22 +874,22 @@ func _draw_end_day_btn(px: float, py: float, pw: float, font: Font, t) -> void:
 		draw_rect(Rect2(bx, by, bw, bh), Color(0.706, 0.47, 0.314, 0.1))
 
 	# 虚线分隔
-	var dash_x: float = bx + 12
-	var dash_end: float = bx + bw - 12
-	var dash_y: float = by - 3
+	var dash_x: float = bx + 4
+	var dash_end: float = bx + bw - 4
+	var dash_y: float = by - 1
 	var dx: float = dash_x
 	while dx < dash_end:
 		draw_line(Vector2(dx, dash_y),
-			Vector2(minf(dx + 12, dash_end), dash_y),
-			Color(t.notebook_border, 0.31), 1.8)
-		dx += 24
+			Vector2(minf(dx + 4, dash_end), dash_y),
+			Color(t.notebook_border, 0.31), 0.6)
+		dx += 8
 
 	# 手写文字
 	var alpha: float = 0.94 if _hover_end_day else 0.63
 	var text: String = "☾ 结束今天，回家休息"
-	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-	draw_string(font, Vector2(bx + (bw - tw) / 2, center_y + 12), text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.549, 0.353, 0.196, alpha))
+	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	draw_string(font, Vector2(bx + (bw - tw) / 2, center_y + 4), text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.549, 0.353, 0.196, alpha))
 
 # ---------------------------------------------------------------------------
 # 重置

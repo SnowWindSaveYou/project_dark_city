@@ -1,18 +1,13 @@
 ## Card - 卡牌数据定义与工厂
 ## 对应原版 Card.lua (数据部分)
-## @description 表示棋盘上的一张卡牌，包含地点、事件类型、状态等信息
 class_name Card
 extends RefCounted
 
 # ---------------------------------------------------------------------------
 # 常量: 卡牌物理尺寸 (3D 世界坐标, 单位: 米)
-# 建议通过 GameConfig 读取，此处保留用于向后兼容
 # ---------------------------------------------------------------------------
-## @deprecated 请使用 GameConfig.get_card_width()
 const CARD_W: float = 0.64
-## @deprecated 请使用 GameConfig.get_card_height()
 const CARD_H: float = 0.90
-## @deprecated 请使用 GameConfig.get_card_thickness()
 const CARD_THICKNESS: float = 0.015
 
 # ---------------------------------------------------------------------------
