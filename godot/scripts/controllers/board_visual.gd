@@ -852,8 +852,8 @@ func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 # ---------------------------------------------------------------------------
 
 ## 幽灵渲染参数 (匹配 Lua: nodeY=0.25, bb.position.y=0.15, bb.size=0.30)
-const GHOST_BASE_Y: float = 0.40     # 中心高度 = 0.25 + 0.15
-const GHOST_WORLD_SIZE: float = 0.30  # 世界空间尺寸 (米)
+const GHOST_BASE_Y: float = 0.40     # 中心高度 (Lua 主幽灵 baseY=0.55, 取平均)
+const GHOST_WORLD_SIZE: float = 0.32  # Lua: 主幽灵 size=0.32 (surround_layout isMain)
 const GHOST_FLOAT_AMP: float = 0.04   # 浮动振幅
 const GHOST_FLOAT_SPEED: float = 2.5  # 浮动频率
 
@@ -965,9 +965,9 @@ func animate_ghost_fade(ghost_index: int) -> void:
 # 暗面 NPC 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createNPCNodes)
 # ---------------------------------------------------------------------------
 
-const NPC_BASE_Y: float = 0.43   # node Y=0.25 + billboard offset Y=0.18
-const NPC_WORLD_SIZE: float = 0.35
-const NPC_OFFSET_X: float = 0.15
+const NPC_BASE_Y: float = 0.50   # Lua: nodeY=0.25 + bb offset=SPRITE_3D_H/2=0.25 → center 0.50
+const NPC_WORLD_SIZE: float = 0.50  # Lua: SPRITE_3D_H = 0.50 (与 Token 相同)
+const NPC_OFFSET_X: float = 0.18  # Lua: SHARE_OFFSET = 0.18
 const NPC_BREATHE_SPEED: float = 2.0
 const NPC_BREATHE_AMP: float = 0.02
 
