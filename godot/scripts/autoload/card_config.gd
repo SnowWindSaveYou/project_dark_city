@@ -91,7 +91,7 @@ func _load_events() -> void:
 	card_effects      = defaults.get("effects", {})
 	event_texts       = defaults.get("texts", {})
 	trap_subtype_info = defaults.get("trap_subtypes", {})
-	# 填充 trap_subtype_texts 兼容层 (供 card.gd / event_popup.gd 使用)
+	# 填充 trap_subtype_texts 兼容层 (供 card.gd / event_popup_scene.gd 使用)
 	trap_subtype_texts.clear()
 	for sub_name in trap_subtype_info:
 		var sub: Dictionary = trap_subtype_info[sub_name]
@@ -99,7 +99,7 @@ func _load_events() -> void:
 			trap_subtype_texts[sub_name] = sub["texts"]
 	_event_locations  = data.get("locations", {})
 
-	# 构建 darkside_info 兼容层 (供 card.gd / event_popup.gd 使用)
+	# 构建 darkside_info 兼容层 (供 card.gd / event_popup_scene.gd 使用)
 	darkside_info.clear()
 	for loc_name in _event_locations:
 		var loc: Dictionary = _event_locations[loc_name]

@@ -320,7 +320,7 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 ## 显示暗面事件 Toast (统一使用 Toast 消息窗口)
 func _show_dark_toast(dark_type: String, effects: Dictionary) -> void:
 	var dark_info: Dictionary = CardConfig.get_dark_event_info(dark_type)
-	var toast: EventPopup.ToastData = EventPopup.ToastData.new(dark_type) \
+	var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(dark_type) \
 		.set_title(dark_info.get("label", dark_type)) \
 		.set_desc(CardConfig.get_dark_event_text(dark_type)) \
 		.set_icon(dark_info.get("icon", "🌑")) \

@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/toast_item.gd" id="1_script"]
+
+[node name="ToastItem" type="PanelContainer"]
+custom_minimum_size = Vector2(220, 0)
+mouse_filter = 0
+script = ExtResource("1_script")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TypeBar" type="ColorRect" parent="HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(4, 0)
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Spacer1" type="Control" parent="HBox/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 6)
+
+[node name="HeaderRow" type="HBoxContainer" parent="HBox/VBox"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="IconLabel" type="Label" parent="HBox/VBox/HeaderRow"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="HBox/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DescLabel" type="Label" parent="HBox/VBox"]
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="EffectsRow" type="HBoxContainer" parent="HBox/VBox"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Spacer2" type="Control" parent="HBox/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 4)
+
+[node name="ProgressBar" type="ProgressBar" parent="HBox/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 3)
+show_percentage = false
+value = 100.0
