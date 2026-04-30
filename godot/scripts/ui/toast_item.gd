@@ -23,7 +23,7 @@ signal dismissed(card_type: String)
 const IDLE_TIME: float = 3.0
 const ENTER_TIME: float = 0.35
 const EXIT_TIME: float = 0.25
-const TOAST_W: float = 220.0
+const TOAST_W: float = 660.0
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -43,21 +43,21 @@ func _ready() -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.94)
 	style.border_color = Color(t.panel_border.r, t.panel_border.g, t.panel_border.b, 0.31)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(18)
 	style.set_content_margin_all(0)
 	add_theme_stylebox_override("panel", style)
 
 	# 字号
-	_icon_label.add_theme_font_size_override("font_size", 20)
-	_title_label.add_theme_font_size_override("font_size", 14)
-	_desc_label.add_theme_font_size_override("font_size", 11)
+	_icon_label.add_theme_font_size_override("font_size", 60)
+	_title_label.add_theme_font_size_override("font_size", 42)
+	_desc_label.add_theme_font_size_override("font_size", 33)
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
 	# 进度条样式
 	var pb_bg := StyleBoxFlat.new()
 	pb_bg.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.12)
-	pb_bg.set_corner_radius_all(1)
+	pb_bg.set_corner_radius_all(3)
 	_progress_bar.add_theme_stylebox_override("background", pb_bg)
 
 ## 配置 Toast 内容
@@ -87,7 +87,7 @@ func setup(data: Dictionary) -> void:
 	# 进度条前景色
 	var pb_fg := StyleBoxFlat.new()
 	pb_fg.bg_color = Color(type_color.r, type_color.g, type_color.b, 0.47)
-	pb_fg.set_corner_radius_all(1)
+	pb_fg.set_corner_radius_all(3)
 	_progress_bar.add_theme_stylebox_override("fill", pb_fg)
 
 	# 入场动画
@@ -105,7 +105,7 @@ func _populate_effects(data: Dictionary) -> void:
 	if shield_used:
 		var lbl := Label.new()
 		lbl.text = "🧿 护身符抵挡了伤害!"
-		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_font_size_override("font_size", 33)
 		lbl.add_theme_color_override("font_color", Color(t.safe.r, t.safe.g, t.safe.b, 0.86))
 		_effects_row.add_child(lbl)
 	elif effects.size() > 0:
@@ -121,16 +121,16 @@ func _populate_effects(data: Dictionary) -> void:
 			badge_style.bg_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.14)
 			badge_style.border_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.31)
 			badge_style.set_border_width_all(1)
-			badge_style.set_corner_radius_all(3)
-			badge_style.content_margin_left = 4
-			badge_style.content_margin_right = 4
-			badge_style.content_margin_top = 2
-			badge_style.content_margin_bottom = 2
+			badge_style.set_corner_radius_all(9)
+			badge_style.content_margin_left = 12
+			badge_style.content_margin_right = 12
+			badge_style.content_margin_top = 6
+			badge_style.content_margin_bottom = 6
 			badge.add_theme_stylebox_override("panel", badge_style)
 
 			var lbl := Label.new()
 			lbl.text = badge_text
-			lbl.add_theme_font_size_override("font_size", 10)
+			lbl.add_theme_font_size_override("font_size", 30)
 			lbl.add_theme_color_override("font_color", Color(bg_c.r, bg_c.g, bg_c.b, 0.86))
 			badge.add_child(lbl)
 			_effects_row.add_child(badge)
@@ -144,7 +144,7 @@ func _start_enter() -> void:
 	_timer = 0.0
 	modulate.a = 0.0
 	scale = Vector2(0.8, 0.8)
-	position.x = TOAST_W + 20.0
+	position.x = TOAST_W + 60.0
 
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
@@ -165,7 +165,7 @@ func start_exit() -> void:
 	_phase = "exit"
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(self, "position:x", TOAST_W + 30.0, EXIT_TIME) \
+	tw.tween_property(self, "position:x", TOAST_W + 90.0, EXIT_TIME) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(self, "modulate:a", 0.0, EXIT_TIME)
 	tw.tween_property(self, "scale", Vector2(0.85, 0.85), EXIT_TIME)

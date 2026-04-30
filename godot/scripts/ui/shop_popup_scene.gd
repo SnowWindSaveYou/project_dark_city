@@ -11,9 +11,9 @@ signal shop_closed
 # ---------------------------------------------------------------------------
 # 常量: 卡牌绘制
 # ---------------------------------------------------------------------------
-const CARD_W: float = 78.0
-const CARD_H: float = 110.0
-const CARD_GAP: float = 14.0
+const CARD_W: float = 234.0
+const CARD_H: float = 330.0
+const CARD_GAP: float = 42.0
 const CARD_COUNT: int = 3
 
 # ---------------------------------------------------------------------------
@@ -61,28 +61,28 @@ func _ready() -> void:
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.96)
 	panel_style.border_color = Color(t.panel_border.r, t.panel_border.g, t.panel_border.b, 0.47)
-	panel_style.set_border_width_all(1)
-	panel_style.set_corner_radius_all(14)
-	panel_style.set_content_margin_all(8)
+	panel_style.set_border_width_all(3)
+	panel_style.set_corner_radius_all(42)
+	panel_style.set_content_margin_all(24)
 	_panel.add_theme_stylebox_override("panel", panel_style)
 
 	# 色条
 	_color_bar.color = Color(t.info.r, t.info.g, t.info.b, 0.78)
 
 	# 字号和颜色
-	_money_label.add_theme_font_size_override("font_size", 14)
+	_money_label.add_theme_font_size_override("font_size", 42)
 	_money_label.add_theme_color_override("font_color", t.text_primary)
-	_shop_icon.add_theme_font_size_override("font_size", 26)
-	_title_label.add_theme_font_size_override("font_size", 15)
-	_desc_label.add_theme_font_size_override("font_size", 11)
+	_shop_icon.add_theme_font_size_override("font_size", 78)
+	_title_label.add_theme_font_size_override("font_size", 45)
+	_desc_label.add_theme_font_size_override("font_size", 33)
 	_desc_label.add_theme_color_override("font_color",
 		Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.7))
 
 	# 刷新按钮样式
 	var refresh_style := StyleBoxFlat.new()
 	refresh_style.bg_color = Color(t.info.r, t.info.g, t.info.b, 0.72)
-	refresh_style.set_corner_radius_all(7)
-	refresh_style.set_content_margin_all(4)
+	refresh_style.set_corner_radius_all(21)
+	refresh_style.set_content_margin_all(12)
 	_refresh_button.add_theme_stylebox_override("normal", refresh_style)
 	var refresh_hover := refresh_style.duplicate()
 	refresh_hover.bg_color = GameTheme.lighten(t.info, 0.25)
@@ -93,7 +93,7 @@ func _ready() -> void:
 	_refresh_button.add_theme_color_override("font_color", Color.WHITE)
 	_refresh_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	_refresh_button.add_theme_color_override("font_pressed_color", Color.WHITE)
-	_refresh_button.add_theme_font_size_override("font_size", 12)
+	_refresh_button.add_theme_font_size_override("font_size", 36)
 	# 消除 focus 边框
 	var empty_focus := StyleBoxEmpty.new()
 	_refresh_button.add_theme_stylebox_override("focus", empty_focus)
@@ -102,8 +102,8 @@ func _ready() -> void:
 	# 离开按钮样式
 	var leave_style := StyleBoxFlat.new()
 	leave_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.55)
-	leave_style.set_corner_radius_all(7)
-	leave_style.set_content_margin_all(4)
+	leave_style.set_corner_radius_all(21)
+	leave_style.set_content_margin_all(12)
 	_leave_button.add_theme_stylebox_override("normal", leave_style)
 	var leave_hover := leave_style.duplicate()
 	leave_hover.bg_color = GameTheme.lighten(t.text_secondary, 0.3)
@@ -114,7 +114,7 @@ func _ready() -> void:
 	_leave_button.add_theme_color_override("font_color", Color.WHITE)
 	_leave_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	_leave_button.add_theme_color_override("font_pressed_color", Color.WHITE)
-	_leave_button.add_theme_font_size_override("font_size", 13)
+	_leave_button.add_theme_font_size_override("font_size", 39)
 	_leave_button.add_theme_stylebox_override("focus", empty_focus)
 	_leave_button.focus_mode = Control.FOCUS_NONE
 
@@ -363,7 +363,7 @@ func _try_purchase(index: int) -> void:
 func _shake_card(index: int) -> void:
 	var tw: Tween = create_tween()
 	tw.tween_method(func(p: float):
-		_card_shake_x[index] = sin(p * PI * 4.0) * 5.0 * (1.0 - p)
+		_card_shake_x[index] = sin(p * PI * 4.0) * 15.0 * (1.0 - p)
 	, 0.0, 1.0, 0.4)
 	tw.tween_callback(func(): _card_shake_x[index] = 0.0)
 
@@ -411,8 +411,8 @@ func _draw_cards() -> void:
 		var flash: float = _purchase_flash[i] if i < _purchase_flash.size() else 0.0
 
 		# 呼吸浮动 + hover 上浮
-		var float_y: float = sin(game_time * 2.0 + i * 1.3) * 1.5
-		var hover_lift: float = hover_t * 4.0
+		var float_y: float = sin(game_time * 2.0 + i * 1.3) * 4.5
+		var hover_lift: float = hover_t * 12.0
 		var card_x: float = start_x + i * (CARD_W + CARD_GAP)
 		var card_y: float = (area_h - CARD_H) / 2.0 + float_y - hover_lift
 		var card_cx: float = card_x + CARD_W / 2.0 + shake_x
@@ -434,7 +434,7 @@ func _draw_cards() -> void:
 		var local_rect: Rect2 = Rect2(-hw, -hh, CARD_W, CARD_H)
 
 		# 阴影
-		_cards_area.draw_rect(Rect2(-hw + 1, -hh + 3, CARD_W + 2, CARD_H + 2),
+		_cards_area.draw_rect(Rect2(-hw + 3, -hh + 9, CARD_W + 6, CARD_H + 6),
 			Color(0, 0, 0, 0.12 * draw_alpha))
 
 		# 背景
@@ -445,14 +445,14 @@ func _draw_cards() -> void:
 		# 边框
 		if sold:
 			_cards_area.draw_rect(local_rect,
-				Color(t.safe.r, t.safe.g, t.safe.b, 0.78 * base_alpha), false, 2.0)
+				Color(t.safe.r, t.safe.g, t.safe.b, 0.78 * base_alpha), false, 6.0)
 		elif can_afford:
 			var ba: float = 0.4 + hover_t * 0.4
 			_cards_area.draw_rect(local_rect,
-				Color(t.info.r, t.info.g, t.info.b, ba * base_alpha), false, 1.2 + hover_t * 0.8)
+				Color(t.info.r, t.info.g, t.info.b, ba * base_alpha), false, 3.6 + hover_t * 2.4)
 		else:
 			_cards_area.draw_rect(local_rect,
-				Color(0.47, 0.47, 0.47, 0.27 * base_alpha), false, 1.0)
+				Color(0.47, 0.47, 0.47, 0.27 * base_alpha), false, 3.0)
 
 		# 购买闪光
 		if flash > 0.01:
@@ -461,14 +461,14 @@ func _draw_cards() -> void:
 
 		if sold:
 			# 已售出: 图标 + 大勾
-			_cards_area.draw_string(font, Vector2(-hw, -8),
-				info.get("icon", "?"), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 22,
+			_cards_area.draw_string(font, Vector2(-hw, -24),
+				info.get("icon", "?"), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 66,
 				Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, draw_alpha))
-			_cards_area.draw_string(font, Vector2(-hw, 14),
-				"✓", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 34,
+			_cards_area.draw_string(font, Vector2(-hw, 42),
+				"✓", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 102,
 				Color(t.safe.r, t.safe.g, t.safe.b, 0.82 * base_alpha))
-			_cards_area.draw_string(font, Vector2(-hw, hh - 8),
-				"已购", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 11,
+			_cards_area.draw_string(font, Vector2(-hw, hh - 24),
+				"已购", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 33,
 				Color(t.safe.r, t.safe.g, t.safe.b, 0.7 * base_alpha))
 		else:
 			var content_alpha: float = draw_alpha if can_afford else draw_alpha * 0.55
@@ -476,37 +476,37 @@ func _draw_cards() -> void:
 			# 图标
 			var tex: Texture2D = ItemIcons.get_texture(item_key)
 			if tex:
-				var icon_size: float = 36.0
-				var tex_rect: Rect2 = Rect2(-icon_size / 2.0, -hh + 4, icon_size, icon_size)
+				var icon_size: float = 108.0
+				var tex_rect: Rect2 = Rect2(-icon_size / 2.0, -hh + 12, icon_size, icon_size)
 				_cards_area.draw_texture_rect(tex, tex_rect, false, Color(1, 1, 1, content_alpha))
 			else:
-				_cards_area.draw_string(font, Vector2(-hw, -hh + 30),
-					info.get("icon", "?"), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 22,
+				_cards_area.draw_string(font, Vector2(-hw, -hh + 90),
+					info.get("icon", "?"), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 66,
 					Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, content_alpha))
 
 			# 名称
-			_cards_area.draw_string(font, Vector2(-hw, -hh + 48),
-				info.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 11,
+			_cards_area.draw_string(font, Vector2(-hw, -hh + 144),
+				info.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 33,
 				Color(t.text_primary.r, t.text_primary.g, t.text_primary.b, content_alpha))
 
 			# 效果描述
 			var desc_text: String = info.get("desc", "")
 			if desc_text != "":
-				_cards_area.draw_string(font, Vector2(-(CARD_W - 8) / 2.0, -hh + 66),
-					desc_text, HORIZONTAL_ALIGNMENT_CENTER, CARD_W - 8, 10,
+				_cards_area.draw_string(font, Vector2(-(CARD_W - 24) / 2.0, -hh + 198),
+					desc_text, HORIZONTAL_ALIGNMENT_CENTER, CARD_W - 24, 30,
 					Color(t.info.r, t.info.g, t.info.b, content_alpha * 0.78))
 
 			# 价格
 			var price_color: Color = t.highlight if can_afford else t.danger
 			var price_alpha: float = content_alpha if can_afford else draw_alpha * 0.67
-			_cards_area.draw_string(font, Vector2(-hw, hh - 8),
-				"💰 " + str(price), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 12,
+			_cards_area.draw_string(font, Vector2(-hw, hh - 24),
+				"💰 " + str(price), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 36,
 				Color(price_color.r, price_color.g, price_color.b, price_alpha))
 
 			# Hover 提示
 			if hover_t > 0.3 and can_afford:
-				_cards_area.draw_string(font, Vector2(-hw, hh - 22),
-					"点击购买", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 9,
+				_cards_area.draw_string(font, Vector2(-hw, hh - 66),
+					"点击购买", HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 27,
 					Color(t.info.r, t.info.g, t.info.b, hover_t * 0.63 * base_alpha))
 
 	# 重置变换

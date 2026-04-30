@@ -87,8 +87,8 @@ func _setup_button_style() -> void:
 
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = btn_color
-	normal.set_corner_radius_all(4)
-	normal.set_content_margin_all(8)
+	normal.set_corner_radius_all(12)
+	normal.set_content_margin_all(24)
 	_restart_button.add_theme_stylebox_override("normal", normal)
 
 	var hover := normal.duplicate()
@@ -109,8 +109,8 @@ func _setup_button_style() -> void:
 func _update_button_color(btn_color: Color) -> void:
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = btn_color
-	normal.set_corner_radius_all(4)
-	normal.set_content_margin_all(8)
+	normal.set_corner_radius_all(12)
+	normal.set_content_margin_all(24)
 	_restart_button.add_theme_stylebox_override("normal", normal)
 
 	var hover := normal.duplicate()
@@ -313,7 +313,7 @@ func _draw_glow() -> void:
 
 	var title_color: Color = GameTheme.safe if _is_victory else GameTheme.danger
 	var pulse: float = 0.8 + 0.2 * sin(_game_time * 2.0)
-	var glow_r: float = 80.0 + 10.0 * sin(_game_time * 2.0)
+	var glow_r: float = 240.0 + 30.0 * sin(_game_time * 2.0)
 	var center: Vector2 = _glow_circle.size / 2.0
 
 	_glow_circle.draw_circle(center, glow_r,

@@ -129,24 +129,24 @@ func _ready() -> void:
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.card_face.r, t.card_face.g, t.card_face.b, 0.95)
 	panel_style.border_color = Color(t.card_border.r, t.card_border.g, t.card_border.b, 0.6)
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(14)
+	panel_style.set_border_width_all(6)
+	panel_style.set_corner_radius_all(42)
 	panel_style.set_content_margin_all(0)
 	_panel.add_theme_stylebox_override("panel", panel_style)
 
 	# 面板尺寸 — 依赖 viewport
-	_panel.custom_minimum_size = Vector2(280, 220)
+	_panel.custom_minimum_size = Vector2(840, 660)
 
 	# 字号和颜色
-	_icon_label.add_theme_font_size_override("font_size", 42)
+	_icon_label.add_theme_font_size_override("font_size", 126)
 	_icon_label.add_theme_color_override("font_color", t.text_primary)
 
-	_title_label.add_theme_font_size_override("font_size", 18)
+	_title_label.add_theme_font_size_override("font_size", 54)
 
-	_desc_label.add_theme_font_size_override("font_size", 12)
+	_desc_label.add_theme_font_size_override("font_size", 36)
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
-	_hint_label.add_theme_font_size_override("font_size", 12)
+	_hint_label.add_theme_font_size_override("font_size", 36)
 	_hint_label.add_theme_color_override("font_color",
 		Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.6))
 
@@ -179,7 +179,7 @@ func show_photo(card: Card) -> void:
 func _on_resized() -> void:
 	if _panel:
 		var vp: Vector2 = get_viewport_rect().size
-		_panel.custom_minimum_size = Vector2(vp.x * 0.7, vp.y * 0.45)
+		_panel.custom_minimum_size = Vector2(minf(vp.x * 0.7, 1344), minf(vp.y * 0.45, 864))
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
@@ -305,16 +305,16 @@ func _populate_effects(effects: Dictionary) -> void:
 		badge_style.bg_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.14)
 		badge_style.border_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.31)
 		badge_style.set_border_width_all(1)
-		badge_style.set_corner_radius_all(4)
-		badge_style.content_margin_left = 6
-		badge_style.content_margin_right = 6
-		badge_style.content_margin_top = 2
-		badge_style.content_margin_bottom = 2
+		badge_style.set_corner_radius_all(12)
+		badge_style.content_margin_left = 18
+		badge_style.content_margin_right = 18
+		badge_style.content_margin_top = 6
+		badge_style.content_margin_bottom = 6
 		badge.add_theme_stylebox_override("panel", badge_style)
 
 		var lbl := Label.new()
 		lbl.text = badge_text
-		lbl.add_theme_font_size_override("font_size", 14)
+		lbl.add_theme_font_size_override("font_size", 42)
 		lbl.add_theme_color_override("font_color", bg_c)
 		badge.add_child(lbl)
 		_effects_row.add_child(badge)

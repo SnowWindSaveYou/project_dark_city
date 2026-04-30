@@ -17,24 +17,24 @@ var m: Node = null  # main.gd 引用 (由 main 注入)
 # 常量 (与 DialogueSystem 保持一致)
 # ---------------------------------------------------------------------------
 const BOX_H_RATIO: float = 0.28
-const BOX_MARGIN_X: float = 20.0
-const BOX_MARGIN_BOTTOM: float = 16.0
-const BOX_PAD_X: float = 28.0
-const BOX_PAD_TOP: float = 36.0
-const BOX_PAD_BOTTOM: float = 16.0
-const BOX_RADIUS: float = 12.0
-const BOX_LINE_SPACING: float = 22.0
+const BOX_MARGIN_X: float = 60.0
+const BOX_MARGIN_BOTTOM: float = 48.0
+const BOX_PAD_X: float = 84.0
+const BOX_PAD_TOP: float = 108.0
+const BOX_PAD_BOTTOM: float = 48.0
+const BOX_RADIUS: float = 36.0
+const BOX_LINE_SPACING: float = 66.0
 
-const NAME_TAG_H: float = 26.0
-const NAME_TAG_PAD_X: float = 14.0
-const NAME_TAG_RADIUS: float = 6.0
-const NAME_TAG_OFFSET_Y: float = -14.0
+const NAME_TAG_H: float = 78.0
+const NAME_TAG_PAD_X: float = 42.0
+const NAME_TAG_RADIUS: float = 18.0
+const NAME_TAG_OFFSET_Y: float = -42.0
 
 const PORTRAIT_H_RATIO: float = 0.75
 const PORTRAIT_MARGIN_LEFT: float = 0.05
 
-const FONT_SIZE_TEXT: int = 16
-const FONT_SIZE_NAME: int = 14
+const FONT_SIZE_TEXT: int = 48
+const FONT_SIZE_NAME: int = 42
 const LINE_H_MULT: float = 1.5
 const ADVANCE_BLINK_SPEED: float = 2.5
 
@@ -87,24 +87,24 @@ func _draw() -> void:
 	var line_y: float = box_y + BOX_PAD_TOP
 	while line_y < box_y + box_h - BOX_PAD_BOTTOM:
 		draw_line(
-			Vector2(box_x + 12, line_y),
-			Vector2(box_x + box_w - 12, line_y),
-			line_color, 1.0)
+			Vector2(box_x + 36, line_y),
+			Vector2(box_x + box_w - 36, line_y),
+			line_color, 3.0)
 		line_y += BOX_LINE_SPACING
 
 	# 边框
 	var border_color: Color = Color(0.65, 0.60, 0.55, ds.box_alpha)
-	draw_rect(box_rect, border_color, false, 1.5)
+	draw_rect(box_rect, border_color, false, 4.5)
 
 	# --- 名牌 ---
 	var speaker: String = ds.get_speaker()
 	if speaker != "":
 		var name_w: float = _font.get_string_size(speaker, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_NAME).x + NAME_TAG_PAD_X * 2
 		var tag_rect: Rect2 = Rect2(
-			box_x + 20, box_y + NAME_TAG_OFFSET_Y,
+			box_x + 60, box_y + NAME_TAG_OFFSET_Y,
 			name_w, NAME_TAG_H)
 		draw_rect(tag_rect, Color(0.35, 0.55, 0.75, ds.box_alpha), true)
-		draw_rect(tag_rect, Color(0.25, 0.45, 0.65, ds.box_alpha), false, 1.0)
+		draw_rect(tag_rect, Color(0.25, 0.45, 0.65, ds.box_alpha), false, 3.0)
 		draw_string(_font, Vector2(tag_rect.position.x + NAME_TAG_PAD_X,
 			tag_rect.position.y + NAME_TAG_H * 0.72),
 			speaker, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_NAME,
@@ -131,10 +131,10 @@ func _draw() -> void:
 	# --- 闪烁三角 (等待点击) ---
 	if ds.state == "waiting":
 		var blink: float = (sin(m.game_time * ADVANCE_BLINK_SPEED * TAU) + 1.0) * 0.5
-		var tri_x: float = box_x + box_w - 30
-		var tri_y: float = box_y + box_h - 20
+		var tri_x: float = box_x + box_w - 90
+		var tri_y: float = box_y + box_h - 60
 		var tri_color: Color = Color(0.4, 0.55, 0.7, ds.box_alpha * blink)
-		var tri_size: float = 6.0
+		var tri_size: float = 18.0
 		var points: PackedVector2Array = PackedVector2Array([
 			Vector2(tri_x, tri_y),
 			Vector2(tri_x + tri_size * 2, tri_y),

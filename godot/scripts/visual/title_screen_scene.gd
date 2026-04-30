@@ -225,13 +225,13 @@ func _draw_floating_cards() -> void:
 		var spd: float = fc["speed"]
 		var ph: float = fc["phase_offset"]
 
-		fx += sin(_game_time * spd + ph) * 15.0
-		fy += cos(_game_time * spd * 0.7 + ph + 1.5) * 10.0
+		fx += sin(_game_time * spd + ph) * 45.0
+		fy += cos(_game_time * spd * 0.7 + ph + 1.5) * 30.0
 
 		var card_alpha: float = fc["base_alpha"] * _overlay.modulate.a
 
 		# 卡牌背景矩形
-		var card_rect: Rect2 = Rect2(fx - 20, fy - 28, 40, 56)
+		var card_rect: Rect2 = Rect2(fx - 60, fy - 84, 120, 168)
 		_floating_cards.draw_rect(card_rect,
 			Color(GameTheme.card_back.r, GameTheme.card_back.g,
 				GameTheme.card_back.b, card_alpha * 0.25),
@@ -240,9 +240,9 @@ func _draw_floating_cards() -> void:
 		# 卡牌图标
 		if default_font:
 			_floating_cards.draw_string(default_font,
-				Vector2(fx - 20, fy + 6),
+				Vector2(fx - 60, fy + 18),
 				fc["icon"], HORIZONTAL_ALIGNMENT_CENTER,
-				40, int(fc["font_size"]),
+				120, int(fc["font_size"] * 3),
 				Color(1, 1, 1, card_alpha * 0.2))
 
 # ---------------------------------------------------------------------------
@@ -256,7 +256,7 @@ func _draw_glow() -> void:
 		return
 
 	var pulse: float = 0.8 + 0.2 * sin(_game_time * 1.5)
-	var glow_r: float = 100.0 * pulse
+	var glow_r: float = 300.0 * pulse
 	var center: Vector2 = _glow_circle.size / 2.0
 
 	_glow_circle.draw_circle(center, glow_r,

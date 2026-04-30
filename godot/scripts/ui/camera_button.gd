@@ -13,12 +13,12 @@ signal exorcise_requested    # 请求驱魔 (已翻怪物卡)
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const BUTTON_SIZE: float = 44.0
-const BTN_MARGIN_R: float = 20.0
-const BTN_MARGIN_B: float = 90.0  # 避开底部 HandPanel
-const BRACKET_LEN: float = 28.0
-const BRACKET_MARGIN: float = 20.0
-const SCAN_SPEED: float = 60.0  # px/s
+const BUTTON_SIZE: float = 132.0
+const BTN_MARGIN_R: float = 60.0
+const BTN_MARGIN_B: float = 270.0  # 避开底部 HandPanel
+const BRACKET_LEN: float = 84.0
+const BRACKET_MARGIN: float = 60.0
+const SCAN_SPEED: float = 180.0  # px/s
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -118,7 +118,7 @@ func shake_no_film() -> void:
 	var tw: Tween = create_tween()
 	tw.tween_method(func(p: float):
 		var decay: float = (1.0 - p) * (1.0 - p)
-		_shake_x = sin(p * PI * 7.0) * 6.0 * decay
+		_shake_x = sin(p * PI * 7.0) * 18.0 * decay
 	, 0.0, 1.0, 0.4)
 	tw.tween_callback(func(): _shake_x = 0.0)
 
@@ -133,7 +133,7 @@ func _process(delta: float) -> void:
 
 	if _in_camera_mode:
 		var vp: Vector2 = get_viewport_rect().size
-		var area_h: float = vp.y - 80.0 - 14.0  # ResourceBar下方到底部
+		var area_h: float = vp.y - 240.0 - 42.0  # 取景器可用高度
 		_scan_line_y += SCAN_SPEED * delta
 		if _scan_line_y > area_h:
 			_scan_line_y = 0.0
@@ -173,7 +173,7 @@ func _hit_test_button(pos: Vector2) -> bool:
 	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
 	var dx: float = pos.x - cx
 	var dy: float = pos.y - cy
-	var r: float = BUTTON_SIZE / 2.0 + 4.0
+	var r: float = BUTTON_SIZE / 2.0 + 12.0
 	return (dx * dx + dy * dy) <= r * r
 
 # ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ func _draw() -> void:
 	modulate.a = _btn_alpha
 
 	# 阴影
-	draw_circle(Vector2(cx + 1, cy + 2), r * 1.3, Color(0, 0, 0, 0.15))
+	draw_circle(Vector2(cx + 3, cy + 6), r * 1.3, Color(0, 0, 0, 0.15))
 
 	# 按钮背景
 	var btn_color: Color = t.camera_btn_active if _in_camera_mode else t.camera_btn
@@ -216,7 +216,7 @@ func _draw() -> void:
 	# 激活态脉冲光晕
 	if _in_camera_mode:
 		var glow_phase: float = 0.4 + 0.6 * absf(sin(_time * 2.5))
-		var glow_r: float = r + 4.0 + glow_phase * 3.0
+		var glow_r: float = r + 12.0 + glow_phase * 9.0
 		var glow_color: Color = Color(btn_color.r, btn_color.g, btn_color.b, glow_phase * 0.2)
 		draw_circle(Vector2(cx, cy), glow_r, glow_color)
 
@@ -226,7 +226,7 @@ func _draw() -> void:
 
 	# 边框
 	var border_alpha: float = 0.78 if _in_camera_mode else 0.59
-	_draw_circle_outline(Vector2(cx, cy), r, Color(1, 1, 1, border_alpha + _hover_t * 0.2), 1.5)
+	_draw_circle_outline(Vector2(cx, cy), r, Color(1, 1, 1, border_alpha + _hover_t * 0.2), 4.5)
 
 	# 图标 (📷) - 带旋转
 	var icon_xf: Transform2D = Transform2D()
@@ -235,8 +235,8 @@ func _draw() -> void:
 	icon_xf = icon_xf.scaled(Vector2(total_scale, total_scale))
 	icon_xf = icon_xf.translated(Vector2(cx, cy))
 	draw_set_transform_matrix(icon_xf)
-	draw_string(font, Vector2(cx - BUTTON_SIZE / 2.0, cy + 7), "📷",
-		HORIZONTAL_ALIGNMENT_CENTER, BUTTON_SIZE, 20, Color.WHITE)
+	draw_string(font, Vector2(cx - BUTTON_SIZE / 2.0, cy + 21), "📷",
+		HORIZONTAL_ALIGNMENT_CENTER, BUTTON_SIZE, 60, Color.WHITE)
 
 	# 恢复变换到按钮级别
 	draw_set_transform_matrix(xf)
@@ -247,25 +247,25 @@ func _draw() -> void:
 
 	# 胶卷数字
 	var num_text: String = str(film)
-	var num_x: float = cx - r - 8.0
+	var num_x: float = cx - r - 24.0
 	var num_color: Color
 	if film <= 1:
 		num_color = Color(0.86, 0.31, 0.31, film_alpha)
 	else:
 		num_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, film_alpha)
-	draw_string(font, Vector2(num_x - 40, cy + 5), num_text,
-		HORIZONTAL_ALIGNMENT_RIGHT, 40, 13, num_color)
+	draw_string(font, Vector2(num_x - 120, cy + 15), num_text,
+		HORIZONTAL_ALIGNMENT_RIGHT, 120, 39, num_color)
 
 	# 胶卷图标 (纹理优先)
-	var icon_x: float = num_x - 18.0
+	var icon_x: float = num_x - 54.0
 	_ensure_film_texture()
 	if _film_texture:
-		var tex_size: float = 16.0
+		var tex_size: float = 48.0
 		var tex_rect: Rect2 = Rect2(icon_x - tex_size / 2.0, cy - tex_size / 2.0, tex_size, tex_size)
 		draw_texture_rect(_film_texture, tex_rect, false, Color(1, 1, 1, film_alpha))
 	else:
-		draw_string(font, Vector2(icon_x - 10, cy + 5), "🎞️",
-			HORIZONTAL_ALIGNMENT_CENTER, 20, 13, num_color)
+		draw_string(font, Vector2(icon_x - 30, cy + 15), "🎞️",
+			HORIZONTAL_ALIGNMENT_CENTER, 60, 39, num_color)
 
 	# 重置
 	draw_set_transform_matrix(Transform2D.IDENTITY)
@@ -281,8 +281,8 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 	var alpha: float = _viewfinder_alpha
 
 	# 取景器区域
-	var area_top: float = 80.0
-	var area_bottom: float = vp.y - 14.0
+	var area_top: float = 240.0
+	var area_bottom: float = vp.y - 42.0
 
 	# 四角暗角
 	var vignette: Color = Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, alpha * 0.2)
@@ -293,10 +293,10 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 	draw_rect(Rect2(vp.x - corner_size, vp.y - corner_size, corner_size, corner_size), vignette)
 
 	# 四角 L 形标记
-	var bm: float = BRACKET_MARGIN - 6.0
+	var bm: float = BRACKET_MARGIN - 18.0
 	var bl: float = BRACKET_LEN
 	var bracket_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.7)
-	var bw: float = 2.5
+	var bw: float = 7.5
 
 	var left: float = bm
 	var right_edge: float = vp.x - bm
@@ -320,20 +320,20 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 	var scan_abs_y: float = area_top + _scan_line_y
 	if scan_abs_y <= area_bottom:
 		var scan_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.2)
-		draw_line(Vector2(0, scan_abs_y), Vector2(vp.x, scan_abs_y), scan_color, 1.5)
+		draw_line(Vector2(0, scan_abs_y), Vector2(vp.x, scan_abs_y), scan_color, 4.5)
 
 	# REC 指示灯
 	var rec_visible: float = sin(_rec_blink_timer * 3.0) > -0.3
 	if rec_visible:
-		var rec_x: float = left + 8.0
-		var rec_y: float = top + bl + 12.0
+		var rec_x: float = left + 24.0
+		var rec_y: float = top + bl + 36.0
 		var rec_color: Color = Color(t.camera_rec.r, t.camera_rec.g, t.camera_rec.b, alpha)
-		draw_circle(Vector2(rec_x, rec_y), 4, rec_color)
+		draw_circle(Vector2(rec_x, rec_y), 12, rec_color)
 		# 光晕
-		draw_circle(Vector2(rec_x, rec_y), 7, Color(rec_color.r, rec_color.g, rec_color.b, alpha * 0.16))
+		draw_circle(Vector2(rec_x, rec_y), 21, Color(rec_color.r, rec_color.g, rec_color.b, alpha * 0.16))
 		# "CAMERA MODE" 文字
-		draw_string(font, Vector2(rec_x + 12, rec_y + 4), "CAMERA MODE",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
+		draw_string(font, Vector2(rec_x + 36, rec_y + 12), "CAMERA MODE",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 33,
 			Color(1, 1, 1, alpha * 0.63))
 
 # ---------------------------------------------------------------------------
