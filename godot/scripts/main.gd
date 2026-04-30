@@ -190,7 +190,7 @@ func _setup_scene_tree() -> void:
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
 	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y  # Lua: FC_ROTATE_Y (只绕Y轴旋转, 精灵保持竖直)
-	_token_sprite.pixel_size = 0.00065  # 每像素 0.00065m → 515px≈0.335m宽, 768px≈0.50m高 (匹配 Lua SPRITE_3D_W/H)
+	_token_sprite.pixel_size = 0.00091  # 每像素 0.00091m → 515px≈0.47m宽, 768px≈0.70m高 (CHIBI_SCALE=1.4, 匹配 Lua 视觉效果)
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
 	_token_sprite.render_priority = 1
@@ -211,8 +211,8 @@ func _setup_scene_tree() -> void:
 	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_token_shadow.material_override = shadow_mat
-	# 初始缩放: X=0.369, Y=0.001(扁平), Z=0.168 (匹配 Lua SPRITE_3D_W)
-	_token_shadow.scale = Vector3(0.369, 0.001, 0.168)
+	# 初始缩放: 匹配放大后的 Token 宽度 (CHIBI_SCALE=1.4, 宽≈0.469m)
+	_token_shadow.scale = Vector3(0.516, 0.001, 0.235)
 	add_child(_token_shadow)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
