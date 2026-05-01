@@ -128,8 +128,8 @@ func rebuild_card_nodes() -> void:
 			label.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.001, 0)
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-			label.no_depth_test = true
-			label.render_priority = 1
+			label.no_depth_test = false
+			label.render_priority = 0
 			card_node.add_child(label)
 
 			# 侦察/揭示图标 Sprite3D (右上角, 平铺在卡面上方)
@@ -148,8 +148,8 @@ func rebuild_card_nodes() -> void:
 				ico_s.position = Vector3(icon_x, ICON_Y, icon_z1)
 				ico_s.rotation_degrees = Vector3(-90, 0, 0)  # 朝上平铺
 				ico_s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-				ico_s.no_depth_test = true
-				ico_s.render_priority = 10
+				ico_s.no_depth_test = false
+				ico_s.render_priority = 0
 				ico_s.visible = card.scouted
 				card_node.add_child(ico_s)
 
@@ -161,8 +161,8 @@ func rebuild_card_nodes() -> void:
 				ico_r.position = Vector3(icon_x, ICON_Y, icon_z2)
 				ico_r.rotation_degrees = Vector3(-90, 0, 0)
 				ico_r.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-				ico_r.no_depth_test = true
-				ico_r.render_priority = 10
+				ico_r.no_depth_test = false
+				ico_r.render_priority = 0
 				ico_r.visible = card.revealed
 				card_node.add_child(ico_r)
 
