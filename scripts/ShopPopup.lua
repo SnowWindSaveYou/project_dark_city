@@ -3,11 +3,12 @@
 -- shop 卡翻开后弹出 3 张横排商品卡牌，点击即购买，可花钱刷新
 -- ============================================================================
 
-local Tween       = require "lib.Tween"
-local VFX         = require "lib.VFX"
-local Theme       = require "Theme"
-local ResourceBar = require "ResourceBar"
-local ItemIcons   = require "ItemIcons"
+local Tween        = require "lib.Tween"
+local VFX          = require "lib.VFX"
+local Theme        = require "Theme"
+local ResourceBar  = require "ResourceBar"
+local ItemIcons    = require "ItemIcons"
+local AudioManager = require "AudioManager"
 
 local M = {}
 
@@ -319,11 +320,13 @@ local function doPurchase(i)
                 card.shakeX = 0
             end,
         })
+        AudioManager.playSFX("shop_reject")
         VFX.spawnBanner("金币不足!", 220, 80, 80, 20, 0.7)
         return
     end
 
     -- === 购买成功 ===
+    AudioManager.playSFX("shop_buy")
     card.sold = true
     ResourceBar.change("money", -item.price)
 
@@ -396,10 +399,12 @@ local function doRefresh()
 
     local money = ResourceBar.get("money")
     if money < REFRESH_COST then
+        AudioManager.playSFX("shop_reject")
         VFX.spawnBanner("金币不足!", 220, 80, 80, 20, 0.7)
         return
     end
 
+    AudioManager.playSFX("shop_refresh")
     ResourceBar.change("money", -REFRESH_COST)
     state.refreshCount = state.refreshCount + 1
     state.refreshPhase = "exit"

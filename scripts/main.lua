@@ -29,6 +29,7 @@ local BoardItems       = require "BoardItems"
 local NPCManager       = require "NPCManager"
 local DialogueSystem   = require "DialogueSystem"
 local DarkWorld        = require "DarkWorld"
+local AudioManager     = require "AudioManager"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -391,6 +392,9 @@ function Start()
     -- 3D 场景
     setup3DScene()
 
+    -- 音频管理器
+    AudioManager.init(scene_)
+
     -- NanoVG 上下文 (HUD 叠加层)
     vg = nvgCreate(1)
     if not vg then
@@ -479,6 +483,7 @@ function Start()
 
     -- 相机模式回调
     CameraButton.setOnEnterCallback(function()
+        AudioManager.playSFX("camera_enter")
         if not board or not board.cards then return end
         for r = 1, Board.ROWS do
             for c = 1, Board.COLS do
@@ -495,6 +500,7 @@ function Start()
     end)
 
     CameraButton.setOnExitCallback(function()
+        AudioManager.playSFX("camera_exit")
         if not board or not board.cards then return end
         -- 清除相机模式下的怪物 chibi 和踪迹箭头
         MonsterGhost.clearCardGhosts()
@@ -540,6 +546,7 @@ function Start()
     demoState = "idle"
     TitleScreen.show(function()
         gamePhase = "playing"
+        AudioManager.playBGM("day_light", 2.0)
         startDeal()
     end)
 
@@ -565,6 +572,7 @@ end
 function startDeal()
     demoState = "dealing"
     gameStats.dayStartRevealed = gameStats.cardsRevealed  -- 每日氛围重置
+    AudioManager.playSFX("card_deal")
     VFX.spawnBanner("第 " .. dayCount .. " 天", 255, 255, 255, 28, 1.2)
 
     Board.dealAll(board, function()
@@ -687,6 +695,7 @@ function advanceDay()
     if EventPopup.isActive() or CameraButton.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then return end
 
     HandPanel.hide()
+    AudioManager.playSFX("day_transition")
     local effects = CardManager.settleDay()
 
     -- 展示日程未完成的惩罚反馈
@@ -760,6 +769,7 @@ checkDefeat = function()
     local san   = ResourceBar.get("san")
     local order = ResourceBar.get("order")
     if san <= 0 or order <= 0 then
+        AudioManager.playStinger("defeat_sting", 0.9)
         local delay = { t = 0 }
         Tween.to(delay, { t = 1 }, 0.8, {
             tag = "gameover",
@@ -768,6 +778,8 @@ checkDefeat = function()
                 demoState = "idle"
                 Token.setEmotion(token, "dead")
                 CameraButton.hide()
+                AudioManager.playBGM("defeat", 2.0)
+                AudioManager.stopAmbient()
                 VFX.triggerShake(8, 0.4, 20)
                 VFX.flashScreen(180, 30, 30, 0.5, 200)
                 GameOver.show(false, {
@@ -787,6 +799,9 @@ checkVictory = function()
         gamePhase = "gameover"
         demoState = "idle"
         Token.setEmotion(token, "happy")
+        AudioManager.playStinger("victory_sting", 0.9)
+        AudioManager.playBGM("victory", 2.0)
+        AudioManager.stopAmbient()
         VFX.flashScreen(255, 215, 100, 0.5, 180)
         GameOver.show(true, {
             daysSurvived  = MAX_DAYS,
@@ -800,6 +815,7 @@ checkVictory = function()
 end
 
 function onGameRestart()
+    AudioManager.reset()
     Tween.cancelAll()
     VFX.resetAll()
     EventPopup.clearToasts()
@@ -852,6 +868,7 @@ function onGameRestart()
     -- 重置气泡对话
     playerBubble = BubbleDialogue.newBubble()
 
+    AudioManager.playBGM("day_light", 2.0)
     startDeal()
 end
 
@@ -879,6 +896,7 @@ local function checkPendingRift()
 
     demoState = "popup"
     CameraButton.hide()
+    AudioManager.playSFX("popup_open")
     local tc2 = Theme.current
     VFX.spawnBanner("🌀 发现裂隙！", tc2.darkAccent.r, tc2.darkAccent.g, tc2.darkAccent.b, 18, 0.8)
 
@@ -920,9 +938,11 @@ local function onPopupDismissed(cardType, effects)
     if effects then
         for _, eff in ipairs(effects) do
             ResourceBar.change(eff[1], eff[2])
+            AudioManager.playResourceChange(eff[2])
         end
     end
 
+    AudioManager.playSFX("popup_close")
     gameStats.cardsRevealed = gameStats.cardsRevealed + 1
 
     local gotRumor = false
@@ -965,6 +985,14 @@ local function onCardFlipped(card, screenX, screenY)
             VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
         end
     end
+
+    -- 事件类型音效
+    local sfxMap = {
+        monster = "evt_monster", trap = "evt_trap", shop = "evt_safe",
+        clue = "evt_clue", safe = "evt_safe", home = "evt_safe",
+        landmark = "evt_safe", plot = "evt_plot", photo = "evt_photo",
+    }
+    AudioManager.playSFX(sfxMap[card.type] or "evt_safe")
 
     local tc = Theme.cardTypeColor(card.type)
     VFX.spawnBurst(screenX, screenY, 10, tc.r, tc.g, tc.b)
@@ -1058,6 +1086,7 @@ local function onCardFlipped(card, screenX, screenY)
         -- 立即应用资源变化
         for _, eff in ipairs(effects) do
             ResourceBar.change(eff[1], eff[2])
+            AudioManager.playResourceChange(eff[2])
         end
 
         -- 统计
@@ -1130,6 +1159,7 @@ local function onCardFlipped(card, screenX, screenY)
                 Tween.to(teleDelay, { t = 1 }, 0.5, {
                     tag = "teleport_delay",
                     onComplete = function()
+                        AudioManager.playSFX("rift_enter", 0.6)
                         VFX.flashScreen(140, 80, 200, 0.35, 160)
                         VFX.triggerShake(5, 0.3)
 
@@ -1167,6 +1197,7 @@ local function onCardFlipped(card, screenX, screenY)
 end
 
 local function onPhotographFlipped(card, screenX, screenY)
+    AudioManager.playSFX("evt_photo")
     local tc = Theme.cardTypeColor(card.type)
     VFX.spawnBurst(screenX, screenY, 8, tc.r, tc.g, tc.b)
     VFX.triggerShake(2, 0.1)
@@ -1196,6 +1227,7 @@ local function onPhotographFlipped(card, screenX, screenY)
             tag = "photograph_exorcise",
             onComplete = function()
                 -- 第二阶段: 驱除动效
+                AudioManager.playSFX("exorcise")
                 local pc = Theme.color("plot")
                 VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
                 VFX.triggerShake(4, 0.2)
@@ -1206,6 +1238,7 @@ local function onPhotographFlipped(card, screenX, screenY)
                 MonsterGhost.clearCardGhosts()
 
                 -- 变形: 当前类型 → photo (安全格)
+                AudioManager.playSFX("ghost_dispel")
                 Card.transformTo(card, "photo", function(c)
                     VFX.spawnBurst(screenX, screenY, 16, pc.r, pc.g, pc.b)
                     if isDanger == "monster" then
@@ -1276,6 +1309,8 @@ local function doPhotograph(card, row, col)
     demoState = "photographing"
     CameraButton.hide()
     Token.setEmotion(token, "determined")
+    AudioManager.playSFX("camera_shutter")
+    AudioManager.playSFX("screen_flash", 0.4)
     VFX.flashScreen(255, 255, 255, 0.3, 180)
 
     Token.hop(token, 0.05)
@@ -1315,6 +1350,7 @@ local function doExorcise(card, row, col, freeExorcise)
     demoState = "exorcising"
     CameraButton.hide()
     Token.setEmotion(token, "angry")
+    AudioManager.playSFX("exorcise")
 
     local pc = Theme.color("plot")
     VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
@@ -1326,6 +1362,7 @@ local function doExorcise(card, row, col, freeExorcise)
     Tween.to(delay, { t = 1 }, 0.3, {
         tag = "exorcise",
         onComplete = function()
+            AudioManager.playSFX("ghost_dispel")
             Card.transformTo(card, "photo", function(c)
                 VFX.spawnBurst(sx, sy, 16, pc.r, pc.g, pc.b)
                 VFX.spawnBanner("驱除成功!", pc.r, pc.g, pc.b, 24, 1.0)
@@ -1388,6 +1425,9 @@ enterDarkWorld = function(riftRow, riftCol)
     CameraButton.hide()
     HandPanel.hide()
     if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+    AudioManager.playSFX("rift_enter")
+    AudioManager.playBGM("dark_world", 2.0)
+    AudioManager.playAmbient("dark")
 
     -- 1. 保存现实世界状态 (undeal 会重置 faceUp, 需单独快照)
     savedRealityCards = board.cards
@@ -1495,6 +1535,14 @@ exitDarkWorld = function()
     demoState = "transition"
     CameraButton.hide()
     if playerBubble then BubbleDialogue.forceHide(playerBubble) end
+    AudioManager.playSFX("rift_exit")
+    AudioManager.stopAmbient()
+    -- BGM 根据当前氛围恢复 (savedBgTransition 决定)
+    if savedBgTransition > 0.5 then
+        AudioManager.playBGM("day_dark", 2.0)
+    else
+        AudioManager.playBGM("day_light", 2.0)
+    end
 
     -- 1. 保存暗面卡牌状态
     local layerData = DarkWorld.getLayerData()
@@ -1582,6 +1630,7 @@ changeDarkLayer = function(targetLayer, dc)
     if not DarkWorld.isActive() then return end
 
     demoState = "transition"
+    AudioManager.playSFX("layer_transition")
 
     -- 1. 保存当前层卡牌
     local oldLayerData = DarkWorld.getLayerData()
@@ -1716,6 +1765,7 @@ local function handleNormalModeClick(card, row, col)
 
     if not isAdjacent(token.targetRow, token.targetCol, row, col) then
         Card.shake(card)
+        AudioManager.playSFX("card_shake", 0.5)
         VFX.spawnBanner("只能移动到相邻格子", 180, 180, 180, 16, 0.6)
         return
     end
@@ -1728,12 +1778,14 @@ local function handleNormalModeClick(card, row, col)
     token.targetRow = row
     token.targetCol = col
     Token.setEmotion(token, "running")
+    AudioManager.playSFX("token_jump")
 
     local moveShareOff = NPCManager.getShareOffset(row, col)
     Token.moveTo(token, wx + moveShareOff, wz, function()
         -- 检查并拾取该格子上的道具
         local collected = BoardItems.tryCollect(row, col)
         if collected then
+            AudioManager.playSFX("item_pickup")
             if collected.key == "film" then
                 ResourceBar.change("film", 1)
             elseif collected.key == "mapReveal" then
@@ -1790,6 +1842,7 @@ local function handleCameraModeClick(card, row, col)
     if card.faceUp and card.type == "monster" and not card.isFlipping then
         if film <= 0 then
             CameraButton.shakeNoFilm()
+            AudioManager.playSFX("film_empty")
             VFX.spawnBanner("胶卷不足!", 220, 80, 80, 22, 0.8)
             return
         end
@@ -1814,6 +1867,7 @@ local function handleCameraModeClick(card, row, col)
 
     if film <= 0 then
         CameraButton.shakeNoFilm()
+        AudioManager.playSFX("film_empty")
         VFX.spawnBanner("胶卷不足!", 220, 80, 80, 22, 0.8)
         return
     end
@@ -2122,6 +2176,7 @@ function HandleUpdate(eventType, eventData)
         updateDrag(mousePos.x / dpr, mousePos.y / dpr)
     end
 
+    AudioManager.update(dt)
     Tween.update(dt)
     VFX.updateAll(dt)
     DateTransition.update(dt)
@@ -2157,6 +2212,12 @@ function HandleUpdate(eventType, eventData)
         local totalForFull = 8
         local dailyRevealed = gameStats.cardsRevealed - gameStats.dayStartRevealed
         bgTransitionTarget = math.min(dailyRevealed / totalForFull, 1.0)
+        -- BGM 随氛围切换: 亮 → day_light, 暗 → day_dark
+        if gamePhase == "playing" then
+            local wantDark = bgTransitionTarget > 0.5
+            local curKey = wantDark and "day_dark" or "day_light"
+            AudioManager.playBGM(curKey)  -- 内部会跳过相同 key
+        end
     end
     local bgSpeed = 2.0
     if bgTransition < bgTransitionTarget then
