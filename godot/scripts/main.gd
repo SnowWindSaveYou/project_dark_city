@@ -193,7 +193,10 @@ func _setup_scene_tree() -> void:
 	_token_sprite.pixel_size = 0.0013  # ×2 修正: Urho3D bb.size 是半尺寸, Godot pixel_size 是全尺寸
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
-	_token_sprite.render_priority = 1
+	_token_sprite.render_priority = 0
+	# OPAQUE_PREPASS: 不透明像素写深度缓冲, 保证 chibi 之间正确遮挡
+	_token_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	_token_sprite.alpha_scissor_threshold = 0.5
 	add_child(_token_sprite)
 
 	# === Token Blob Shadow (扁平圆柱体, 脚下阴影) ===

@@ -904,7 +904,9 @@ func create_ghost_nodes(ghosts: Array) -> void:
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
 		sprite.no_depth_test = false
-		sprite.render_priority = 2
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
 
 		# pixel_size: 使纹理映射到 GHOST_WORLD_SIZE 米
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
@@ -1013,7 +1015,9 @@ func create_npc_nodes(npcs: Array) -> void:
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
 		sprite.no_depth_test = false
-		sprite.render_priority = 2
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
 		sprite.pixel_size = NPC_WORLD_SIZE / tex_max if tex_max > 0.0 else 0.001
 		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
@@ -1070,7 +1074,9 @@ func create_item_nodes(items: Array) -> void:
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
 		sprite.no_depth_test = false
-		sprite.render_priority = 1
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
 		sprite.pixel_size = ITEM_SCALED_SIZE / tex_max if tex_max > 0.0 else 0.001
 		var world_pos: Vector3 = m.board.grid_to_world(item.row, item.col)
@@ -1181,7 +1187,9 @@ func _mg_create_sprite(tex_path: String, world_x: float, world_z: float,
 	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sprite.transparent = true
 	sprite.no_depth_test = false
-	sprite.render_priority = 3
+	sprite.render_priority = 0
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	sprite.alpha_scissor_threshold = 0.5
 	var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
 	sprite.pixel_size = world_size / tex_max if tex_max > 0.0 else 0.001
 	sprite.position = Vector3(world_x, base_y, world_z)
