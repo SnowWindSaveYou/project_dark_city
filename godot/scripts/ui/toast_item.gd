@@ -45,13 +45,23 @@ func _ready() -> void:
 	style.border_color = Color(t.panel_border.r, t.panel_border.g, t.panel_border.b, 0.31)
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(18)
-	style.set_content_margin_all(0)
+	# 内边距：左侧 TypeBar 齐平，右/上留出呼吸空间
+	style.content_margin_left = 0
+	style.content_margin_right = 14
+	style.content_margin_top = 4
+	style.content_margin_bottom = 0
 	add_theme_stylebox_override("panel", style)
 
-	# 字号
-	_icon_label.add_theme_font_size_override("font_size", 60)
-	_title_label.add_theme_font_size_override("font_size", 42)
-	_desc_label.add_theme_font_size_override("font_size", 33)
+	# 容器间距
+	$HBox.add_theme_constant_override("separation", 10)
+	$HBox/VBox.add_theme_constant_override("separation", 4)
+	$HBox/VBox/HeaderRow.add_theme_constant_override("separation", 6)
+	_effects_row.add_theme_constant_override("separation", 6)
+
+	# 字号（适配容器宽度，避免拥挤）
+	_icon_label.add_theme_font_size_override("font_size", 42)
+	_title_label.add_theme_font_size_override("font_size", 36)
+	_desc_label.add_theme_font_size_override("font_size", 28)
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
 	# 进度条样式
@@ -105,7 +115,7 @@ func _populate_effects(data: Dictionary) -> void:
 	if shield_used:
 		var lbl := Label.new()
 		lbl.text = "🧿 护身符抵挡了伤害!"
-		lbl.add_theme_font_size_override("font_size", 33)
+		lbl.add_theme_font_size_override("font_size", 26)
 		lbl.add_theme_color_override("font_color", Color(t.safe.r, t.safe.g, t.safe.b, 0.86))
 		_effects_row.add_child(lbl)
 	elif effects.size() > 0:
@@ -122,15 +132,15 @@ func _populate_effects(data: Dictionary) -> void:
 			badge_style.border_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.31)
 			badge_style.set_border_width_all(1)
 			badge_style.set_corner_radius_all(9)
-			badge_style.content_margin_left = 12
-			badge_style.content_margin_right = 12
-			badge_style.content_margin_top = 6
-			badge_style.content_margin_bottom = 6
+			badge_style.content_margin_left = 10
+			badge_style.content_margin_right = 10
+			badge_style.content_margin_top = 4
+			badge_style.content_margin_bottom = 4
 			badge.add_theme_stylebox_override("panel", badge_style)
 
 			var lbl := Label.new()
 			lbl.text = badge_text
-			lbl.add_theme_font_size_override("font_size", 30)
+			lbl.add_theme_font_size_override("font_size", 26)
 			lbl.add_theme_color_override("font_color", Color(bg_c.r, bg_c.g, bg_c.b, 0.86))
 			badge.add_child(lbl)
 			_effects_row.add_child(badge)
