@@ -386,6 +386,86 @@ draw_string(font, Vector2(container_x, y), "📷", HORIZONTAL_ALIGNMENT_CENTER, 
 
 ---
 
+## 规则 13: Urho3D Billboard.size 是半尺寸，Godot pixel_size 是全尺寸 🔴
+
+**问题**: Urho3D `BillboardSet` 的 `Billboard.size` 是**半尺寸 (half-extents)**——顶点从 `-size` 到 `+size`，实际渲染四边形 = **2 × size**。Godot `Sprite3D.pixel_size` 是**全尺寸 (full-extents)**——四边形 = `texture_pixels × pixel_size`，无额外倍数。
+
+如果直接用 Lua 的数值计算 Godot 的 `pixel_size`，Godot 端会渲染出恰好**一半大小**的精灵。
+
+**Urho3D 源码证据** (`BillboardSet.cpp`):
+```cpp
+// size 直接用作偏移量，无 0.5 除法
+Vector2 size(billboard.size_.x_ * billboardScale.x_,
+             billboard.size_.y_ * billboardScale.y_);
+// 四角: (-size.x, +size.y), (+size.x, +size.y), (+size.x, -size.y), (-size.x, -size.y)
+```
+
+**规则**: 所有从 Lua `bb.size` 换算来的 Godot `pixel_size` 必须 **×2**：
+
+```gdscript
+# 修正因子
+const BILLBOARD_HALF_EXTENT_FACTOR: float = 2.0
+
+# ❌ 错误: 直接用 Lua 的值换算 → 精灵只有一半大小
+# Lua: bb.size = Vector2(0.335, 0.50) → pixel_size = 0.50 / 768 ≈ 0.00065
+const TOKEN_PIXEL_SIZE: float = 0.00065
+
+# ✅ 正确: ×2 匹配 Urho3D 的半尺寸语义
+# Lua 实际渲染: 0.50 × 2 = 1.00m → pixel_size = 1.00 / 768 ≈ 0.0013
+const TOKEN_PIXEL_SIZE: float = 0.00065 * BILLBOARD_HALF_EXTENT_FACTOR
+```
+
+**影响范围**: 所有通过 `BillboardSet` 渲染的 Sprite3D 精灵（Token、Ghost、NPC、BoardItems、MonsterGhost 等）。
+
+**⚠️ 位置偏移量不受影响**: 呼吸/弹跳等**节点世界坐标偏移**（如 `breatheY = 0.008m`）是直接加到节点 Y 上的，与 billboard 的半尺寸特性无关。如果代码中有"像素→米"的换算因子（`TOKEN_PX_TO_WORLD`），该因子**不应翻倍**：
+
+```gdscript
+# ❌ 错误: 动画偏移的换算因子也翻倍 → 呼吸幅度变成 2 倍
+const TOKEN_PX_TO_WORLD: float = 0.00065 * BILLBOARD_HALF_EXTENT_FACTOR
+
+# ✅ 正确: 动画偏移是世界坐标, 与 billboard 尺寸无关
+const TOKEN_PX_TO_WORLD: float = 0.00065
+```
+
+**Y 中心位置验证**: 尺寸翻倍后，精灵中心 Y 通常不需要调整。验证公式：底部 Y = 中心 Y − 全高/2。例如 Token 全高从 0.50 变为 1.00，中心 Y 从 0.25 变为 0.50，底部 Y 仍为 0.00（贴地）。
+
+---
+
+## 规则 14: 透明 Sprite3D 之间的深度遮挡必须用 OPAQUE_PREPASS 🔴
+
+**问题**: Godot 的 `Sprite3D` 设置 `transparent = true` 后进入透明渲染通道，**不写入深度缓冲**。多个透明 Sprite3D 之间的遮挡关系完全由 `render_priority`（优先级）和距离排序决定，而非像素级 Z-buffer 测试。
+
+这导致两个典型 Bug：
+
+1. **不同 render_priority 的 Sprite3D 无视深度**：`render_priority` 越高越后绘制，对透明物体意味着**始终显示在前面**。如果 MonsterGhost=3、Token=1，怪物无论 Z 位置如何都渲染在玩家前面。
+
+2. **相同 render_priority 但排序不准**：距离排序基于物体中心点，不是像素精确的。两个大小不同的 billboard 在接近位置时会闪烁跳动。
+
+**UrhoX 对比**: `DiffAlpha.xml` 技术的不透明像素写入深度缓冲，不同 BillboardSet 之间通过 Z-buffer 自然遮挡，无需手动指定 renderOrder。
+
+**规则**: 所有需要正确前后遮挡的透明 Sprite3D 必须：
+
+```gdscript
+# ✅ 正确: OPAQUE_PREPASS + 统一 render_priority
+sprite.transparent = true
+sprite.render_priority = 0    # 所有 chibi 统一优先级, 靠深度排序
+sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+sprite.alpha_scissor_threshold = 0.5
+
+# ❌ 错误: 不同 chibi 类型给不同 render_priority
+token_sprite.render_priority = 1     # Token
+ghost_sprite.render_priority = 2     # Ghost → 始终在 Token 前面!
+monster_sprite.render_priority = 3   # Monster → 始终在最前面!
+```
+
+**OPAQUE_PREPASS 原理**:
+- 第一遍：不透明像素（alpha > threshold）写入深度缓冲 → 像素精确遮挡
+- 第二遍：所有像素 alpha 混合渲染 → 半透明边缘保持平滑
+
+**注意**: `render_priority` 在特定场景仍然有用——例如卡面上的图标（需要始终在卡面上方）。区分"同层级需要深度排序的物体"和"不同层级需要强制覆盖的物体"。
+
+---
+
 ## 自查清单
 
 翻译每个文件后执行:
@@ -402,4 +482,6 @@ draw_string(font, Vector2(container_x, y), "📷", HORIZONTAL_ALIGNMENT_CENTER, 
 - [ ] **render_priority** — Sprite3D 优先级在 -128~127 范围内 (规则10)
 - [ ] **3D 透明度** — MeshInstance3D 用 `material_override.albedo_color.a`，不用 `modulate` (规则11)
 - [ ] **draw_string 对齐** — `HORIZONTAL_ALIGNMENT_CENTER/RIGHT` 都指定了正数 `width`，未使用 `-1` (规则12)
+- [ ] **Billboard 尺寸 ×2** — 从 Lua `bb.size` 换算的 `pixel_size` 已乘以 `BILLBOARD_HALF_EXTENT_FACTOR`；动画偏移换算因子未翻倍 (规则13)
+- [ ] **Sprite3D 深度遮挡** — 同层级 chibi 统一 `render_priority=0` + `ALPHA_CUT_OPAQUE_PREPASS` (规则14)
 
