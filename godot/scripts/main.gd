@@ -190,7 +190,7 @@ func _setup_scene_tree() -> void:
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
 	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y  # Lua: FC_ROTATE_Y (只绕Y轴旋转, 精灵保持竖直)
-	_token_sprite.pixel_size = 0.00065  # 精确匹配 Lua: 768px×0.00065=0.50m高, 515px×0.00065=0.335m宽
+	_token_sprite.pixel_size = 0.0013  # ×2 修正: Urho3D bb.size 是半尺寸, Godot pixel_size 是全尺寸
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
 	_token_sprite.render_priority = 1
@@ -211,8 +211,8 @@ func _setup_scene_tree() -> void:
 	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_token_shadow.material_override = shadow_mat
-	# 初始缩放: 匹配 Lua SPRITE_3D_W≈0.335m (shadow_w=0.335*1.1, shadow_z=0.335*0.5)
-	_token_shadow.scale = Vector3(0.369, 0.001, 0.168)
+	# 初始缩放: ×2 修正后 TOKEN_WORLD_W≈0.67m (shadow_w=0.67*1.1, shadow_z=0.67*0.5)
+	_token_shadow.scale = Vector3(0.737, 0.001, 0.335)
 	add_child(_token_shadow)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
