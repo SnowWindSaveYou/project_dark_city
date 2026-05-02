@@ -153,9 +153,9 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 
 	m._vfx.screen_shake(3.0, 0.15)
 
-	# 陷阱走 Toast 流 (非阻塞)
+	# 陷阱走 Toast 流 (传送陷阱需异步等待)
 	if card_type == "trap":
-		_handle_trap(card, row, col)
+		await _handle_trap(card, row, col)
 		return
 
 	# 判断是否阻断
@@ -257,9 +257,18 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 		for key in effects:
 			GameData.modify_resource(key, effects[key])
 
-		# 特殊: 传送陷阱
+		# 特殊: 传送陷阱 — 异步等待传送+翻面完成
 		if card.trap_subtype == "teleport":
-			_teleport_to_random()
+			# Toast 先显示
+			var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
+				.set_effects(card.get_effects()) \
+				.set_shield_used(shield_used) \
+				.set_location(card.location) \
+				.set_trap_subtype(card.trap_subtype)
+			m._event_popup.show_toast(trap_toast)
+			# 传送流程（内部会设置 ready 状态）
+			await _teleport_to_random()
+			return
 
 	# Toast 通知
 	var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
@@ -278,17 +287,64 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 
 	m.game_flow.check_defeat()
 
-## 传送到随机未翻开格子
+## 传送到随机未翻开格子 (异步: 移动动画 → 翻面 → 处理翻面效果)
 func _teleport_to_random() -> void:
 	var unflipped: Array = m.board.get_unflipped_cards()
 	if unflipped.is_empty():
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 		return
+
 	var pick: Card = unflipped[randi() % unflipped.size()]
-	m.token.target_row = pick.row
-	m.token.target_col = pick.col
-	m.board_visual.update_token_visual()
+	var dest_row: int = pick.row
+	var dest_col: int = pick.col
+
+	GameData.set_demo_state("teleporting")
+
+	# 紫色闪光 + 标语
 	m._vfx.screen_flash(Color(0.6, 0.2, 0.8, 0.5), 0.3)
 	m._vfx.action_banner("空间错位!", Color(0.6, 0.2, 0.8), 0.8)
+
+	# 短暂延迟让玩家看到效果
+	await m.get_tree().create_timer(0.5).timeout
+
+	# 移动 token 到目标格
+	m.token.target_row = dest_row
+	m.token.target_col = dest_col
+
+	# 使用信号等待移动动画完成
+	var move_done: bool = false
+	m.board_visual.animate_token_move(dest_row, dest_col, func():
+		move_done = true
+	)
+	# 等待移动完成
+	while not move_done:
+		await m.get_tree().process_frame
+
+	# 到达目标格 — 翻面
+	var arrived_card: Card = m.board.get_card(dest_row, dest_col)
+	if arrived_card and not arrived_card.is_flipped and not arrived_card.is_flipping:
+		GameData.set_demo_state("flipping")
+		m.board.flip_card(dest_row, dest_col)
+		arrived_card.is_flipping = true
+
+		var flip_done: bool = false
+		m.board_visual.play_flip_animation(dest_row, dest_col, func():
+			arrived_card.is_flipping = false
+			m.board_visual.update_card_visual(dest_row, dest_col)
+			flip_done = true
+		)
+		# 等待翻面完成
+		while not flip_done:
+			await m.get_tree().process_frame
+
+		# 翻面完成 — 触发翻面后效果
+		_on_card_flipped(arrived_card, dest_row, dest_col)
+	else:
+		# 目标格已翻开，直接恢复 ready
+		m.token.set_emotion("default")
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 
 # ---------------------------------------------------------------------------
 # 裂隙确认

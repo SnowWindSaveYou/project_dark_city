@@ -1144,12 +1144,8 @@ local function onCardFlipped(card, screenX, screenY)
                         token.targetCol = pick.c
                         Token.setEmotion(token, "scared")
 
-                        -- 标记: moveTo 完成后自动翻目标格
-                        local teleportFlipDone = false
-
-                        local function doTeleportFlip()
-                            if teleportFlipDone then return end
-                            teleportFlipDone = true
+                        Token.moveTo(token, destWx + shareOff, destWz, function()
+                            -- 自动翻开目标格
                             local destCard = pick.card
                             if not destCard.faceUp and not destCard.isFlipping then
                                 local dsx, dsy = worldToScreen(Vector3(destWx, 0, destWz))
@@ -1162,21 +1158,7 @@ local function onCardFlipped(card, screenX, screenY)
                                 CameraButton.show()
                                 checkDefeat()
                             end
-                        end
-
-                        Token.moveTo(token, destWx + shareOff, destWz, doTeleportFlip)
-
-                        -- 安全网: 如果 moveTo 回调未触发 (isMoving 残留等), 延时兜底
-                        local safetyDelay = { t = 0 }
-                        Tween.to(safetyDelay, { t = 1 }, 1.2, {
-                            tag = "teleport_safety",
-                            onComplete = function()
-                                if not teleportFlipDone then
-                                    print("[Teleport] Safety net triggered – forcing destination flip")
-                                    doTeleportFlip()
-                                end
-                            end,
-                        })
+                        end)
                     end,
                 })
             end
