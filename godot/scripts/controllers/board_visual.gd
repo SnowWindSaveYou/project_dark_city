@@ -34,11 +34,16 @@ var _glow_border_shader: Shader = null
 var _glow_quad_mesh: QuadMesh = null
 ## 光环层数
 const GLOW_RING_COUNT: int = 3
-## 光环动画参数 (匹配 Lua 版: Card.lua syncNode)
+## 光环动画参数 — home / 辐射区 (柔和)
 const GLOW_CYCLE: float = 4.0        # 循环周期 (秒)
 const GLOW_Y_BASE: float = 0.005     # 起始高度 (卡面上方)
 const GLOW_Y_RISE: float = 0.05      # 上浮距离
 const GLOW_SCALE_GROW: float = 0.06  # 上浮时微放大
+## 光环动画参数 — landmark (更华丽)
+const GLOW_LM_CYCLE: float = 3.0     # 更快的周期
+const GLOW_LM_Y_RISE: float = 0.08   # 更高上浮
+const GLOW_LM_SCALE_GROW: float = 0.10  # 更大放大
+const GLOW_LM_RING_COUNT: int = 4    # 多一层
 
 ## 侦察/揭示图标常量
 const ICON_QUAD: float = 0.18        # 图标边长 (米)
@@ -1493,53 +1498,63 @@ func _update_overlays() -> void:
 # ---------------------------------------------------------------------------
 
 ## 为卡牌创建光环 ShaderMaterial (每层独立实例, 便于独立设 alpha)
-func _create_glow_ring_material(color: Color) -> ShaderMaterial:
+func _create_glow_ring_material(color: Color, is_landmark: bool) -> ShaderMaterial:
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = _glow_border_shader
 	mat.set_shader_parameter("border_color", color)
-	mat.set_shader_parameter("border_width", 0.06)
-	mat.set_shader_parameter("glow_spread", 0.08)
+	if is_landmark:
+		mat.set_shader_parameter("border_width", 0.09)   # 更粗边框
+		mat.set_shader_parameter("glow_spread", 0.12)    # 更宽辉光
+	else:
+		mat.set_shader_parameter("border_width", 0.06)
+		mat.set_shader_parameter("glow_spread", 0.08)
 	mat.render_priority = -1  # 低于卡面图标(0)和Token(0), 避免遮挡玩家
 	return mat
 
-## 为指定卡牌挂载 3 层方形发光边框 (landmark=金色, home=白色)
+## 为指定卡牌挂载方形发光边框 (landmark=4层金色华丽, home=3层柔白)
 func _attach_glow_rings(card_node: MeshInstance3D, card_type: String) -> void:
 	# 已有光环则跳过
 	if card_node.get_node_or_null("GlowRing_1"):
 		return
 
+	var is_landmark: bool = (card_type == "landmark")
+	var ring_count: int = GLOW_LM_RING_COUNT if is_landmark else GLOW_RING_COUNT
 	var base_color: Color
-	if card_type == "landmark":
-		base_color = Color(1.0, 0.85, 0.4, 1.0)   # 暖金色
+	if is_landmark:
+		base_color = Color(1.0, 0.7, 0.1, 1.0)     # 饱和金色 (加法混合下更明显)
 	else:
-		base_color = Color(0.9, 0.95, 1.0, 1.0)    # 柔白色
+		base_color = Color(0.6, 0.75, 1.0, 0.7)    # 淡蓝白 (降低亮度避免冲白)
 
-	for i in range(1, GLOW_RING_COUNT + 1):
+	for i in range(1, ring_count + 1):
 		var ring: MeshInstance3D = MeshInstance3D.new()
 		ring.name = "GlowRing_%d" % i
 		ring.mesh = _glow_quad_mesh
-		ring.material_override = _create_glow_ring_material(base_color)
+		ring.material_override = _create_glow_ring_material(base_color, is_landmark)
 		ring.position = Vector3(0, GLOW_Y_BASE, 0)
 		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ring.visible = false  # 默认隐藏, 由 show_safe_glows() 激活
+		ring.set_meta("is_landmark", is_landmark)
 		card_node.add_child(ring)
 
-## 移除卡牌上的光环层
+## 移除卡牌上的光环层 (兼容 3 层 home 和 4 层 landmark)
 func _remove_glow_rings(card_node: MeshInstance3D) -> void:
-	for i in range(1, GLOW_RING_COUNT + 1):
+	var max_rings: int = maxi(GLOW_RING_COUNT, GLOW_LM_RING_COUNT)
+	for i in range(1, max_rings + 1):
 		var ring: Node = card_node.get_node_or_null("GlowRing_%d" % i)
 		if ring:
 			ring.queue_free()
 
-## 设置单张卡牌光晕可见性 (显示/隐藏所有光环层)
+## 设置单张卡牌光晕可见性 (显示/隐藏所有光环层, 兼容 3/4 层)
 func _set_glow_visible(card_node: MeshInstance3D, visible: bool) -> void:
-	for i in range(1, GLOW_RING_COUNT + 1):
+	var max_rings: int = maxi(GLOW_RING_COUNT, GLOW_LM_RING_COUNT)
+	for i in range(1, max_rings + 1):
 		var ring: MeshInstance3D = card_node.get_node_or_null("GlowRing_%d" % i) as MeshInstance3D
 		if ring:
 			ring.visible = visible
 
 ## 每帧更新所有激活光环的上浮/淡出/放大动画 (由 main._process 调用)
 func update_glow_rings(game_time: float) -> void:
+	var max_rings: int = maxi(GLOW_RING_COUNT, GLOW_LM_RING_COUNT)
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = m.board.get_card(r, c)
@@ -1548,20 +1563,26 @@ func update_glow_rings(game_time: float) -> void:
 			var card_node: MeshInstance3D = get_card_node(r, c)
 			if card_node == null:
 				continue
-			for i in range(1, GLOW_RING_COUNT + 1):
+			for i in range(1, max_rings + 1):
 				var ring: MeshInstance3D = card_node.get_node_or_null("GlowRing_%d" % i) as MeshInstance3D
 				if ring == null or ring.material_override == null:
 					continue
-				# 交错相位: 每层偏移 1/RING_COUNT 个周期 (匹配 Lua)
-				var phase: float = fmod(game_time / GLOW_CYCLE + float(i - 1) / float(GLOW_RING_COUNT), 1.0)
-				var y: float = GLOW_Y_BASE + phase * GLOW_Y_RISE
+				# 根据 metadata 选择动画参数 (landmark vs home/aura)
+				var is_lm: bool = ring.get_meta("is_landmark", false)
+				var cycle: float = GLOW_LM_CYCLE if is_lm else GLOW_CYCLE
+				var y_rise: float = GLOW_LM_Y_RISE if is_lm else GLOW_Y_RISE
+				var scale_grow: float = GLOW_LM_SCALE_GROW if is_lm else GLOW_SCALE_GROW
+				var ring_count: int = GLOW_LM_RING_COUNT if is_lm else GLOW_RING_COUNT
+				# 交错相位: 每层偏移 1/ring_count 个周期 (匹配 Lua)
+				var phase: float = fmod(game_time / cycle + float(i - 1) / float(ring_count), 1.0)
+				var y: float = GLOW_Y_BASE + phase * y_rise
 				# 线性衰减至全透明
 				var alpha: float = 1.0 - phase
-				var sc: float = 1.0 + phase * GLOW_SCALE_GROW
+				var sc: float = 1.0 + phase * scale_grow
 
 				ring.position = Vector3(0, y, 0)
 				ring.scale = Vector3(sc, 1.0, sc)
-				# 更新 shader uniform 中的 alpha
+				# 更新 shader uniform 中的 alpha (保留原始 RGB 颜色)
 				var mat: ShaderMaterial = ring.material_override as ShaderMaterial
 				var col: Color = mat.get_shader_parameter("border_color") as Color
 				col.a = alpha
