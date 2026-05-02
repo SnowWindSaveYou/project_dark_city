@@ -1499,7 +1499,7 @@ func _create_glow_ring_material(color: Color) -> ShaderMaterial:
 	mat.set_shader_parameter("border_color", color)
 	mat.set_shader_parameter("border_width", 0.06)
 	mat.set_shader_parameter("glow_spread", 0.08)
-	mat.render_priority = 100
+	mat.render_priority = -1  # 低于卡面图标(0)和Token(0), 避免遮挡玩家
 	return mat
 
 ## 为指定卡牌挂载 3 层方形发光边框 (landmark=金色, home=白色)
