@@ -321,7 +321,9 @@ func _setup_3d_scene() -> void:
 	# DirectionalLight3D: 模拟日光
 	_dir_light = DirectionalLight3D.new()
 	_dir_light.name = "SunLight"
-	_dir_light.rotation_degrees = Vector3(-50, -30, 0)
+	# Lua: SetDirection(0.5, -1.0, 0.6) → 光从右前上方照向左后下方
+	# pitch ≈ -50°, yaw ≈ atan2(0.5,0.6) ≈ 40°, 阴影落在角色身后偏左
+	_dir_light.rotation_degrees = Vector3(-50, 40, 0)
 	_dir_light.light_energy = ATMO_BRIGHT["light_energy"]
 	_dir_light.shadow_enabled = true
 	add_child(_dir_light)
