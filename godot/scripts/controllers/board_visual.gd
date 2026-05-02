@@ -28,9 +28,17 @@ var board_layer: Node3D = null
 var _card_materials: Dictionary = {}  # "row_col" -> StandardMaterial3D
 ## 共享卡牌 Mesh
 var _card_mesh: BoxMesh = null
-## 粒子材质缓存 (landmark / home 两套)
-var _particle_mat_landmark: StandardMaterial3D = null
-var _particle_mat_home: StandardMaterial3D = null
+## 光环 Shader (方形发光边框上浮特效)
+var _glow_border_shader: Shader = null
+## 光环共享 QuadMesh (与卡牌同尺寸, 水平放置)
+var _glow_quad_mesh: QuadMesh = null
+## 光环层数
+const GLOW_RING_COUNT: int = 3
+## 光环动画参数 (匹配 Lua 版: Card.lua syncNode)
+const GLOW_CYCLE: float = 4.0        # 循环周期 (秒)
+const GLOW_Y_BASE: float = 0.005     # 起始高度 (卡面上方)
+const GLOW_Y_RISE: float = 0.05      # 上浮距离
+const GLOW_SCALE_GROW: float = 0.06  # 上浮时微放大
 
 ## 侦察/揭示图标常量
 const ICON_QUAD: float = 0.18        # 图标边长 (米)
@@ -56,9 +64,11 @@ func setup(main_ref) -> void:
 	_card_mesh = BoxMesh.new()
 	_card_mesh.size = Vector3(Card.CARD_W, Card.CARD_THICKNESS, Card.CARD_H)
 
-	# 粒子材质 (地标: 金色, 家: 白色)
-	_particle_mat_landmark = _create_particle_material(GameTheme.glow_color)
-	_particle_mat_home = _create_particle_material(Color(0.9, 0.95, 1.0, 0.8))
+	# 光环 Shader & 共享 Mesh
+	_glow_border_shader = load("res://shaders/glow_border.gdshader")
+	_glow_quad_mesh = QuadMesh.new()
+	_glow_quad_mesh.size = Vector2(Card.CARD_W, Card.CARD_H)
+	_glow_quad_mesh.orientation = PlaneMesh.FACE_Y  # 水平放置, 面朝 +Y
 
 	# 侦察/揭示图标纹理 (预加载)
 	_tex_scouted = preload("res://assets/image/icon_scouted_v2_20260426051601.png")
@@ -166,9 +176,9 @@ func rebuild_card_nodes() -> void:
 				ico_r.visible = card.revealed
 				card_node.add_child(ico_r)
 
-			# 家/地标: 创建时就挂载光环粒子 (匹配 Lua Card.createNode 行为)
+			# 家/地标: 创建时就挂载光环 (匹配 Lua Card.createNode 行为)
 			if card.should_have_glow():
-				_attach_glow_particles(card_node, card.type)
+				_attach_glow_rings(card_node, card.type)
 
 			board_layer.add_child(card_node)
 
@@ -239,15 +249,16 @@ func update_card_visual(row: int, col: int) -> void:
 				var type_label: String = type_info.get("label", "")
 				label.text = icon + "\n" + type_label
 				label.modulate = Color(1, 1, 1, 0.9)
-			# 地标 / 家: 挂载粒子光晕 (尊重 safe_glow_active 开关)
+			# 地标 / 家: 挂载光环 (尊重 safe_glow_active 开关)
 			if card.type == "landmark" or card.type == "home":
-				_attach_glow_particles(card_node, card.type)
+				_attach_glow_rings(card_node, card.type)
 				_set_glow_visible(card_node, card.safe_glow_active)
 			elif card.safe_glow_active:
-				# 地标辐射区: 保留白色光晕
+				# 地标辐射区: 确保挂载光环并显示
+				_attach_glow_rings(card_node, "home")
 				_set_glow_visible(card_node, true)
 			else:
-				_remove_glow_particles(card_node)
+				_remove_glow_rings(card_node)
 	else:
 		mat.albedo_color = GameTheme.card_back
 		# 未翻开时显示地点信息
@@ -261,7 +272,7 @@ func update_card_visual(row: int, col: int) -> void:
 				label.modulate = Color(1, 1, 1, 0.85)
 			# 家/地标/辐射区即使未翻开也保留光环 (匹配 Lua Card.createNode)
 			if not card.should_have_glow() and not card.safe_glow_active:
-				_remove_glow_particles(card_node)
+				_remove_glow_rings(card_node)
 
 	# 侦察/揭示图标: 只要卡牌可见就显示 (不论正反面)
 	if card_node:
@@ -1478,116 +1489,83 @@ func _update_overlays() -> void:
 	pass
 
 # ---------------------------------------------------------------------------
-# 地标 / 安全区粒子特效
+# 地标 / 安全区: 方形发光边框上浮特效 (匹配 Lua 版 Card.attachGlowRings)
 # ---------------------------------------------------------------------------
 
-## 创建粒子用的不透明发光材质
-func _create_particle_material(color: Color) -> StandardMaterial3D:
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = color
-	mat.vertex_color_use_as_albedo = true
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.no_depth_test = false
-	mat.render_priority = 2
+## 为卡牌创建光环 ShaderMaterial (每层独立实例, 便于独立设 alpha)
+func _create_glow_ring_material(color: Color) -> ShaderMaterial:
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = _glow_border_shader
+	mat.set_shader_parameter("border_color", color)
+	mat.set_shader_parameter("border_width", 0.06)
+	mat.set_shader_parameter("glow_spread", 0.08)
+	mat.render_priority = 100
 	return mat
 
-## 为指定卡牌挂载粒子特效 (landmark=金色光辉, home=白色光辉)
-func _attach_glow_particles(card_node: MeshInstance3D, card_type: String) -> void:
-	# 已有粒子则跳过
-	if card_node.get_node_or_null("GlowParticles"):
+## 为指定卡牌挂载 3 层方形发光边框 (landmark=金色, home=白色)
+func _attach_glow_rings(card_node: MeshInstance3D, card_type: String) -> void:
+	# 已有光环则跳过
+	if card_node.get_node_or_null("GlowRing_1"):
 		return
 
-	var particles: GPUParticles3D = GPUParticles3D.new()
-	particles.name = "GlowParticles"
-	particles.emitting = false  # 默认关闭, 由 show_safe_glows() 显式激活
-	particles.amount = 12
-	particles.lifetime = 1.8
-	particles.explosiveness = 0.0
-	particles.randomness = 0.3
-	particles.visibility_aabb = AABB(Vector3(-0.5, -0.1, -0.6), Vector3(1.0, 0.8, 1.2))
-	# 粒子从卡牌表面上方发射
-	particles.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.02, 0)
-
-	# 粒子材质
+	var base_color: Color
 	if card_type == "landmark":
-		particles.draw_pass_1 = _make_particle_quad_mesh(0.03)
-		particles.material_override = _particle_mat_landmark
+		base_color = Color(1.0, 0.85, 0.4, 1.0)   # 暖金色
 	else:
-		particles.draw_pass_1 = _make_particle_quad_mesh(0.025)
-		particles.material_override = _particle_mat_home
+		base_color = Color(0.9, 0.95, 1.0, 1.0)    # 柔白色
 
-	# 粒子行为 (ProcessMaterial)
-	var proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
-	proc.direction = Vector3(0, 1, 0)
-	proc.spread = 25.0
-	proc.initial_velocity_min = 0.05
-	proc.initial_velocity_max = 0.15
-	proc.gravity = Vector3(0, 0.02, 0)  # 微弱上升力
+	for i in range(1, GLOW_RING_COUNT + 1):
+		var ring: MeshInstance3D = MeshInstance3D.new()
+		ring.name = "GlowRing_%d" % i
+		ring.mesh = _glow_quad_mesh
+		ring.material_override = _create_glow_ring_material(base_color)
+		ring.position = Vector3(0, GLOW_Y_BASE, 0)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ring.visible = false  # 默认隐藏, 由 show_safe_glows() 激活
+		card_node.add_child(ring)
 
-	# 发射范围: 卡牌表面区域
-	proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	proc.emission_box_extents = Vector3(Card.CARD_W * 0.35, 0.01, Card.CARD_H * 0.35)
+## 移除卡牌上的光环层
+func _remove_glow_rings(card_node: MeshInstance3D) -> void:
+	for i in range(1, GLOW_RING_COUNT + 1):
+		var ring: Node = card_node.get_node_or_null("GlowRing_%d" % i)
+		if ring:
+			ring.queue_free()
 
-	# 缩放动画: 从小到大再消失
-	proc.scale_min = 0.6
-	proc.scale_max = 1.2
-	var scale_curve: CurveTexture = CurveTexture.new()
-	var curve: Curve = Curve.new()
-	curve.add_point(Vector2(0.0, 0.0))
-	curve.add_point(Vector2(0.15, 1.0))
-	curve.add_point(Vector2(0.7, 0.8))
-	curve.add_point(Vector2(1.0, 0.0))
-	scale_curve.curve = curve
-	proc.scale_curve = scale_curve
-
-	# 颜色渐变: 从亮到透明
-	var color_ramp: GradientTexture1D = GradientTexture1D.new()
-	var gradient: Gradient = Gradient.new()
-	if card_type == "landmark":
-		gradient.set_color(0, Color(1.0, 0.88, 0.4, 0.9))   # 起始: 暖金色
-		gradient.set_color(1, Color(1.0, 0.7, 0.2, 0.0))     # 结束: 淡出
-	else:
-		gradient.set_color(0, Color(1.0, 1.0, 1.0, 0.7))     # 起始: 柔白
-		gradient.set_color(1, Color(0.85, 0.9, 1.0, 0.0))    # 结束: 淡蓝消失
-	color_ramp.gradient = gradient
-	proc.color_ramp = color_ramp
-
-	particles.process_material = proc
-	card_node.add_child(particles)
-
-	# 同时添加一个柔和的 OmniLight3D 光源
-	var light: OmniLight3D = OmniLight3D.new()
-	light.name = "GlowLight"
-	light.position = Vector3(0, 0.15, 0)
-	light.omni_range = 0.6
-	light.light_energy = 0.0  # 默认关闭, 由 show_safe_glows() 显式激活
-	if card_type == "landmark":
-		light.light_color = Color(1.0, 0.85, 0.4)
-	else:
-		light.light_color = Color(0.9, 0.95, 1.0)
-	light.omni_attenuation = 1.5
-	light.shadow_enabled = false
-	card_node.add_child(light)
-
-## 移除卡牌上的粒子特效
-func _remove_glow_particles(card_node: MeshInstance3D) -> void:
-	var particles: Node = card_node.get_node_or_null("GlowParticles")
-	if particles:
-		particles.queue_free()
-	var light: Node = card_node.get_node_or_null("GlowLight")
-	if light:
-		light.queue_free()
-
-## 设置单张卡牌光晕可见性
+## 设置单张卡牌光晕可见性 (显示/隐藏所有光环层)
 func _set_glow_visible(card_node: MeshInstance3D, visible: bool) -> void:
-	var particles: GPUParticles3D = card_node.get_node_or_null("GlowParticles") as GPUParticles3D
-	if particles:
-		particles.emitting = visible
-	var light: OmniLight3D = card_node.get_node_or_null("GlowLight") as OmniLight3D
-	if light:
-		light.light_energy = 0.4 if visible else 0.0
+	for i in range(1, GLOW_RING_COUNT + 1):
+		var ring: MeshInstance3D = card_node.get_node_or_null("GlowRing_%d" % i) as MeshInstance3D
+		if ring:
+			ring.visible = visible
+
+## 每帧更新所有激活光环的上浮/淡出/放大动画 (由 main._process 调用)
+func update_glow_rings(game_time: float) -> void:
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card == null or not card.safe_glow_active:
+				continue
+			var card_node: MeshInstance3D = get_card_node(r, c)
+			if card_node == null:
+				continue
+			for i in range(1, GLOW_RING_COUNT + 1):
+				var ring: MeshInstance3D = card_node.get_node_or_null("GlowRing_%d" % i) as MeshInstance3D
+				if ring == null or ring.material_override == null:
+					continue
+				# 交错相位: 每层偏移 1/RING_COUNT 个周期 (匹配 Lua)
+				var phase: float = fmod(game_time / GLOW_CYCLE + float(i - 1) / float(GLOW_RING_COUNT), 1.0)
+				var y: float = GLOW_Y_BASE + phase * GLOW_Y_RISE
+				# 线性衰减至全透明
+				var alpha: float = 1.0 - phase
+				var sc: float = 1.0 + phase * GLOW_SCALE_GROW
+
+				ring.position = Vector3(0, y, 0)
+				ring.scale = Vector3(sc, 1.0, sc)
+				# 更新 shader uniform 中的 alpha
+				var mat: ShaderMaterial = ring.material_override as ShaderMaterial
+				var col: Color = mat.get_shader_parameter("border_color") as Color
+				col.a = alpha
+				mat.set_shader_parameter("border_color", col)
 
 ## 显式激活所有安全区光晕: home/landmark + 地标辐射区 (发牌完成后调用)
 func show_safe_glows() -> void:
@@ -1603,8 +1581,8 @@ func show_safe_glows() -> void:
 				continue
 			var card_node: MeshInstance3D = get_card_node(r, c)
 			if card_node:
-				# 辐射区卡牌也挂载粒子 (白色光晕, 与 home 相同)
-				_attach_glow_particles(card_node, "home")
+				# 辐射区卡牌也挂载光环 (白色, 与 home 相同)
+				_attach_glow_rings(card_node, "home")
 				_set_glow_visible(card_node, true)
 			card.show_safe_glow()
 
@@ -1619,12 +1597,6 @@ func hide_safe_glows() -> void:
 			var card_node: MeshInstance3D = get_card_node(r, c)
 			if card_node:
 				_set_glow_visible(card_node, false)
-
-## 创建粒子用的微型四边形 Mesh
-func _make_particle_quad_mesh(size: float) -> QuadMesh:
-	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2(size, size)
-	return quad
 
 # ---------------------------------------------------------------------------
 # 点击检测 (3D raycast → Y=0 平面)

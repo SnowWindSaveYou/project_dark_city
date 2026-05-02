@@ -609,6 +609,9 @@ func _process(dt: float) -> void:
 	token.update(dt)
 	board_visual.update_token_visual()
 
+	# 安全区光环上浮动画
+	board_visual.update_glow_rings(game_time)
+
 	# 地图道具浮动动画
 	board_visual.update_item_visuals(game_time)
 
