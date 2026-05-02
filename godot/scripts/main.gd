@@ -325,7 +325,7 @@ func _setup_3d_scene() -> void:
 	# pitch ≈ -50°, yaw ≈ atan2(0.5,0.6) ≈ 40°, 阴影落在角色身后偏左
 	_dir_light.rotation_degrees = Vector3(-50, 40, 0)
 	_dir_light.light_energy = ATMO_BRIGHT["light_energy"]
-	_dir_light.shadow_enabled = true
+	_dir_light.shadow_enabled = false  # chibi 已有 blob shadow，不需要实时投影
 	add_child(_dir_light)
 
 	# WorldEnvironment
