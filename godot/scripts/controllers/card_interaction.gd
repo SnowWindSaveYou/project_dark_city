@@ -6,7 +6,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
 # ---------------------------------------------------------------------------
-var m = null
+var m: Node = null
 
 ## 最近一次拍照的卡牌坐标 (row, col)，用于弹窗关闭后只标记该卡牌
 var _photo_row: int = -1
@@ -109,6 +109,7 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 
 func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	var card_type: String = card.type
+	print("[Flip] (%d,%d) 翻面触发, 类型: %s, trap_subtype: %s" % [row, col, card_type, card.trap_subtype if card_type == "trap" else "N/A"])
 	GameData.cards_revealed += 1
 
 	# 地标光环净化已在 board.generate_cards() 阶段完成 (_apply_landmark_aura)
@@ -153,13 +154,13 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 
 	m._vfx.screen_shake(3.0, 0.15)
 
-	# 陷阱走 Toast 流 (非阻塞)
+	# 陷阱走 Toast 流 (传送陷阱需异步等待)
 	if card_type == "trap":
-		_handle_trap(card, row, col)
+		await _handle_trap(card, row, col)
 		return
 
 	# 判断是否阻断
-	var is_blocking: bool = EventPopup.is_blocking_event(card_type)
+	var is_blocking: bool = EventPopupScene.is_blocking_event(card_type)
 
 	if is_blocking:
 		# 阻断事件: 商店 (未来: 带选项的剧情)
@@ -212,7 +213,11 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
 		# Toast 通知
-		m._event_popup.show_toast(card_type, effects, shield_used, card.location)
+		var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card_type) \
+			.set_effects(effects) \
+			.set_shield_used(shield_used) \
+			.set_location(card.location)
+		m._event_popup.show_toast(toast)
 
 		# 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready (匹配 Lua 0.6s pauseDummy)
 		if card_type == "monster":
@@ -253,13 +258,26 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 		for key in effects:
 			GameData.modify_resource(key, effects[key])
 
-		# 特殊: 传送陷阱
+		# 特殊: 传送陷阱 — 异步等待传送+翻面完成
 		if card.trap_subtype == "teleport":
-			_teleport_to_random()
+			# Toast 先显示
+			var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
+				.set_effects(card.get_effects()) \
+				.set_shield_used(shield_used) \
+				.set_location(card.location) \
+				.set_trap_subtype(card.trap_subtype)
+			m._event_popup.show_toast(trap_toast)
+			# 传送流程（内部会设置 ready 状态）
+			await _teleport_to_random()
+			return
 
 	# Toast 通知
-	m._event_popup.show_toast(card.type, card.get_effects(),
-		shield_used, card.location, card.trap_subtype)
+	var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
+		.set_effects(card.get_effects()) \
+		.set_shield_used(shield_used) \
+		.set_location(card.location) \
+		.set_trap_subtype(card.trap_subtype)
+	m._event_popup.show_toast(trap_toast)
 
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
@@ -270,17 +288,51 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 
 	m.game_flow.check_defeat()
 
-## 传送到随机未翻开格子
+## 传送到随机未翻开格子 (回调链: 移动动画 → 翻面 → 处理翻面效果)
 func _teleport_to_random() -> void:
 	var unflipped: Array = m.board.get_unflipped_cards()
 	if unflipped.is_empty():
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 		return
+
 	var pick: Card = unflipped[randi() % unflipped.size()]
-	m.token.target_row = pick.row
-	m.token.target_col = pick.col
-	m.board_visual.update_token_visual()
+	var dest_row: int = pick.row
+	var dest_col: int = pick.col
+
+	GameData.set_demo_state("teleporting")
+
+	# 紫色闪光 + 标语
 	m._vfx.screen_flash(Color(0.6, 0.2, 0.8, 0.5), 0.3)
 	m._vfx.action_banner("空间错位!", Color(0.6, 0.2, 0.8), 0.8)
+
+	# 短暂延迟让玩家看到效果
+	await m.get_tree().create_timer(0.5).timeout
+
+	# 移动 token 到目标格
+	m.token.target_row = dest_row
+	m.token.target_col = dest_col
+
+	# 移动动画完成后 → 翻面 → 处理效果 (嵌套回调，与 _move_token 一致)
+	m.board_visual.animate_token_move(dest_row, dest_col, func():
+		var arrived_card: Card = m.board.get_card(dest_row, dest_col)
+		if arrived_card and not arrived_card.is_flipped and not arrived_card.is_flipping:
+			print("[Teleport] 到达(%d,%d), 翻面卡牌类型: %s" % [dest_row, dest_col, arrived_card.type])
+			GameData.set_demo_state("flipping")
+			m.board.flip_card(dest_row, dest_col)
+			arrived_card.is_flipping = true
+
+			m.board_visual.play_flip_animation(dest_row, dest_col, func():
+				arrived_card.is_flipping = false
+				m.board_visual.update_card_visual(dest_row, dest_col)
+				_on_card_flipped(arrived_card, dest_row, dest_col)
+			)
+		else:
+			print("[Teleport] 到达(%d,%d), 目标格已翻开, 恢复 ready" % [dest_row, dest_col])
+			m.token.set_emotion("default")
+			GameData.set_demo_state("ready")
+			m._camera_button.show_button()
+	)
 
 # ---------------------------------------------------------------------------
 # 裂隙确认
@@ -416,32 +468,47 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 					m.board_visual.mg_show_on_card(row, col, card.location)
 					GameData.monsters_slain += 1
 
-				# 情绪: 害怕/紧张
+				# — Phase 1: 认知 (0.8s 停顿让玩家看清)
 				m.token.set_emotion("scared" if is_monster else "nervous")
 				GameData.set_demo_state("exorcising")
 				_photo_row = -1
 				_photo_col = -1
 
-				# 停顿 0.8s 让玩家看清
 				await m.get_tree().create_timer(0.8).timeout
 
-				# 驱除动效
+				# — Phase 2: 蓄力 (0.6s)
 				var pc: Color = GameTheme.card_type_color("plot")
-				m._vfx.screen_flash(pc, 0.35)
-				m._vfx.screen_shake(4.0, 0.2)
+				m.token.set_emotion("determined")
+				m.token.hop(0.04)
+				# 卡牌 emission 蓄力发光
+				m.board_visual.start_card_emission_glow(row, col,
+					Color(0.6, 0.3, 1.0), 0.6, 2.0)
+
+				await m.get_tree().create_timer(0.6).timeout
+
+				# — Phase 3: 爆发
 				m.token.set_emotion("angry")
 				m.token.hop(0.06)
+				# 冲击闪光 (白色)
+				m._vfx.screen_flash(Color.WHITE, 0.5)
+				m._vfx.screen_shake(5.0, 0.25)
+				# 粒子爆发
+				var center2: Vector2 = m.board_visual.get_card_center(row, col)
+				m._vfx.spawn_burst(center2, 16, pc)
 
-				# 清除卡牌上的怪物 chibi
-				m.board_visual.mg_clear_card_ghosts()
+				# chibi 死亡动画 (抖动→膨胀→淡出)
+				m.board_visual.mg_exorcise_card_ghosts()
 
 				# 变形: 当前类型 → photo (安全格)
 				card.type = "photo"
 				m.board_visual.update_card_visual(row, col)
 
+				# 卡牌翻转变形动画
 				m.board_visual.play_exorcise_animation(row, col, func():
-					var center2: Vector2 = m.board_visual.get_card_center(row, col)
-					m._vfx.spawn_burst(center2, 16, pc)
+					# — Phase 4: 余韵
+					m._vfx.screen_flash(pc, 0.25)
+					m._vfx.spawn_burst(center2, 8, pc,
+						{"speed": 50.0, "size": 2.0, "upward": 30.0})
 					if is_monster:
 						m._vfx.action_banner(
 							"👻 发现怪物! 已驱除!", pc, 1.0)
@@ -450,6 +517,7 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 						m._vfx.action_banner(
 							"⚡ 发现%s! 已清除!" % trap_info.get("label", "陷阱"),
 							pc, 1.0)
+					m._vfx.score_popup(center2 + Vector2(0, -20), "+10", pc)
 					m.token.set_emotion("happy")
 					GameData.set_demo_state("ready")
 					m._camera_button.show_button()
@@ -513,26 +581,36 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 	GameData.set_demo_state("exorcising")
 	m._camera_button.exit_camera_mode()
 	m.token.set_emotion("angry")
-
-	# 清除 MonsterGhost chibi (卡牌上 + 环绕)
-	m.board_visual.mg_clear_card_ghosts()
-	m.board_visual.mg_clear_surround()
-
-	# 闪光 + 震动
-	var pc: Color = GameTheme.card_type_color("plot")
-	m._vfx.screen_flash(pc, 0.5)
-	m._vfx.screen_shake(4.0, 0.2)
 	m.token.hop(0.06)
 
+	var pc: Color = GameTheme.card_type_color("plot")
+
+	# — 蓄力: 卡牌 emission + 环绕 chibi 飞散
+	m.board_visual.start_card_emission_glow(row, col,
+		Color(0.6, 0.3, 1.0), 0.3, 2.5)
+	m.board_visual.mg_scatter_surround()
+
 	await m.get_tree().create_timer(0.3).timeout
+
+	# — 爆发
+	m._vfx.screen_flash(Color.WHITE, 0.5)
+	m._vfx.screen_shake(5.0, 0.25)
+	var center: Vector2 = m.board_visual.get_card_center(row, col)
+	m._vfx.spawn_burst(center, 16, pc)
+
+	# chibi 死亡动画
+	m.board_visual.mg_exorcise_card_ghosts()
 
 	card.type = "photo"
 	m.board_visual.update_card_visual(row, col)
 
 	m.board_visual.play_exorcise_animation(row, col, func():
-		var center: Vector2 = m.board_visual.get_card_center(row, col)
-		m._vfx.spawn_burst(center, 16, pc)
+		# — 余韵
+		m._vfx.screen_flash(pc, 0.25)
+		m._vfx.spawn_burst(center, 8, pc,
+			{"speed": 50.0, "size": 2.0, "upward": 30.0})
 		m._vfx.action_banner("驱除成功!", pc, 1.0)
+		m._vfx.score_popup(center + Vector2(0, -20), "+10", pc)
 		m.token.set_emotion("happy")
 		GameData.set_demo_state("ready")
 		m._camera_button.show_button()

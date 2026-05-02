@@ -71,6 +71,8 @@ var _ui_layer: CanvasLayer = null
 var _resource_bar: Control = null
 var _event_popup: Control = null
 var _shop_popup: Control = null
+var _rift_popup: Control = null
+var _photo_popup: Control = null
 var _hand_panel: Control = null
 var _clue_log: Control = null
 var _camera_button: Control = null
@@ -180,10 +182,13 @@ func _setup_scene_tree() -> void:
 	_token_sprite.name = "TokenSprite"
 	_token_sprite.visible = false
 	_token_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y  # Lua: FC_ROTATE_Y (只绕Y轴旋转, 精灵保持竖直)
-	_token_sprite.pixel_size = 0.00065  # 每像素 0.00065m → 515px≈0.335m宽, 768px≈0.50m高 (匹配 Lua SPRITE_3D_W/H)
+	_token_sprite.pixel_size = 0.0013  # ×2 修正: Urho3D bb.size 是半尺寸, Godot pixel_size 是全尺寸
 	_token_sprite.transparent = true
 	_token_sprite.no_depth_test = false
-	_token_sprite.render_priority = 1
+	_token_sprite.render_priority = 0
+	# OPAQUE_PREPASS: 不透明像素写深度缓冲, 保证 chibi 之间正确遮挡
+	_token_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	_token_sprite.alpha_scissor_threshold = 0.5
 	add_child(_token_sprite)
 
 	# === Token Blob Shadow (扁平圆柱体, 脚下阴影) ===
@@ -201,8 +206,8 @@ func _setup_scene_tree() -> void:
 	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_token_shadow.material_override = shadow_mat
-	# 初始缩放: X=0.369, Y=0.001(扁平), Z=0.168 (匹配 Lua SPRITE_3D_W)
-	_token_shadow.scale = Vector3(0.369, 0.001, 0.168)
+	# 初始缩放: ×2 修正后 TOKEN_WORLD_W≈0.67m (shadow_w=0.67*1.1, shadow_z=0.67*0.5)
+	_token_shadow.scale = Vector3(0.737, 0.001, 0.335)
 	add_child(_token_shadow)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
@@ -224,41 +229,43 @@ func _setup_scene_tree() -> void:
 	_vfx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vfx_layer.add_child(_vfx)
 
-	_resource_bar = load("res://scripts/ui/resource_bar.gd").new()
-	_resource_bar.name = "ResourceBar"
-	_resource_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_resource_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var resource_bar_scene: PackedScene = load("res://scenes/ui/resource_bar.tscn")
+	_resource_bar = resource_bar_scene.instantiate()
 	ui_layer.add_child(_resource_bar)
 
-	_hand_panel = load("res://scripts/ui/hand_panel.gd").new()
-	_hand_panel.name = "HandPanel"
-	_hand_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# HandPanel — Scene 化（保留 _draw() 笔记本渲染）
+	_hand_panel = load("res://scenes/ui/hand_panel.tscn").instantiate()
 	ui_layer.add_child(_hand_panel)
 
-	_clue_log = load("res://scripts/ui/clue_log.gd").new()
-	_clue_log.name = "ClueLog"
-	_clue_log.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# ClueLog — Scene 化
+	_clue_log = load("res://scenes/ui/clue_log.tscn").instantiate()
 	ui_layer.add_child(_clue_log)
 
-	_camera_button = load("res://scripts/ui/camera_button.gd").new()
-	_camera_button.name = "CameraButton"
-	_camera_button.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# CameraButton — Scene 化
+	_camera_button = load("res://scenes/ui/camera_button.tscn").instantiate()
 	ui_layer.add_child(_camera_button)
 
-	_event_popup = load("res://scripts/ui/event_popup.gd").new()
-	_event_popup.name = "EventPopup"
-	_event_popup.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var event_popup_scene: PackedScene = load("res://scenes/ui/event_popup.tscn")
+	_event_popup = event_popup_scene.instantiate()
 	ui_layer.add_child(_event_popup)
 
-	_shop_popup = load("res://scripts/ui/shop_popup.gd").new()
-	_shop_popup.name = "ShopPopup"
-	_shop_popup.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var rift_popup_scene: PackedScene = load("res://scenes/ui/rift_popup.tscn")
+	_rift_popup = rift_popup_scene.instantiate()
+	ui_layer.add_child(_rift_popup)
+
+	var photo_popup_scene: PackedScene = load("res://scenes/ui/photo_popup.tscn")
+	_photo_popup = photo_popup_scene.instantiate()
+	ui_layer.add_child(_photo_popup)
+
+	# 注入子弹窗引用 (保持控制器代码兼容)
+	_event_popup.bind_sub_popups(_rift_popup, _photo_popup)
+
+	var shop_popup_scene: PackedScene = load("res://scenes/ui/shop_popup.tscn")
+	_shop_popup = shop_popup_scene.instantiate()
 	ui_layer.add_child(_shop_popup)
 
-	_game_over = load("res://scripts/visual/game_over.gd").new()
-	_game_over.name = "GameOver"
-	_game_over.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_game_over.visible = false
+	# GameOver — Scene 化
+	_game_over = load("res://scenes/screens/game_over.tscn").instantiate()
 	ui_layer.add_child(_game_over)
 
 	_date_transition = load("res://scripts/visual/date_transition.gd").new()
@@ -267,26 +274,18 @@ func _setup_scene_tree() -> void:
 	_date_transition.visible = false
 	ui_layer.add_child(_date_transition)
 
-	# 气泡对话渲染层 (Token 头顶)
-	_bubble_overlay = load("res://scripts/visual/bubble_overlay.gd").new()
-	_bubble_overlay.name = "BubbleOverlay"
-	_bubble_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bubble_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# BubbleOverlay — Scene 化 (Token 头顶气泡)
+	_bubble_overlay = load("res://scenes/screens/bubble_overlay.tscn").instantiate()
 	_bubble_overlay.m = self
 	ui_layer.add_child(_bubble_overlay)
 
-	# 对话系统渲染层 (遮罩 + 对话框 + 立绘)
-	_dialogue_overlay = load("res://scripts/visual/dialogue_overlay.gd").new()
-	_dialogue_overlay.name = "DialogueOverlay"
-	_dialogue_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_dialogue_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# DialogueOverlay — Scene 化 (遮罩 + 对话框 + 立绘)
+	_dialogue_overlay = load("res://scenes/screens/dialogue_overlay.tscn").instantiate()
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
-	# Title Screen (最顶层)
-	_title_screen = load("res://scripts/visual/title_screen.gd").new()
-	_title_screen.name = "TitleScreen"
-	_title_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Title Screen (最顶层) — Scene 化
+	_title_screen = load("res://scenes/screens/title_screen.tscn").instantiate()
 	ui_layer.add_child(_title_screen)
 
 # ---------------------------------------------------------------------------
@@ -305,16 +304,20 @@ func _setup_3d_scene() -> void:
 	_camera_3d.fov = 45.0
 	# 45° 俯视: 位于 Y=4.5, Z=-4.5 (与原版 UrhoX 一致)
 	_camera_3d.position = Vector3(0, 4.5, -4.5)
-	_camera_3d.rotation_degrees = Vector3(-45, 180, 0)
 	_camera_3d.current = true
 	_cam_pivot.add_child(_camera_3d)
+	# 精确匹配 Lua: cameraNode:LookAt(Vector3(0, 0, -0.3))
+	# 必须在 add_child 后调用 look_at, 否则 global_position 不可用
+	_camera_3d.look_at(Vector3(0, 0, -0.3), Vector3.UP)
 
 	# DirectionalLight3D: 模拟日光
 	_dir_light = DirectionalLight3D.new()
 	_dir_light.name = "SunLight"
-	_dir_light.rotation_degrees = Vector3(-50, -30, 0)
+	# Lua: SetDirection(0.5, -1.0, 0.6) → 光从右前上方照向左后下方
+	# pitch ≈ -50°, yaw ≈ atan2(0.5,0.6) ≈ 40°, 阴影落在角色身后偏左
+	_dir_light.rotation_degrees = Vector3(-50, 40, 0)
 	_dir_light.light_energy = ATMO_BRIGHT["light_energy"]
-	_dir_light.shadow_enabled = true
+	_dir_light.shadow_enabled = false  # chibi 已有 blob shadow，不需要实时投影
 	add_child(_dir_light)
 
 	# WorldEnvironment
@@ -387,16 +390,20 @@ func _connect_signals() -> void:
 	_date_transition.transition_completed.connect(
 		func(): game_flow.on_date_transition_complete())
 
-	# 事件弹窗
+	# 事件弹窗 (场景化拆分后信号分布在三个组件)
 	_event_popup.popup_closed.connect(
 		func(card: Card): card_interaction.on_popup_dismissed(card))
-	_event_popup.photo_popup_closed.connect(
-		func(card_type: String): card_interaction.on_photo_popup_dismissed(card_type))
-	_event_popup.rift_confirmed.connect(
-		func(): card_interaction.on_rift_confirmed())
-	_event_popup.rift_cancelled.connect(
-		func(): card_interaction.on_rift_cancelled())
 	_event_popup.toast_dismissed.connect(func(_ct: String): pass)
+
+	# 裂隙确认 (独立组件)
+	_rift_popup.rift_confirmed.connect(
+		func(): card_interaction.on_rift_confirmed())
+	_rift_popup.rift_cancelled.connect(
+		func(): card_interaction.on_rift_cancelled())
+
+	# 拍照预览 (独立组件)
+	_photo_popup.photo_popup_closed.connect(
+		func(card_type: String): card_interaction.on_photo_popup_dismissed(card_type))
 
 	# 商店 (需区分普通/暗面)
 	_shop_popup.shop_closed.connect(_on_shop_closed)
@@ -590,6 +597,9 @@ func _process(dt: float) -> void:
 	# Token
 	token.update(dt)
 	board_visual.update_token_visual()
+
+	# 安全区光环上浮动画
+	board_visual.update_glow_rings(game_time)
 
 	# 地图道具浮动动画
 	board_visual.update_item_visuals(game_time)

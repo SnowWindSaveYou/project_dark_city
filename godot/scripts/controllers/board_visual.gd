@@ -28,9 +28,22 @@ var board_layer: Node3D = null
 var _card_materials: Dictionary = {}  # "row_col" -> StandardMaterial3D
 ## 共享卡牌 Mesh
 var _card_mesh: BoxMesh = null
-## 粒子材质缓存 (landmark / home 两套)
-var _particle_mat_landmark: StandardMaterial3D = null
-var _particle_mat_home: StandardMaterial3D = null
+## 光环 Shader (方形发光边框上浮特效)
+var _glow_border_shader: Shader = null
+## 光环共享 QuadMesh (与卡牌同尺寸, 水平放置)
+var _glow_quad_mesh: QuadMesh = null
+## 光环层数
+const GLOW_RING_COUNT: int = 3
+## 光环动画参数 — home / 辐射区 (柔和)
+const GLOW_CYCLE: float = 4.0        # 循环周期 (秒)
+const GLOW_Y_BASE: float = 0.005     # 起始高度 (卡面上方)
+const GLOW_Y_RISE: float = 0.05      # 上浮距离
+const GLOW_SCALE_GROW: float = 0.06  # 上浮时微放大
+## 光环动画参数 — landmark (更华丽)
+const GLOW_LM_CYCLE: float = 3.0     # 更快的周期
+const GLOW_LM_Y_RISE: float = 0.08   # 更高上浮
+const GLOW_LM_SCALE_GROW: float = 0.10  # 更大放大
+const GLOW_LM_RING_COUNT: int = 4    # 多一层
 
 ## 侦察/揭示图标常量
 const ICON_QUAD: float = 0.18        # 图标边长 (米)
@@ -56,9 +69,11 @@ func setup(main_ref) -> void:
 	_card_mesh = BoxMesh.new()
 	_card_mesh.size = Vector3(Card.CARD_W, Card.CARD_THICKNESS, Card.CARD_H)
 
-	# 粒子材质 (地标: 金色, 家: 白色)
-	_particle_mat_landmark = _create_particle_material(GameTheme.glow_color)
-	_particle_mat_home = _create_particle_material(Color(0.9, 0.95, 1.0, 0.8))
+	# 光环 Shader & 共享 Mesh
+	_glow_border_shader = load("res://shaders/glow_border.gdshader")
+	_glow_quad_mesh = QuadMesh.new()
+	_glow_quad_mesh.size = Vector2(Card.CARD_W, Card.CARD_H)
+	_glow_quad_mesh.orientation = PlaneMesh.FACE_Y  # 水平放置, 面朝 +Y
 
 	# 侦察/揭示图标纹理
 	_tex_scouted = load("res://assets/image/icon_scouted_v2_20260426051601.png")
@@ -128,8 +143,8 @@ func rebuild_card_nodes() -> void:
 			label.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.001, 0)
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-			label.no_depth_test = true
-			label.render_priority = 1
+			label.no_depth_test = false
+			label.render_priority = 0
 			card_node.add_child(label)
 
 			# 侦察/揭示图标 Sprite3D (右上角, 平铺在卡面上方)
@@ -148,8 +163,8 @@ func rebuild_card_nodes() -> void:
 				ico_s.position = Vector3(icon_x, ICON_Y, icon_z1)
 				ico_s.rotation_degrees = Vector3(-90, 0, 0)  # 朝上平铺
 				ico_s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-				ico_s.no_depth_test = true
-				ico_s.render_priority = 10
+				ico_s.no_depth_test = false
+				ico_s.render_priority = 0
 				ico_s.visible = card.scouted
 				card_node.add_child(ico_s)
 
@@ -161,14 +176,14 @@ func rebuild_card_nodes() -> void:
 				ico_r.position = Vector3(icon_x, ICON_Y, icon_z2)
 				ico_r.rotation_degrees = Vector3(-90, 0, 0)
 				ico_r.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-				ico_r.no_depth_test = true
-				ico_r.render_priority = 10
+				ico_r.no_depth_test = false
+				ico_r.render_priority = 0
 				ico_r.visible = card.revealed
 				card_node.add_child(ico_r)
 
-			# 家/地标: 创建时就挂载光环粒子 (匹配 Lua Card.createNode 行为)
+			# 家/地标: 创建时就挂载光环 (匹配 Lua Card.createNode 行为)
 			if card.should_have_glow():
-				_attach_glow_particles(card_node, card.type)
+				_attach_glow_rings(card_node, card.type)
 
 			board_layer.add_child(card_node)
 
@@ -237,15 +252,16 @@ func update_card_visual(row: int, col: int) -> void:
 				var type_label: String = type_info.get("label", "")
 				label.text = icon + "\n" + type_label
 				label.modulate = Color(1, 1, 1, 0.9)
-			# 地标 / 家: 挂载粒子光晕 (尊重 safe_glow_active 开关)
+			# 地标 / 家: 挂载光环 (尊重 safe_glow_active 开关)
 			if card.type == "landmark" or card.type == "home":
-				_attach_glow_particles(card_node, card.type)
+				_attach_glow_rings(card_node, card.type)
 				_set_glow_visible(card_node, card.safe_glow_active)
 			elif card.safe_glow_active:
-				# 地标辐射区: 保留白色光晕
+				# 地标辐射区: 确保挂载光环并显示
+				_attach_glow_rings(card_node, "home")
 				_set_glow_visible(card_node, true)
 			else:
-				_remove_glow_particles(card_node)
+				_remove_glow_rings(card_node)
 	else:
 		mat.albedo_color = GameTheme.card_back
 		# 未翻开时显示地点信息
@@ -259,7 +275,7 @@ func update_card_visual(row: int, col: int) -> void:
 				label.modulate = Color(1, 1, 1, 0.85)
 			# 家/地标/辐射区即使未翻开也保留光环 (匹配 Lua Card.createNode)
 			if not card.should_have_glow() and not card.safe_glow_active:
-				_remove_glow_particles(card_node)
+				_remove_glow_rings(card_node)
 
 	# 侦察/揭示图标: 只要卡牌可见就显示 (不论正反面)
 	if card_node:
@@ -336,16 +352,38 @@ func update_dark_card_visual(row: int, col: int) -> void:
 # Token 精灵更新 (Sprite3D billboard)
 # ---------------------------------------------------------------------------
 
-## Token 悬浮高度 (Sprite3D 中心到卡面距离)
-## Lua: nodeY=0.25 + bb内部偏移=SPRITE_3D_H/2=0.25 → 中心 Y=0.50
-const TOKEN_HOVER_Y: float = 0.49
-## 像素→世界单位的换算 (与 Sprite3D.pixel_size 保持一致)
+## ---- Billboard 尺寸修正 ----
+## Urho3D BillboardSet.size 是 **半尺寸(half-extents)**:
+##   顶点从 -size 到 +size, 实际渲染四边形 = 2×size
+## Godot Sprite3D.pixel_size 是 **全尺寸(full-extents)**:
+##   四边形 = texture_pixels × pixel_size
+## 因此 Godot 的 pixel_size 需要 ×2 才能匹配 UrhoX 的视觉尺寸。
+const BILLBOARD_HALF_EXTENT_FACTOR: float = 2.0
+
+## Token pixel_size: Lua bb.size=(0.335, 0.50) → 实际渲染 0.67×1.00m
+## Godot: 768px × pixel_size 需等于 1.00m → pixel_size = 1.00/768 ≈ 0.0013
+const TOKEN_PIXEL_SIZE: float = 0.00065 * BILLBOARD_HALF_EXTENT_FACTOR
+## 死亡横版 pixel_size: Lua DEAD_3D_H=0.38 (half) → 实际 0.76m → 0.76/515 ≈ 0.001476
+const TOKEN_DEAD_PIXEL_SIZE: float = 0.000738 * BILLBOARD_HALF_EXTENT_FACTOR
+
+## Token 世界坐标 Y (Sprite3D 中心, centered=true)
+## Lua: node.Y=0.25, bb.offset.y=0.25, half-height=0.50
+##   → billboard 中心 Y=0.50, 底部 Y=0.00, 顶部 Y=1.00
+## Godot ×2 后: 全高=1.00, 中心需在 Y=0.50 → 底部 Y=0.00 ✓
+const TOKEN_CENTER_Y: float = 0.50
+## 像素→世界单位换算 (用于呼吸/弹跳动画位移)
+## 注意: 此处 **不** 乘 BILLBOARD_HALF_EXTENT_FACTOR。
+## breathe/bounce 是节点世界坐标偏移 (米), 与 billboard 的半尺寸特性无关。
+## token.gd 中的像素值 (如 12.3px) 是按 0.00065 换算的: 0.008m / 0.00065 ≈ 12.3px
 const TOKEN_PX_TO_WORLD: float = 0.00065
 
-## Token blob shadow 常量 (匹配 Lua SPRITE_3D_W ≈ 0.335)
-const TOKEN_SHADOW_W: float = 0.335 * 1.1   # 0.369
-const TOKEN_SHADOW_Z: float = 0.335 * 0.5   # 0.168
-const TOKEN_SHADOW_Y: float = 0.015          # 略高于卡面
+## Token blob shadow 常量
+## Lua: SPRITE_3D_W=0.335 (half) → 实际宽 0.67m
+## shadow_w = 实际宽 × 1.1, shadow_z = 实际宽 × 0.5
+const TOKEN_WORLD_W: float = 515.0 * TOKEN_PIXEL_SIZE   # ≈ 0.67m (实际渲染宽度)
+const TOKEN_SHADOW_W: float = TOKEN_WORLD_W * 1.1        # ≈ 0.737
+const TOKEN_SHADOW_Z: float = TOKEN_WORLD_W * 0.5        # ≈ 0.335
+const TOKEN_SHADOW_Y: float = 0.02            # 略高于卡面 (Lua=0.015, 抬高避免Z-fighting)
 
 func update_token_visual() -> void:
 	var token: Token = m.token
@@ -362,7 +400,7 @@ func update_token_visual() -> void:
 
 	# 死亡横版: 调整 pixel_size 匹配 Lua DEAD_3D_H=0.38 (正常 SPRITE_3D_H=0.50)
 	var is_dead: bool = (token.emotion == "dead")
-	m._token_sprite.pixel_size = 0.000738 if is_dead else 0.00065
+	m._token_sprite.pixel_size = TOKEN_DEAD_PIXEL_SIZE if is_dead else TOKEN_PIXEL_SIZE
 
 	# 移动动画期间，位置和缩放由 Tween 驱动，这里只更新纹理/可见性
 	if token.is_moving:
@@ -375,9 +413,9 @@ func update_token_visual() -> void:
 				m._token_sprite.position.z)
 		return
 
-	# 3D 世界坐标定位
+	# 3D 世界坐标定位 (Token 中心 Y 直接使用绝对值, 与 Lua 一致)
 	var world_pos: Vector3 = get_card_world_pos(token.target_row, token.target_col)
-	world_pos.y = CARD_Y + TOKEN_HOVER_Y
+	world_pos.y = TOKEN_CENTER_Y
 
 	# 呼吸动画 (转换像素偏移为世界单位)
 	var breathe: Dictionary = token.get_breathe_offset(m.game_time)
@@ -759,7 +797,7 @@ func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 	var token: Token = m.token
 	var start_pos: Vector3 = m._token_sprite.position
 	var end_pos: Vector3 = get_card_world_pos(row, col)
-	var base_y: float = CARD_Y + TOKEN_HOVER_Y
+	var base_y: float = TOKEN_CENTER_Y
 	end_pos.y = base_y
 
 	# 距离计算 (XZ 平面)
@@ -836,9 +874,12 @@ func animate_token_move(row: int, col: int, on_arrive: Callable) -> void:
 # 暗面幽灵 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createGhostNodes)
 # ---------------------------------------------------------------------------
 
-## 幽灵渲染参数 (匹配 Lua: nodeY=0.25, bb.position.y=0.15, bb.size=0.30)
-const GHOST_BASE_Y: float = 0.40     # 中心高度 = 0.25 + 0.15
-const GHOST_WORLD_SIZE: float = 0.30  # 世界空间尺寸 (米)
+## 幽灵渲染参数 (精确匹配 Lua DarkWorld, ×2 half-extent 修正)
+## Lua: bb.size=0.30 (half) → 实际 0.60m
+## Lua: nodeY=0.25, bb.offset.y=0.15, half-height=0.30 → 中心 Y=0.40, 底部 Y=0.10
+## Godot ×2: 全高=0.60, 底部 Y=0.10 → 中心 Y=0.10+0.30=0.40 ✓
+const GHOST_BASE_Y: float = 0.40
+const GHOST_WORLD_SIZE: float = 0.30 * BILLBOARD_HALF_EXTENT_FACTOR
 const GHOST_FLOAT_AMP: float = 0.04   # 浮动振幅
 const GHOST_FLOAT_SPEED: float = 2.5  # 浮动频率
 
@@ -861,7 +902,9 @@ func create_ghost_nodes(ghosts: Array) -> void:
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
 		sprite.no_depth_test = false
-		sprite.render_priority = 2
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
 
 		# pixel_size: 使纹理映射到 GHOST_WORLD_SIZE 米
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
@@ -947,9 +990,13 @@ func animate_ghost_fade(ghost_index: int) -> void:
 # 暗面 NPC 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createNPCNodes)
 # ---------------------------------------------------------------------------
 
-const NPC_BASE_Y: float = 0.43   # node Y=0.25 + billboard offset Y=0.18
-const NPC_WORLD_SIZE: float = 0.35
-const NPC_OFFSET_X: float = 0.15
+## NPC 渲染参数 (精确匹配 Lua DarkWorld, ×2 half-extent 修正)
+## Lua: bb.size=0.35 (half) → 实际 0.70m
+## Lua: nodeY=0.25, bb.offset.y=0.18, half-height=0.35 → 中心 Y=0.43, 底部 Y=0.08
+## Godot ×2: 全高=0.70, 底部 Y=0.08 → 中心 Y=0.08+0.35=0.43 ✓
+const NPC_BASE_Y: float = 0.43
+const NPC_WORLD_SIZE: float = 0.35 * BILLBOARD_HALF_EXTENT_FACTOR
+const NPC_OFFSET_X: float = 0.15  # Lua DarkWorld: wx + 0.15
 const NPC_BREATHE_SPEED: float = 2.0
 const NPC_BREATHE_AMP: float = 0.02
 
@@ -966,7 +1013,9 @@ func create_npc_nodes(npcs: Array) -> void:
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
 		sprite.no_depth_test = false
-		sprite.render_priority = 2
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
 		sprite.pixel_size = NPC_WORLD_SIZE / tex_max if tex_max > 0.0 else 0.001
 		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
@@ -995,6 +1044,12 @@ func update_npc_visuals(game_time: float) -> void:
 # ---------------------------------------------------------------------------
 # 地图道具 3D 节点 (Sprite3D billboard, 匹配 Lua BoardItems)
 # ---------------------------------------------------------------------------
+## 道具渲染参数 (精确匹配 Lua BoardItems, ×2 half-extent 修正)
+## Lua: bb.size=0.22 (half) → 实际 0.44m
+## Lua: ITEM_BASE_Y=0.35, bb.offset.y=0.11 → 中心 Y=0.35+0.11=0.46
+## 但 Godot 之前直接用 0.35 作为中心, 保持不变 (视觉微调)
+const ITEM_SCALED_SIZE: float = 0.22 * BILLBOARD_HALF_EXTENT_FACTOR
+const ITEM_SCALED_BASE_Y: float = 0.35
 
 ## 道具 Sprite3D 节点缓存: item_index(int) → Dictionary
 var _item_nodes: Dictionary = {}
@@ -1017,11 +1072,13 @@ func create_item_nodes(items: Array) -> void:
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
 		sprite.no_depth_test = false
-		sprite.render_priority = 1
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
-		sprite.pixel_size = BoardItems.ITEM_SIZE_3D / tex_max if tex_max > 0.0 else 0.001
+		sprite.pixel_size = ITEM_SCALED_SIZE / tex_max if tex_max > 0.0 else 0.001
 		var world_pos: Vector3 = m.board.grid_to_world(item.row, item.col)
-		world_pos.y = BoardItems.ITEM_BASE_Y_3D
+		world_pos.y = ITEM_SCALED_BASE_Y
 		world_pos.z -= 0.18  # CAMERA_OFFSET_Z — 向相机方向偏移
 		sprite.position = world_pos
 		# 初始不可见 (弹出动画会设置)
@@ -1030,7 +1087,7 @@ func create_item_nodes(items: Array) -> void:
 		add_child(sprite)
 		_item_nodes[i] = {
 			"node": sprite,
-			"base_y": BoardItems.ITEM_BASE_Y_3D,
+			"base_y": ITEM_SCALED_BASE_Y,
 			"phase": item.phase,
 			"pos_x": world_pos.x,
 			"pos_z": world_pos.z,
@@ -1101,20 +1158,20 @@ var _mg_surround_nodes: Array = []   # 环绕玩家的 chibi Sprite3D
 var _mg_card_nodes: Array = []       # 卡牌上的 chibi Sprite3D
 var _mg_trail_nodes: Array = []      # 踪迹箭头 chibi Sprite3D
 
-## 环绕布局 (匹配 Lua SURROUND_LAYOUT — 3D 世界坐标)
+## 环绕布局 (精确匹配 Lua SURROUND_LAYOUT, size ×2 half-extent 修正)
 const MG_SURROUND_LAYOUT: Array = [
-	{ "dx":  0.00, "dz":  0.20, "baseY": 0.55, "size": 0.32, "is_main": true },
-	{ "dx": -0.35, "dz": -0.15, "baseY": 0.30, "size": 0.18, "is_main": false },
-	{ "dx":  0.32, "dz":  0.08, "baseY": 0.42, "size": 0.20, "is_main": false },
-	{ "dx": -0.18, "dz":  0.30, "baseY": 0.60, "size": 0.15, "is_main": false },
-	{ "dx":  0.25, "dz": -0.20, "baseY": 0.25, "size": 0.16, "is_main": false },
+	{ "dx":  0.00, "dz":  0.20, "baseY": 0.55, "size": 0.32 * 2.0, "is_main": true },
+	{ "dx": -0.35, "dz": -0.15, "baseY": 0.30, "size": 0.18 * 2.0, "is_main": false },
+	{ "dx":  0.32, "dz":  0.08, "baseY": 0.42, "size": 0.20 * 2.0, "is_main": false },
+	{ "dx": -0.18, "dz":  0.30, "baseY": 0.60, "size": 0.15 * 2.0, "is_main": false },
+	{ "dx":  0.25, "dz": -0.20, "baseY": 0.25, "size": 0.16 * 2.0, "is_main": false },
 ]
-## 卡牌 chibi 参数
+## 卡牌 chibi 参数 (Lua: size=0.28 half → 实际 0.56m)
 const MG_CARD_BASE_Y: float = 0.35
-const MG_CARD_SIZE: float = 0.28
-## 踪迹箭头参数
+const MG_CARD_SIZE: float = 0.28 * BILLBOARD_HALF_EXTENT_FACTOR
+## 踪迹箭头参数 (Lua: size=0.14 half → 实际 0.28m)
 const MG_TRAIL_BASE_Y: float = 0.25
-const MG_TRAIL_SIZE: float = 0.14
+const MG_TRAIL_SIZE: float = 0.14 * BILLBOARD_HALF_EXTENT_FACTOR
 const MG_TRAIL_OFFSET_DIST: float = 0.38  # 偏移到卡牌边缘
 
 ## 创建单个 MonsterGhost Sprite3D (通用)
@@ -1128,7 +1185,9 @@ func _mg_create_sprite(tex_path: String, world_x: float, world_z: float,
 	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sprite.transparent = true
 	sprite.no_depth_test = false
-	sprite.render_priority = 3
+	sprite.render_priority = 0
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	sprite.alpha_scissor_threshold = 0.5
 	var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
 	sprite.pixel_size = world_size / tex_max if tex_max > 0.0 else 0.001
 	sprite.position = Vector3(world_x, base_y, world_z)
@@ -1336,116 +1395,99 @@ func _update_overlays() -> void:
 	pass
 
 # ---------------------------------------------------------------------------
-# 地标 / 安全区粒子特效
+# 地标 / 安全区: 方形发光边框上浮特效 (匹配 Lua 版 Card.attachGlowRings)
 # ---------------------------------------------------------------------------
 
-## 创建粒子用的不透明发光材质
-func _create_particle_material(color: Color) -> StandardMaterial3D:
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = color
-	mat.vertex_color_use_as_albedo = true
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.no_depth_test = false
-	mat.render_priority = 2
+## 为卡牌创建光环 ShaderMaterial (每层独立实例, 便于独立设 alpha)
+func _create_glow_ring_material(color: Color, is_landmark: bool) -> ShaderMaterial:
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = _glow_border_shader
+	mat.set_shader_parameter("border_color", color)
+	if is_landmark:
+		mat.set_shader_parameter("border_width", 0.09)   # 更粗边框
+		mat.set_shader_parameter("glow_spread", 0.12)    # 更宽辉光
+	else:
+		mat.set_shader_parameter("border_width", 0.06)
+		mat.set_shader_parameter("glow_spread", 0.08)
+	mat.render_priority = -1  # 低于卡面图标(0)和Token(0), 避免遮挡玩家
 	return mat
 
-## 为指定卡牌挂载粒子特效 (landmark=金色光辉, home=白色光辉)
-func _attach_glow_particles(card_node: MeshInstance3D, card_type: String) -> void:
-	# 已有粒子则跳过
-	if card_node.get_node_or_null("GlowParticles"):
+## 为指定卡牌挂载方形发光边框 (landmark=4层金色华丽, home=3层柔白)
+func _attach_glow_rings(card_node: MeshInstance3D, card_type: String) -> void:
+	# 已有光环则跳过
+	if card_node.get_node_or_null("GlowRing_1"):
 		return
 
-	var particles: GPUParticles3D = GPUParticles3D.new()
-	particles.name = "GlowParticles"
-	particles.emitting = false  # 默认关闭, 由 show_safe_glows() 显式激活
-	particles.amount = 12
-	particles.lifetime = 1.8
-	particles.explosiveness = 0.0
-	particles.randomness = 0.3
-	particles.visibility_aabb = AABB(Vector3(-0.5, -0.1, -0.6), Vector3(1.0, 0.8, 1.2))
-	# 粒子从卡牌表面上方发射
-	particles.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.02, 0)
-
-	# 粒子材质
-	if card_type == "landmark":
-		particles.draw_pass_1 = _make_particle_quad_mesh(0.03)
-		particles.material_override = _particle_mat_landmark
+	var is_landmark: bool = (card_type == "landmark")
+	var ring_count: int = GLOW_LM_RING_COUNT if is_landmark else GLOW_RING_COUNT
+	var base_color: Color
+	if is_landmark:
+		base_color = Color(1.0, 0.7, 0.1, 1.0)     # 饱和金色 (加法混合下更明显)
 	else:
-		particles.draw_pass_1 = _make_particle_quad_mesh(0.025)
-		particles.material_override = _particle_mat_home
+		base_color = Color(0.6, 0.75, 1.0, 0.7)    # 淡蓝白 (降低亮度避免冲白)
 
-	# 粒子行为 (ProcessMaterial)
-	var proc: ParticleProcessMaterial = ParticleProcessMaterial.new()
-	proc.direction = Vector3(0, 1, 0)
-	proc.spread = 25.0
-	proc.initial_velocity_min = 0.05
-	proc.initial_velocity_max = 0.15
-	proc.gravity = Vector3(0, 0.02, 0)  # 微弱上升力
+	for i in range(1, ring_count + 1):
+		var ring: MeshInstance3D = MeshInstance3D.new()
+		ring.name = "GlowRing_%d" % i
+		ring.mesh = _glow_quad_mesh
+		ring.material_override = _create_glow_ring_material(base_color, is_landmark)
+		ring.position = Vector3(0, GLOW_Y_BASE, 0)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ring.visible = false  # 默认隐藏, 由 show_safe_glows() 激活
+		ring.set_meta("is_landmark", is_landmark)
+		card_node.add_child(ring)
 
-	# 发射范围: 卡牌表面区域
-	proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	proc.emission_box_extents = Vector3(Card.CARD_W * 0.35, 0.01, Card.CARD_H * 0.35)
+## 移除卡牌上的光环层 (兼容 3 层 home 和 4 层 landmark)
+func _remove_glow_rings(card_node: MeshInstance3D) -> void:
+	var max_rings: int = maxi(GLOW_RING_COUNT, GLOW_LM_RING_COUNT)
+	for i in range(1, max_rings + 1):
+		var ring: Node = card_node.get_node_or_null("GlowRing_%d" % i)
+		if ring:
+			ring.queue_free()
 
-	# 缩放动画: 从小到大再消失
-	proc.scale_min = 0.6
-	proc.scale_max = 1.2
-	var scale_curve: CurveTexture = CurveTexture.new()
-	var curve: Curve = Curve.new()
-	curve.add_point(Vector2(0.0, 0.0))
-	curve.add_point(Vector2(0.15, 1.0))
-	curve.add_point(Vector2(0.7, 0.8))
-	curve.add_point(Vector2(1.0, 0.0))
-	scale_curve.curve = curve
-	proc.scale_curve = scale_curve
-
-	# 颜色渐变: 从亮到透明
-	var color_ramp: GradientTexture1D = GradientTexture1D.new()
-	var gradient: Gradient = Gradient.new()
-	if card_type == "landmark":
-		gradient.set_color(0, Color(1.0, 0.88, 0.4, 0.9))   # 起始: 暖金色
-		gradient.set_color(1, Color(1.0, 0.7, 0.2, 0.0))     # 结束: 淡出
-	else:
-		gradient.set_color(0, Color(1.0, 1.0, 1.0, 0.7))     # 起始: 柔白
-		gradient.set_color(1, Color(0.85, 0.9, 1.0, 0.0))    # 结束: 淡蓝消失
-	color_ramp.gradient = gradient
-	proc.color_ramp = color_ramp
-
-	particles.process_material = proc
-	card_node.add_child(particles)
-
-	# 同时添加一个柔和的 OmniLight3D 光源
-	var light: OmniLight3D = OmniLight3D.new()
-	light.name = "GlowLight"
-	light.position = Vector3(0, 0.15, 0)
-	light.omni_range = 0.6
-	light.light_energy = 0.0  # 默认关闭, 由 show_safe_glows() 显式激活
-	if card_type == "landmark":
-		light.light_color = Color(1.0, 0.85, 0.4)
-	else:
-		light.light_color = Color(0.9, 0.95, 1.0)
-	light.omni_attenuation = 1.5
-	light.shadow_enabled = false
-	card_node.add_child(light)
-
-## 移除卡牌上的粒子特效
-func _remove_glow_particles(card_node: MeshInstance3D) -> void:
-	var particles: Node = card_node.get_node_or_null("GlowParticles")
-	if particles:
-		particles.queue_free()
-	var light: Node = card_node.get_node_or_null("GlowLight")
-	if light:
-		light.queue_free()
-
-## 设置单张卡牌光晕可见性
+## 设置单张卡牌光晕可见性 (显示/隐藏所有光环层, 兼容 3/4 层)
 func _set_glow_visible(card_node: MeshInstance3D, visible: bool) -> void:
-	var particles: GPUParticles3D = card_node.get_node_or_null("GlowParticles") as GPUParticles3D
-	if particles:
-		particles.emitting = visible
-	var light: OmniLight3D = card_node.get_node_or_null("GlowLight") as OmniLight3D
-	if light:
-		light.light_energy = 0.4 if visible else 0.0
+	var max_rings: int = maxi(GLOW_RING_COUNT, GLOW_LM_RING_COUNT)
+	for i in range(1, max_rings + 1):
+		var ring: MeshInstance3D = card_node.get_node_or_null("GlowRing_%d" % i) as MeshInstance3D
+		if ring:
+			ring.visible = visible
+
+## 每帧更新所有激活光环的上浮/淡出/放大动画 (由 main._process 调用)
+func update_glow_rings(game_time: float) -> void:
+	var max_rings: int = maxi(GLOW_RING_COUNT, GLOW_LM_RING_COUNT)
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card == null or not card.safe_glow_active:
+				continue
+			var card_node: MeshInstance3D = get_card_node(r, c)
+			if card_node == null:
+				continue
+			for i in range(1, max_rings + 1):
+				var ring: MeshInstance3D = card_node.get_node_or_null("GlowRing_%d" % i) as MeshInstance3D
+				if ring == null or ring.material_override == null:
+					continue
+				# 根据 metadata 选择动画参数 (landmark vs home/aura)
+				var is_lm: bool = ring.get_meta("is_landmark", false)
+				var cycle: float = GLOW_LM_CYCLE if is_lm else GLOW_CYCLE
+				var y_rise: float = GLOW_LM_Y_RISE if is_lm else GLOW_Y_RISE
+				var scale_grow: float = GLOW_LM_SCALE_GROW if is_lm else GLOW_SCALE_GROW
+				var ring_count: int = GLOW_LM_RING_COUNT if is_lm else GLOW_RING_COUNT
+				# 交错相位: 每层偏移 1/ring_count 个周期 (匹配 Lua)
+				var phase: float = fmod(game_time / cycle + float(i - 1) / float(ring_count), 1.0)
+				var y: float = GLOW_Y_BASE + phase * y_rise
+				# 线性衰减至全透明
+				var alpha: float = 1.0 - phase
+				var sc: float = 1.0 + phase * scale_grow
+
+				ring.position = Vector3(0, y, 0)
+				ring.scale = Vector3(sc, 1.0, sc)
+				# 更新 shader uniform 中的 alpha (保留原始 RGB 颜色)
+				var mat: ShaderMaterial = ring.material_override as ShaderMaterial
+				var col: Color = mat.get_shader_parameter("border_color") as Color
+				col.a = alpha
+				mat.set_shader_parameter("border_color", col)
 
 ## 显式激活所有安全区光晕: home/landmark + 地标辐射区 (发牌完成后调用)
 func show_safe_glows() -> void:
@@ -1461,8 +1503,8 @@ func show_safe_glows() -> void:
 				continue
 			var card_node: MeshInstance3D = get_card_node(r, c)
 			if card_node:
-				# 辐射区卡牌也挂载粒子 (白色光晕, 与 home 相同)
-				_attach_glow_particles(card_node, "home")
+				# 辐射区卡牌也挂载光环 (白色, 与 home 相同)
+				_attach_glow_rings(card_node, "home")
 				_set_glow_visible(card_node, true)
 			card.show_safe_glow()
 
@@ -1477,12 +1519,6 @@ func hide_safe_glows() -> void:
 			var card_node: MeshInstance3D = get_card_node(r, c)
 			if card_node:
 				_set_glow_visible(card_node, false)
-
-## 创建粒子用的微型四边形 Mesh
-func _make_particle_quad_mesh(size: float) -> QuadMesh:
-	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2(size, size)
-	return quad
 
 # ---------------------------------------------------------------------------
 # 点击检测 (3D raycast → Y=0 平面)

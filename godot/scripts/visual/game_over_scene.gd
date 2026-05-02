@@ -276,14 +276,14 @@ func _input(event: InputEvent) -> void:
 	if _phase == Phase.NONE:
 		return
 
-	# 吃掉所有输入防止穿透到下层
-	if event is InputEventMouseButton and event.pressed:
-		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed:
+	# 键盘快捷键 + 吃掉按键防止穿透到下层
+	if event is InputEventKey and event.pressed:
 		if _phase == Phase.IDLE:
 			if event.keycode == KEY_ENTER or event.keycode == KEY_SPACE:
 				dismiss()
 		get_viewport().set_input_as_handled()
+	# 鼠标事件：不在 _input 中吃掉，让 GUI 层 (Button) 正常接收点击
+	# 穿透防护由 Overlay (mouse_filter=STOP) 自然阻断
 
 # ---------------------------------------------------------------------------
 # 按钮回调

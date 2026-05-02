@@ -36,12 +36,12 @@ const GHOST_VARIANTS: Array = [
 # ---------------------------------------------------------------------------
 const SURROUND_LAYOUT: Array = [
 	# 主怪物: 正上方偏大
-	{ "dx":   0.0, "dy": -50.0, "size": 36.0, "is_main": true },
+	{ "dx":   0.0, "dy": -150.0, "size": 108.0, "is_main": true },
 	# 小幽灵们: 散布四周
-	{ "dx": -40.0, "dy":  15.0, "size": 20.0, "is_main": false },
-	{ "dx":  38.0, "dy":  -8.0, "size": 22.0, "is_main": false },
-	{ "dx": -20.0, "dy": -55.0, "size": 16.0, "is_main": false },
-	{ "dx":  28.0, "dy":  25.0, "size": 18.0, "is_main": false },
+	{ "dx": -120.0, "dy":  45.0, "size": 60.0, "is_main": false },
+	{ "dx":  114.0, "dy": -24.0, "size": 66.0, "is_main": false },
+	{ "dx": -60.0,  "dy": -165.0, "size": 48.0, "is_main": false },
+	{ "dx":  84.0,  "dy":  75.0, "size": 54.0, "is_main": false },
 ]
 
 # ---------------------------------------------------------------------------
@@ -132,9 +132,9 @@ func show_on_card(card_screen_x: float, card_screen_y: float, location: String) 
 	var ghost: GhostSprite = GhostSprite.new()
 	ghost.tex_path = tex_path
 	ghost.anchor_x = card_screen_x
-	ghost.anchor_y = card_screen_y - 40.0  # 卡牌上方
-	ghost.base_y = -40.0
-	ghost.size = 32.0
+	ghost.anchor_y = card_screen_y - 120.0  # 卡牌上方
+	ghost.base_y = -120.0
+	ghost.size = 96.0
 	ghost.phase = randf() * TAU
 	ghost.lifetime = -1.0
 	card_ghosts.append(ghost)
@@ -153,9 +153,9 @@ func show_on_scouted_cards(board: Board, card_screen_positions: Dictionary) -> v
 					var ghost: GhostSprite = GhostSprite.new()
 					ghost.tex_path = MONSTER_CHIBI.get(card.location, DEFAULT_MONSTER)
 					ghost.anchor_x = pos.x
-					ghost.anchor_y = pos.y - 35.0
-					ghost.base_y = -35.0
-					ghost.size = 28.0
+					ghost.anchor_y = pos.y - 105.0
+					ghost.base_y = -105.0
+					ghost.size = 84.0
 					ghost.phase = randf() * TAU
 					ghost.scale = 0.0
 					ghost.alpha = 0.0
@@ -212,15 +212,15 @@ func show_trail_on_card(card_screen_x: float, card_screen_y: float, dir_x: float
 	var offset_x: float = 0.0
 	var offset_y: float = 0.0
 	if len > 0.001:
-		offset_x = (dir_x / len) * 30.0  # 偏移到卡牌边缘
-		offset_y = (dir_y / len) * 30.0
+		offset_x = (dir_x / len) * 90.0  # 偏移到卡牌边缘
+		offset_y = (dir_y / len) * 90.0
 
 	var ghost: GhostSprite = GhostSprite.new()
 	ghost.tex_path = tex_path
 	ghost.anchor_x = card_screen_x + offset_x
 	ghost.anchor_y = card_screen_y + offset_y
 	ghost.base_y = 0.0
-	ghost.size = 16.0
+	ghost.size = 48.0
 	ghost.phase = randf() * TAU
 	ghost.scale = 0.0
 	ghost.alpha = 0.0

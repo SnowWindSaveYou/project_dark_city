@@ -23,7 +23,7 @@ mouse_filter = 2
 
 [node name="Spacer1" type="Control" parent="HBox/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 10)
 
 [node name="HeaderRow" type="HBoxContainer" parent="HBox/VBox"]
 layout_mode = 2
@@ -46,7 +46,7 @@ mouse_filter = 2
 
 [node name="Spacer2" type="Control" parent="HBox/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 4)
+custom_minimum_size = Vector2(0, 8)
 
 [node name="ProgressBar" type="ProgressBar" parent="HBox/VBox"]
 layout_mode = 2
