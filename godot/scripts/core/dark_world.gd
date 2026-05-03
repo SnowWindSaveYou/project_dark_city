@@ -130,15 +130,20 @@ func reset() -> void:
 # 层级查询 (配置来源: CardConfig / dark_world.json)
 # ---------------------------------------------------------------------------
 
-func can_enter(day_count: int) -> bool:
+func can_enter(_day_count: int) -> bool:
+	# 改为灵感解锁 (changelog #4): 第一层解锁需灵感 >= unlock_inspiration
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(0)
-	return day_count >= cfg.get("unlock_day", 999)
+	var threshold: int = cfg.get("unlock_inspiration", 15)
+	return GameData.get_resource("inspiration") >= threshold
 
-func is_layer_unlocked(layer_idx: int, day_count: int, fragments: int = 0) -> bool:
+func is_layer_unlocked(layer_idx: int, _day_count: int, fragments: int = 0) -> bool:
 	if layer_idx < 0 or layer_idx >= 3:
 		return false
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(layer_idx)
-	return day_count >= cfg.get("unlock_day", 999) and fragments >= cfg.get("unlock_fragments", 0)
+	# 灵感阈值解锁 (替代 unlock_day)
+	var threshold: int = cfg.get("unlock_inspiration", 999)
+	var insp: int = GameData.get_resource("inspiration")
+	return insp >= threshold and fragments >= cfg.get("unlock_fragments", 0)
 
 func get_energy() -> int:
 	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
@@ -367,7 +372,8 @@ func enter(day_count: int, rift_r: int, rift_c: int,
 			layers[i].unlocked = true
 
 	var layer: LayerData = layers[current_layer]
-	layer.energy = CardConfig.get_dw_max_energy()
+	# energy = san (changelog #4): 进入暗面时能量等于当前理智值
+	layer.energy = GameData.get_resource("san")
 	dark_state = "transition"
 
 ## 暗面完全进入 (发牌完成后)
@@ -398,7 +404,8 @@ func begin_change_layer(target_layer: int, day_count: int) -> Dictionary:
 
 	dark_state = "transition"
 	current_layer = target_layer
-	layers[current_layer].energy = CardConfig.get_dw_max_energy()
+	# energy = san (changelog #4): 切层时能量重置为当前理智值
+	layers[current_layer].energy = GameData.get_resource("san")
 
 	return { "success": true, "layer_name": CardConfig.get_dw_layer_config(target_layer).get("name", "") }
 

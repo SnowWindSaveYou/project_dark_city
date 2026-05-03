@@ -5,7 +5,6 @@
 		"convenience": { "icon": "🏪", "label": "便利店",   "image_path": "" },
 		"church":      { "icon": "⛪", "label": "教堂",     "image_path": "" },
 		"police":      { "icon": "🚔", "label": "警察局",   "image_path": "" },
-		"shrine":      { "icon": "⛩️", "label": "神社",     "image_path": "" },
 		"company":     { "icon": "🏢", "label": "公司",     "image_path": "" },
 		"school":      { "icon": "🏫", "label": "学校",     "image_path": "" },
 		"park":        { "icon": "🌳", "label": "公园",     "image_path": "" },
@@ -13,7 +12,9 @@
 		"station":     { "icon": "🚉", "label": "车站",     "image_path": "" },
 		"hospital":    { "icon": "🏥", "label": "医院",     "image_path": "" },
 		"library":     { "icon": "📚", "label": "图书馆",   "image_path": "" },
-		"bank":        { "icon": "🏦", "label": "银行",     "image_path": "" }
+		"bank":        { "icon": "🏦", "label": "银行",     "image_path": "" },
+		"cemetery":    { "icon": "🪦", "label": "墓地",     "image_path": "" },
+		"gym":         { "icon": "💪", "label": "健身房",   "image_path": "" }
 	},
 	"schedule_templates": {
 		"company":    { "verb": "去公司上班",   "reward": ["money", 10] },
@@ -22,12 +23,13 @@
 		"alley":      { "verb": "穿过小巷",     "reward": ["money",  8] },
 		"station":    { "verb": "去车站接人",   "reward": ["money",  6] },
 		"hospital":   { "verb": "去医院看病",   "reward": ["san",    1] },
-		"library":    { "verb": "去图书馆学习", "reward": ["order",  1] },
+		"library":    { "verb": "去图书馆学习", "reward": ["inspiration",  1] },
 		"bank":       { "verb": "去银行办事",   "reward": ["money", 12] },
 		"convenience":{ "verb": "去便利店购物", "reward": ["money",  5] },
 		"church":     { "verb": "去教堂祈祷",   "reward": ["san",    1] },
-		"police":     { "verb": "去警察局报案", "reward": ["order",  1] },
-		"shrine":     { "verb": "去神社参拜",   "reward": ["san",    1] }
+		"police":     { "verb": "去警察局报案", "reward": ["san",    1] },
+		"cemetery":   { "verb": "去墓地调查",   "reward": ["inspiration", 1] },
+		"gym":        { "verb": "去健身房锻炼", "reward": ["health", 1] }
 	},
 	"rumors": {
 		"safe_texts": [

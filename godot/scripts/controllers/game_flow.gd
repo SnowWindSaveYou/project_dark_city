@@ -3,9 +3,8 @@
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 (MAX_DAYS 已迁移至 GameData.MAX_DAYS，从 game_config.json 读取)
 # ---------------------------------------------------------------------------
-const MAX_DAYS: int = 3
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -78,6 +77,9 @@ func _on_deal_complete() -> void:
 	m.board_visual.create_item_nodes(m.board_items.items)
 	_animate_item_spawn()
 
+	# 初始化每日步数 (基于当天体力值)
+	GameData.init_daily_steps()
+
 	# 通知 HandPanel 刷新并显示 (注入 ConsumableController 解耦数据访问)
 	if m._hand_panel:
 		m._hand_panel.setup(m.card_manager, m.consumable_controller)
@@ -115,12 +117,15 @@ func advance_day() -> void:
 	for eff in effects:
 		GameData.modify_resource(eff[0], eff[1])
 
-	# 恢复资源
+	# 恢复资源 (移除 order, 改用 health/inspiration)
 	GameData.modify_resource("san", 1)
-	GameData.modify_resource("order", 1)
-	var current_film: int = GameData.get_resource("film")
-	if current_film < 3:
-		GameData.modify_resource("film", 3 - current_film)
+	GameData.modify_resource("health", 1)
+	GameData.modify_resource("inspiration", 1)
+
+	# 胶卷拆分: 重置每日胶卷 (永久胶卷保留)
+	GameData.reset_daily_film()
+
+	# 金钱每日奖励
 	GameData.modify_resource("money", 10)
 
 	GameData.set_demo_state("dealing")
@@ -133,7 +138,7 @@ func advance_day() -> void:
 	m.day_count += 1
 	GameData.current_day = m.day_count
 
-	if m.day_count > MAX_DAYS:
+	if m.day_count > GameData.MAX_DAYS:
 		_trigger_victory()
 		return
 

@@ -55,6 +55,12 @@ func handle_card_click(row: int, col: int) -> void:
 		m._vfx.action_banner("只能移动到相邻格子", Color(0.7, 0.7, 0.7), 0.6)
 		return
 
+	# 步数检查 (changelog #3): 每日步数用完则无法移动
+	if not GameData.has_steps_remaining():
+		m.board_visual.play_shake_animation(row, col)
+		m._vfx.action_banner("今日步数已用完!", Color(0.86, 0.31, 0.31), 0.8)
+		return
+
 	# 移动 Token
 	_move_token(card, row, col)
 
@@ -79,6 +85,8 @@ func _flip_current_card(card: Card, row: int, col: int) -> void:
 
 func _move_token(_card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("moving")
+	# 消耗步数 (changelog #3)
+	GameData.consume_step()
 	# 移动前清除环绕幽灵
 	m.board_visual.mg_clear_surround()
 	m.token.target_row = row
@@ -127,6 +135,21 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				GameData.modify_resource(reward[0], reward[1])
 				m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 					Color(0.4, 0.8, 0.5), 0.8)
+
+	# 转化事件 (changelog #8): hospital/park/gym 地点的资源转化
+	if card.location != "":
+		var conv: Dictionary = GameData.CONVERSION_EVENTS.get(card.location, {})
+		if not conv.is_empty():
+			var from_key: String = conv.get("from", "")
+			var cost: int = conv.get("cost", 2)
+			var to_key: String = conv.get("to", "")
+			var gain_val: int = conv.get("gain", 2)
+			var cur_from: int = GameData.get_resource(from_key)
+			if cur_from >= cost:
+				GameData.modify_resource(from_key, -cost)
+				GameData.modify_resource(to_key, gain_val)
+				m._vfx.action_banner(conv.get("label", "资源转化"),
+					GameTheme.info, 0.8)
 
 	# 怪物翻出: 生成环绕幽灵 chibi
 	if card_type == "monster":

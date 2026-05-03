@@ -38,6 +38,7 @@ var _phase: String = "none"
 var _goods: Array = []
 var _variant: Dictionary = {}
 var _sold: Array = []
+var _is_dark: bool = false  # 暗面商店模式
 
 # 卡牌动画 (保留 _draw 用)
 var _card_alphas: Array = []
@@ -135,13 +136,20 @@ func _ready() -> void:
 # API
 # ===========================================================================
 
-func open_shop() -> void:
+func open_shop(is_dark: bool = false) -> void:
 	_active = true
 	_phase = "enter"
+	_is_dark = is_dark
 	visible = true
-	_variant = ShopData.random_variant()
+	_variant = ShopData.random_dark_variant() if is_dark else ShopData.random_variant()
 	_refresh_goods()
 	_refresh_phase = "idle"
+
+	# 暗面商店色调
+	if is_dark:
+		_color_bar.color = Color(0.5, 0.2, 0.7, 0.78)
+	else:
+		_color_bar.color = Color(t.info.r, t.info.g, t.info.b, 0.78)
 
 	# 填充内容
 	_title_label.text = _variant.get("name", "商店")
@@ -202,7 +210,7 @@ func is_active() -> bool:
 # ---------------------------------------------------------------------------
 
 func _refresh_goods() -> void:
-	_goods = ShopData.generate_shop_goods()
+	_goods = ShopData.generate_dark_shop_goods() if _is_dark else ShopData.generate_shop_goods()
 	_sold = []
 	_card_alphas = []
 	_card_rots = []
@@ -348,6 +356,12 @@ func _try_purchase(index: int) -> void:
 
 	GameData.modify_resource("money", -price)
 	var effect: Dictionary = info.get("effect", {})
+	# 特殊效果: sanMax / healthMax 上限提升
+	for ek in effect.keys():
+		if ek == "sanMax":
+			GameData.modify_resource_max("san", effect[ek])
+		elif ek == "healthMax":
+			GameData.modify_resource_max("health", effect[ek])
 	GameData.apply_effects(effect)
 	if info.get("type", "") in ["consumable", "persistent"]:
 		GameData.add_item(item_key)

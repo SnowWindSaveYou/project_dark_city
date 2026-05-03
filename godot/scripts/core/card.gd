@@ -21,9 +21,10 @@ const CARD_THICKNESS: float = 0.015
 const REGULAR_LOCATIONS: Array = [
 	"company", "school", "park", "alley",
 	"station", "hospital", "library", "bank",
+	"cemetery", "gym",
 ]
 
-const LANDMARK_LOCATIONS: Array = ["church", "police", "shrine"]
+const LANDMARK_LOCATIONS: Array = ["church", "police"]
 
 # ---------------------------------------------------------------------------
 # 实例属性

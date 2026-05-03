@@ -106,6 +106,23 @@ func parse_real_world_card(card: Card) -> EventResult:
 			if GameData.has_item("shield"):
 				result.effects = {}
 				result.message = "护身符抵消了伤害!"
+			else:
+				# 怪物伤害缩放 (changelog #3)
+				var scaling: Dictionary = GameData.MONSTER_SCALING
+				if not scaling.is_empty():
+					var insp: int = GameData.get_resource("inspiration")
+					var base_san: int = scaling.get("base_san_damage", 2)
+					var extra_step: int = scaling.get("extra_damage_per_inspiration_step", 15)
+					var extra_cap: int = scaling.get("extra_damage_cap", 3)
+					var health_dmg_table: Array = scaling.get("health_damage_table", [0, -1, -2, -3])
+					var extra: int = mini(extra_cap, int(floor(float(max(insp - 10, 0)) / float(extra_step))))
+					var san_dmg: int = base_san + extra
+					var health_dmg: int = 0
+					if extra < health_dmg_table.size():
+						health_dmg = health_dmg_table[extra]
+					result.effects = { "san": -san_dmg }
+					if health_dmg != 0:
+						result.effects["health"] = health_dmg
 		
 		"trap":
 			result.event_type = EventType.TRAP
@@ -122,12 +139,19 @@ func parse_real_world_card(card: Card) -> EventResult:
 					result.message = "获得线索: %s" % apply_result["clue_name"]
 		
 		"clue":
-			result.event_type = EventType.CLUE
-			var clue_evt: Dictionary = StoryManager.pick_clue_event()
-			if not clue_evt.is_empty():
-				var apply_result: Dictionary = StoryManager.apply_event_effects(clue_evt)
-				if apply_result.get("is_new_clue"):
-					result.message = "获得线索: %s" % apply_result["clue_name"]
+			# 灵感阈值检查 (changelog #3): 灵感不足时线索降级为安全事件
+			var insp_threshold: int = CardConfig.get_event_config().get("inspiration_clue_threshold", 15)
+			var cur_insp: int = GameData.get_resource("inspiration")
+			if cur_insp < insp_threshold:
+				result.event_type = EventType.SAFE
+				result.message = "灵感不足，未能发现线索..."
+			else:
+				result.event_type = EventType.CLUE
+				var clue_evt: Dictionary = StoryManager.pick_clue_event()
+				if not clue_evt.is_empty():
+					var apply_result: Dictionary = StoryManager.apply_event_effects(clue_evt)
+					if apply_result.get("is_new_clue"):
+						result.message = "获得线索: %s" % apply_result["clue_name"]
 	
 	return result
 
@@ -171,10 +195,24 @@ func parse_dark_world_card(card: Card, row: int, col: int, day_count: int) -> Ev
 		"item":
 			if not card.dark_collected:
 				result.event_type = EventType.ITEM
-				var rewards: Array = [["san", 10], ["money", 20], ["film", 1]]
-				var pick: Array = rewards[randi() % rewards.size()]
-				result.effects = { pick[0]: pick[1] }
-				result.message = "获得 %s +%d" % [pick[0], pick[1]]
+				# 使用 dark_world.json 的 item_reward_pool (加权随机, changelog #8)
+				var pick: Array = CardConfig.get_dw_item_reward_pool()
+				if pick.is_empty():
+					pick = ["san", 3]  # fallback
+				var res_key: String = pick[0]
+				var res_amt: int = pick[1]
+				# 处理特殊资源 (上限增加)
+				if res_key == "sanMax":
+					GameData.modify_resource_max("san", res_amt)
+					result.effects = {}
+					result.message = "理智上限 +%d" % res_amt
+				elif res_key == "healthMax":
+					GameData.modify_resource_max("health", res_amt)
+					result.effects = {}
+					result.message = "体力上限 +%d" % res_amt
+				else:
+					result.effects = { res_key: res_amt }
+					result.message = "获得 %s +%d" % [res_key, res_amt]
 				card.dark_collected = true
 			else:
 				result.event_type = EventType.NONE

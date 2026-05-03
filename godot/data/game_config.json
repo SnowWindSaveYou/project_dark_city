@@ -1,24 +1,53 @@
 {
-	"max_days": 3,
+	"max_days": 7,
 
 	"initial_resources": {
 		"san": 10,
-		"order": 10,
+		"health": 10,
+		"inspiration": 10,
 		"money": 50,
 		"film": 3
 	},
 
 	"resource_max": {
 		"san": 10,
-		"order": 10,
+		"health": 10,
+		"inspiration": -1,
 		"money": -1,
 		"film": -1
 	},
 
 	"resource_icons": {
-		"san": "\ud83e\udde0",
-		"order": "\u2696\ufe0f",
-		"money": "\ud83d\udcb0",
-		"film": "\ud83d\udcf7"
+		"san": "🧠",
+		"health": "❤️",
+		"inspiration": "💡",
+		"money": "💰",
+		"film": "📷"
+	},
+
+	"daily_film": 3,
+
+	"defeat_conditions": ["san", "health"],
+
+	"steps_from_health": true,
+
+	"conversion_events": {
+		"hospital": { "from": "health", "to": "san", "cost": 2, "gain": 2, "label": "消耗2点健康恢复2点理智" },
+		"park":     { "from": "san", "to": "health", "cost": 2, "gain": 2, "label": "消耗2点理智恢复2点健康" },
+		"gym":      { "from": "san", "to": "health", "cost": 2, "gain": 2, "label": "消耗2点理智恢复2点健康" }
+	},
+
+	"monster_scaling": {
+		"base_san": -2,
+		"inspiration_base": 10,
+		"inspiration_step": 15,
+		"max_extra_damage": 3,
+		"health_damage_table": [0, -1, -2, -3]
+	},
+
+	"location_scarcity": {
+		"day_1_2": 3,
+		"day_3_4": 2,
+		"day_5_plus": 1
 	}
 }

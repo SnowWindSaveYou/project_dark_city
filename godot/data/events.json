@@ -11,13 +11,13 @@
 		},
 		"effects": {
 			"safe": {},
-			"monster": { "san": -2, "order": -1 },
+			"monster": { "san": -2 },
 			"trap": {},
 			"reward": { "money": 15, "film": 1 },
-			"plot": { "san": -1 },
-			"clue": { "order": 1 },
+			"plot": { "inspiration": 1 },
+			"clue": { "inspiration": 1 },
 			"photo": { "money": 5 },
-			"landmark": { "san": 1, "order": 1 },
+			"landmark": { "san": 1 },
 			"home": { "san": 1 },
 			"shop": {},
 			"rift": {}
@@ -174,6 +174,15 @@
 					"让人感到既恐惧又着迷..."
 				]
 			}
+		},
+		"inspiration_clue_threshold": 15,
+		"location_weight_offsets": {
+			"cemetery": { "monster": 15, "trap": 5 },
+			"gym":      { "safe": 10, "reward": 5 },
+			"alley":    { "monster": 5 },
+			"hospital": { "safe": 5 },
+			"library":  { "clue": 5 },
+			"park":     { "safe": 5 }
 		}
 	},
 	"locations": {
@@ -255,6 +264,26 @@
 				"reward": { "icon": "💰", "label": "无主存款",   "image_path": "" },
 				"plot":   { "icon": "🏧", "label": "异常终端",   "image_path": "" },
 				"clue":   { "icon": "🧾", "label": "可疑账单",   "image_path": "" }
+			}
+		},
+		"cemetery": {
+			"dark_display": {
+				"safe":    { "icon": "🪦", "label": "静谧墓碑",   "image_path": "" },
+				"monster": { "icon": "💀", "label": "游荡亡灵",   "image_path": "" },
+				"trap":    { "icon": "🕳️", "label": "塌陷墓穴",   "image_path": "" },
+				"reward":  { "icon": "⚱️", "label": "古老遗物",   "image_path": "" },
+				"plot":    { "icon": "🪦", "label": "无名墓志铭", "image_path": "" },
+				"clue":    { "icon": "🦴", "label": "枯骨低语",   "image_path": "" }
+			}
+		},
+		"gym": {
+			"dark_display": {
+				"safe":    { "icon": "💪", "label": "空旷训练场", "image_path": "" },
+				"monster": { "icon": "🏋️", "label": "失控器械",   "image_path": "" },
+				"trap":    { "icon": "🪤", "label": "封锁更衣室", "image_path": "" },
+				"reward":  { "icon": "🥤", "label": "能量补给",   "image_path": "" },
+				"plot":    { "icon": "🪞", "label": "镜中异影",   "image_path": "" },
+				"clue":    { "icon": "📋", "label": "训练日志",   "image_path": "" }
 			}
 		}
 	}

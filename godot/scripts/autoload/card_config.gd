@@ -32,6 +32,7 @@ var trap_subtype_texts: Dictionary = {}  # 兼容旧代码 { subtype: [text, ...
 var darkside_info: Dictionary = {}  # 兼容旧代码 { loc: { type: {icon, label, image_path} } }
 var dark_texts: Dictionary = {}  # 暗面事件文本 { type: {icon, label, texts: []} }
 var _event_locations: Dictionary = {}  # per-location overrides
+var _event_defaults: Dictionary = {}  # events.json defaults 原始数据 (含 inspiration_clue_threshold 等)
 
 # shop.json
 var shop_items: Dictionary = {}
@@ -46,6 +47,11 @@ var dw_location_pools: Dictionary = {}
 var dw_npcs: Dictionary = {}
 var dw_ghost_textures: Array = []
 var dw_layer_generation: Dictionary = {}
+var dw_item_reward_pool: Array = []  # 暗面道具奖励池 (加权)
+
+# shop.json (暗面商店)
+var dark_items: Dictionary = {}       # 暗面专属道具
+var dark_variants: Array = []         # 暗面商店变体
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -95,6 +101,7 @@ func _load_events() -> void:
 		return
 
 	var defaults: Dictionary = data.get("defaults", {})
+	_event_defaults   = defaults  # 保留原始引用供 get_event_config() 使用
 	event_weights     = defaults.get("weights", {})
 	card_effects      = defaults.get("effects", {})
 	event_texts       = defaults.get("texts", {})
@@ -131,6 +138,8 @@ func _load_shop() -> void:
 	consumable_order  = data.get("consumable_order", [])
 	shop_variants     = data.get("variants", [])
 	shop_refresh_cost = int(data.get("refresh_cost", 5))
+	dark_items        = data.get("dark_items", {})
+	dark_variants     = data.get("dark_variants", [])
 	_convert_shop_to_int()
 
 # ---------------------------------------------------------------------------
@@ -147,6 +156,7 @@ func _load_dark_world() -> void:
 	dw_npcs             = data.get("npcs", {})
 	dw_ghost_textures   = data.get("ghost_textures", [])
 	dw_layer_generation = data.get("layer_generation", {})
+	dw_item_reward_pool = data.get("item_reward_pool", [])
 
 # ---------------------------------------------------------------------------
 # JSON 加载辅助
@@ -197,6 +207,12 @@ func _convert_schedule_rewards() -> void:
 func _convert_shop_to_int() -> void:
 	for key in shop_items:
 		var item: Dictionary = shop_items[key]
+		if item.has("price"):
+			item["price"] = int(item["price"])
+		if item.has("effect"):
+			item["effect"] = _convert_to_int_dict(item["effect"])
+	for key in dark_items:
+		var item: Dictionary = dark_items[key]
 		if item.has("price"):
 			item["price"] = int(item["price"])
 		if item.has("effect"):
@@ -257,6 +273,10 @@ func _merge_dict(base: Dictionary, override: Dictionary) -> Dictionary:
 # 查询接口：暗面世界
 # ---------------------------------------------------------------------------
 
+## 获取事件配置 (events.json defaults 层级)
+func get_event_config() -> Dictionary:
+	return _event_defaults
+
 func get_dw_max_energy() -> int:
 	return dw_constants.get("max_energy", 10)
 
@@ -287,6 +307,24 @@ func get_dw_npcs(layer_idx: int) -> Array:
 
 func get_dw_ghost_textures() -> Array:
 	return dw_ghost_textures
+
+## 获取暗面道具奖励池 (加权随机选取一个, 返回 [resource, amount])
+func get_dw_item_reward_pool() -> Array:
+	if dw_item_reward_pool.is_empty():
+		return []
+	# 加权随机
+	var total_weight: float = 0.0
+	for entry in dw_item_reward_pool:
+		total_weight += float(entry.get("weight", 1))
+	var roll: float = randf() * total_weight
+	var cumulative: float = 0.0
+	for entry in dw_item_reward_pool:
+		cumulative += float(entry.get("weight", 1))
+		if roll <= cumulative:
+			return [entry.get("resource", "san"), int(entry.get("amount", 1))]
+	# fallback: 返回最后一个
+	var last: Dictionary = dw_item_reward_pool[dw_item_reward_pool.size() - 1]
+	return [last.get("resource", "san"), int(last.get("amount", 1))]
 
 ## 获取层生成配置 (返回值中的 range 会自动 randi_range)
 func get_dw_layer_gen(layer_idx: int) -> Dictionary:

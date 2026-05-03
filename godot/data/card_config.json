@@ -16,10 +16,6 @@
 			"icon": "🚔",
 			"label": "警察局"
 		},
-		"shrine": {
-			"icon": "⛩️",
-			"label": "神社"
-		},
 		"company": {
 			"icon": "🏢",
 			"label": "公司"
@@ -51,6 +47,14 @@
 		"bank": {
 			"icon": "🏦",
 			"label": "银行"
+		},
+		"cemetery": {
+			"icon": "🪦",
+			"label": "墓地"
+		},
+		"gym": {
+			"icon": "💪",
+			"label": "健身房"
 		}
 	},
 	"event_weights": {
@@ -91,241 +95,96 @@
 	},
 	"darkside_info": {
 		"company": {
-			"safe": {
-				"icon": "🏢",
-				"label": "空荡办公室"
-			},
-			"monster": {
-				"icon": "🕴️",
-				"label": "影子上司"
-			},
-			"trap": {
-				"icon": "📋",
-				"label": "无尽加班令"
-			},
-			"reward": {
-				"icon": "💼",
-				"label": "遗落的公文包"
-			},
-			"plot": {
-				"icon": "🖥️",
-				"label": "异常邮件"
-			},
-			"clue": {
-				"icon": "📂",
-				"label": "机密档案"
-			}
+			"safe": { "icon": "🏢", "label": "空荡办公室" },
+			"monster": { "icon": "🕴️", "label": "影子上司" },
+			"trap": { "icon": "📋", "label": "无尽加班令" },
+			"reward": { "icon": "💼", "label": "遗落的公文包" },
+			"plot": { "icon": "🖥️", "label": "异常邮件" },
+			"clue": { "icon": "📂", "label": "机密档案" }
 		},
 		"school": {
-			"safe": {
-				"icon": "🏫",
-				"label": "安静教室"
-			},
-			"monster": {
-				"icon": "👤",
-				"label": "无面教师"
-			},
-			"trap": {
-				"icon": "🔔",
-				"label": "永不下课"
-			},
-			"reward": {
-				"icon": "📒",
-				"label": "旧笔记本"
-			},
-			"plot": {
-				"icon": "🎒",
-				"label": "无主书包"
-			},
-			"clue": {
-				"icon": "📝",
-				"label": "黑板留言"
-			}
+			"safe": { "icon": "🏫", "label": "安静教室" },
+			"monster": { "icon": "👤", "label": "无面教师" },
+			"trap": { "icon": "🔔", "label": "永不下课" },
+			"reward": { "icon": "📒", "label": "旧笔记本" },
+			"plot": { "icon": "🎒", "label": "无主书包" },
+			"clue": { "icon": "📝", "label": "黑板留言" }
 		},
 		"park": {
-			"safe": {
-				"icon": "🌳",
-				"label": "寂静长椅"
-			},
-			"monster": {
-				"icon": "🌑",
-				"label": "树影低语"
-			},
-			"trap": {
-				"icon": "🕸️",
-				"label": "缠绕藤蔓"
-			},
-			"reward": {
-				"icon": "🍃",
-				"label": "净化之风"
-			},
-			"plot": {
-				"icon": "🗿",
-				"label": "奇怪雕像"
-			},
-			"clue": {
-				"icon": "🪶",
-				"label": "地上羽毛"
-			}
+			"safe": { "icon": "🌳", "label": "寂静长椅" },
+			"monster": { "icon": "🌑", "label": "树影低语" },
+			"trap": { "icon": "🕸️", "label": "缠绕藤蔓" },
+			"reward": { "icon": "🍃", "label": "净化之风" },
+			"plot": { "icon": "🗿", "label": "奇怪雕像" },
+			"clue": { "icon": "🪶", "label": "地上羽毛" }
 		},
 		"alley": {
-			"safe": {
-				"icon": "🌙",
-				"label": "寂静小巷"
-			},
-			"monster": {
-				"icon": "👁️",
-				"label": "墙缝窥视"
-			},
-			"trap": {
-				"icon": "🕳️",
-				"label": "地面塌陷"
-			},
-			"reward": {
-				"icon": "📦",
-				"label": "角落包裹"
-			},
-			"plot": {
-				"icon": "🚪",
-				"label": "不存在的门"
-			},
-			"clue": {
-				"icon": "✍️",
-				"label": "涂鸦暗号"
-			}
+			"safe": { "icon": "🌙", "label": "寂静小巷" },
+			"monster": { "icon": "👁️", "label": "墙缝窥视" },
+			"trap": { "icon": "🕳️", "label": "地面塌陷" },
+			"reward": { "icon": "📦", "label": "角落包裹" },
+			"plot": { "icon": "🚪", "label": "不存在的门" },
+			"clue": { "icon": "✍️", "label": "涂鸦暗号" }
 		},
 		"station": {
-			"safe": {
-				"icon": "🚉",
-				"label": "末班列车"
-			},
-			"monster": {
-				"icon": "🚇",
-				"label": "不停靠的车"
-			},
-			"trap": {
-				"icon": "🌀",
-				"label": "循环站台"
-			},
-			"reward": {
-				"icon": "🎫",
-				"label": "神秘车票"
-			},
-			"plot": {
-				"icon": "📻",
-				"label": "广播异响"
-			},
-			"clue": {
-				"icon": "🗺️",
-				"label": "失落线路图"
-			}
+			"safe": { "icon": "🚉", "label": "末班列车" },
+			"monster": { "icon": "🚇", "label": "不停靠的车" },
+			"trap": { "icon": "🌀", "label": "循环站台" },
+			"reward": { "icon": "🎫", "label": "神秘车票" },
+			"plot": { "icon": "📻", "label": "广播异响" },
+			"clue": { "icon": "🗺️", "label": "失落线路图" }
 		},
 		"hospital": {
-			"safe": {
-				"icon": "🏥",
-				"label": "空病房"
-			},
-			"monster": {
-				"icon": "💉",
-				"label": "游走护士"
-			},
-			"trap": {
-				"icon": "🩺",
-				"label": "错误诊断"
-			},
-			"reward": {
-				"icon": "💊",
-				"label": "遗留药品"
-			},
-			"plot": {
-				"icon": "📋",
-				"label": "诡异病历"
-			},
-			"clue": {
-				"icon": "🔬",
-				"label": "实验记录"
-			}
+			"safe": { "icon": "🏥", "label": "空病房" },
+			"monster": { "icon": "💉", "label": "游走护士" },
+			"trap": { "icon": "🩺", "label": "错误诊断" },
+			"reward": { "icon": "💊", "label": "遗留药品" },
+			"plot": { "icon": "📋", "label": "诡异病历" },
+			"clue": { "icon": "🔬", "label": "实验记录" }
 		},
 		"library": {
-			"safe": {
-				"icon": "📚",
-				"label": "安静角落"
-			},
-			"monster": {
-				"icon": "📖",
-				"label": "自翻的书"
-			},
-			"trap": {
-				"icon": "🔇",
-				"label": "沉默诅咒"
-			},
-			"reward": {
-				"icon": "📜",
-				"label": "古老卷轴"
-			},
-			"plot": {
-				"icon": "📕",
-				"label": "禁书"
-			},
-			"clue": {
-				"icon": "🔖",
-				"label": "夹页纸条"
-			}
+			"safe": { "icon": "📚", "label": "安静角落" },
+			"monster": { "icon": "📖", "label": "自翻的书" },
+			"trap": { "icon": "🔇", "label": "沉默诅咒" },
+			"reward": { "icon": "📜", "label": "古老卷轴" },
+			"plot": { "icon": "📕", "label": "禁书" },
+			"clue": { "icon": "🔖", "label": "夹页纸条" }
 		},
 		"bank": {
-			"safe": {
-				"icon": "🏦",
-				"label": "空金库"
-			},
-			"monster": {
-				"icon": "🎭",
-				"label": "面具柜员"
-			},
-			"trap": {
-				"icon": "🔒",
-				"label": "锁死的门"
-			},
-			"reward": {
-				"icon": "💰",
-				"label": "无主存款"
-			},
-			"plot": {
-				"icon": "🏧",
-				"label": "异常终端"
-			},
-			"clue": {
-				"icon": "🧾",
-				"label": "可疑账单"
-			}
+			"safe": { "icon": "🏦", "label": "空金库" },
+			"monster": { "icon": "🎭", "label": "面具柜员" },
+			"trap": { "icon": "🔒", "label": "锁死的门" },
+			"reward": { "icon": "💰", "label": "无主存款" },
+			"plot": { "icon": "🏧", "label": "异常终端" },
+			"clue": { "icon": "🧾", "label": "可疑账单" }
+		},
+		"cemetery": {
+			"safe": { "icon": "🪦", "label": "静谧墓碑" },
+			"monster": { "icon": "💀", "label": "游荡亡灵" },
+			"trap": { "icon": "🕳️", "label": "塌陷墓穴" },
+			"reward": { "icon": "⚱️", "label": "古老遗物" },
+			"plot": { "icon": "🪦", "label": "无名墓志铭" },
+			"clue": { "icon": "🦴", "label": "枯骨低语" }
+		},
+		"gym": {
+			"safe": { "icon": "💪", "label": "空旷训练场" },
+			"monster": { "icon": "🏋️", "label": "失控器械" },
+			"trap": { "icon": "🪤", "label": "封锁更衣室" },
+			"reward": { "icon": "🥤", "label": "能量补给" },
+			"plot": { "icon": "🪞", "label": "镜中异影" },
+			"clue": { "icon": "📋", "label": "训练日志" }
 		}
 	},
 	"card_effects": {
 		"safe": {},
-		"monster": {
-			"san": -2,
-			"order": -1
-		},
+		"monster": { "san": -2 },
 		"trap": {},
-		"reward": {
-			"money": 15,
-			"film": 1
-		},
-		"plot": {
-			"san": -1
-		},
-		"clue": {
-			"order": 1
-		},
-		"photo": {
-			"money": 5
-		},
-		"landmark": {
-			"san": 1,
-			"order": 1
-		},
-		"home": {
-			"san": 1
-		},
+		"reward": { "money": 15, "film": 1 },
+		"plot": { "inspiration": 1 },
+		"clue": { "inspiration": 1 },
+		"photo": { "money": 5 },
+		"landmark": { "san": 1 },
+		"home": { "san": 1 },
 		"shop": {},
 		"rift": {}
 	},
@@ -394,194 +253,43 @@
 		]
 	},
 	"card_types": {
-		"safe": {
-			"icon": "✨",
-			"label": "安全",
-			"color_key": "safe"
-		},
-		"home": {
-			"icon": "🏠",
-			"label": "家",
-			"color_key": "safe"
-		},
-		"landmark": {
-			"icon": "🏛️",
-			"label": "地标",
-			"color_key": "highlight"
-		},
-		"shop": {
-			"icon": "🛒",
-			"label": "商店",
-			"color_key": "info"
-		},
-		"monster": {
-			"icon": "👻",
-			"label": "怪物",
-			"color_key": "danger"
-		},
-		"trap": {
-			"icon": "⚡",
-			"label": "陷阱",
-			"color_key": "warning"
-		},
-		"reward": {
-			"icon": "💎",
-			"label": "奖励",
-			"color_key": "highlight"
-		},
-		"plot": {
-			"icon": "📖",
-			"label": "剧情",
-			"color_key": "plot"
-		},
-		"clue": {
-			"icon": "🔍",
-			"label": "线索",
-			"color_key": "info"
-		},
-		"photo": {
-			"icon": "📸",
-			"label": "相片",
-			"color_key": "safe"
-		},
-		"rift": {
-			"icon": "🌀",
-			"label": "裂雙",
-			"color_key": "dark_accent"
-		}
+		"safe": { "icon": "✨", "label": "安全", "color_key": "safe" },
+		"home": { "icon": "🏠", "label": "家", "color_key": "safe" },
+		"landmark": { "icon": "🏛️", "label": "地标", "color_key": "highlight" },
+		"shop": { "icon": "🛒", "label": "商店", "color_key": "info" },
+		"monster": { "icon": "👻", "label": "怪物", "color_key": "danger" },
+		"trap": { "icon": "⚡", "label": "陷阱", "color_key": "warning" },
+		"reward": { "icon": "💎", "label": "奖励", "color_key": "highlight" },
+		"plot": { "icon": "📖", "label": "剧情", "color_key": "plot" },
+		"clue": { "icon": "🔍", "label": "线索", "color_key": "info" },
+		"photo": { "icon": "📸", "label": "相片", "color_key": "safe" },
+		"rift": { "icon": "🌀", "label": "裂隙", "color_key": "dark_accent" }
 	},
 	"dark_card_types": {
-		"normal": {
-			"icon": "🌑",
-			"label": "暗巷",
-			"color_key": "dark_accent"
-		},
-		"shop": {
-			"icon": "🏪",
-			"label": "暗市",
-			"color_key": "info"
-		},
-		"intel": {
-			"icon": "👁️",
-			"label": "情报点",
-			"color_key": "plot"
-		},
-		"checkpoint": {
-			"icon": "🚧",
-			"label": "关卡",
-			"color_key": "warning"
-		},
-		"clue": {
-			"icon": "🔮",
-			"label": "线索",
-			"color_key": "dark_glow"
-		},
-		"item": {
-			"icon": "📦",
-			"label": "道具",
-			"color_key": "highlight"
-		},
-		"passage": {
-			"icon": "🕳️",
-			"label": "通道",
-			"color_key": "dark_passage"
-		},
-		"abyss_core": {
-			"icon": "💀",
-			"label": "深渊核心",
-			"color_key": "dark_abyss"
-		},
-		"rift": {
-			"icon": "🌀",
-			"label": "裂雙",
-			"color_key": "dark_accent"
-		}
+		"normal": { "icon": "🌑", "label": "暗巷", "color_key": "dark_accent" },
+		"shop": { "icon": "🏪", "label": "暗市", "color_key": "info" },
+		"intel": { "icon": "👁️", "label": "情报点", "color_key": "plot" },
+		"checkpoint": { "icon": "🚧", "label": "关卡", "color_key": "warning" },
+		"clue": { "icon": "🔮", "label": "线索", "color_key": "dark_glow" },
+		"item": { "icon": "📦", "label": "道具", "color_key": "highlight" },
+		"passage": { "icon": "🕳️", "label": "通道", "color_key": "dark_passage" },
+		"abyss_core": { "icon": "💀", "label": "深渊核心", "color_key": "dark_abyss" },
+		"rift": { "icon": "🌀", "label": "裂隙", "color_key": "dark_accent" }
 	},
 	"schedule_templates": {
-		"company": {
-			"verb": "去公司上班",
-			"reward": [
-				"money",
-				10
-			]
-		},
-		"school": {
-			"verb": "去学校上课",
-			"reward": [
-				"money",
-				8
-			]
-		},
-		"park": {
-			"verb": "去公园散步",
-			"reward": [
-				"san",
-				1
-			]
-		},
-		"alley": {
-			"verb": "穿过小巷",
-			"reward": [
-				"money",
-				8
-			]
-		},
-		"station": {
-			"verb": "去车站接人",
-			"reward": [
-				"money",
-				6
-			]
-		},
-		"hospital": {
-			"verb": "去医院看病",
-			"reward": [
-				"san",
-				1
-			]
-		},
-		"library": {
-			"verb": "去图书馆学习",
-			"reward": [
-				"order",
-				1
-			]
-		},
-		"bank": {
-			"verb": "去银行办事",
-			"reward": [
-				"money",
-				12
-			]
-		},
-		"convenience": {
-			"verb": "去便利店购物",
-			"reward": [
-				"money",
-				5
-			]
-		},
-		"church": {
-			"verb": "去教堂祈祷",
-			"reward": [
-				"san",
-				1
-			]
-		},
-		"police": {
-			"verb": "去警察局报案",
-			"reward": [
-				"order",
-				1
-			]
-		},
-		"shrine": {
-			"verb": "去神社参拜",
-			"reward": [
-				"san",
-				1
-			]
-		}
+		"company":    { "verb": "去公司上班",   "reward": ["money", 10] },
+		"school":     { "verb": "去学校上课",   "reward": ["money", 8] },
+		"park":       { "verb": "去公园散步",   "reward": ["san", 1] },
+		"alley":      { "verb": "穿过小巷",     "reward": ["money", 8] },
+		"station":    { "verb": "去车站接人",   "reward": ["money", 6] },
+		"hospital":   { "verb": "去医院看病",   "reward": ["san", 1] },
+		"library":    { "verb": "去图书馆学习", "reward": ["inspiration", 1] },
+		"bank":       { "verb": "去银行办事",   "reward": ["money", 12] },
+		"convenience":{ "verb": "去便利店购物", "reward": ["money", 5] },
+		"church":     { "verb": "去教堂祈祷",   "reward": ["san", 1] },
+		"police":     { "verb": "去警察局报案", "reward": ["san", 1] },
+		"cemetery":   { "verb": "去墓地调查",   "reward": ["inspiration", 1] },
+		"gym":        { "verb": "去健身房锻炼", "reward": ["health", 1] }
 	},
 	"rumor_safe_texts": [
 		"今天%s很平静",
@@ -599,9 +307,7 @@
 			"icon": "☕",
 			"price": 8,
 			"type": "consumable",
-			"effect": {
-				"san": 2
-			},
+			"effect": { "san": 2 },
 			"desc": "热腾腾的咖啡，恢复些许理智"
 		},
 		"film": {
@@ -609,9 +315,7 @@
 			"icon": "🎞️",
 			"price": 10,
 			"type": "consumable",
-			"effect": {
-				"film": 1
-			},
+			"effect": { "film": 1 },
 			"desc": "额外的胶卷，多一次拍摄机会"
 		},
 		"shield": {
@@ -643,42 +347,15 @@
 			"icon": "💊",
 			"price": 12,
 			"type": "consumable",
-			"effect": {
-				"san": 3
-			},
+			"effect": { "san": 3 },
 			"desc": "强效镇定剂，大幅恢复理智"
-		},
-		"orderManual": {
-			"name": "秩序手册",
-			"icon": "📘",
-			"price": 10,
-			"type": "consumable",
-			"effect": {
-				"order": 2
-			},
-			"desc": "阅读可以恢复对秩序的信心"
 		}
 	},
-	"consumable_order": [
-		"shield",
-		"exorcism",
-		"coffee",
-		"sedative",
-		"orderManual"
-	],
+	"consumable_order": ["shield", "exorcism", "coffee", "sedative"],
 	"shop_variants": [
-		{
-			"name": "午夜便利店",
-			"greeting": "深夜好，有什么需要的吗？"
-		},
-		{
-			"name": "黄昏杂货铺",
-			"greeting": "嘿，看看有什么中意的？"
-		},
-		{
-			"name": "巷口自贩机",
-			"greeting": "请投币选择商品。"
-		}
+		{ "name": "午夜便利店", "greeting": "深夜好，有什么需要的吗？" },
+		{ "name": "黄昏杂货铺", "greeting": "嘿，看看有什么中意的？" },
+		{ "name": "巷口自贩机", "greeting": "请投币选择商品。" }
 	],
 	"shop_refresh_cost": 5
 }

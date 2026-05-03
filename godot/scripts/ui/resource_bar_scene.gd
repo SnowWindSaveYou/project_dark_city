@@ -17,9 +17,9 @@ signal dark_exit_pressed  # 暗面世界返回按钮被点击
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
-var _display_values: Dictionary = { "san": 10.0, "order": 10.0, "money": 50.0 }
-var _flash_timers: Dictionary = { "san": 0.0, "order": 0.0, "money": 0.0 }
-var _flash_dirs: Dictionary = { "san": 0, "order": 0, "money": 0 }  # +1 增 / -1 减
+var _display_values: Dictionary = { "san": 10.0, "health": 10.0, "inspiration": 10.0, "money": 50.0 }
+var _flash_timers: Dictionary = { "san": 0.0, "health": 0.0, "inspiration": 0.0, "money": 0.0 }
+var _flash_dirs: Dictionary = { "san": 0, "health": 0, "inspiration": 0, "money": 0 }  # +1 增 / -1 减
 var _delta_texts: Array = []  # { "key", "text", "timer", "color" }
 
 const FLASH_DURATION: float = 0.6
@@ -54,9 +54,10 @@ const SEP_PAD: float = 18.0
 # 资源定义
 # ---------------------------------------------------------------------------
 const RESOURCES_DEF: Array = [
-	{ "key": "san",   "icon": "🧠", "label": "理智", "color_key": "info" },
-	{ "key": "order", "icon": "⚖️",  "label": "秩序", "color_key": "safe" },
-	{ "key": "money", "icon": "💰", "label": "钱币", "color_key": "warning" },
+	{ "key": "san",         "icon": "🧠", "label": "理智", "color_key": "info" },
+	{ "key": "health",      "icon": "❤️", "label": "体力", "color_key": "danger" },
+	{ "key": "inspiration", "icon": "💡", "label": "灵感", "color_key": "safe" },
+	{ "key": "money",       "icon": "💰", "label": "钱币", "color_key": "warning" },
 ]
 
 # ---------------------------------------------------------------------------
@@ -420,8 +421,38 @@ func _draw_normal_right(sy: float, scy: float, right_x: float,
 	_strip_area.draw_string(font, Vector2(day_right - sub_w, scy + 27), sub_text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.55))
 
+	# 步数显示 (Day左侧)
+	var max_text_w: float = maxf(day_text_w, sub_w)
+	var steps_sep_x: float = day_right - max_text_w - 24.0
+	_strip_area.draw_line(Vector2(steps_sep_x, sy + SEP_PAD),
+		Vector2(steps_sep_x, sy + STRIP_H - SEP_PAD),
+		Color(t.notebook_border, 0.4), 0.8)
+
+	var steps_r: int = GameData.steps_remaining
+	var steps_t: int = GameData.steps_total
+	var steps_icon: String = "👟"
+	var steps_text: String = str(steps_r) + "/" + str(steps_t)
+	var steps_label: String = "步数"
+
+	var steps_right_x: float = steps_sep_x - 12.0
+
+	# 步数图标
+	_strip_area.draw_string(font, Vector2(steps_right_x - 90, scy + 6), steps_icon,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(t.text_primary, 0.86))
+
+	# 步数标签
+	_strip_area.draw_string(font, Vector2(steps_right_x - 48, scy - 15), steps_label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.63))
+
+	# 步数数值 (低步数变红)
+	var steps_color: Color = Color(t.text_primary, 0.86)
+	if steps_t > 0 and steps_r <= ceili(steps_t * 0.25):
+		steps_color = Color(t.danger, 0.9)
+	_strip_area.draw_string(font, Vector2(steps_right_x - 48, scy + 27), steps_text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, steps_color)
+
 	# 分隔竖线
-	var sep_x: float = day_right - maxf(day_text_w, sub_w) - 24.0
+	var sep_x: float = steps_right_x - 108.0
 	_strip_area.draw_line(Vector2(sep_x, sy + SEP_PAD),
 		Vector2(sep_x, sy + STRIP_H - SEP_PAD),
 		Color(t.notebook_border, 0.4), 0.8)
@@ -500,8 +531,9 @@ func _draw_delta_texts(scy: float, font: Font) -> void:
 
 		var dx: float = 180.0
 		match dt["key"]:
-			"order": dx = 390.0
-			"money": dx = 600.0
+			"health": dx = 330.0
+			"inspiration": dx = 510.0
+			"money": dx = 690.0
 
 		_strip_area.draw_string(font, Vector2(dx, scy - 24 + offset_y), dt["text"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 36, color)

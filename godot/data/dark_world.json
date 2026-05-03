@@ -1,7 +1,7 @@
 {
 	"$schema_comment": "暗面世界配置 — 层级、地点池、NPC、幽灵、层生成参数",
 	"constants": {
-		"max_energy": 10,
+		"energy_from_san": true,
 		"ghost_san_damage": 2,
 		"ghost_chase_dist": 2,
 		"ghost_count": [2, 3, 2]
@@ -9,19 +9,31 @@
 	"layers": [
 		{
 			"name": "表层·暗巷",
-			"unlock_day": 2,
+			"unlock_inspiration": 15,
 			"unlock_fragments": 0
 		},
 		{
 			"name": "中层·暗市",
-			"unlock_day": 4,
+			"unlock_inspiration": 25,
 			"unlock_fragments": 0
 		},
 		{
 			"name": "深层·暗渊",
-			"unlock_day": 6,
+			"unlock_inspiration": 45,
 			"unlock_fragments": 1
 		}
+	],
+	"item_reward_pool": [
+		{ "resource": "san",         "amount": 3,  "weight": 2 },
+		{ "resource": "san",         "amount": 5,  "weight": 1 },
+		{ "resource": "money",       "amount": 15, "weight": 2 },
+		{ "resource": "money",       "amount": 25, "weight": 1 },
+		{ "resource": "film",        "amount": 1,  "weight": 2 },
+		{ "resource": "inspiration", "amount": 3,  "weight": 2 },
+		{ "resource": "inspiration", "amount": 5,  "weight": 1 },
+		{ "resource": "health",      "amount": 2,  "weight": 1 },
+		{ "resource": "sanMax",      "amount": 1,  "weight": 0.5 },
+		{ "resource": "healthMax",   "amount": 1,  "weight": 0.5 }
 	],
 	"location_pools": {
 		"0": {
