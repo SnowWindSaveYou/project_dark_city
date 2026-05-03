@@ -332,7 +332,7 @@ end
 ---@param targetX number 目标世界 X
 ---@param targetZ number 目标世界 Z
 ---@param onComplete function|nil 完成回调
-function M.moveTo(token, targetX, targetZ, onComplete)
+function M.moveTo(token, targetX, targetZ, onComplete, onLand)
     if token.isMoving then return end
     token.isMoving = true
 
@@ -367,9 +367,25 @@ function M.moveTo(token, targetX, targetZ, onComplete)
         easing = Tween.Easing.easeOutQuad,
         tag = "tokenmove",
         onComplete = function()
-            Tween.to(token, { bounceY = 0 }, duration * 0.55, {
-                easing = Tween.Easing.easeOutBounce,
+            -- 快速下落到地面
+            Tween.to(token, { bounceY = 0 }, duration * 0.35, {
+                easing = Tween.Easing.easeInQuad,
                 tag = "tokenmove",
+                onComplete = function()
+                    -- ★ 落地瞬间：bounceY 第一次归零
+                    if onLand then onLand() end
+                    -- 小幅弹跳（纯视觉装饰）
+                    Tween.to(token, { bounceY = jumpHeight * 0.15 }, 0.06, {
+                        easing = Tween.Easing.easeOutQuad,
+                        tag = "tokenmove",
+                        onComplete = function()
+                            Tween.to(token, { bounceY = 0 }, 0.10, {
+                                easing = Tween.Easing.easeInQuad,
+                                tag = "tokenmove",
+                            })
+                        end,
+                    })
+                end,
             })
         end
     })

@@ -1,3 +1,37 @@
+# 构建产物
 .build/
 dist/
+
+# 临时文件
 .tmp/
+
+# 日志
+logs/
+
+# 引擎只读资源
+engine-docs/
+examples/
+templates/
+urhox-libs/
+schemas/
+lua-tools/
+.emmylua/
+
+# 引擎 CLI 工具
+.cli/
+
+# AI 工作流配置
+.agent/
+.claude/
+
+# 项目配置
+.project/
+
+# Lua LSP 配置
+scripts/.luarc.json
+
+# meta 文件
+*.meta
+
+# Godot 编辑器缓存
+.godot/

@@ -605,7 +605,6 @@ function M.flip(card, onComplete, CardTextures)
                     if CardTextures then
                         M.updateTexture(card, CardTextures)
                     end
-
                     -- 翻回 + 落下 (同步, 旋转轴在中心)
                     Tween.to(card, { flipAngle = 0, bounceY = 0 }, 0.25, {
                         easing = Tween.Easing.easeOutCubic,

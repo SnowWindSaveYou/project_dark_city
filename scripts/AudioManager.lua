@@ -94,6 +94,13 @@ local SFX_PATHS = {
     ghost_hit       = "audio/sfx/ghost_hit.ogg",
     ghost_dispel    = "audio/sfx/ghost_dispel.ogg",
     layer_transition = "audio/sfx/layer_transition.ogg",
+    -- 道具使用
+    item_use_coffee   = "audio/sfx/item_use_coffee.ogg",
+    item_use_sedative = "audio/sfx/item_use_sedative.ogg",
+    item_use_order    = "audio/sfx/item_use_order.ogg",
+    item_use_shield   = "audio/sfx/item_use_shield.ogg",
+    item_use_map      = "audio/sfx/item_use_map.ogg",
+    item_use_fail     = "audio/sfx/item_use_fail.ogg",
     -- 特效/转场
     screen_shake    = "audio/sfx/screen_shake.ogg",
     screen_flash    = "audio/sfx/screen_flash.ogg",
@@ -108,6 +115,24 @@ local soundCache_ = {}
 
 -- SFX 随机化 (消除机械重复感)
 local gameTime_ = 0
+
+-- ---------------------------------------------------------------------------
+-- Combo SFX (连续触发逐级增强)
+-- ---------------------------------------------------------------------------
+
+--- combo 状态按 comboId 独立追踪
+--- { [comboId] = { level = 0, lastTime = 0 } }
+local comboStates_ = {}
+
+--- combo 配置
+local COMBO_CONFIG = {
+    window       = 3.0,     -- 两次触发间隔 ≤ 此值视为连击 (秒)
+    maxLevel     = 5,       -- 最大 combo 等级
+    pitchStep    = 0.06,    -- 每级音调升高比例 (≈1个半音)
+    gainStep     = 0.05,    -- 每级音量增加值
+    gainBase     = 0.70,    -- 基础音量
+    gainMax      = 0.95,    -- 音量上限
+}
 
 -- ---------------------------------------------------------------------------
 -- 初始化
@@ -209,6 +234,69 @@ function M.playSFX(key, gain)
     src.frequency = snd.frequency * (0.96 + math.random() * 0.08)
 
     src:Play(snd)
+end
+
+--- 播放 combo 音效 — 同一 comboId 短时间内连续触发时逐级增强
+--- 音调逐级升高 (半音阶)、音量递增、保留微随机
+--- 超过 window 未触发自动 reset 回 level 0
+---@param key string     SFX_PATHS 中的键名
+---@param comboId string combo 组标识 (不同来源互不干扰)
+---@return number level  本次 combo 等级 (0 = 首次, 1~maxLevel = 连击)
+function M.playSFXCombo(key, comboId)
+    if not scene_ then return 0 end
+    local path = SFX_PATHS[key]
+    if not path then
+        print("[AudioManager] Unknown SFX key: " .. tostring(key))
+        return 0
+    end
+
+    local snd = loadSound(path, false)
+    if not snd then return 0 end
+
+    -- 更新 combo 状态
+    local now   = gameTime_
+    local cs    = comboStates_[comboId]
+    if not cs then
+        cs = { level = 0, lastTime = 0 }
+        comboStates_[comboId] = cs
+    end
+
+    local elapsed = now - cs.lastTime
+    if elapsed <= COMBO_CONFIG.window and cs.lastTime > 0 then
+        -- 在窗口内 → 提升等级
+        cs.level = math.min(cs.level + 1, COMBO_CONFIG.maxLevel)
+    else
+        -- 超时 → 重置
+        cs.level = 0
+    end
+    cs.lastTime = now
+
+    local level = cs.level
+
+    -- 计算 combo 增强后的音调和音量
+    local pitchMul = 1.0 + level * COMBO_CONFIG.pitchStep
+    local comboGain = math.min(
+        COMBO_CONFIG.gainBase + level * COMBO_CONFIG.gainStep,
+        COMBO_CONFIG.gainMax
+    )
+
+    -- 保留微随机 (±3%, combo 等级越高随机幅度越小，手感更稳)
+    local randRange = 0.03 * (1 - level / (COMBO_CONFIG.maxLevel + 1))
+    local gainFinal = comboGain * (1.0 - randRange + math.random() * randRange * 2)
+    local freqFinal = snd.frequency * pitchMul * (1.0 - randRange + math.random() * randRange * 2)
+
+    local src = acquireSFXSource()
+    src.gain      = gainFinal
+    src.frequency = freqFinal
+    src:Play(snd)
+
+    return level
+end
+
+--- 手动重置指定 combo 组
+---@param comboId string
+function M.resetCombo(comboId)
+    comboStates_[comboId] = nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -384,6 +472,36 @@ function M.playResourceChange(delta)
     elseif delta < 0 then
         M.playSFX("resource_lose")
     end
+end
+
+-- ---------------------------------------------------------------------------
+-- 便捷方法: 道具使用音效
+-- ---------------------------------------------------------------------------
+
+--- 道具 key → 使用音效 key 映射
+local ITEM_USE_SFX = {
+    coffee    = "item_use_coffee",
+    sedative  = "item_use_sedative",
+    orderManual = "item_use_order",
+    shield    = "item_use_shield",
+    mapReveal = "item_use_map",
+    exorcism  = "exorcise",  -- 驱魔香复用已有的 exorcise 音效
+}
+
+--- 播放道具使用音效 (根据道具 key 自动选择)
+---@param itemKey string 道具 key (coffee/sedative/orderManual/shield/mapReveal/exorcism)
+function M.playItemUse(itemKey)
+    local sfxKey = ITEM_USE_SFX[itemKey]
+    if sfxKey then
+        M.playSFX(sfxKey)
+    else
+        M.playSFX("item_pickup")  -- fallback
+    end
+end
+
+--- 播放道具使用失败音效
+function M.playItemUseFail()
+    M.playSFX("item_use_fail")
 end
 
 return M

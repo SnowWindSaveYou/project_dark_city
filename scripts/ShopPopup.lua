@@ -325,8 +325,8 @@ local function doPurchase(i)
         return
     end
 
-    -- === 购买成功 ===
-    AudioManager.playSFX("shop_buy")
+    -- === 购买成功 (连续购买逐级增强) ===
+    local comboLevel = AudioManager.playSFXCombo("shop_buy", "shop_buy")
     card.sold = true
     ResourceBar.change("money", -item.price)
 
@@ -347,8 +347,9 @@ local function doPurchase(i)
         end
     end
 
-    -- 脉冲: 放大 → 弹回
-    Tween.to(card, { pulseScale = 1.15 }, 0.12, {
+    -- 脉冲: 放大 → 弹回 (combo 等级越高脉冲越强)
+    local pulseTarget = 1.15 + comboLevel * 0.03
+    Tween.to(card, { pulseScale = pulseTarget }, 0.12, {
         easing = Tween.Easing.easeOutQuad, tag = TAG_CARD,
         onComplete = function()
             Tween.to(card, { pulseScale = 1.0 }, 0.25, {
@@ -361,11 +362,12 @@ local function doPurchase(i)
     card.purchaseFlash = 1.0
     Tween.to(card, { purchaseFlash = 0 }, 0.4, { tag = TAG_FLASH })
 
-    -- 粒子爆发
+    -- 粒子爆发 (combo 等级越高粒子越多)
     local wx = state.cx + cardRelX(i)
     local wy = state.cy + cardRelY()
     local t = Theme.current
-    VFX.spawnBurst(wx, wy, 10, t.safe.r, t.safe.g, t.safe.b)
+    local burstCount = 10 + comboLevel * 4
+    VFX.spawnBurst(wx, wy, burstCount, t.safe.r, t.safe.g, t.safe.b)
 
     -- 效果弹出文字
     local popText = ""
@@ -855,6 +857,7 @@ function M.dismiss()
             state.active = false
             state.phase  = "done"
             state.cards  = {}
+            AudioManager.resetCombo("shop_buy")
             if state.onDismiss then state.onDismiss() end
         end,
     })
