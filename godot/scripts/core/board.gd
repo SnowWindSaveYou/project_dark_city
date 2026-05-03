@@ -150,6 +150,8 @@ func generate_cards() -> void:
 			var card_type: String
 			var location: String
 
+			var event_id: String = ""
+
 			if special == "home":
 				card_type = "home"
 				location = "home"
@@ -162,12 +164,14 @@ func generate_cards() -> void:
 				location = "convenience"
 			elif special == "rift":
 				# 裂隙伪装成普通事件卡，用 has_rift 标记
-				card_type = _weighted_random_event()
 				if loc_idx < len(location_pool):
 					location = location_pool[loc_idx]
 					loc_idx += 1
 				else:
 					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
+				var result: Dictionary = _weighted_random_event_for_location(location)
+				card_type = result["type"]
+				event_id = result["event_id"]
 			else:
 				if loc_idx >= len(location_pool):
 					# 安全回退: 池耗尽时随机选地点
@@ -175,9 +179,11 @@ func generate_cards() -> void:
 				else:
 					location = location_pool[loc_idx]
 					loc_idx += 1
-				card_type = _weighted_random_event()
+				var result: Dictionary = _weighted_random_event_for_location(location)
+				card_type = result["type"]
+				event_id = result["event_id"]
 
-			var card: Card = Card.create(location, card_type, row, col)
+			var card: Card = Card.create(location, card_type, row, col, event_id)
 			# 陷阱子类型 (仅 trap 类型有)
 			if card_type == "trap":
 				card.trap_subtype = Board.random_trap_subtype()
@@ -203,8 +209,73 @@ static func random_trap_subtype() -> String:
 			return str(w[0])
 	return "sanity"
 
-## 加权随机事件
-func _weighted_random_event() -> String:
+## 加权随机事件（地点感知版）
+## 返回 { "type": String, "event_id": String }
+func _weighted_random_event_for_location(location: String) -> Dictionary:
+	var loc_pool: Array = Locations.get_real_event_pool(location)
+	var weight_mods: Dictionary = Locations.get_real_weight_mods(location)
+
+	if loc_pool.is_empty():
+		# 无事件池 → fallback 到旧逻辑
+		var type_str: String = _weighted_random_event_legacy()
+		return { "type": type_str, "event_id": "" }
+
+	# 1. 遍历事件池，按 type 分组汇总权重
+	var type_weights: Dictionary = {}   # { type: total_weight }
+	var type_events: Dictionary = {}    # { type: [{ id, weight }] }
+
+	for eid in loc_pool:
+		var evt: Dictionary = EventPool.get_event(eid)
+		if evt.is_empty():
+			continue
+		var etype: String = evt.get("type", "safe")
+		var base_w: int = int(evt.get("base_weight", EventPool.base_weights.get(etype, 10)))
+		var mod: int = int(weight_mods.get(etype, 0))
+		var final_w: int = maxi(0, base_w + mod)
+		if final_w <= 0:
+			continue
+
+		if not type_weights.has(etype):
+			type_weights[etype] = 0
+			type_events[etype] = []
+		type_weights[etype] += final_w
+		type_events[etype].append({ "id": eid, "weight": final_w })
+
+	if type_weights.is_empty():
+		return { "type": "safe", "event_id": "" }
+
+	# 2. 按类型权重随机抽选类型
+	var total: int = 0
+	for tw in type_weights.values():
+		total += tw
+	var roll: int = randi() % total
+	var cumulative: int = 0
+	var chosen_type: String = "safe"
+	for etype in type_weights:
+		cumulative += type_weights[etype]
+		if roll < cumulative:
+			chosen_type = etype
+			break
+
+	# 3. 在该类型的候选事件中按权重抽选具体事件
+	var candidates: Array = type_events.get(chosen_type, [])
+	if candidates.is_empty():
+		return { "type": chosen_type, "event_id": "" }
+
+	var sub_total: int = 0
+	for c in candidates:
+		sub_total += c["weight"]
+	var sub_roll: int = randi() % sub_total
+	var sub_cum: int = 0
+	for c in candidates:
+		sub_cum += c["weight"]
+		if sub_roll < sub_cum:
+			return { "type": chosen_type, "event_id": c["id"] }
+
+	return { "type": chosen_type, "event_id": candidates[0]["id"] }
+
+## 加权随机事件 (旧版 fallback，使用全局权重)
+func _weighted_random_event_legacy() -> String:
 	var total: int = 0
 	for w in CardConfig.event_weights.values():
 		total += w

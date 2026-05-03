@@ -1,5 +1,13 @@
 ## CardConfig - 统一配置加载器 (Autoload)
 ## 从 data/ 下多个 JSON 文件加载配置，并提供带 fallback 的查询接口
+##
+## ⚠️ 迁移状态 (Phase 5):
+## - event_weights / card_effects / event_texts / trap_subtype_* / dark_texts
+##   → 已迁移到 EventPool (data/event_pool.json)，本文件保留作为 fallback
+## - location_info / schedule_templates / rumor_*
+##   → 已迁移到 Locations (data/locations.json)，本文件保留作为 fallback
+## - shop_* / dw_* / card_types / dark_card_types
+##   → 尚未迁移，仍由 CardConfig 独占管理
 extends Node
 
 # ---------------------------------------------------------------------------
@@ -223,11 +231,13 @@ func get_dark_display(location: String, event_type: String) -> Dictionary:
 			return loc["dark_display"][event_type]
 	return {}
 
+## @deprecated 请使用 EventPool.get_dark_event_info()
 ## 获取暗面事件文本信息
 ## 返回 { "icon": String, "label": String, "texts": Array } 或空 Dictionary
 func get_dark_event_info(dark_type: String) -> Dictionary:
 	return dark_texts.get(dark_type, {})
 
+## @deprecated 请使用 EventPool.get_dark_event_text()
 ## 获取暗面事件随机文本
 func get_dark_event_text(dark_type: String) -> String:
 	var info: Dictionary = dark_texts.get(dark_type, {})

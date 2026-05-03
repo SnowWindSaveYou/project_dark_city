@@ -17,6 +17,8 @@ config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [autoload]
 
+EventPool="*res://scripts/autoload/event_pool.gd"
+Locations="*res://scripts/autoload/locations.gd"
 CardConfig="*res://scripts/autoload/card_config.gd"
 GameTheme="*res://scripts/autoload/theme.gd"
 StoryManager="*res://scripts/autoload/story_manager.gd"

@@ -319,10 +319,16 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 
 ## 显示暗面事件 Toast (统一使用 Toast 消息窗口)
 func _show_dark_toast(dark_type: String, effects: Dictionary) -> void:
-	var dark_info: Dictionary = CardConfig.get_dark_event_info(dark_type)
+	# 优先 EventPool，降级 CardConfig
+	var dark_info: Dictionary = EventPool.get_dark_event_info(dark_type)
+	if dark_info.is_empty():
+		dark_info = CardConfig.get_dark_event_info(dark_type)
+	var desc: String = EventPool.get_dark_event_text(dark_type)
+	if desc == "":
+		desc = CardConfig.get_dark_event_text(dark_type)
 	var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(dark_type) \
 		.set_title(dark_info.get("label", dark_type)) \
-		.set_desc(CardConfig.get_dark_event_text(dark_type)) \
+		.set_desc(desc) \
 		.set_icon(dark_info.get("icon", "🌑")) \
 		.set_effects(effects)
 	m._event_popup.show_toast(toast)

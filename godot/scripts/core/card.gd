@@ -32,6 +32,7 @@ var is_dealt: bool = false        # 是否已发到棋盘
 var scouted: bool = false         # 是否被相机侦察过
 var revealed: bool = false        # 是否被地图碎片揭示过
 var is_flipping: bool = false     # 是否正在翻转动画中
+var event_id: String = ""         # 事件池事件 ID（关联 EventPool 定义）
 
 # --- 暗面世界字段 ---
 var is_dark: bool = false         # 是否是暗面卡牌
@@ -63,17 +64,32 @@ var hover_t: float = 0.0             # 悬停插值 0→1 (渲染层使用)
 ## 获取暗面信息 (显示用图标和标签)
 func get_darkside_info() -> Dictionary:
 	if type in ["landmark", "home", "shop"]:
+		var loc_data: Dictionary = Locations.get_real_location(location)
+		if not loc_data.is_empty():
+			return { "icon": loc_data.get("icon", "❓"), "label": loc_data.get("label", "未知") }
+		# fallback: CardConfig
 		var loc_info: Dictionary = CardConfig.location_info.get(location, { "icon": "❓", "label": "未知" })
 		return { "icon": loc_info["icon"], "label": loc_info["label"] }
+	# 优先从 Locations 获取暗面显示
+	var dark_disp: Dictionary = Locations.get_dark_display(location)
+	if not dark_disp.is_empty() and type in dark_disp:
+		return dark_disp[type]
+	# fallback: CardConfig.darkside_info
 	var ds: Dictionary = CardConfig.darkside_info
 	if location in ds and type in ds[location]:
 		return ds[location][type]
-	# fallback
+	# fallback: 主题
 	var type_info: Dictionary = GameTheme.card_type_info(type)
 	return { "icon": type_info["icon"], "label": type_info["label"] }
 
 ## 获取事件效果 (trap 按子类型返回)
 func get_effects() -> Dictionary:
+	# 优先从 EventPool 获取
+	if event_id != "":
+		var effects: Dictionary = EventPool.get_event_effects(event_id)
+		if not effects.is_empty():
+			return effects
+	# fallback: 旧逻辑
 	if type == "trap" and trap_subtype != "":
 		var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
 		return sub_info.get("effect", {})
@@ -81,6 +97,12 @@ func get_effects() -> Dictionary:
 
 ## 获取随机事件文本 (trap 按子类型返回)
 func get_event_text() -> String:
+	# 优先从 EventPool 获取
+	if event_id != "":
+		var text: String = EventPool.get_event_random_text(event_id)
+		if text != "发生了什么...":
+			return text
+	# fallback: 旧逻辑
 	if type == "trap" and trap_subtype != "":
 		var texts: Array = CardConfig.trap_subtype_texts.get(trap_subtype, ["发生了一些事情..."])
 		return texts[randi() % texts.size()]
@@ -89,10 +111,22 @@ func get_event_text() -> String:
 
 ## 获取陷阱子类型信息
 func get_trap_subtype_info() -> Dictionary:
+	# 优先从 EventPool 获取
+	if trap_subtype != "":
+		var sub: Dictionary = EventPool.get_trap_subtype(trap_subtype)
+		if not sub.is_empty():
+			return sub
 	return CardConfig.trap_subtype_info.get(trap_subtype, { "icon": "⚡", "label": "陷阱", "effect": {} })
 
 ## 获取地点信息
 func get_location_info() -> Dictionary:
+	var loc_data: Dictionary = Locations.get_real_location(location)
+	if not loc_data.is_empty():
+		return {
+			"icon": loc_data.get("icon", "❓"),
+			"label": loc_data.get("label", "未知"),
+			"image_path": loc_data.get("image_path", "")
+		}
 	return CardConfig.location_info.get(location, { "icon": "❓", "label": "未知" })
 
 ## 是否是地标
@@ -100,10 +134,11 @@ func is_landmark() -> bool:
 	return location in LANDMARK_LOCATIONS
 
 ## 工厂方法 (现实世界卡牌)
-static func create(loc: String, evt_type: String, r: int, c: int) -> Card:
+static func create(loc: String, evt_type: String, r: int, c: int, evt_id: String = "") -> Card:
 	var card: Card = Card.new()
 	card.location = loc
 	card.type = evt_type
+	card.event_id = evt_id
 	card.row = r
 	card.col = c
 	# 地标从发牌起就正面朝上 (匹配 Lua: faceUp = (cardType == "landmark"))
@@ -112,12 +147,13 @@ static func create(loc: String, evt_type: String, r: int, c: int) -> Card:
 	return card
 
 ## 工厂方法 (暗面世界卡牌)
-static func create_dark(dt: String, dn: String, r: int, c: int) -> Card:
+static func create_dark(dt: String, dn: String, r: int, c: int, evt_id: String = "") -> Card:
 	var card: Card = Card.new()
 	card.is_dark = true
 	card.dark_type = dt
 	card.dark_name = dn
 	card.type = dt
+	card.event_id = evt_id
 	card.location = ""
 	card.row = r
 	card.col = c
