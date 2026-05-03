@@ -39,6 +39,14 @@ func _convert_data() -> void:
 	for k in base_weights:
 		base_weights[k] = int(base_weights[k])
 
+	# 移除注释键（以 "_" 开头且值非 Dictionary 的条目）
+	var to_remove: Array = []
+	for eid in events:
+		if not events[eid] is Dictionary:
+			to_remove.append(eid)
+	for eid in to_remove:
+		events.erase(eid)
+
 	# events 内部字段
 	for eid in events:
 		var evt: Dictionary = events[eid]
