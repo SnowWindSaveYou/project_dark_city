@@ -1,0 +1,426 @@
+{
+	"real_world": {
+		"home": {
+			"label": "家",
+			"icon": "🏠",
+			"image_path": "",
+			"schedule": { "verb": "在家休息", "reward": ["san", 1] },
+			"forced_type": "home",
+			"weight_mods": {},
+			"event_pool": ["evt_home_rest"]
+		},
+
+		"convenience": {
+			"label": "便利店",
+			"icon": "🏪",
+			"image_path": "",
+			"schedule": { "verb": "去便利店购物", "reward": ["money", 5] },
+			"forced_type": "shop",
+			"weight_mods": {},
+			"event_pool": ["evt_shop_visit"]
+		},
+
+		"church": {
+			"label": "教堂",
+			"icon": "⛪",
+			"image_path": "",
+			"is_landmark": true,
+			"schedule": { "verb": "去教堂祈祷", "reward": ["san", 1] },
+			"forced_type": "landmark",
+			"weight_mods": {},
+			"event_pool": ["evt_landmark_visit"]
+		},
+
+		"police": {
+			"label": "警察局",
+			"icon": "🚔",
+			"image_path": "",
+			"is_landmark": true,
+			"schedule": { "verb": "去警察局报案", "reward": ["order", 1] },
+			"forced_type": "landmark",
+			"weight_mods": {},
+			"event_pool": ["evt_landmark_visit"]
+		},
+
+		"shrine": {
+			"label": "神社",
+			"icon": "⛩️",
+			"image_path": "",
+			"is_landmark": true,
+			"schedule": { "verb": "去神社参拜", "reward": ["san", 1] },
+			"forced_type": "landmark",
+			"weight_mods": {},
+			"event_pool": ["evt_landmark_visit"]
+		},
+
+		"company": {
+			"label": "公司",
+			"icon": "🏢",
+			"image_path": "",
+			"schedule": { "verb": "去公司上班", "reward": ["money", 10] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_safe_rest",
+				"evt_company_shadow_boss",
+				"evt_monster_shadow",
+				"evt_company_overtime",
+				"evt_trap_generic",
+				"evt_company_safe_bonus",
+				"evt_reward_supply",
+				"evt_company_email_clue",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_find_photo",
+				"evt_plot_missing_person",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": 5,
+				"trap": 5,
+				"reward": -5,
+				"plot": 5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🏢", "label": "空荡办公室", "image_path": "" },
+				"monster": { "icon": "🕴️", "label": "影子上司",   "image_path": "" },
+				"trap":    { "icon": "📋", "label": "无尽加班令", "image_path": "" },
+				"reward":  { "icon": "💼", "label": "遗落的公文包", "image_path": "" },
+				"plot":    { "icon": "🖥️", "label": "异常邮件",   "image_path": "" },
+				"clue":    { "icon": "📂", "label": "机密档案",   "image_path": "" }
+			}
+		},
+
+		"school": {
+			"label": "学校",
+			"icon": "🏫",
+			"image_path": "",
+			"schedule": { "verb": "去学校上课", "reward": ["money", 8] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_school_quiet_study",
+				"evt_safe_rest",
+				"evt_school_faceless_teacher",
+				"evt_trap_generic",
+				"evt_school_supply_find",
+				"evt_reward_supply",
+				"evt_school_old_notebook",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_find_photo",
+				"evt_plot_symbol_wall",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": -5,
+				"clue": 5,
+				"safe": 5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🏫", "label": "安静教室",   "image_path": "" },
+				"monster": { "icon": "👤", "label": "无面教师",   "image_path": "" },
+				"trap":    { "icon": "🔔", "label": "永不下课",   "image_path": "" },
+				"reward":  { "icon": "📒", "label": "旧笔记本",   "image_path": "" },
+				"plot":    { "icon": "🎒", "label": "无主书包",   "image_path": "" },
+				"clue":    { "icon": "📝", "label": "黑板留言",   "image_path": "" }
+			}
+		},
+
+		"park": {
+			"label": "公园",
+			"icon": "🌳",
+			"image_path": "",
+			"schedule": { "verb": "去公园散步", "reward": ["san", 1] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_park_healing_breeze",
+				"evt_safe_rest",
+				"evt_park_tree_shadow",
+				"evt_trap_generic",
+				"evt_park_herb_find",
+				"evt_park_nature_clue",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_symbol_wall",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": -10,
+				"safe": 10,
+				"trap": -5,
+				"clue": 5
+			},
+			"location_effect": { "san": 1 },
+			"dark_display": {
+				"safe":    { "icon": "🌳", "label": "寂静长椅",   "image_path": "" },
+				"monster": { "icon": "🌑", "label": "树影低语",   "image_path": "" },
+				"trap":    { "icon": "🕸️", "label": "缠绕藤蔓",   "image_path": "" },
+				"reward":  { "icon": "🍃", "label": "净化之风",   "image_path": "" },
+				"plot":    { "icon": "🗿", "label": "奇怪雕像",   "image_path": "" },
+				"clue":    { "icon": "🪶", "label": "地上羽毛",   "image_path": "" }
+			}
+		},
+
+		"alley": {
+			"label": "小巷",
+			"icon": "🌙",
+			"image_path": "",
+			"schedule": { "verb": "穿过小巷", "reward": ["money", 8] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_safe_rest",
+				"evt_alley_ambush",
+				"evt_monster_shadow",
+				"evt_monster_whisper",
+				"evt_alley_thugs_trap",
+				"evt_trap_generic",
+				"evt_alley_stash",
+				"evt_alley_graffiti_clue",
+				"evt_clue_footprints",
+				"evt_clue_blood_trail",
+				"evt_plot_inscription",
+				"evt_plot_find_photo",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": 15,
+				"trap": 10,
+				"safe": -15,
+				"reward": -5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🌙", "label": "寂静小巷",   "image_path": "" },
+				"monster": { "icon": "👁️", "label": "墙缝窥视",   "image_path": "" },
+				"trap":    { "icon": "🕳️", "label": "地面塌陷",   "image_path": "" },
+				"reward":  { "icon": "📦", "label": "角落包裹",   "image_path": "" },
+				"plot":    { "icon": "🚪", "label": "不存在的门", "image_path": "" },
+				"clue":    { "icon": "✍️", "label": "涂鸦暗号",   "image_path": "" }
+			}
+		},
+
+		"station": {
+			"label": "车站",
+			"icon": "🚉",
+			"image_path": "",
+			"schedule": { "verb": "去车站接人", "reward": ["money", 6] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_safe_rest",
+				"evt_station_ghost_train",
+				"evt_monster_shadow",
+				"evt_station_warp_trap",
+				"evt_trap_generic",
+				"evt_station_lost_luggage",
+				"evt_reward_supply",
+				"evt_station_schedule_clue",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_missing_person",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"trap": 5,
+				"reward": 5,
+				"monster": -5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🚉", "label": "末班列车",   "image_path": "" },
+				"monster": { "icon": "🚇", "label": "不停靠的车", "image_path": "" },
+				"trap":    { "icon": "🌀", "label": "循环站台",   "image_path": "" },
+				"reward":  { "icon": "🎫", "label": "神秘车票",   "image_path": "" },
+				"plot":    { "icon": "📻", "label": "广播异响",   "image_path": "" },
+				"clue":    { "icon": "🗺️", "label": "失落线路图", "image_path": "" }
+			}
+		},
+
+		"hospital": {
+			"label": "医院",
+			"icon": "🏥",
+			"image_path": "",
+			"schedule": { "verb": "去医院看病", "reward": ["san", 1] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_hospital_treatment",
+				"evt_hospital_wandering_nurse",
+				"evt_monster_shadow",
+				"evt_trap_generic",
+				"evt_hospital_medicine_reward",
+				"evt_reward_supply",
+				"evt_hospital_medical_record",
+				"evt_clue_blood_trail",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_find_photo",
+				"evt_plot_missing_person",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": 5,
+				"trap": -5,
+				"clue": 10,
+				"plot": 5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🏥", "label": "空病房",     "image_path": "" },
+				"monster": { "icon": "💉", "label": "游走护士",   "image_path": "" },
+				"trap":    { "icon": "🩺", "label": "错误诊断",   "image_path": "" },
+				"reward":  { "icon": "💊", "label": "遗留药品",   "image_path": "" },
+				"plot":    { "icon": "📋", "label": "诡异病历",   "image_path": "" },
+				"clue":    { "icon": "🔬", "label": "实验记录",   "image_path": "" }
+			}
+		},
+
+		"library": {
+			"label": "图书馆",
+			"icon": "📚",
+			"image_path": "",
+			"schedule": { "verb": "去图书馆学习", "reward": ["order", 1] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_library_deep_read",
+				"evt_safe_rest",
+				"evt_library_self_turning_book",
+				"evt_trap_generic",
+				"evt_reward_supply",
+				"evt_library_forbidden_book",
+				"evt_library_ancient_scroll",
+				"evt_clue_diary",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_symbol_wall",
+				"evt_plot_whisper",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": -10,
+				"safe": 5,
+				"clue": 10,
+				"plot": 10,
+				"trap": -10
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "📚", "label": "安静角落",   "image_path": "" },
+				"monster": { "icon": "📖", "label": "自翻的书",   "image_path": "" },
+				"trap":    { "icon": "🔇", "label": "沉默诅咒",   "image_path": "" },
+				"reward":  { "icon": "📜", "label": "古老卷轴",   "image_path": "" },
+				"plot":    { "icon": "📕", "label": "禁书",       "image_path": "" },
+				"clue":    { "icon": "🔖", "label": "夹页纸条",   "image_path": "" }
+			}
+		},
+
+		"bank": {
+			"label": "银行",
+			"icon": "🏦",
+			"image_path": "",
+			"schedule": { "verb": "去银行办事", "reward": ["money", 12] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_safe_rest",
+				"evt_bank_mask_teller",
+				"evt_monster_shadow",
+				"evt_bank_vault_trap",
+				"evt_trap_generic",
+				"evt_bank_vault_find",
+				"evt_reward_supply",
+				"evt_bank_suspicious_record",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_find_photo",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"reward": 10,
+				"trap": 5,
+				"monster": -5,
+				"safe": -5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🏦", "label": "空金库",     "image_path": "" },
+				"monster": { "icon": "🎭", "label": "面具柜员",   "image_path": "" },
+				"trap":    { "icon": "🔒", "label": "锁死的门",   "image_path": "" },
+				"reward":  { "icon": "💰", "label": "无主存款",   "image_path": "" },
+				"plot":    { "icon": "🏧", "label": "异常终端",   "image_path": "" },
+				"clue":    { "icon": "🧾", "label": "可疑账单",   "image_path": "" }
+			}
+		}
+	},
+
+	"dark_world": {
+		"layers": [
+			{ "name": "表层·暗巷", "unlock_day": 2, "unlock_fragments": 0 },
+			{ "name": "中层·暗市", "unlock_day": 4, "unlock_fragments": 0 },
+			{ "name": "深层·暗渊", "unlock_day": 6, "unlock_fragments": 1 }
+		],
+
+		"locations": {
+			"锈蚀小巷":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_loose_brick", "evt_dark_L0_scrap_find"], "weight_mods": {} },
+			"断灯走廊":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_loose_brick"],                                "weight_mods": { "monster": 3 } },
+			"裂墙弄堂":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_scrap_find"],                                  "weight_mods": {} },
+			"落灰阶梯":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_loose_brick", "evt_dark_L0_scrap_find"],                              "weight_mods": { "trap": 3 } },
+			"无名死路":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_loose_brick", "evt_dark_L0_scrap_find"], "weight_mods": { "monster": 5, "safe": -5 } },
+			"潮湿拐角":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_loose_brick"],                                "weight_mods": { "trap": 3 } },
+			"暗影墙根":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_scrap_find"],                                  "weight_mods": { "monster": 5 } },
+			"废弃车库":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_loose_brick", "evt_dark_L0_scrap_find"],                              "weight_mods": { "reward": 3 } },
+			"野猫巢穴":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper"],                                                             "weight_mods": { "safe": 5 } },
+			"塌陷天桥":   { "layer": 0, "dark_type": "normal",     "event_pool": ["evt_dark_L0_safe", "evt_dark_normal", "evt_dark_L0_whisper", "evt_dark_L0_loose_brick", "evt_dark_L0_scrap_find"], "weight_mods": { "trap": 5, "monster": 3 } },
+			"旧档案室":   { "layer": 0, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 10 } },
+			"碎纸堆":     { "layer": 0, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 5 } },
+			"褪色涂鸦":   { "layer": 0, "dark_type": "clue",       "event_pool": ["evt_dark_clue_generic"],  "weight_mods": { "clue": 5 } },
+			"废弃背包":   { "layer": 0, "dark_type": "item",       "event_pool": ["evt_dark_item_random"],   "weight_mods": {} },
+			"暗格":       { "layer": 0, "dark_type": "item",       "event_pool": ["evt_dark_item_random"],   "weight_mods": {} },
+
+			"无光集市":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_black_market_find", "evt_dark_L1_echo_clue"], "weight_mods": { "reward": 3 } },
+			"影子摊位":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_black_market_find"],                               "weight_mods": { "monster": 5 } },
+			"假面人群":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_echo_clue"],                                        "weight_mods": { "monster": 8 } },
+			"沉默柜台":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_black_market_find"],                                                        "weight_mods": {} },
+			"回声茶馆":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_echo_clue"],                                                                "weight_mods": { "clue": 5, "safe": 5 } },
+			"钟表废铺":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_black_market_find"],                               "weight_mods": { "trap": 5 } },
+			"药粉小巷":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap"],                                                                 "weight_mods": { "monster": 5, "trap": 3 } },
+			"纸灯笼路":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_black_market_find", "evt_dark_L1_echo_clue"], "weight_mods": {} },
+			"地下水渠":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_echo_clue"],                                        "weight_mods": { "trap": 5, "clue": 3 } },
+			"迷雾广场":   { "layer": 1, "dark_type": "normal",     "event_pool": ["evt_dark_L1_safe", "evt_dark_normal", "evt_dark_L1_mask_stalker", "evt_dark_L1_fog_trap", "evt_dark_L1_black_market_find"],                               "weight_mods": { "safe": -5, "monster": 5 } },
+			"暗巷当铺":   { "layer": 1, "dark_type": "shop",       "event_pool": ["evt_dark_shop"],         "weight_mods": {} },
+			"低语井":     { "layer": 1, "dark_type": "intel",      "event_pool": ["evt_dark_intel"],        "weight_mods": {} },
+			"密封信件":   { "layer": 1, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 10 } },
+			"帐本残页":   { "layer": 1, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 5 } },
+			"暗号墙":     { "layer": 1, "dark_type": "clue",       "event_pool": ["evt_dark_clue_generic"],  "weight_mods": { "clue": 5 } },
+			"上锁匣子":   { "layer": 1, "dark_type": "item",       "event_pool": ["evt_dark_item_random"],   "weight_mods": {} },
+			"遗落药包":   { "layer": 1, "dark_type": "item",       "event_pool": ["evt_dark_item_random"],   "weight_mods": {} },
+
+			"崩塌深穴":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_abyssal_treasure", "evt_dark_L2_ancient_vision"], "weight_mods": { "monster": 5, "trap": 5 } },
+			"骨架走廊":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_abyssal_treasure"],                               "weight_mods": { "monster": 10 } },
+			"回声深渊":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_ancient_vision"],                                  "weight_mods": { "monster": 8, "clue": 5 } },
+			"凝视大厅":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack"],                                                                "weight_mods": { "monster": 12, "safe": -10 } },
+			"泣血石室":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_abyssal_treasure"],                               "weight_mods": { "trap": 8, "reward": 5 } },
+			"虚无阶梯":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack"],                                                                "weight_mods": { "trap": 10 } },
+			"裂缝祭坛":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_abyssal_treasure", "evt_dark_L2_ancient_vision"], "weight_mods": { "monster": 8, "reward": 5, "clue": 5 } },
+			"悬浮残桥":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack"],                                                                "weight_mods": { "trap": 10, "safe": -8 } },
+			"镜像迷宫":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_ancient_vision"],                                  "weight_mods": { "monster": 8, "trap": 8 } },
+			"最终长廊":   { "layer": 2, "dark_type": "normal",     "event_pool": ["evt_dark_L2_safe", "evt_dark_normal", "evt_dark_L2_void_gaze", "evt_dark_L2_reality_crack", "evt_dark_L2_abyssal_treasure", "evt_dark_L2_ancient_vision"], "weight_mods": { "monster": 10, "safe": -10, "reward": 3 } },
+			"深渊碑文":   { "layer": 2, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 15 }, "condition": { "min_clues": 3 } },
+			"模糊日记":   { "layer": 2, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 10 } },
+			"封印遗物":   { "layer": 2, "dark_type": "clue",       "event_pool": ["evt_dark_clue_tape", "evt_dark_clue_map", "evt_dark_clue_generic"], "weight_mods": { "clue": 10 } },
+			"黑曜石碎片": { "layer": 2, "dark_type": "item",       "event_pool": ["evt_dark_item_random"],   "weight_mods": {} },
+			"最深处":     { "layer": 2, "dark_type": "abyss_core", "event_pool": ["evt_dark_abyss"],         "weight_mods": {} }
+		}
+	},
+
+	"rumors": {
+		"safe_texts": [
+			"今天%s很平静",
+			"%s附近没有异常",
+			"听说%s今天很安全"
+		],
+		"danger_texts": [
+			"%s有脏东西",
+			"别去%s，有危险",
+			"听说%s闹鬼了"
+		]
+	}
+}

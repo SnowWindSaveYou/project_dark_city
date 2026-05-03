@@ -162,6 +162,12 @@ func get_clue_categories() -> Array:
 ## { "has_clue": "id" }    → has_clue(id)
 ## { "min_clues": N }      → collected_clues.size() >= N
 ## { "min_day": N }        → GameData.current_day >= N
+## { "min_san": N }        → GameData.get_resource("san") >= N
+## { "max_san": N }        → GameData.get_resource("san") <= N
+## { "min_money": N }      → GameData.get_resource("money") >= N
+## { "min_order": N }      → GameData.get_resource("order") >= N
+## { "has_item": "key" }   → GameData.has_item(key)
+## { "not_item": "key" }   → not GameData.has_item(key)
 ## { "all": [...] }        → all sub-conditions true
 ## { "any": [...] }        → any sub-condition true
 func check_condition(cond) -> bool:
@@ -190,6 +196,25 @@ func check_condition(cond) -> bool:
 
 	if cond.has("min_day"):
 		return GameData.current_day >= int(cond["min_day"])
+
+	# --- Phase 4: 资源/道具条件扩展 ---
+	if cond.has("min_san"):
+		return GameData.get_resource("san") >= int(cond["min_san"])
+
+	if cond.has("max_san"):
+		return GameData.get_resource("san") <= int(cond["max_san"])
+
+	if cond.has("min_money"):
+		return GameData.get_resource("money") >= int(cond["min_money"])
+
+	if cond.has("min_order"):
+		return GameData.get_resource("order") >= int(cond["min_order"])
+
+	if cond.has("has_item"):
+		return GameData.has_item(str(cond["has_item"]))
+
+	if cond.has("not_item"):
+		return not GameData.has_item(str(cond["not_item"]))
 
 	if cond.has("all"):
 		var subs: Array = cond["all"]

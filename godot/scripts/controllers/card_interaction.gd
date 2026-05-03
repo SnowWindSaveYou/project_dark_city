@@ -7,6 +7,7 @@ extends RefCounted
 # 引用 (由 main.gd 注入)
 # ---------------------------------------------------------------------------
 var m: Node = null
+var _event_handler: EventHandler = null
 
 ## 最近一次拍照的卡牌坐标 (row, col)，用于弹窗关闭后只标记该卡牌
 var _photo_row: int = -1
@@ -18,6 +19,8 @@ var _photo_col: int = -1
 
 func setup(main_ref) -> void:
 	m = main_ref
+	_event_handler = EventHandler.new()
+	_event_handler.setup(main_ref)
 
 # =========================================================================
 # 普通模式卡牌交互
@@ -190,27 +193,40 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 			for key in effects:
 				GameData.modify_resource(key, effects[key])
 
-		# 剧情事件: 条件化选择 + 设置 flag + 收集线索
+		# 剧情事件: 优先从事件定义驱动 set_flags/clue_id
 		if card_type == "plot":
-			var story_evt: Dictionary = StoryManager.pick_plot_event()
-			if not story_evt.is_empty():
-				var result: Dictionary = StoryManager.apply_event_effects(story_evt)
-				if result["is_new_clue"]:
-					m._vfx.action_banner("获得线索: %s" % result["clue_name"],
-						Color(0.5, 0.8, 0.6), 1.0)
+			if card.event_id != "":
+				# 新路径: 事件定义驱动
+				var evt_result: EventHandler.EventResult = _event_handler.resolve_event_by_id(card.event_id, card)
+				# set_flags/clue_id 由 execute_event 处理
+				_event_handler.execute_event(evt_result, card)
+			else:
+				# fallback: 旧路径
+				var story_evt: Dictionary = StoryManager.pick_plot_event()
+				if not story_evt.is_empty():
+					var result: Dictionary = StoryManager.apply_event_effects(story_evt)
+					if result["is_new_clue"]:
+						m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+							Color(0.5, 0.8, 0.6), 1.0)
 
-		# 线索事件: 条件化选择 + 收集线索 + 触发传闻
+		# 线索事件: 优先从事件定义驱动 clue_id
 		if card_type == "clue":
-			var clue_evt: Dictionary = StoryManager.pick_clue_event()
-			if not clue_evt.is_empty():
-				var result: Dictionary = StoryManager.apply_event_effects(clue_evt)
-				if result["is_new_clue"]:
-					m._vfx.action_banner("获得线索: %s" % result["clue_name"],
-						Color(0.5, 0.8, 0.6), 1.0)
+			if card.event_id != "":
+				# 新路径: 事件定义驱动
+				var evt_result: EventHandler.EventResult = _event_handler.resolve_event_by_id(card.event_id, card)
+				_event_handler.execute_event(evt_result, card)
+			else:
+				# fallback: 旧路径
+				var clue_evt: Dictionary = StoryManager.pick_clue_event()
+				if not clue_evt.is_empty():
+					var result: Dictionary = StoryManager.apply_event_effects(clue_evt)
+					if result["is_new_clue"]:
+						m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+							Color(0.5, 0.8, 0.6), 1.0)
+					else:
+						m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 				else:
 					m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
-			else:
-				m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
 		# Toast 通知
 		var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card_type) \
