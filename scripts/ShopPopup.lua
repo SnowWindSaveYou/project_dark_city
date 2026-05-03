@@ -31,8 +31,28 @@ local ALL_GOODS = {
     -- 补给型道具 (可存入背包)
     { icon = "💊", name = "镇定剂",     price = 12, effects = { { "san", 3 } },
       desc = "恢复3点理智",    inventoryKey = "sedative",    iconKey = "sedative" },
-    { icon = "📜", name = "秩序手册",   price = 10, effects = { { "order", 2 } },
-      desc = "恢复2点秩序",    inventoryKey = "orderManual", iconKey = "orderManual" },
+}
+
+-- ---------------------------------------------------------------------------
+-- 暗面专属商品 (仅暗面商店售卖)
+-- ---------------------------------------------------------------------------
+
+local DARK_GOODS = {
+    -- 暗面专属: 属性上限提升 (立即生效, 永久)
+    { icon = "🌑", name = "暗影精华",   price = 25, effects = { { "sanMax", 2 } },
+      desc = "永久提升理智上限+2",                         iconKey = "shadowEssence" },
+    { icon = "💀", name = "铁骨丹",     price = 25, effects = { { "healthMax", 2 } },
+      desc = "永久提升健康上限+2",                         iconKey = "ironBone" },
+    -- 灵感道具 (暗面独占)
+    { icon = "💎", name = "回响水晶",   price = 20, effects = { { "inspiration", 5 } },
+      desc = "灵感+5",                                     iconKey = "echoCrystal" },
+    -- 暗面常规补给 (略有折扣)
+    { icon = "☕", name = "暗黑咖啡",   price = 6,  effects = { { "san", 3 } },
+      desc = "恢复3点理智",    inventoryKey = "coffee",    iconKey = "coffee" },
+    { icon = "🧿", name = "暗影护符",   price = 12, effects = { { "shield", 1 } },
+      desc = "抵消1次伤害",    inventoryKey = "shield",    iconKey = "shield" },
+    { icon = "🪔", name = "幽魂驱离香", price = 10, effects = { { "exorcism", 1 } },
+      desc = "免侦察驱除怪物", inventoryKey = "exorcism",  iconKey = "exorcism" },
 }
 
 local SHOP_VARIANTS = {
@@ -41,14 +61,23 @@ local SHOP_VARIANTS = {
     { name = "自动售货机", desc = "孤零零的售货机嗡嗡作响。" },
 }
 
+local DARK_SHOP_VARIANTS = {
+    { name = "无光集市",   desc = "\"什么都卖，什么都换。\"" },
+    { name = "暗巷当铺",   desc = "老板戴着面具，柜台后闪烁着幽光。" },
+    { name = "无脸商人",   desc = "\"付出代价，获得力量。\"" },
+}
+
 local RES_ICONS = {
-    san       = "🧠",
-    order     = "⚖️",
-    film      = "🎞️",
-    money     = "💰",
-    shield    = "🧿",
-    exorcism  = "🪔",
-    mapReveal = "🗺️",
+    san         = "🧠",
+    sanMax      = "🧠",
+    health      = "❤️",
+    healthMax   = "❤️",
+    inspiration = "💡",
+    film        = "🎞️",
+    money       = "💰",
+    shield      = "🧿",
+    exorcism    = "🪔",
+    mapReveal   = "🗺️",
 }
 
 -- ---------------------------------------------------------------------------
@@ -93,16 +122,14 @@ local inventory = {
     exorcism    = 0,   -- 驱魔香: 免费驱除1次怪物
     coffee      = 0,   -- 咖啡: 恢复2点理智
     sedative    = 0,   -- 镇定剂: 恢复3点理智
-    orderManual = 0,   -- 秩序手册: 恢复2点秩序
 }
 
 --- 可消耗道具元数据 (HandPanel 工具栏渲染用)
 --- order 决定工具栏排列顺序
 local CONSUMABLE_ITEMS = {
-    coffee      = { icon = "☕", label = "咖啡",     effects = { { "san", 2 } },   order = 1, iconKey = "coffee" },
-    sedative    = { icon = "💊", label = "镇定剂",   effects = { { "san", 3 } },   order = 2, iconKey = "sedative" },
-    orderManual = { icon = "📜", label = "秩序手册", effects = { { "order", 2 } }, order = 3, iconKey = "orderManual" },
-    exorcism    = { icon = "🪔", label = "驱魔香",   effects = { { "exorcism", 1 } }, order = 4, iconKey = "exorcism" },
+    coffee      = { icon = "☕", label = "咖啡",     effects = { { "san", 2 } },       order = 1, iconKey = "coffee" },
+    sedative    = { icon = "💊", label = "镇定剂",   effects = { { "san", 3 } },       order = 2, iconKey = "sedative" },
+    exorcism    = { icon = "🪔", label = "驱魔香",   effects = { { "exorcism", 1 } },  order = 3, iconKey = "exorcism" },
 }
 
 --- 地图碎片回调 (由 main.lua 注入，购买时立即调用)
@@ -267,18 +294,19 @@ end
 -- 工具
 -- ---------------------------------------------------------------------------
 
---- Fisher-Yates 抽取 count 件商品
-local function pickItems(count)
-    count = math.min(count or CARD_COUNT, #ALL_GOODS)
+--- Fisher-Yates 抽取 count 件商品 (pool 可选, 默认 ALL_GOODS)
+local function pickItems(count, pool)
+    pool = pool or ALL_GOODS
+    count = math.min(count or CARD_COUNT, #pool)
     local indices = {}
-    for i = 1, #ALL_GOODS do indices[i] = i end
+    for i = 1, #pool do indices[i] = i end
     for i = 1, count do
-        local j = math.random(i, #ALL_GOODS)
+        local j = math.random(i, #pool)
         indices[i], indices[j] = indices[j], indices[i]
     end
     local result = {}
     for i = 1, count do
-        result[i] = ALL_GOODS[indices[i]]
+        result[i] = pool[indices[i]]
     end
     return result
 end
@@ -334,13 +362,20 @@ local function doPurchase(i)
         -- 有 inventoryKey → 存入背包
         M.addItem(item.inventoryKey, 1)
     else
-        -- 无 inventoryKey → 立即生效 (胶卷、地图碎片等)
+        -- 无 inventoryKey → 立即生效 (胶卷、地图碎片、上限提升等)
         for _, eff in ipairs(item.effects) do
             local key = eff[1]
             if key == "mapReveal" then
                 if mapRevealCallback then
                     mapRevealCallback()
                 end
+            elseif key == "sanMax" or key == "healthMax" then
+                -- 属性上限提升 (永久)
+                local baseKey = (key == "sanMax") and "san" or "health"
+                local oldMax = ResourceBar.getMax(baseKey)
+                ResourceBar.setMax(baseKey, oldMax + eff[2])
+                -- 同时恢复等量数值, 让玩家立刻感受到提升
+                ResourceBar.change(baseKey, eff[2])
             else
                 ResourceBar.change(key, eff[2])
             end
@@ -381,6 +416,8 @@ local function doPurchase(i)
             local icon = RES_ICONS[key] or ""
             if key == "mapReveal" then
                 popText = popText .. icon .. " 揭示 "
+            elseif key:match("Max$") then
+                popText = popText .. icon .. "上限+" .. eff[2] .. " "
             else
                 popText = popText .. icon .. "+" .. eff[2] .. " "
             end
@@ -423,7 +460,7 @@ local function doRefresh()
             tag = TAG_CARD,
             onComplete = (i == CARD_COUNT) and function()
                 -- === Phase 2: 生成新卡牌 ===
-                local items = pickItems(CARD_COUNT)
+                local items = pickItems(CARD_COUNT, state.pool)
                 for j = 1, CARD_COUNT do
                     state.cards[j] = newCard(items[j])
                 end
@@ -751,9 +788,14 @@ end
 -- API
 -- ---------------------------------------------------------------------------
 
-function M.show(cx, cy, onDismiss)
-    local variant = SHOP_VARIANTS[math.random(1, #SHOP_VARIANTS)]
-    local items   = pickItems(CARD_COUNT)
+--- @param opts? { dark?: boolean }  暗面商店传 { dark = true }
+function M.show(cx, cy, onDismiss, opts)
+    opts = opts or {}
+    local isDark   = opts.dark or false
+    local pool     = isDark and DARK_GOODS or ALL_GOODS
+    local variants = isDark and DARK_SHOP_VARIANTS or SHOP_VARIANTS
+    local variant  = variants[math.random(1, #variants)]
+    local items    = pickItems(CARD_COUNT, pool)
 
     state.active       = true
     state.phase        = "enter"
@@ -764,6 +806,7 @@ function M.show(cx, cy, onDismiss)
     state.onDismiss    = onDismiss
     state.refreshCount = 0
     state.refreshPhase = "idle"
+    state.pool         = pool    -- 记住商品池, 供 refresh 使用
 
     -- 面板动画重置
     state.overlayAlpha  = 0

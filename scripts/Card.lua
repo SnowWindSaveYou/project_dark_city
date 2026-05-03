@@ -39,7 +39,6 @@ M.LOCATION_INFO = {
     -- 地标地点 (有祛邪光环的庇护所)
     church      = { icon = "⛪", label = "教堂" },
     police      = { icon = "🚔", label = "警察局" },
-    shrine      = { icon = "⛩️", label = "神社" },
     -- 普通地点
     company     = { icon = "🏢", label = "公司" },
     school      = { icon = "🏫", label = "学校" },
@@ -49,16 +48,19 @@ M.LOCATION_INFO = {
     hospital    = { icon = "🏥", label = "医院" },
     library     = { icon = "📚", label = "图书馆" },
     bank        = { icon = "🏦", label = "银行" },
+    cemetery    = { icon = "🪦", label = "墓地" },
+    gym         = { icon = "🏋️", label = "健身房" },
 }
 
 -- 可随机分配的普通地点 (不含 home/landmark/shop)
 M.REGULAR_LOCATIONS = {
     "company", "school", "park",
     "alley", "station", "hospital", "library", "bank",
+    "cemetery", "gym",
 }
 
 -- 地标可用地点 (有祛邪力量的场所)
-M.LANDMARK_LOCATIONS = { "church", "police", "shrine" }
+M.LANDMARK_LOCATIONS = { "church", "police" }
 
 -- ---------------------------------------------------------------------------
 -- 事件类型 (翻开卡牌后显示的隐藏事件)
@@ -135,6 +137,22 @@ M.DARKSIDE_INFO = {
         reward  = { icon = "💰", label = "无主存款" },
         plot    = { icon = "🏧", label = "异常终端" },
         clue    = { icon = "🧾", label = "可疑账单" },
+    },
+    cemetery = {
+        safe    = { icon = "🪦", label = "寂静墓园" },
+        monster = { icon = "💀", label = "游荡亡灵" },
+        trap    = { icon = "🕳️", label = "塌陷墓穴" },
+        reward  = { icon = "📿", label = "古老护符" },
+        plot    = { icon = "🪦", label = "无名墓碑" },
+        clue    = { icon = "📜", label = "墓志铭文" },
+    },
+    gym = {
+        safe    = { icon = "🏋️", label = "空旷训练场" },
+        monster = { icon = "🥊", label = "暴走训练机" },
+        trap    = { icon = "🔗", label = "锁死的器械" },
+        reward  = { icon = "💪", label = "力量结晶" },
+        plot    = { icon = "🪞", label = "扭曲镜面" },
+        clue    = { icon = "🩹", label = "带血绷带" },
     },
 }
 

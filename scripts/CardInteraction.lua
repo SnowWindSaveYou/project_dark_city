@@ -44,6 +44,14 @@ local function isAdjacent(r1, c1, r2, c2)
     return (dr + dc) == 1
 end
 
+--- 检查是否还有剩余步数 (健康值=每日步数上限, 仅限明面世界)
+---@param needed number 需要的步数 (默认1)
+---@return boolean
+local function hasStepsRemaining(needed)
+    needed = needed or 1
+    return G.stepsUsed + needed <= ResourceBar.get("health")
+end
+
 --- BFS 寻路: 找到从 (sr,sc) 到 (er,ec) 的最短路径
 --- 中间格子必须已翻开 (faceUp), 目标格子不要求已翻开
 ---@return table|nil path  路径列表 {row,col} (不含起点, 含终点), nil=无路径
@@ -156,6 +164,15 @@ local function onCardFlipped(card, screenX, screenY)
         end
     end
 
+    -- 灵感阈值: 灵感不足时线索降级为安全 (感知力不够, 无法解读线索)
+    if card.type == "clue" then
+        local inspiration = ResourceBar.get("inspiration")
+        if inspiration < 20 then
+            card.type = "safe"
+            Card.updateTexture(card, CardTextures)
+        end
+    end
+
     if card.location then
         local anyCompleted = CardManager.checkArrival(card.location)
         if anyCompleted then
@@ -237,9 +254,11 @@ local function onCardFlipped(card, screenX, screenY)
     else
         -- === 非阻塞路径: 怪物/陷阱/安全/线索/剧情/照片/悬赏 → Toast ===
 
-        -- 陷阱子类型: 使用专属效果表
+        -- 效果表: 怪物动态计算, 陷阱按子类型, 其他查静态表
         local effects
-        if card.type == "trap" and card.trapSubtype then
+        if card.type == "monster" then
+            effects = EventPopup.getMonsterEffects()
+        elseif card.type == "trap" and card.trapSubtype then
             effects = EventPopup.trapSubtypeEffects[card.trapSubtype] or {}
         else
             effects = EventPopup.cardEffects[card.type] or {}
@@ -360,12 +379,107 @@ local function onCardFlipped(card, screenX, screenY)
                     end,
                 })
             end
+        elseif card.type == "safe" and card.location and M._tryConversionEvent(card.location) then
+            -- 转换事件弹窗已弹出, 不进入 ready (弹窗回调中恢复)
         else
             G.demoState = "ready"
             CameraButton.show()
             G.checkDefeat()
         end
     end
+end
+
+-- ============================================================================
+-- #2 健康/理智转换事件 (医院/公园/健身房)
+-- ============================================================================
+
+--- 转换事件配置: 地点 → { icon, title, desc1, desc2, costRes, costAmt, gainRes, gainAmt, accent }
+local CONVERSION_CONFIG = {
+    hospital = {
+        icon = "🏥",
+        title = "医院 · 心理诊疗",
+        desc1 = "医生提供了心理辅导服务",
+        desc2 = "消耗 2 健康 → 恢复 2 理智？",
+        costRes = "health", costAmt = 2,
+        gainRes = "san",    gainAmt = 2,
+        accent = { r = 100, g = 180, b = 220 },
+    },
+    park = {
+        icon = "🌳",
+        title = "公园 · 散步疗愈",
+        desc1 = "宁静的环境让身心放松",
+        desc2 = "消耗 2 理智 → 恢复 2 健康？",
+        costRes = "san",    costAmt = 2,
+        gainRes = "health", gainAmt = 2,
+        accent = { r = 100, g = 190, b = 130 },
+    },
+    gym = {
+        icon = "🏋️",
+        title = "健身房 · 体能训练",
+        desc1 = "专注训练让你恢复体力",
+        desc2 = "消耗 2 理智 → 恢复 2 健康？",
+        costRes = "san",    costAmt = 2,
+        gainRes = "health", gainAmt = 2,
+        accent = { r = 220, g = 160, b = 80 },
+    },
+}
+
+--- 尝试触发转换事件 (safe 事件结算后调用)
+---@param location string 地点 key
+---@return boolean triggered 是否触发了转换弹窗
+function M._tryConversionEvent(location)
+    local cfg = CONVERSION_CONFIG[location]
+    if not cfg then return false end
+
+    -- 资源不足: 跳过
+    if ResourceBar.get(cfg.costRes) < cfg.costAmt then
+        return false
+    end
+
+    -- 弹出确认弹窗
+    G.demoState = "popup"
+    CameraButton.hide()
+
+    local popCX = G.logicalW / 2
+    local popCY = G.logicalH * 0.42
+
+    local costMeta = { san = "🧠理智", health = "❤️健康" }
+    local gainMeta = { san = "🧠理智", health = "❤️健康" }
+
+    EventPopup.showRiftConfirm(popCX, popCY,
+        function()
+            -- 确认: 执行转换
+            ResourceBar.change(cfg.costRes, -cfg.costAmt)
+            ResourceBar.change(cfg.gainRes, cfg.gainAmt)
+            AudioManager.playSFX("resource_gain")
+            local tc = Theme.current.safe
+            VFX.spawnBanner(
+                cfg.icon .. " " .. (gainMeta[cfg.gainRes] or "") .. " +" .. cfg.gainAmt,
+                tc.r, tc.g, tc.b, 18, 0.8
+            )
+            Token.setEmotion(G.token, "happy")
+            G.demoState = "ready"
+            CameraButton.show()
+            G.checkDefeat()
+        end,
+        function()
+            -- 取消: 直接恢复
+            G.demoState = "ready"
+            CameraButton.show()
+            G.checkDefeat()
+        end,
+        {
+            icon = cfg.icon,
+            title = cfg.title,
+            desc1 = cfg.desc1,
+            desc2 = cfg.desc2,
+            btnConfirm = "接受",
+            btnCancel  = "拒绝",
+            accent = cfg.accent,
+        }
+    )
+
+    return true
 end
 
 -- ============================================================================
@@ -598,6 +712,7 @@ local function executeAutoWalk(path, screenX, screenY)
         local wx, wz = Board.cardPos(G.board, row, col)
         local isLast = (stepIndex == #path)
 
+        G.stepsUsed = G.stepsUsed + 1   -- 消耗1步
         G.token.targetRow = row
         G.token.targetCol = col
 
@@ -719,6 +834,13 @@ function M.handleNormalModeClick(card, row, col)
         -- 尝试自动寻路: 沿已翻开的卡牌跳过去
         local path = findPath(G.token.targetRow, G.token.targetCol, row, col)
         if path then
+            if not hasStepsRemaining(#path) then
+                Card.shake(card)
+                AudioManager.playSFX("card_shake", 0.5)
+                local remain = math.max(0, ResourceBar.get("health") - G.stepsUsed)
+                VFX.spawnBanner("体力不足（剩余 " .. remain .. " 步）", 220, 80, 80, 16, 0.6)
+                return
+            end
             executeAutoWalk(path, sx, sy)
         else
             Card.shake(card)
@@ -728,7 +850,16 @@ function M.handleNormalModeClick(card, row, col)
         return
     end
 
+    -- 步数检查 (健康值=每日步数上限)
+    if not hasStepsRemaining(1) then
+        Card.shake(card)
+        AudioManager.playSFX("card_shake", 0.5)
+        VFX.spawnBanner("体力不足，无法移动", 220, 80, 80, 16, 0.6)
+        return
+    end
+
     -- 移动 Token
+    G.stepsUsed = G.stepsUsed + 1   -- 消耗1步
     MonsterGhost.clearSurround()
     if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
     G.demoState = "moving"
