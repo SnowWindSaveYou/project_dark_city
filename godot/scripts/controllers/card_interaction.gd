@@ -86,7 +86,7 @@ func _flip_current_card(card: Card, row: int, col: int) -> void:
 func _move_token(_card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("moving")
 	# 消耗步数 (changelog #3)
-	GameData.consume_step()
+	GameData.use_step()
 	# 移动前清除环绕幽灵
 	m.board_visual.mg_clear_surround()
 	m.token.target_row = row
