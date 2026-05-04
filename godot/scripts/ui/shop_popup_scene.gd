@@ -356,13 +356,16 @@ func _try_purchase(index: int) -> void:
 
 	GameData.modify_resource("money", -price)
 	var effect: Dictionary = info.get("effect", {})
-	# 特殊效果: sanMax / healthMax 上限提升
+	# 特殊效果: sanMax / healthMax 上限提升 (从 effect 中移除后再 apply)
+	var filtered_effect: Dictionary = effect.duplicate()
 	for ek in effect.keys():
 		if ek == "sanMax":
 			GameData.modify_resource_max("san", effect[ek])
+			filtered_effect.erase(ek)
 		elif ek == "healthMax":
 			GameData.modify_resource_max("health", effect[ek])
-	GameData.apply_effects(effect)
+			filtered_effect.erase(ek)
+	GameData.apply_effects(filtered_effect)
 	if info.get("type", "") in ["consumable", "persistent"]:
 		GameData.add_item(item_key)
 

@@ -111,11 +111,12 @@ func parse_real_world_card(card: Card) -> EventResult:
 				var scaling: Dictionary = GameData.MONSTER_SCALING
 				if not scaling.is_empty():
 					var insp: int = GameData.get_resource("inspiration")
-					var base_san: int = scaling.get("base_san_damage", 2)
-					var extra_step: int = scaling.get("extra_damage_per_inspiration_step", 15)
-					var extra_cap: int = scaling.get("extra_damage_cap", 3)
+					var base_san: int = absi(scaling.get("base_san", -2))
+					var insp_base: int = scaling.get("inspiration_base", 10)
+					var extra_step: int = scaling.get("inspiration_step", 15)
+					var extra_cap: int = scaling.get("max_extra_damage", 3)
 					var health_dmg_table: Array = scaling.get("health_damage_table", [0, -1, -2, -3])
-					var extra: int = mini(extra_cap, int(floor(float(max(insp - 10, 0)) / float(extra_step))))
+					var extra: int = mini(extra_cap, int(floor(float(max(insp - insp_base, 0)) / float(extra_step))))
 					var san_dmg: int = base_san + extra
 					var health_dmg: int = 0
 					if extra < health_dmg_table.size():
