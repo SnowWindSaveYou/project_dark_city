@@ -132,6 +132,11 @@ func is_blocking_type(type: String) -> bool:
 	var info: Dictionary = event_types.get(type, {})
 	return info.get("is_blocking", false)
 
+## 获取事件的转化数据（conversion 字段），若无则返回空字典
+func get_event_conversion(event_id: String) -> Dictionary:
+	var evt: Dictionary = events.get(event_id, {})
+	return evt.get("conversion", {})
+
 ## 获取事件效果（考虑 trap_subtype）
 func get_event_effects(event_id: String) -> Dictionary:
 	var evt: Dictionary = events.get(event_id, {})

@@ -142,9 +142,9 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 					Color(0.4, 0.8, 0.5), 0.8)
 
-	# 转化事件 (changelog #8): hospital/park/gym 地点的资源转化 — 弹窗确认
-	if card.location != "":
-		var conv: Dictionary = GameData.CONVERSION_EVENTS.get(card.location, {})
+	# 转化事件 (changelog #8): 从事件池随机抽取, 基于 event_id 判断
+	if card.event_id != "":
+		var conv: Dictionary = EventPool.get_event_conversion(card.event_id)
 		if not conv.is_empty():
 			_pending_conv = conv
 			_pending_conv_card = card

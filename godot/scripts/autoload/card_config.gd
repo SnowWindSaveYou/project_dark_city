@@ -1,11 +1,11 @@
 ## CardConfig - 统一配置加载器 (Autoload)
 ## 从 data/ 下多个 JSON 文件加载配置，并提供带 fallback 的查询接口
 ##
-## ⚠️ 迁移状态 (Phase 5):
+## ⚠️ 迁移状态 (Phase 6):
+## - location_info / schedule_templates / rumor_*
+##   → 已迁移到 Locations (data/locations.json)，CardConfig 委托 Locations 获取
 ## - event_weights / card_effects / event_texts / trap_subtype_* / dark_texts
 ##   → 已迁移到 EventPool (data/event_pool.json)，本文件保留作为 fallback
-## - location_info / schedule_templates / rumor_*
-##   → 已迁移到 Locations (data/locations.json)，本文件保留作为 fallback
 ## - shop_* / dw_* / card_types / dark_card_types
 ##   → 尚未迁移，仍由 CardConfig 独占管理
 extends Node
@@ -13,7 +13,7 @@ extends Node
 # ---------------------------------------------------------------------------
 # 配置数据 (按文件组织)
 # ---------------------------------------------------------------------------
-# real_world.json
+# 地点数据（委托 Locations autoload，原 real_world.json）
 var location_info: Dictionary = {}
 var schedule_templates: Dictionary = {}
 var rumor_safe_texts: Array = []
@@ -68,19 +68,14 @@ func _load_all() -> void:
 	_load_dark_world()
 
 # ---------------------------------------------------------------------------
-# 加载：real_world.json
+# 加载：地点数据（委托 Locations autoload）
 # ---------------------------------------------------------------------------
 func _load_real_world() -> void:
-	var data: Dictionary = _load_json("res://data/real_world.json")
-	if data.is_empty():
-		return
-
-	location_info      = data.get("locations", {})
-	schedule_templates = data.get("schedule_templates", {})
-	var rumors: Dictionary = data.get("rumors", {})
-	rumor_safe_texts   = rumors.get("safe_texts", [])
-	rumor_danger_texts = rumors.get("danger_texts", [])
-	_convert_schedule_rewards()
+	# real_world.json 已删除，数据统一由 Locations (data/locations.json) 管理
+	location_info      = Locations.get_location_info()
+	schedule_templates = Locations.get_schedule_templates()
+	rumor_safe_texts   = Locations.rumors.get("safe_texts", [])
+	rumor_danger_texts = Locations.rumors.get("danger_texts", [])
 
 # ---------------------------------------------------------------------------
 # 加载：card_types.json
@@ -196,13 +191,6 @@ func _convert_events_to_int() -> void:
 	for key in event_weights:
 		event_weights[key] = int(event_weights[key])
 
-func _convert_schedule_rewards() -> void:
-	for key in schedule_templates:
-		var tmpl: Dictionary = schedule_templates[key]
-		if tmpl.has("reward"):
-			var reward: Array = tmpl["reward"]
-			if reward.size() >= 2:
-				reward[1] = int(reward[1])
 
 func _convert_shop_to_int() -> void:
 	for key in shop_items:
