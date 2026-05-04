@@ -42,17 +42,6 @@
 			"event_pool": ["evt_landmark_visit"]
 		},
 
-		"shrine": {
-			"label": "神社",
-			"icon": "⛩️",
-			"image_path": "",
-			"is_landmark": true,
-			"schedule": { "verb": "去神社参拜", "reward": ["san", 1] },
-			"forced_type": "landmark",
-			"weight_mods": {},
-			"event_pool": ["evt_landmark_visit"]
-		},
-
 		"company": {
 			"label": "公司",
 			"icon": "🏢",
