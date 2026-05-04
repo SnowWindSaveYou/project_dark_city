@@ -126,7 +126,13 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 
 func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	var card_type: String = card.type
-	print("[Flip] (%d,%d) 翻面触发, 类型: %s, trap_subtype: %s" % [row, col, card_type, card.trap_subtype if card_type == "trap" else "N/A"])
+	var _effects_dbg: Dictionary = card.get_effects()
+	print("[Flip] (%d,%d) 类型=%s, event_id=%s, trap_sub=%s, effects=%s" % [
+		row, col, card_type,
+		card.event_id if card.event_id != "" else "-",
+		card.trap_subtype if card.trap_subtype != "" else "-",
+		_effects_dbg if _effects_dbg.size() > 0 else "-",
+	])
 	GameData.cards_revealed += 1
 
 	# 地标光环净化已在 board.generate_cards() 阶段完成 (_apply_landmark_aura)
