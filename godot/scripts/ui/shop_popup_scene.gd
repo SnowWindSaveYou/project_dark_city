@@ -149,7 +149,7 @@ func open_shop(is_dark: bool = false) -> void:
 	if is_dark:
 		_color_bar.color = Color(0.5, 0.2, 0.7, 0.78)
 	else:
-		_color_bar.color = Color(t.info.r, t.info.g, t.info.b, 0.78)
+		_color_bar.color = Color(GameTheme.info.r, GameTheme.info.g, GameTheme.info.b, 0.78)
 
 	# 填充内容
 	_title_label.text = _variant.get("name", "商店")
