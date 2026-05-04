@@ -6,13 +6,11 @@ extends RefCounted
 
 # ---------------------------------------------------------------------------
 # 常量: 卡牌物理尺寸 (3D 世界坐标, 单位: 米)
-# 建议通过 GameConfig 读取，此处保留用于向后兼容
+# 唯一真相源: GameConfig.get_card_*()，此处数值必须保持同步
+# 保留 const 以避免大量调用点替换为函数调用
 # ---------------------------------------------------------------------------
-## @deprecated 请使用 GameConfig.get_card_width()
 const CARD_W: float = 0.64
-## @deprecated 请使用 GameConfig.get_card_height()
 const CARD_H: float = 0.90
-## @deprecated 请使用 GameConfig.get_card_thickness()
 const CARD_THICKNESS: float = 0.015
 
 # ---------------------------------------------------------------------------
