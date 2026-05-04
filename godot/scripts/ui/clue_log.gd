@@ -253,17 +253,17 @@ func _draw() -> void:
 	xf = xf.translated(Vector2(cx, cy))
 	draw_set_transform_matrix(xf)
 
+	var t = GameTheme
 	# --- 纸张阴影 ---
 	draw_rect(Rect2(px + 3, py + 4, pw, ph),
 		Color(0.15, 0.10, 0.05, 0.25))
 
 	# --- 纸张主体 ---
-	var paper_color: Color = Color(0.96, 0.94, 0.89, 0.98)
-	draw_rect(Rect2(px, py, pw, ph), paper_color)
+	draw_rect(Rect2(px, py, pw, ph), Color(t.sepia_paper, 0.98))
 
 	# --- 纸张边框 ---
 	draw_rect(Rect2(px, py, pw, ph),
-		Color(0.65, 0.55, 0.42, 0.55), false, 1.0)
+		Color(t.sepia_border, 0.55), false, 1.0)
 
 	# === 标题栏 ===
 	_draw_title(px, py, pw, font)
@@ -289,9 +289,10 @@ func _draw() -> void:
 # ---------------------------------------------------------------------------
 
 func _draw_title(px: float, py: float, pw: float, font: Font) -> void:
+	var t = GameTheme
 	# 标题底色
 	draw_rect(Rect2(px, py, pw, TITLE_H),
-		Color(0.55, 0.42, 0.30, 0.12))
+		Color(t.sepia_decoration, 0.12))
 
 	# 标题文字
 	var title: String = "🔍 线索日志"
@@ -301,26 +302,27 @@ func _draw_title(px: float, py: float, pw: float, font: Font) -> void:
 	var full_title: String = title + subtitle
 	var tw: float = font.get_string_size(full_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	draw_string(font, Vector2(px + (pw - tw) / 2.0, py + 22), title,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.25, 0.18, 0.12, 0.86))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(t.sepia_text_primary, 0.86))
 	draw_string(font, Vector2(px + (pw - tw) / 2.0 + font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, py + 22),
-		subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.45, 0.38, 0.30, 0.63))
+		subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(t.sepia_text_secondary, 0.63))
 
 	# 底部分隔线
 	draw_line(Vector2(px + PAD, py + TITLE_H - 1),
 		Vector2(px + pw - PAD, py + TITLE_H - 1),
-		Color(0.65, 0.55, 0.42, 0.27), 0.8)
+		Color(t.sepia_border, 0.27), 0.8)
 
 func _draw_close_btn(pr: Rect2, font: Font) -> void:
 	var cr: Rect2 = _get_close_rect(pr)
 	var alpha: float = 0.86 if _hover_close else 0.47
 	draw_string(font, Vector2(cr.position.x + 3, cr.position.y + 15), "✕",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.4, 0.3, 0.2, alpha))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(GameTheme.sepia_text_primary, alpha))
 
 func _draw_tabs(pr: Rect2, font: Font) -> void:
 	var total: int = _categories.size()
 	if total == 0:
 		return
 
+	var t = GameTheme
 	var tab_y: float = pr.position.y + TITLE_H
 
 	for i in range(total):
@@ -331,21 +333,21 @@ func _draw_tabs(pr: Rect2, font: Font) -> void:
 
 		# Tab 底色
 		if is_active:
-			draw_rect(tr, Color(0.70, 0.55, 0.35, 0.18))
+			draw_rect(tr, Color(t.sepia_highlight, 0.18))
 			# 底部高亮线
 			draw_line(Vector2(tr.position.x + 4, tr.position.y + tr.size.y - 1),
 				Vector2(tr.position.x + tr.size.x - 4, tr.position.y + tr.size.y - 1),
-				Color(0.70, 0.50, 0.30, 0.63), 1.5)
+				Color(t.sepia_highlight, 0.63), 1.5)
 		elif is_hovered:
-			draw_rect(tr, Color(0.65, 0.55, 0.42, 0.08))
+			draw_rect(tr, Color(t.sepia_border, 0.08))
 
 		# Tab 文字
 		var label: String = cat
 		var label_color: Color
 		if is_active:
-			label_color = Color(0.30, 0.20, 0.12, 0.86)
+			label_color = Color(t.sepia_text_primary, 0.86)
 		else:
-			label_color = Color(0.45, 0.38, 0.30, 0.55)
+			label_color = Color(t.sepia_text_secondary, 0.55)
 		var lw: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 		draw_string(font,
 			Vector2(tr.position.x + (tr.size.x - lw) / 2.0,
@@ -356,12 +358,13 @@ func _draw_tabs(pr: Rect2, font: Font) -> void:
 	draw_line(
 		Vector2(pr.position.x + PAD, tab_y + TAB_BAR_H),
 		Vector2(pr.position.x + pr.size.x - PAD, tab_y + TAB_BAR_H),
-		Color(0.65, 0.55, 0.42, 0.18), 0.5)
+		Color(t.sepia_border, 0.18), 0.5)
 
 func _draw_clue_list(pr: Rect2, font: Font) -> void:
 	if _clue_data.is_empty():
 		return
 
+	var t = GameTheme
 	var max_vis: int = _max_visible_items(pr)
 
 	for i in range(max_vis):
@@ -380,30 +383,30 @@ func _draw_clue_list(pr: Rect2, font: Font) -> void:
 		# Hover 底色
 		if is_hovered:
 			draw_rect(Rect2(ix - 2, iy + 1, iw + 4, ih - 2),
-				Color(0.70, 0.55, 0.35, 0.08))
+				Color(t.sepia_highlight, 0.08))
 
 		# 图标
 		var icon_str: String = info.get("icon", "📋")
 		draw_string(font, Vector2(ix + 2, iy + 18), icon_str,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.30, 0.22, 0.14, 0.86))
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(t.sepia_text_primary, 0.86))
 
 		# 线索名称
 		var clue_name: String = info.get("name", entry.get("id", "???"))
 		draw_string(font, Vector2(ix + ICON_SIZE + 8, iy + 16), clue_name,
 			HORIZONTAL_ALIGNMENT_LEFT, iw - ICON_SIZE - 12, 12,
-			Color(0.25, 0.18, 0.12, 0.86))
+			Color(t.sepia_text_primary, 0.86))
 
 		# 线索描述
 		var desc: String = info.get("desc", "")
 		if desc != "":
 			draw_string(font, Vector2(ix + ICON_SIZE + 8, iy + 32), desc,
 				HORIZONTAL_ALIGNMENT_LEFT, iw - ICON_SIZE - 12, 9,
-				Color(0.45, 0.38, 0.30, 0.55))
+				Color(t.sepia_text_secondary, 0.55))
 
 		# 底部分隔线
 		draw_line(Vector2(ix + ICON_SIZE + 6, iy + ih - 1),
 			Vector2(ix + iw, iy + ih - 1),
-			Color(0.65, 0.55, 0.42, 0.12), 0.5)
+			Color(t.sepia_border, 0.12), 0.5)
 
 	# 滚动指示
 	if _clue_data.size() > max_vis:
@@ -414,21 +417,22 @@ func _draw_clue_list(pr: Rect2, font: Font) -> void:
 			Vector2(pr.position.x + pr.size.x - PAD - ind_w,
 				pr.position.y + pr.size.y - 8),
 			indicator, HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
-			Color(0.45, 0.38, 0.30, 0.39))
+			Color(t.sepia_text_secondary, 0.39))
 
 func _draw_empty_state(pr: Rect2, font: Font) -> void:
+	var t = GameTheme
 	var cx: float = pr.position.x + pr.size.x / 2.0
 	var cy: float = pr.position.y + TITLE_H + TAB_BAR_H + (pr.size.y - TITLE_H - TAB_BAR_H) / 2.0
 
 	draw_string(font, Vector2(cx - 14, cy - 8), "📭",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 28,
-		Color(0.55, 0.45, 0.35, 0.31))
+		Color(t.sepia_text_secondary, 0.31))
 
 	var empty_text: String = "暂未收集到线索"
 	var tw: float = font.get_string_size(empty_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 	draw_string(font, Vector2(cx - tw / 2.0, cy + 20), empty_text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
-		Color(0.55, 0.45, 0.35, 0.39))
+		Color(t.sepia_text_secondary, 0.39))
 
 # ---------------------------------------------------------------------------
 # 重置

@@ -78,12 +78,14 @@ func _draw() -> void:
 	var box_y: float = vp.y - box_h - BOX_MARGIN_BOTTOM + ds.box_offset_y
 	var box_rect: Rect2 = Rect2(box_x, box_y, box_w, box_h)
 
+	var t = GameTheme
+
 	# --- 对话框背景 (笔记本纸) ---
-	var paper_color: Color = Color(0.98, 0.96, 0.92, ds.box_alpha)
+	var paper_color: Color = Color(t.dialogue_paper, ds.box_alpha)
 	draw_rect(box_rect, paper_color, true)
 
 	# 笔记本横线
-	var line_color: Color = Color(0.7, 0.82, 0.92, ds.box_alpha * 0.4)
+	var line_color: Color = Color(t.dialogue_line, ds.box_alpha * 0.4)
 	var line_y: float = box_y + BOX_PAD_TOP
 	while line_y < box_y + box_h - BOX_PAD_BOTTOM:
 		draw_line(
@@ -93,7 +95,7 @@ func _draw() -> void:
 		line_y += BOX_LINE_SPACING
 
 	# 边框
-	var border_color: Color = Color(0.65, 0.60, 0.55, ds.box_alpha)
+	var border_color: Color = Color(t.dialogue_border, ds.box_alpha)
 	draw_rect(box_rect, border_color, false, 4.5)
 
 	# --- 名牌 ---
@@ -103,8 +105,8 @@ func _draw() -> void:
 		var tag_rect: Rect2 = Rect2(
 			box_x + 60, box_y + NAME_TAG_OFFSET_Y,
 			name_w, NAME_TAG_H)
-		draw_rect(tag_rect, Color(0.35, 0.55, 0.75, ds.box_alpha), true)
-		draw_rect(tag_rect, Color(0.25, 0.45, 0.65, ds.box_alpha), false, 3.0)
+		draw_rect(tag_rect, Color(t.dialogue_nametag, ds.box_alpha), true)
+		draw_rect(tag_rect, Color(t.dialogue_nametag_border, ds.box_alpha), false, 3.0)
 		draw_string(_font, Vector2(tag_rect.position.x + NAME_TAG_PAD_X,
 			tag_rect.position.y + NAME_TAG_H * 0.72),
 			speaker, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_NAME,
@@ -116,7 +118,7 @@ func _draw() -> void:
 		var text_x: float = box_x + BOX_PAD_X
 		var text_y: float = box_y + BOX_PAD_TOP + FONT_SIZE_TEXT * 0.3
 		var max_w: float = box_w - BOX_PAD_X * 2.0
-		var text_color: Color = Color(0.15, 0.15, 0.15, ds.box_alpha)
+		var text_color: Color = Color(t.dialogue_text, ds.box_alpha)
 
 		# 简易自动换行
 		var lines: Array = _wrap_text(display_text, max_w)
@@ -133,7 +135,7 @@ func _draw() -> void:
 		var blink: float = (sin(m.game_time * ADVANCE_BLINK_SPEED * TAU) + 1.0) * 0.5
 		var tri_x: float = box_x + box_w - 90
 		var tri_y: float = box_y + box_h - 60
-		var tri_color: Color = Color(0.4, 0.55, 0.7, ds.box_alpha * blink)
+		var tri_color: Color = Color(t.dialogue_indicator, ds.box_alpha * blink)
 		var tri_size: float = 18.0
 		var points: PackedVector2Array = PackedVector2Array([
 			Vector2(tri_x, tri_y),
