@@ -19,7 +19,6 @@ var RESOURCE_ICONS: Dictionary = {}
 var DAILY_FILM: int = 3
 var DEFEAT_CONDITIONS: Array = ["san", "health"]
 var STEPS_FROM_HEALTH: bool = true
-var CONVERSION_EVENTS: Dictionary = {}
 var MONSTER_SCALING: Dictionary = {}
 var LOCATION_SCARCITY: Dictionary = {}
 
@@ -85,7 +84,6 @@ func _load_game_config() -> void:
 	DAILY_FILM = int(data.get("daily_film", 3))
 	DEFEAT_CONDITIONS = data.get("defeat_conditions", ["san", "health"])
 	STEPS_FROM_HEALTH = data.get("steps_from_health", true)
-	CONVERSION_EVENTS = data.get("conversion_events", {})
 	MONSTER_SCALING = data.get("monster_scaling", {})
 	LOCATION_SCARCITY = data.get("location_scarcity", {})
 	print("[GameData] Loaded game_config.json: max_days=%d, resources=%s" % [MAX_DAYS, str(INITIAL_RESOURCES)])

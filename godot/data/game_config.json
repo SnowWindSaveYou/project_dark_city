@@ -31,12 +31,6 @@
 
 	"steps_from_health": true,
 
-	"conversion_events": {
-		"hospital": { "from": "health", "to": "san", "cost": 2, "gain": 2, "label": "消耗2点健康恢复2点理智" },
-		"park":     { "from": "san", "to": "health", "cost": 2, "gain": 2, "label": "消耗2点理智恢复2点健康" },
-		"gym":      { "from": "san", "to": "health", "cost": 2, "gain": 2, "label": "消耗2点理智恢复2点健康" }
-	},
-
 	"monster_scaling": {
 		"base_san": -2,
 		"inspiration_base": 10,

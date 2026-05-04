@@ -690,6 +690,36 @@
 			"fallback_type": "safe"
 		},
 
+		"_comment_conversion_events": "========== 地点转化事件 (随机抽取, 非固定触发) ==========",
+
+		"evt_hospital_conversion": {
+			"type": "safe",
+			"world": ["real"],
+			"base_weight": 18,
+			"effects": {},
+			"conversion": { "from": "health", "to": "san", "cost": 2, "gain": 2, "label": "消耗2点健康恢复2点理智" },
+			"texts": [
+				"医院的治疗室还在运作，也许可以用健康换取精神上的恢复。",
+				"药房的镇定剂还有库存，不过需要接受一些身体检查作为交换。"
+			],
+			"condition": null,
+			"fallback_type": null
+		},
+
+		"evt_park_conversion": {
+			"type": "safe",
+			"world": ["real"],
+			"base_weight": 18,
+			"effects": {},
+			"conversion": { "from": "san", "to": "health", "cost": 2, "gain": 2, "label": "消耗2点理智恢复2点健康" },
+			"texts": [
+				"公园的草药散发着治愈的气息，沉浸其中可以恢复体力，但精神会有些恍惚。",
+				"湖边的清风令人放松，身体的疲惫在消散，但思绪变得有些模糊。"
+			],
+			"condition": null,
+			"fallback_type": null
+		},
+
 		"_comment_location_specific": "========== 地点专属事件 ==========",
 
 		"evt_company_overtime": {
@@ -1106,6 +1136,165 @@
 				"安保录像中出现了一个不该存在的身影，它直接穿墙而过..."
 			],
 			"condition": null,
+			"set_flags": {},
+			"clue_id": null,
+			"fallback_type": "safe"
+		},
+
+		"_comment_gym_events": "========== 健身房专属事件 ==========",
+
+		"evt_gym_workout": {
+			"type": "safe",
+			"world": ["real"],
+			"base_weight": 30,
+			"effects": { "san": 1 },
+			"texts": [
+				"器械还能用，简单锻炼了一会儿，身体和精神都放松了许多。",
+				"拳击沙袋上残留着不明痕迹，但打了几拳后感觉好多了。",
+				"跑步机竟然还有电，慢跑了一阵子，压力得到了释放。"
+			],
+			"condition": null,
+			"fallback_type": null
+		},
+		"evt_gym_mirror_horror": {
+			"type": "monster",
+			"world": ["real"],
+			"base_weight": 16,
+			"effects": { "san": -2 },
+			"texts": [
+				"健身房的镜子里映出了一个不属于你的身影，它正在模仿你的每一个动作...",
+				"哑铃架旁的全身镜中，你的倒影突然停了下来——但你还在动..."
+			],
+			"condition": null,
+			"fallback_type": "safe"
+		},
+		"evt_gym_broken_machine": {
+			"type": "trap",
+			"world": ["real"],
+			"base_weight": 12,
+			"effects": { "san": -1 },
+			"texts": [
+				"器械突然失控飞速运转，差点被甩出去，吓出一身冷汗。",
+				"跑步机的速度突然拉到最大，紧急跳下后心有余悸..."
+			],
+			"condition": null,
+			"fallback_type": "safe"
+		},
+		"evt_gym_locker_find": {
+			"type": "reward",
+			"world": ["real"],
+			"base_weight": 10,
+			"effects": { "money": 12 },
+			"texts": [
+				"更衣室的储物柜里忘了一个钱包，里面还有些现金。",
+				"在废弃的运动包里翻到了一些有用的东西。"
+			],
+			"condition": null,
+			"fallback_type": "safe"
+		},
+		"evt_gym_schedule_board": {
+			"type": "clue",
+			"world": ["real"],
+			"base_weight": 10,
+			"effects": { "order": 1 },
+			"texts": [
+				"课程表上的时间安排异常——所有课程都标注在凌晨三点，学员名单上的名字你一个都不认识...",
+				"更衣室角落贴着一张手写纸条，上面的符号和之前发现的完全相同..."
+			],
+			"condition": null,
+			"set_flags": {},
+			"clue_id": null,
+			"fallback_type": "safe"
+		},
+		"evt_gym_conversion": {
+			"type": "safe",
+			"world": ["real"],
+			"base_weight": 18,
+			"effects": {},
+			"conversion": { "from": "san", "to": "health", "cost": 2, "gain": 2, "label": "消耗2点理智恢复2点健康" },
+			"texts": [
+				"高强度训练可以恢复体力，但精神上的专注会消耗不少。",
+				"力量训练的过程让身体感觉好多了，但大脑有些疲惫。"
+			],
+			"condition": null,
+			"fallback_type": null
+		},
+
+		"_comment_cemetery_events": "========== 墓地专属事件 ==========",
+
+		"evt_cemetery_silence": {
+			"type": "safe",
+			"world": ["real"],
+			"base_weight": 22,
+			"effects": { "order": 1 },
+			"texts": [
+				"墓碑间弥漫着薄雾，但这种寂静反而让头脑清醒了不少。",
+				"墓地的长椅上坐了一会儿，凝视远方，思绪逐渐理清。",
+				"古老的石碑排列整齐，这种秩序感莫名地安慰了你。"
+			],
+			"condition": null,
+			"fallback_type": null
+		},
+		"evt_cemetery_restless_dead": {
+			"type": "monster",
+			"world": ["real"],
+			"base_weight": 20,
+			"effects": { "san": -3 },
+			"texts": [
+				"墓碑后传来缓慢的拖拽声，有什么东西正从泥土中挣扎而出...",
+				"枯萎的花束突然重新盛开，而花瓣下露出了一张苍白的面孔...",
+				"脚下的泥土开始松动，一只冰冷的手从地面伸出——"
+			],
+			"condition": null,
+			"fallback_type": "safe"
+		},
+		"evt_cemetery_fog_trap": {
+			"type": "trap",
+			"world": ["real"],
+			"base_weight": 14,
+			"effects": { "san": -2 },
+			"texts": [
+				"浓雾从墓碑间涌出，走了很久才发现自己一直在原地打转...",
+				"踩到了一块松动的墓碑，差点跌入旁边的空穴中..."
+			],
+			"condition": null,
+			"fallback_type": "safe"
+		},
+		"evt_cemetery_offering_find": {
+			"type": "reward",
+			"world": ["real"],
+			"base_weight": 8,
+			"effects": { "money": 15, "san": -1 },
+			"texts": [
+				"无名坟前摆放着精美的祭品，价值不菲——但拿走它们让你心里有些不安。",
+				"在倒塌的石棺中发现了一些古老的首饰，虽然有些阴气但很值钱。"
+			],
+			"condition": null,
+			"fallback_type": "safe"
+		},
+		"evt_cemetery_epitaph_clue": {
+			"type": "clue",
+			"world": ["real"],
+			"base_weight": 14,
+			"effects": { "order": 1 },
+			"texts": [
+				"一块新刻的墓碑上没有死者的名字，只有一段看不懂的铭文和一个日期——正是裂隙出现那天...",
+				"墓地管理员的记录本被遗忘在亭子里，上面记载着一些异常的'入住'情况..."
+			],
+			"condition": null,
+			"set_flags": {},
+			"clue_id": null,
+			"fallback_type": "safe"
+		},
+		"evt_cemetery_grave_whisper": {
+			"type": "plot",
+			"world": ["real"],
+			"base_weight": 10,
+			"effects": { "san": -1 },
+			"texts": [
+				"经过一座古老的坟墓时，你清楚地听到了从地下传来的低语，它在反复念着一个名字——你的名字。"
+			],
+			"condition": { "min_day": 3 },
 			"set_flags": {},
 			"clue_id": null,
 			"fallback_type": "safe"
