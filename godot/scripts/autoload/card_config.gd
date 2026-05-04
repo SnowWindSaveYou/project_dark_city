@@ -31,7 +31,6 @@ var trap_subtype_info: Dictionary = {}
 var trap_subtype_texts: Dictionary = {}  # 兼容旧代码 { subtype: [text, ...] }
 var darkside_info: Dictionary = {}  # 兼容旧代码 { loc: { type: {icon, label, image_path} } }
 var dark_texts: Dictionary = {}  # 暗面事件文本 { type: {icon, label, texts: []} }
-var _event_locations: Dictionary = {}  # per-location overrides
 var _event_defaults: Dictionary = {}  # events.json defaults 原始数据 (含 inspiration_clue_threshold 等)
 
 # shop.json
@@ -88,7 +87,8 @@ func _load_card_types() -> void:
 	dark_card_types  = data.get("dark", {})
 
 # ---------------------------------------------------------------------------
-# 加载：events.json (支持按地点覆盖)
+# 加载：events.json (仅保留 effects/texts/inspiration_clue_threshold)
+# 已迁移字段委托 EventPool / Locations 获取
 # ---------------------------------------------------------------------------
 func _load_events() -> void:
 	var data: Dictionary = _load_json("res://data/events.json")
@@ -97,27 +97,30 @@ func _load_events() -> void:
 
 	var defaults: Dictionary = data.get("defaults", {})
 	_event_defaults   = defaults  # 保留原始引用供 get_event_config() 使用
-	event_weights     = defaults.get("weights", {})
 	card_effects      = defaults.get("effects", {})
 	event_texts       = defaults.get("texts", {})
-	trap_subtype_info = defaults.get("trap_subtypes", {})
-	# 填充 trap_subtype_texts 兼容层 (供 card.gd / event_popup_scene.gd 使用)
+
+	# weights → 委托 EventPool.base_weights
+	event_weights     = EventPool.base_weights
+
+	# trap_subtypes → 委托 EventPool.trap_subtypes
+	trap_subtype_info = EventPool.trap_subtypes
 	trap_subtype_texts.clear()
 	for sub_name in trap_subtype_info:
 		var sub: Dictionary = trap_subtype_info[sub_name]
 		if sub.has("texts"):
 			trap_subtype_texts[sub_name] = sub["texts"]
-	_event_locations  = data.get("locations", {})
 
-	# 构建 darkside_info 兼容层 (供 card.gd / event_popup_scene.gd 使用)
+	# darkside_info → 委托 Locations.get_dark_display()
 	darkside_info.clear()
-	for loc_name in _event_locations:
-		var loc: Dictionary = _event_locations[loc_name]
-		if loc.has("dark_display"):
-			darkside_info[loc_name] = loc["dark_display"]
+	for loc_id in Locations.get_real_location_ids():
+		var dd: Dictionary = Locations.get_dark_display(loc_id)
+		if not dd.is_empty():
+			darkside_info[loc_id] = dd
 
-	# 加载暗面事件文本
-	dark_texts = data.get("dark_texts", {})
+	# dark_texts → 委托 EventPool（get_dark_event_info / get_dark_event_text）
+	# 保留空字典，旧代码通过 CardConfig.get_dark_event_info() 访问时会 fallback 到 EventPool
+	dark_texts = {}
 
 	_convert_events_to_int()
 
@@ -182,14 +185,9 @@ func _convert_to_int_dict(d: Dictionary) -> Dictionary:
 	return result
 
 func _convert_events_to_int() -> void:
-	for key in trap_subtype_info:
-		var info: Dictionary = trap_subtype_info[key]
-		if info.has("effect"):
-			info["effect"] = _convert_to_int_dict(info["effect"])
+	# trap_subtype_info / event_weights 已由 EventPool 完成转换
 	for key in card_effects:
 		card_effects[key] = _convert_to_int_dict(card_effects[key])
-	for key in event_weights:
-		event_weights[key] = int(event_weights[key])
 
 
 func _convert_shop_to_int() -> void:
@@ -207,55 +205,18 @@ func _convert_shop_to_int() -> void:
 			item["effect"] = _convert_to_int_dict(item["effect"])
 
 # ---------------------------------------------------------------------------
-# 查询接口：事件系统 (支持按地点 fallback)
+# 查询接口：事件系统（兼容层，委托 EventPool）
 # ---------------------------------------------------------------------------
 
-## 获取事件效果 — 优先取地点覆盖，否则取 default
-func get_event_effect(event_type: String, location: String = "") -> Dictionary:
-	if not location.is_empty() and _event_locations.has(location):
-		var loc: Dictionary = _event_locations[location]
-		if loc.has("effects") and loc["effects"].has(event_type):
-			return _merge_dict(card_effects.get(event_type, {}), loc["effects"][event_type])
-	return card_effects.get(event_type, {})
-
-## 获取事件文本列表 — 优先取地点覆盖，否则取 default
-func get_event_texts(event_type: String, location: String = "") -> Array:
-	if not location.is_empty() and _event_locations.has(location):
-		var loc: Dictionary = _event_locations[location]
-		if loc.has("texts") and loc["texts"].has(event_type):
-			return loc["texts"][event_type]
-	return event_texts.get(event_type, [])
-
-## 获取暗面地点显示信息（用于 darkside_info 兼容）
-## 返回 { "icon": String, "label": String, "image_path": String } 或空 Dictionary
-func get_dark_display(location: String, event_type: String) -> Dictionary:
-	if _event_locations.has(location):
-		var loc: Dictionary = _event_locations[location]
-		if loc.has("dark_display") and loc["dark_display"].has(event_type):
-			return loc["dark_display"][event_type]
-	return {}
-
 ## @deprecated 请使用 EventPool.get_dark_event_info()
-## 获取暗面事件文本信息
-## 返回 { "icon": String, "label": String, "texts": Array } 或空 Dictionary
+## 获取暗面事件文本信息 — 委托 EventPool
 func get_dark_event_info(dark_type: String) -> Dictionary:
-	return dark_texts.get(dark_type, {})
+	return EventPool.get_dark_event_info(dark_type)
 
 ## @deprecated 请使用 EventPool.get_dark_event_text()
-## 获取暗面事件随机文本
+## 获取暗面事件随机文本 — 委托 EventPool
 func get_dark_event_text(dark_type: String) -> String:
-	var info: Dictionary = dark_texts.get(dark_type, {})
-	var texts: Array = info.get("texts", [])
-	if texts.size() > 0:
-		return texts[randi() % texts.size()]
-	return "发生了什么..."
-
-## 合并字典：base 为基础值，override 为覆盖值（override 优先级更高）
-func _merge_dict(base: Dictionary, override: Dictionary) -> Dictionary:
-	var result: Dictionary = base.duplicate()
-	for k in override:
-		result[k] = override[k]
-	return result
+	return EventPool.get_dark_event_text(dark_type)
 
 # ---------------------------------------------------------------------------
 # 查询接口：暗面世界
