@@ -81,6 +81,7 @@ var _event_popup: Control = null
 var _shop_popup: Control = null
 var _rift_popup: Control = null
 var _photo_popup: Control = null
+var _conversion_popup: Control = null
 var _hand_panel: Control = null
 var _clue_log: Control = null
 var _camera_button: Control = null
@@ -268,6 +269,10 @@ func _setup_scene_tree() -> void:
 	# 注入子弹窗引用 (保持控制器代码兼容)
 	_event_popup.bind_sub_popups(_rift_popup, _photo_popup)
 
+	var conversion_popup_scene: PackedScene = load("res://scenes/ui/conversion_popup.tscn")
+	_conversion_popup = conversion_popup_scene.instantiate()
+	ui_layer.add_child(_conversion_popup)
+
 	var shop_popup_scene: PackedScene = load("res://scenes/ui/shop_popup.tscn")
 	_shop_popup = shop_popup_scene.instantiate()
 	ui_layer.add_child(_shop_popup)
@@ -415,6 +420,12 @@ func _connect_signals() -> void:
 	# 拍照预览 (独立组件)
 	_photo_popup.photo_popup_closed.connect(
 		func(card_type: String): card_interaction.on_photo_popup_dismissed(card_type))
+
+	# 资源转化确认 (独立组件)
+	_conversion_popup.conversion_confirmed.connect(
+		func(): card_interaction.on_conversion_confirmed())
+	_conversion_popup.conversion_cancelled.connect(
+		func(): card_interaction.on_conversion_cancelled())
 
 	# 商店 (需区分普通/暗面)
 	_shop_popup.shop_closed.connect(_on_shop_closed)

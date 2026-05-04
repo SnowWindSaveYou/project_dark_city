@@ -13,6 +13,12 @@ var _event_handler: EventHandler = null
 var _photo_row: int = -1
 var _photo_col: int = -1
 
+## 待确认的转化事件数据
+var _pending_conv: Dictionary = {}
+var _pending_conv_card: Card = null
+var _pending_conv_row: int = -1
+var _pending_conv_col: int = -1
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
@@ -136,20 +142,23 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 					Color(0.4, 0.8, 0.5), 0.8)
 
-	# 转化事件 (changelog #8): hospital/park/gym 地点的资源转化
+	# 转化事件 (changelog #8): hospital/park/gym 地点的资源转化 — 弹窗确认
 	if card.location != "":
 		var conv: Dictionary = GameData.CONVERSION_EVENTS.get(card.location, {})
 		if not conv.is_empty():
-			var from_key: String = conv.get("from", "")
-			var cost: int = conv.get("cost", 2)
-			var to_key: String = conv.get("to", "")
-			var gain_val: int = conv.get("gain", 2)
-			var cur_from: int = GameData.get_resource(from_key)
-			if cur_from >= cost:
-				GameData.modify_resource(from_key, -cost)
-				GameData.modify_resource(to_key, gain_val)
-				m._vfx.action_banner(conv.get("label", "资源转化"),
-					GameTheme.info, 0.8)
+			_pending_conv = conv
+			_pending_conv_card = card
+			_pending_conv_row = row
+			_pending_conv_col = col
+			GameData.set_demo_state("popup")
+			m._conversion_popup.show_conversion(conv)
+			return
+
+	_continue_after_conversion(card, row, col)
+
+## 转化弹窗之后的翻牌后续流程 (怪物/陷阱/商店/表情/粒子等)
+func _continue_after_conversion(card: Card, row: int, col: int) -> void:
+	var card_type: String = card.type
 
 	# 怪物翻出: 生成环绕幽灵 chibi
 	if card_type == "monster":
@@ -393,6 +402,45 @@ func on_rift_confirmed() -> void:
 func on_rift_cancelled() -> void:
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
+
+# ---------------------------------------------------------------------------
+# 转化确认回调
+# ---------------------------------------------------------------------------
+
+## 玩家确认转化: 执行资源交换, 继续翻牌后续流程
+func on_conversion_confirmed() -> void:
+	var conv: Dictionary = _pending_conv
+	if not conv.is_empty():
+		var from_key: String = conv.get("from", "")
+		var cost: int = conv.get("cost", 2)
+		var to_key: String = conv.get("to", "")
+		var gain_val: int = conv.get("gain", 2)
+		var cur_from: int = GameData.get_resource(from_key)
+		if cur_from >= cost:
+			GameData.modify_resource(from_key, -cost)
+			GameData.modify_resource(to_key, gain_val)
+			m._vfx.action_banner(conv.get("label", "资源转化"),
+				GameTheme.info, 0.8)
+	_resume_after_conversion()
+
+## 玩家取消转化: 跳过资源交换, 继续翻牌后续流程
+func on_conversion_cancelled() -> void:
+	_resume_after_conversion()
+
+## 恢复翻牌后续流程 (转化确认/取消后共用)
+func _resume_after_conversion() -> void:
+	var card: Card = _pending_conv_card
+	var row: int = _pending_conv_row
+	var col: int = _pending_conv_col
+	_pending_conv = {}
+	_pending_conv_card = null
+	_pending_conv_row = -1
+	_pending_conv_col = -1
+	if card:
+		_continue_after_conversion(card, row, col)
+	else:
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 
 # =========================================================================
 # 弹窗关闭回调
