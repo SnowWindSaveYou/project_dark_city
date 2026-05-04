@@ -72,56 +72,36 @@ func get_darkside_info() -> Dictionary:
 		var loc_data: Dictionary = Locations.get_real_location(location)
 		if not loc_data.is_empty():
 			return { "icon": loc_data.get("icon", "❓"), "label": loc_data.get("label", "未知") }
-		# fallback: CardConfig
-		var loc_info: Dictionary = CardConfig.location_info.get(location, { "icon": "❓", "label": "未知" })
-		return { "icon": loc_info["icon"], "label": loc_info["label"] }
-	# 优先从 Locations 获取暗面显示
-	var dark_disp: Dictionary = Locations.get_dark_display(location)
-	if not dark_disp.is_empty() and type in dark_disp:
-		return dark_disp[type]
-	# fallback: CardConfig.darkside_info
-	var ds: Dictionary = CardConfig.darkside_info
-	if location in ds and type in ds[location]:
-		return ds[location][type]
+	else:
+		var dark_disp: Dictionary = Locations.get_dark_display(location)
+		if not dark_disp.is_empty() and type in dark_disp:
+			return dark_disp[type]
 	# fallback: 主题
 	var type_info: Dictionary = GameTheme.card_type_info(type)
 	return { "icon": type_info["icon"], "label": type_info["label"] }
 
 ## 获取事件效果 (trap 按子类型返回)
 func get_effects() -> Dictionary:
-	# 优先从 EventPool 获取
 	if event_id != "":
-		var effects: Dictionary = EventPool.get_event_effects(event_id)
-		if not effects.is_empty():
-			return effects
-	# fallback: 旧逻辑
-	if type == "trap" and trap_subtype != "":
-		var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
-		return sub_info.get("effect", {})
+		return EventPool.get_event_effects(event_id)
+	# fallback: 无 event_id 的旧卡牌
 	return CardConfig.card_effects.get(type, {})
 
 ## 获取随机事件文本 (trap 按子类型返回)
 func get_event_text() -> String:
-	# 优先从 EventPool 获取
 	if event_id != "":
-		var text: String = EventPool.get_event_random_text(event_id)
-		if text != "发生了什么...":
-			return text
-	# fallback: 旧逻辑
-	if type == "trap" and trap_subtype != "":
-		var texts: Array = CardConfig.trap_subtype_texts.get(trap_subtype, ["发生了一些事情..."])
-		return texts[randi() % texts.size()]
+		return EventPool.get_event_random_text(event_id)
+	# fallback: 无 event_id 的旧卡牌
 	var texts: Array = CardConfig.event_texts.get(type, ["发生了一些事情..."])
 	return texts[randi() % texts.size()]
 
 ## 获取陷阱子类型信息
 func get_trap_subtype_info() -> Dictionary:
-	# 优先从 EventPool 获取
 	if trap_subtype != "":
 		var sub: Dictionary = EventPool.get_trap_subtype(trap_subtype)
 		if not sub.is_empty():
 			return sub
-	return CardConfig.trap_subtype_info.get(trap_subtype, { "icon": "⚡", "label": "陷阱", "effect": {} })
+	return { "icon": "⚡", "label": "陷阱", "effect": {} }
 
 ## 获取地点信息
 func get_location_info() -> Dictionary:
@@ -132,7 +112,7 @@ func get_location_info() -> Dictionary:
 			"label": loc_data.get("label", "未知"),
 			"image_path": loc_data.get("image_path", "")
 		}
-	return CardConfig.location_info.get(location, { "icon": "❓", "label": "未知" })
+	return { "icon": "❓", "label": "未知" }
 
 ## 是否是地标
 func is_landmark() -> bool:
