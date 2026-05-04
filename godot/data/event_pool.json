@@ -34,6 +34,7 @@
 		"sanity": {
 			"icon": "😱",
 			"label": "阴气侵蚀",
+			"weight": 30,
 			"effect": { "san": -1 },
 			"texts": [
 				"阴气侵蚀，寒意刺骨...",
@@ -45,6 +46,7 @@
 		"money": {
 			"icon": "💸",
 			"label": "财物散失",
+			"weight": 30,
 			"effect": { "money": -10 },
 			"texts": [
 				"口袋里的东西莫名消失了...",
@@ -56,6 +58,7 @@
 		"film": {
 			"icon": "📷",
 			"label": "灵雾曝光",
+			"weight": 20,
 			"effect": { "film": -1 },
 			"texts": [
 				"相机镜头突然起雾，胶卷曝光了！",
@@ -67,6 +70,7 @@
 		"teleport": {
 			"icon": "🌀",
 			"label": "空间错位",
+			"weight": 20,
 			"effect": {},
 			"texts": [
 				"脚下空间扭曲，瞬间转移到了别处！",

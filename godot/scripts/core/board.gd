@@ -17,13 +17,8 @@ const GAP: float = 0.12  # 卡牌间隔 (米)
 ## 牌堆位置 (3D 世界坐标)
 const DECK_POS: Vector3 = Vector3(3.0, 0.0, -1.5)
 
-## 陷阱子类型权重 (生成时随机分配)
-const TRAP_SUBTYPE_WEIGHTS: Array = [
-	["sanity",   30],  # 阴气侵蚀: san -1
-	["money",    30],  # 财物散失: money -10
-	["film",     20],  # 灵雾曝光: film -1
-	["teleport", 20],  # 空间错位: 随机传送到未翻开格子
-]
+## 陷阱子类型权重 → 已迁移至 data/event_pool.json trap_subtypes.*.weight
+## 使用 EventPool.get_random_trap_subtype() 获取加权随机结果
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -192,7 +187,7 @@ func generate_cards() -> void:
 			var card: Card = Card.create(location, card_type, row, col, event_id)
 			# 陷阱子类型 (仅 trap 类型有)
 			if card_type == "trap":
-				card.trap_subtype = Board.random_trap_subtype()
+				card.trap_subtype = EventPool.get_random_trap_subtype()
 			# 裂隙标记 (伪装成普通卡, 翻开后才知道有裂隙)
 			if special == "rift":
 				card.has_rift = true
@@ -200,20 +195,6 @@ func generate_cards() -> void:
 
 	# 7. 地标光环: 净化相邻的 monster/trap → safe
 	_apply_landmark_aura()
-
-## 根据权重随机选取陷阱子类型
-## TRAP_SUBTYPE_WEIGHTS: [[name, weight], ...] → w[0]=name, w[1]=weight
-static func random_trap_subtype() -> String:
-	var total: int = 0
-	for w in TRAP_SUBTYPE_WEIGHTS:
-		total += int(w[1])
-	var roll: int = randi_range(1, total)
-	var acc: int = 0
-	for w in TRAP_SUBTYPE_WEIGHTS:
-		acc += int(w[1])
-		if roll <= acc:
-			return str(w[0])
-	return "sanity"
 
 ## 加权随机事件（地点感知版）
 ## 返回 { "type": String, "event_id": String }

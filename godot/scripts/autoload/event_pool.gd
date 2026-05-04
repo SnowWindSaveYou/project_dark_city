@@ -69,6 +69,8 @@ func _convert_data() -> void:
 	# trap_subtypes → int
 	for k in trap_subtypes:
 		var sub: Dictionary = trap_subtypes[k]
+		if sub.has("weight"):
+			sub["weight"] = int(sub["weight"])
 		if sub.has("effect") and sub["effect"] is Dictionary:
 			sub["effect"] = _convert_to_int_dict(sub["effect"])
 
@@ -114,12 +116,21 @@ func get_event_type_info(type: String) -> Dictionary:
 func get_trap_subtype(subtype: String) -> Dictionary:
 	return trap_subtypes.get(subtype, {})
 
-## 获取随机陷阱子类型 key
+## 获取加权随机陷阱子类型 key
 func get_random_trap_subtype() -> String:
 	var keys: Array = trap_subtypes.keys()
 	if keys.is_empty():
 		return ""
-	return keys[randi() % keys.size()]
+	var total: int = 0
+	for k in keys:
+		total += trap_subtypes[k].get("weight", 1)
+	var roll: int = randi_range(1, total)
+	var acc: int = 0
+	for k in keys:
+		acc += trap_subtypes[k].get("weight", 1)
+		if roll <= acc:
+			return k
+	return keys[0]
 
 ## 获取事件的随机文本
 func get_event_random_text(event_id: String) -> String:
