@@ -5,7 +5,8 @@ extends Node
 # ---------------------------------------------------------------------------
 # 配置数据
 # ---------------------------------------------------------------------------
-var event_types: Dictionary = {}      # { type_key: { icon, label, color_key, is_blocking } }
+var event_types: Dictionary = {}      # { type_key: { icon, label, color_key, is_blocking, image_path } }
+var dark_card_types: Dictionary = {}  # { type_key: { icon, label, color_key, image_path } }
 var trap_subtypes: Dictionary = {}    # { subtype_key: { icon, label, effect, texts, image_path } }
 var base_weights: Dictionary = {}     # { type_key: int }
 var events: Dictionary = {}           # { event_id: { type, world, base_weight, effects, texts, ... } }
@@ -23,10 +24,11 @@ func _load() -> void:
 		push_error("EventPool: event_pool.json 加载失败")
 		return
 
-	event_types   = data.get("event_types", {})
-	trap_subtypes = data.get("trap_subtypes", {})
-	base_weights  = data.get("base_weights", {})
-	events        = data.get("events", {})
+	event_types     = data.get("event_types", {})
+	dark_card_types = data.get("dark_card_types", {})
+	trap_subtypes   = data.get("trap_subtypes", {})
+	base_weights    = data.get("base_weights", {})
+	events          = data.get("events", {})
 
 	_convert_data()
 

@@ -6,7 +6,9 @@
 ##   → 已迁移到 Locations (data/locations.json)，CardConfig 委托 Locations 获取
 ## - event_weights / card_effects / event_texts / trap_subtype_* / dark_texts
 ##   → 已迁移到 EventPool (data/event_pool.json)，本文件保留作为 fallback
-## - shop_* / dw_* / card_types / dark_card_types
+## - card_types / dark_card_types
+##   → 已迁移到 EventPool (event_types / dark_card_types)，CardConfig 委托获取
+## - shop_* / dw_*
 ##   → 尚未迁移，仍由 CardConfig 独占管理
 extends Node
 
@@ -77,14 +79,12 @@ func _load_real_world() -> void:
 	rumor_danger_texts = Locations.rumors.get("danger_texts", [])
 
 # ---------------------------------------------------------------------------
-# 加载：card_types.json
+# 加载：卡牌类型（委托 EventPool autoload，原 card_types.json）
 # ---------------------------------------------------------------------------
 func _load_card_types() -> void:
-	var data: Dictionary = _load_json("res://data/card_types.json")
-	if data.is_empty():
-		return
-	card_types       = data.get("reality", {})
-	dark_card_types  = data.get("dark", {})
+	# card_types.json 已删除，数据统一由 EventPool (data/event_pool.json) 管理
+	card_types      = EventPool.event_types
+	dark_card_types = EventPool.dark_card_types
 
 # ---------------------------------------------------------------------------
 # 加载：events.json (仅保留 effects/texts/inspiration_clue_threshold)
