@@ -117,6 +117,24 @@ func is_landmark(loc_id: String) -> bool:
 	var loc: Dictionary = real_world.get(loc_id, {})
 	return loc.get("is_landmark", false)
 
+## 获取所有普通地点 ID（排除 home/shop/landmark 等有专用格子的地点）
+func get_regular_locations() -> Array:
+	var result: Array = []
+	for loc_id in real_world:
+		var loc: Dictionary = real_world[loc_id]
+		var ft = loc.get("forced_type", null)
+		if ft == null and not loc.get("is_landmark", false):
+			result.append(loc_id)
+	return result
+
+## 获取所有地标地点 ID
+func get_landmark_locations() -> Array:
+	var result: Array = []
+	for loc_id in real_world:
+		if real_world[loc_id].get("is_landmark", false):
+			result.append(loc_id)
+	return result
+
 # ---------------------------------------------------------------------------
 # 暗世界查询
 # ---------------------------------------------------------------------------

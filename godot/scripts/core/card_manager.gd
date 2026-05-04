@@ -84,7 +84,7 @@ func generate_daily(_board: Board) -> void:
 func pre_select_locations() -> Array:
 	# 排除地标和商店 (它们有专用格子)
 	var exclude_set: Dictionary = { "convenience": true }
-	for lm_loc in Card.LANDMARK_LOCATIONS:
+	for lm_loc in Card.get_landmark_locations():
 		exclude_set[lm_loc] = true
 
 	var all_locs: Array = []

@@ -16,15 +16,16 @@ const CARD_H: float = 0.90
 const CARD_THICKNESS: float = 0.015
 
 # ---------------------------------------------------------------------------
-# 结构常量 (保留在代码中，不外部化)
+# 地点列表（动态派生自 Locations autoload）
 # ---------------------------------------------------------------------------
-const REGULAR_LOCATIONS: Array = [
-	"company", "school", "park", "alley",
-	"station", "hospital", "library", "bank",
-	"cemetery", "gym",
-]
 
-const LANDMARK_LOCATIONS: Array = ["church", "police"]
+## 获取所有普通地点 ID（排除 home/shop/landmark）
+static func get_regular_locations() -> Array:
+	return Locations.get_regular_locations()
+
+## 获取所有地标地点 ID
+static func get_landmark_locations() -> Array:
+	return Locations.get_landmark_locations()
 
 # ---------------------------------------------------------------------------
 # 实例属性
@@ -137,7 +138,7 @@ func get_location_info() -> Dictionary:
 
 ## 是否是地标
 func is_landmark() -> bool:
-	return location in LANDMARK_LOCATIONS
+	return Locations.is_landmark(location)
 
 ## 工厂方法 (现实世界卡牌)
 static func create(loc: String, evt_type: String, r: int, c: int, evt_id: String = "") -> Card:

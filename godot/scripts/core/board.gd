@@ -102,9 +102,12 @@ func generate_cards() -> void:
 	var location_pool: Array = []
 	var used_in_pool: Dictionary = {}
 
+	var regular_locs: Array = Card.get_regular_locations()
+	var landmark_locs_all: Array = Card.get_landmark_locations()
+
 	# 地标和商店地点不应出现在普通格子
 	var special_loc_set: Dictionary = { "home": true, "convenience": true }
-	for lm_loc in Card.LANDMARK_LOCATIONS:
+	for lm_loc in landmark_locs_all:
 		special_loc_set[lm_loc] = true
 
 	# 优先放入必选地点
@@ -113,9 +116,9 @@ func generate_cards() -> void:
 			location_pool.append(loc)
 			used_in_pool[loc] = true
 
-	# 回填：从 REGULAR_LOCATIONS 中选择未使用的地点
+	# 回填：从普通地点中选择未使用的地点
 	var fill_candidates: Array = []
-	for loc in Card.REGULAR_LOCATIONS:
+	for loc in regular_locs:
 		if not used_in_pool.has(loc):
 			fill_candidates.append(loc)
 	fill_candidates.shuffle()
@@ -126,7 +129,7 @@ func generate_cards() -> void:
 			location_pool.append(fill_candidates[fill_idx])
 			fill_idx += 1
 		else:
-			location_pool.append(Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()])
+			location_pool.append(regular_locs[randi() % regular_locs.size()])
 	location_pool.shuffle()
 	var loc_idx: int = 0
 
@@ -141,7 +144,7 @@ func generate_cards() -> void:
 		special_map["%d,%d" % [pos[0], pos[1]]] = "rift"
 
 	# 地标地点随机分配
-	var landmark_locs: Array = Card.LANDMARK_LOCATIONS.duplicate()
+	var landmark_locs: Array = landmark_locs_all.duplicate()
 	landmark_locs.shuffle()
 	var lm_loc_idx: int = 0
 
@@ -171,14 +174,14 @@ func generate_cards() -> void:
 					location = location_pool[loc_idx]
 					loc_idx += 1
 				else:
-					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
+					location = regular_locs[randi() % regular_locs.size()]
 				var result: Dictionary = _weighted_random_event_for_location(location)
 				card_type = result["type"]
 				event_id = result["event_id"]
 			else:
 				if loc_idx >= len(location_pool):
 					# 安全回退: 池耗尽时随机选地点
-					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
+					location = regular_locs[randi() % regular_locs.size()]
 				else:
 					location = location_pool[loc_idx]
 					loc_idx += 1
