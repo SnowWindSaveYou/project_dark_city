@@ -5,22 +5,20 @@ class_name Board
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 (建议通过 GameConfig 读取)
 # ---------------------------------------------------------------------------
+## @deprecated 请使用 GameConfig.get_board_rows()
 const ROWS: int = 5
+## @deprecated 请使用 GameConfig.get_board_cols()
 const COLS: int = 5
+## @deprecated 请使用 GameConfig.get_board_gap()
 const GAP: float = 0.12  # 卡牌间隔 (米)
 
 ## 牌堆位置 (3D 世界坐标)
 const DECK_POS: Vector3 = Vector3(3.0, 0.0, -1.5)
 
-## 陷阱子类型权重 (生成时随机分配)
-const TRAP_SUBTYPE_WEIGHTS: Array = [
-	["sanity",   30],  # 阴气侵蚀: san -1
-	["money",    30],  # 财物散失: money -10
-	["film",     20],  # 灵雾曝光: film -1
-	["teleport", 20],  # 空间错位: 随机传送到未翻开格子
-]
+## 陷阱子类型权重 → 已迁移至 data/event_pool.json trap_subtypes.*.weight
+## 使用 EventPool.get_random_trap_subtype() 获取加权随机结果
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -99,9 +97,12 @@ func generate_cards() -> void:
 	var location_pool: Array = []
 	var used_in_pool: Dictionary = {}
 
+	var regular_locs: Array = Card.get_regular_locations()
+	var landmark_locs_all: Array = Card.get_landmark_locations()
+
 	# 地标和商店地点不应出现在普通格子
 	var special_loc_set: Dictionary = { "home": true, "convenience": true }
-	for lm_loc in Card.LANDMARK_LOCATIONS:
+	for lm_loc in landmark_locs_all:
 		special_loc_set[lm_loc] = true
 
 	# 优先放入必选地点
@@ -110,9 +111,9 @@ func generate_cards() -> void:
 			location_pool.append(loc)
 			used_in_pool[loc] = true
 
-	# 回填：从 REGULAR_LOCATIONS 中选择未使用的地点
+	# 回填：从普通地点中选择未使用的地点
 	var fill_candidates: Array = []
-	for loc in Card.REGULAR_LOCATIONS:
+	for loc in regular_locs:
 		if not used_in_pool.has(loc):
 			fill_candidates.append(loc)
 	fill_candidates.shuffle()
@@ -123,7 +124,7 @@ func generate_cards() -> void:
 			location_pool.append(fill_candidates[fill_idx])
 			fill_idx += 1
 		else:
-			location_pool.append(Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()])
+			location_pool.append(regular_locs[randi() % regular_locs.size()])
 	location_pool.shuffle()
 	var loc_idx: int = 0
 
@@ -138,7 +139,7 @@ func generate_cards() -> void:
 		special_map["%d,%d" % [pos[0], pos[1]]] = "rift"
 
 	# 地标地点随机分配
-	var landmark_locs: Array = Card.LANDMARK_LOCATIONS.duplicate()
+	var landmark_locs: Array = landmark_locs_all.duplicate()
 	landmark_locs.shuffle()
 	var lm_loc_idx: int = 0
 
@@ -168,14 +169,14 @@ func generate_cards() -> void:
 					location = location_pool[loc_idx]
 					loc_idx += 1
 				else:
-					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
+					location = regular_locs[randi() % regular_locs.size()]
 				var result: Dictionary = _weighted_random_event_for_location(location)
 				card_type = result["type"]
 				event_id = result["event_id"]
 			else:
 				if loc_idx >= len(location_pool):
 					# 安全回退: 池耗尽时随机选地点
-					location = Card.REGULAR_LOCATIONS[randi() % Card.REGULAR_LOCATIONS.size()]
+					location = regular_locs[randi() % regular_locs.size()]
 				else:
 					location = location_pool[loc_idx]
 					loc_idx += 1
@@ -186,7 +187,7 @@ func generate_cards() -> void:
 			var card: Card = Card.create(location, card_type, row, col, event_id)
 			# 陷阱子类型 (仅 trap 类型有)
 			if card_type == "trap":
-				card.trap_subtype = Board.random_trap_subtype()
+				card.trap_subtype = EventPool.get_random_trap_subtype()
 			# 裂隙标记 (伪装成普通卡, 翻开后才知道有裂隙)
 			if special == "rift":
 				card.has_rift = true
@@ -194,20 +195,6 @@ func generate_cards() -> void:
 
 	# 7. 地标光环: 净化相邻的 monster/trap → safe
 	_apply_landmark_aura()
-
-## 根据权重随机选取陷阱子类型
-## TRAP_SUBTYPE_WEIGHTS: [[name, weight], ...] → w[0]=name, w[1]=weight
-static func random_trap_subtype() -> String:
-	var total: int = 0
-	for w in TRAP_SUBTYPE_WEIGHTS:
-		total += int(w[1])
-	var roll: int = randi_range(1, total)
-	var acc: int = 0
-	for w in TRAP_SUBTYPE_WEIGHTS:
-		acc += int(w[1])
-		if roll <= acc:
-			return str(w[0])
-	return "sanity"
 
 ## 加权随机事件（地点感知版）
 ## 返回 { "type": String, "event_id": String }
@@ -320,6 +307,8 @@ func _apply_landmark_aura() -> void:
 				var nb_card: Card = get_card(nb.x, nb.y)
 				if nb_card and (nb_card.type == "monster" or nb_card.type == "trap"):
 					nb_card.type = "safe"
+					nb_card.event_id = ""
+					nb_card.trap_subtype = ""
 
 # ---------------------------------------------------------------------------
 # 螺旋发牌顺序
@@ -361,6 +350,10 @@ func get_spiral_order() -> Array:
 
 ## 棋盘格子 (row, col) → 3D 世界坐标
 func grid_to_world(row: int, col: int) -> Vector3:
+	# 边界检查
+	if row < 1 or row > ROWS or col < 1 or col > COLS:
+		push_warning("[Board] grid_to_world: invalid position (%d, %d)" % [row, col])
+		return Vector3.ZERO
 	var total_w: float = COLS * Card.CARD_W + (COLS - 1) * GAP
 	var total_h: float = ROWS * Card.CARD_H + (ROWS - 1) * GAP
 	var start_x: float = -total_w / 2.0 + Card.CARD_W / 2.0
@@ -378,22 +371,22 @@ func is_adjacent(r1: int, c1: int, r2: int, c2: int) -> bool:
 	return (absi(r1 - r2) + absi(c1 - c2)) == 1
 
 ## 获取所有未翻开的卡
-func get_unflipped_cards() -> Array:
-	var result: Array = []
+func get_unflipped_cards() -> Array[Card]:
+	var result: Array[Card] = []
 	for r in range(1, ROWS + 1):
 		for c in range(1, COLS + 1):
 			var card: Card = get_card(r, c)
-			if card and not card.is_flipped:
+			if card != null and not card.is_flipped:
 				result.append(card)
 	return result
 
 ## 获取所有已翻开的指定类型卡
-func get_flipped_cards_of_type(type_key: String) -> Array:
-	var result: Array = []
+func get_flipped_cards_of_type(type_key: String) -> Array[Card]:
+	var result: Array[Card] = []
 	for r in range(1, ROWS + 1):
 		for c in range(1, COLS + 1):
 			var card: Card = get_card(r, c)
-			if card and card.is_flipped and card.type == type_key:
+			if card != null and card.is_flipped and card.type == type_key:
 				result.append(card)
 	return result
 
@@ -419,11 +412,17 @@ func flip_back(row: int, col: int) -> void:
 
 ## 检查 (row,col) 是否在某个地标的光环范围内
 func is_in_landmark_aura(row: int, col: int) -> bool:
-	var neighbors: Array = [
+	# 边界检查
+	if row < 1 or row > ROWS or col < 1 or col > COLS:
+		return false
+	var neighbors: Array[Vector2i] = [
 		Vector2i(row - 1, col), Vector2i(row + 1, col),
 		Vector2i(row, col - 1), Vector2i(row, col + 1),
 	]
 	for nb in neighbors:
+		# 边界检查
+		if nb.x < 1 or nb.x > ROWS or nb.y < 1 or nb.y > COLS:
+			continue
 		var nb_card: Card = get_card(nb.x, nb.y)
 		if nb_card and nb_card.is_landmark():
 			return true
@@ -655,9 +654,13 @@ func generate_dark_cards(layer_data: Dictionary, dark_locations: Dictionary, dar
 
 				# 恢复已收集状态
 				var collected: Dictionary = layer_data.get("collected", {})
-				if collected.has(key):
+				var original_type: Variant = collected.get(key, null)
+				if original_type != null:
 					card.dark_type = "normal"
 					card.dark_name = "空走廊"
+					# 标记为已收集，以便 EventHandler 正确处理
+					if original_type == "clue" or original_type == "item":
+						card.dark_collected = true
 				set_card(r, c, card)
 
 	print("[Board] Generated dark cards: layer=%d, walkable=%d, walls=%d" % [

@@ -60,9 +60,9 @@ class GhostSprite:
 	var lifetime: float = -1.0  # -1 = 不自动消失
 	var is_main: bool = false
 
-var surround_ghosts: Array = []  # 环绕玩家的幽灵
-var card_ghosts: Array = []      # 卡牌上的怪物 chibi
-var trail_ghosts: Array = []     # 踪迹箭头
+var surround_ghosts: Array[GhostSprite] = []  # 环绕玩家的幽灵
+var card_ghosts: Array[GhostSprite] = []      # 卡牌上的怪物 chibi
+var trail_ghosts: Array[GhostSprite] = []     # 踪迹箭头
 
 # 纹理缓存
 var _tex_cache: Dictionary = {}

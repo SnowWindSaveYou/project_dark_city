@@ -42,17 +42,6 @@
 			"event_pool": ["evt_landmark_visit"]
 		},
 
-		"shrine": {
-			"label": "神社",
-			"icon": "⛩️",
-			"image_path": "",
-			"is_landmark": true,
-			"schedule": { "verb": "去神社参拜", "reward": ["san", 1] },
-			"forced_type": "landmark",
-			"weight_mods": {},
-			"event_pool": ["evt_landmark_visit"]
-		},
-
 		"company": {
 			"label": "公司",
 			"icon": "🏢",
@@ -140,6 +129,7 @@
 				"evt_trap_generic",
 				"evt_park_herb_find",
 				"evt_park_nature_clue",
+				"evt_park_conversion",
 				"evt_clue_generic",
 				"evt_plot_inscription",
 				"evt_plot_symbol_wall",
@@ -250,6 +240,7 @@
 				"evt_hospital_medicine_reward",
 				"evt_reward_supply",
 				"evt_hospital_medical_record",
+				"evt_hospital_conversion",
 				"evt_clue_blood_trail",
 				"evt_clue_generic",
 				"evt_plot_inscription",
@@ -347,6 +338,84 @@
 				"reward":  { "icon": "💰", "label": "无主存款",   "image_path": "" },
 				"plot":    { "icon": "🏧", "label": "异常终端",   "image_path": "" },
 				"clue":    { "icon": "🧾", "label": "可疑账单",   "image_path": "" }
+			}
+		},
+
+		"gym": {
+			"label": "健身房",
+			"icon": "💪",
+			"image_path": "",
+			"schedule": { "verb": "去健身房锻炼", "reward": ["health", 1] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_gym_workout",
+				"evt_safe_rest",
+				"evt_gym_mirror_horror",
+				"evt_monster_shadow",
+				"evt_gym_broken_machine",
+				"evt_trap_generic",
+				"evt_gym_locker_find",
+				"evt_reward_supply",
+				"evt_gym_schedule_board",
+				"evt_gym_conversion",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"safe": 10,
+				"monster": -5,
+				"trap": -5,
+				"reward": 5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "💪", "label": "空荡器械室", "image_path": "" },
+				"monster": { "icon": "🪞", "label": "镜中异影",   "image_path": "" },
+				"trap":    { "icon": "⚙️", "label": "失控器械",   "image_path": "" },
+				"reward":  { "icon": "🎒", "label": "遗忘储物柜", "image_path": "" },
+				"plot":    { "icon": "📋", "label": "诡异课程表", "image_path": "" },
+				"clue":    { "icon": "🔢", "label": "异常记录",   "image_path": "" }
+			}
+		},
+
+		"cemetery": {
+			"label": "墓地",
+			"icon": "🪦",
+			"image_path": "",
+			"schedule": { "verb": "去墓地调查", "reward": ["inspiration", 1] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_cemetery_silence",
+				"evt_safe_rest",
+				"evt_cemetery_restless_dead",
+				"evt_monster_shadow",
+				"evt_monster_whisper",
+				"evt_cemetery_fog_trap",
+				"evt_trap_generic",
+				"evt_cemetery_offering_find",
+				"evt_cemetery_epitaph_clue",
+				"evt_cemetery_grave_whisper",
+				"evt_clue_generic",
+				"evt_clue_footprints",
+				"evt_plot_inscription",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"monster": 15,
+				"trap": 5,
+				"safe": -10,
+				"plot": 10,
+				"clue": 5
+			},
+			"location_effect": {},
+			"dark_display": {
+				"safe":    { "icon": "🪦", "label": "寂静墓园",   "image_path": "" },
+				"monster": { "icon": "💀", "label": "不安的亡灵", "image_path": "" },
+				"trap":    { "icon": "🌫️", "label": "迷雾墓碑",   "image_path": "" },
+				"reward":  { "icon": "🏺", "label": "古老祭品",   "image_path": "" },
+				"plot":    { "icon": "🗣️", "label": "坟墓低语",   "image_path": "" },
+				"clue":    { "icon": "📜", "label": "墓志铭文",   "image_path": "" }
 			}
 		}
 	},

@@ -3,9 +3,8 @@
 extends RefCounted
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 (MAX_DAYS 已迁移至 GameData.MAX_DAYS，从 game_config.json 读取)
 # ---------------------------------------------------------------------------
-const MAX_DAYS: int = 3
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -78,9 +77,12 @@ func _on_deal_complete() -> void:
 	m.board_visual.create_item_nodes(m.board_items.items)
 	_animate_item_spawn()
 
-	# 通知 HandPanel 刷新并显示
+	# 初始化每日步数 (基于当天体力值)
+	GameData.init_daily_steps()
+
+	# 通知 HandPanel 刷新并显示 (注入 ConsumableController 解耦数据访问)
 	if m._hand_panel:
-		m._hand_panel.setup(m.card_manager)
+		m._hand_panel.setup(m.card_manager, m.consumable_controller)
 		m._hand_panel.show_panel()
 
 ## 道具弹出动画
@@ -115,24 +117,28 @@ func advance_day() -> void:
 	for eff in effects:
 		GameData.modify_resource(eff[0], eff[1])
 
-	# 恢复资源
+	# 恢复资源 (移除 order, 改用 health/inspiration)
 	GameData.modify_resource("san", 1)
-	GameData.modify_resource("order", 1)
-	var current_film: int = GameData.get_resource("film")
-	if current_film < 3:
-		GameData.modify_resource("film", 3 - current_film)
+	GameData.modify_resource("health", 1)
+	GameData.modify_resource("inspiration", 1)
+
+	# 胶卷拆分: 重置每日胶卷 (永久胶卷保留)
+	GameData.reset_daily_film()
+
+	# 金钱每日奖励
 	GameData.modify_resource("money", 10)
 
 	GameData.set_demo_state("dealing")
 	m._camera_button.hide_button()
 	m.token.visible = false
+	m.board_visual.mg_clear_all()
 	m.board_visual.destroy_item_nodes()
 	m.board_items.clear()
 
 	m.day_count += 1
 	GameData.current_day = m.day_count
 
-	if m.day_count > MAX_DAYS:
+	if m.day_count > GameData.MAX_DAYS:
 		_trigger_victory()
 		return
 
@@ -234,39 +240,61 @@ func restart_game() -> void:
 	m._bg_transition = 0.0
 	m._bg_transition_target = 0.0
 	m._camera_offset = Vector2.ZERO
+	m._hovered_card = null
 
 	# 重置 VFX (匹配 Lua: VFX.resetAll())
 	m._vfx.reset_all()
+
+	# 退出相机模式（如果正在拍照）— 必须在清理 3D 节点前
+	if m._camera_button.is_camera_mode():
+		m._camera_button.exit_camera_mode()
+
+	# 清理所有 3D 视觉节点 (chibi / ghost / NPC / item)
+	m.board_visual.mg_clear_all()
+	m.board_visual.destroy_ghost_nodes()
+	m.board_visual.destroy_npc_nodes()
+	m.board_visual.destroy_item_nodes()
+	m.board_visual.hide_safe_glows()
 
 	# 重置数据和核心对象
 	GameData.reset()
 	m.card_manager = CardManager.new()
 	m.board = Board.new()
-	m.board_visual.destroy_item_nodes()
 	m.board_items.clear()
-	
+
 	# 重置暗面世界 (用 reset() 保留回调注入)
 	m.dark_world.reset()
-	
-	# 退出相机模式（如果正在拍照）
-	if m._camera_button.is_camera_mode():
-		m._camera_button.exit_camera_mode()
-	
+
+	# 重置氛围 (匹配 Lua: updateSceneAtmosphere(0))
+	m._apply_atmosphere(0.0)
+
+	# 重置气泡对话
+	m._bubble_dialogue.text = ""
+	m._bubble_dialogue.bubble_alpha = 0.0
+	m._bubble_dialogue.bubble_scale = 0.0
+	m._bubble_dialogue.state = "hidden"
+	m._bubble_show_tweened = false
+	m._bubble_hide_tweened = false
+
 	# 隐藏/重置所有 UI 面板
 	m._resource_bar.set_dark_mode(false)
 	m._event_popup.clear_toasts()
+	if m._event_popup.is_active():
+		m._event_popup.dismiss()
 	if m._shop_popup.is_active():
 		m._shop_popup.close_shop()
 	if m._dialogue_system.is_active():
 		m._dialogue_system.reset()
-	
+	m._hand_panel.reset()
+	m._clue_log.reset()
+
 	# 重新生成棋盘
 	generate_board()
 	m.token = Token.new()
 	m.token.load_textures()
-	
-	# 重新显示手牌面板
-	m._hand_panel.setup(m.card_manager)
+
+	# 重新显示手牌面板 (注入 ConsumableController 解耦数据访问)
+	m._hand_panel.setup(m.card_manager, m.consumable_controller)
 	m._hand_panel.show_panel()
 
 	GameData.set_game_phase("playing")

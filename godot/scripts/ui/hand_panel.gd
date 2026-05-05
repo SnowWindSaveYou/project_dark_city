@@ -546,7 +546,7 @@ func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> voi
 		if is_hovered:
 			draw_rect(Rect2(content_x - 6, item_y + 6,
 				pw - SPINE_W - PAGE_PAD * 2 + 12, ITEM_H - 12),
-				Color(0.294, 0.639, 0.89, 0.07))
+				Color(GameTheme.info, 0.07))
 
 		# 勾选框
 		var check_x: float = content_x
@@ -777,7 +777,7 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 		if is_hovered:
 			draw_rect(Rect2(ir.position.x - 6, ir.position.y - 6,
 				ir.size.x + 12, ir.size.y + 12),
-				Color(0.294, 0.639, 0.89, 0.12))
+				Color(GameTheme.info, 0.12))
 
 		# 图标背景圆
 		var bg_alpha: float = 0.2 if is_hovered else 0.12

@@ -13,17 +13,17 @@ extends RefCounted
 
 ## 当天日程列表
 ## 每个元素: { "location": "park", "verb": "在公园取景", "reward": { "san": 1 }, "status": "pending" }
-var schedules: Array = []
+var schedules: Array[Dictionary] = []
 
 ## 传闻列表
 ## 每个元素: { "type": "safe"|"danger", "text": "..." }
-var rumors: Array = []
+var rumors: Array[Dictionary] = []
 
 ## 延期日程 (留到下一天, 最多 1 张)
-var _deferred_schedules: Array = []
+var _deferred_schedules: Array[Dictionary] = []
 
 ## 预选地点缓存
-var _pre_selected: Array = []
+var _pre_selected: Array[String] = []
 
 # ---------------------------------------------------------------------------
 # 每日生成
@@ -43,8 +43,18 @@ func generate_daily(_board: Board) -> void:
 		deferred_count = 1
 	_deferred_schedules = []
 
-	# 从预选地点中生成剩余日程卡
-	var max_schedules: int = 3 + deferred_count
+	# 根据稀缺度计算日程上限
+	var scarcity: Dictionary = GameData.LOCATION_SCARCITY
+	var day: int = GameData.current_day
+	var base_count: int = 3
+	if not scarcity.is_empty():
+		if day >= 5:
+			base_count = scarcity.get("day_5_plus", 1)
+		elif day >= 3:
+			base_count = scarcity.get("day_3_4", 2)
+		else:
+			base_count = scarcity.get("day_1_2", 3)
+	var max_schedules: int = base_count + deferred_count
 	var used_locations: Dictionary = {}
 	for s in schedules:
 		used_locations[s["location"]] = true
@@ -74,7 +84,7 @@ func generate_daily(_board: Board) -> void:
 func pre_select_locations() -> Array:
 	# 排除地标和商店 (它们有专用格子)
 	var exclude_set: Dictionary = { "convenience": true }
-	for lm_loc in Card.LANDMARK_LOCATIONS:
+	for lm_loc in Card.get_landmark_locations():
 		exclude_set[lm_loc] = true
 
 	var all_locs: Array = []
@@ -83,7 +93,7 @@ func pre_select_locations() -> Array:
 			all_locs.append(loc)
 	all_locs.shuffle()
 
-	var required: Array = []
+	var required: Array[String] = []
 	var used: Dictionary = {}
 
 	# 昨天推迟的日程地点
@@ -92,8 +102,17 @@ func pre_select_locations() -> Array:
 		required.append(def_loc)
 		used[def_loc] = true
 
-	# 选 3 个新地点
+	# 地点稀缺度: 根据天数减少日程数量 (changelog #6)
+	var scarcity: Dictionary = GameData.LOCATION_SCARCITY
+	var day: int = GameData.current_day
 	var needed: int = 3
+	if not scarcity.is_empty():
+		if day >= 5:
+			needed = scarcity.get("day_5_plus", 1)
+		elif day >= 3:
+			needed = scarcity.get("day_3_4", 2)
+		else:
+			needed = scarcity.get("day_1_2", 3)
 	for loc in all_locs:
 		if needed <= 0:
 			break
@@ -177,14 +196,14 @@ func generate_rumor_from_board(board: Board) -> void:
 func add_rumor_from_board(board: Board) -> bool:
 	# 已有传闻的地点集合
 	var covered: Dictionary = {}
-	for r in rumors:
-		covered[r["location"]] = true
+	for rumor in rumors:
+		covered[rumor.get("location", "")] = true
 
-	var candidates: Array = []
+	var candidates: Array[Card] = []
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = board.get_card(r, c)
-			if card and card.location != "home" \
+			if card != null and card.location != "home" \
 					and not card.is_flipped and not covered.has(card.location):
 				candidates.append(card)
 	if candidates.is_empty():
@@ -207,9 +226,9 @@ func add_rumor_from_board(board: Board) -> bool:
 
 ## 查询指定地点是否有传闻
 func get_rumor_for(location: String) -> Dictionary:
-	for r in rumors:
-		if r["location"] == location:
-			return r
+	for rumor in rumors:
+		if rumor.get("location", "") == location:
+			return rumor
 	return {}
 
 # ---------------------------------------------------------------------------
@@ -232,8 +251,8 @@ func settle_day() -> Array:
 				if _deferred_schedules.size() == 0:
 					_deferred_schedules.append(s.duplicate())
 			_:
-				# 未完成且未推迟: 扣秩序值 -3
-				effects.append(["order", -3])
+				# 未完成且未推迟: 扣理智 -2 (原 order -3, changelog #2)
+				effects.append(["san", -2])
 
 	# 清空传闻 (仅当天有效)
 	rumors = []

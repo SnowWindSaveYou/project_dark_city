@@ -72,15 +72,9 @@ signal toast_dismissed(card_type: String)
 const TOAST_MAX: int = 3
 const TOAST_ITEM_SCENE: String = "res://scenes/ui/components/toast_item.tscn"
 
-## 阻塞判定 (保持兼容)
-const BLOCKING_EVENTS: Dictionary = {
-	"shop": true,
-}
-
+## 阻塞判定 — 委托 EventPool.is_blocking_type()
 static func is_blocking_event(card_type: String, _has_choices: bool = false) -> bool:
-	if card_type in BLOCKING_EVENTS:
-		return true
-	return false
+	return EventPool.is_blocking_type(card_type)
 
 # ---------------------------------------------------------------------------
 # 节点引用
@@ -337,7 +331,8 @@ func show_toast(data: ToastData) -> void:
 	if display_title == "":
 		display_title = tmpl["title"]
 		if location != "":
-			var dark_info: Dictionary = CardConfig.darkside_info.get(location, {}).get(card_type, {})
+			var dark_display: Dictionary = Locations.get_dark_display(location)
+			var dark_info: Dictionary = dark_display.get(card_type, {})
 			if dark_info.has("label"):
 				display_title = dark_info["label"]
 
@@ -346,7 +341,7 @@ func show_toast(data: ToastData) -> void:
 	if display_icon == "":
 		display_icon = GameTheme.card_type_info(card_type).get("icon", "❓")
 		if card_type == "trap" and trap_subtype != "":
-			var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
+			var sub_info: Dictionary = EventPool.get_trap_subtype(trap_subtype)
 			if sub_info.has("icon"):
 				display_icon = sub_info["icon"]
 
@@ -458,11 +453,11 @@ func _handle_popup_click() -> void:
 func _pick_template(card_type: String, trap_subtype: String = "") -> Dictionary:
 	# 陷阱子类型使用专属文案池
 	if card_type == "trap" and trap_subtype != "":
-		var sub_texts: Array = CardConfig.trap_subtype_texts.get(trap_subtype, [])
+		var sub: Dictionary = EventPool.get_trap_subtype(trap_subtype)
+		var sub_texts: Array = sub.get("texts", [])
 		if sub_texts.size() > 0:
 			var text: String = sub_texts[randi() % sub_texts.size()]
-			var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
-			return { "title": sub_info.get("label", "陷阱"), "desc": text }
+			return { "title": sub.get("label", "陷阱"), "desc": text }
 
 	var texts: Array = CardConfig.event_texts.get(card_type, ["发生了一些事情..."])
 	var type_info: Dictionary = GameTheme.card_type_info(card_type)

@@ -54,22 +54,65 @@
 			"effect": { "san": 3 },
 			"desc": "强效镇定剂，大幅恢复理智",
 			"image_path": ""
-		},
-		"orderManual": {
-			"name": "秩序手册",
-			"icon": "📘",
-			"price": 10,
-			"type": "consumable",
-			"effect": { "order": 2 },
-			"desc": "阅读可以恢复对秩序的信心",
-			"image_path": ""
 		}
 	},
-	"consumable_order": ["shield", "exorcism", "coffee", "sedative", "orderManual"],
+	"consumable_order": ["shield", "exorcism", "coffee", "sedative"],
 	"variants": [
 		{ "name": "午夜便利店", "greeting": "深夜好，有什么需要的吗？" },
 		{ "name": "黄昏杂货铺", "greeting": "嘿，看看有什么中意的？" },
 		{ "name": "巷口自贩机", "greeting": "请投币选择商品。" }
 	],
+	"dark_variants": [
+		{ "name": "暗影市集", "greeting": "你有足够的勇气交易吗？" },
+		{ "name": "虚空商人", "greeting": "只接受灵魂共鸣者的光顾..." },
+		{ "name": "深渊贩卖机", "greeting": "请以意志投币。" }
+	],
+	"dark_items": {
+		"darkEssence": {
+			"name": "暗影精华",
+			"icon": "🌑",
+			"price": 25,
+			"type": "consumable",
+			"effect": { "sanMax": 2 },
+			"desc": "饮下后感觉理智的容器扩大了",
+			"image_path": ""
+		},
+		"ironPill": {
+			"name": "铁骨丹",
+			"icon": "💀",
+			"price": 25,
+			"type": "consumable",
+			"effect": { "healthMax": 2 },
+			"desc": "服用后骨骼变得更加坚韧",
+			"image_path": ""
+		},
+		"echoCrystal": {
+			"name": "回响水晶",
+			"icon": "🔮",
+			"price": 20,
+			"type": "consumable",
+			"effect": { "inspiration": 5 },
+			"desc": "握住时能感受到灵感的涌动",
+			"image_path": ""
+		},
+		"darkCoffee": {
+			"name": "暗影咖啡",
+			"icon": "☕",
+			"price": 10,
+			"type": "consumable",
+			"effect": { "san": 3 },
+			"desc": "暗面世界特调，效果更强",
+			"image_path": ""
+		},
+		"darkFilm": {
+			"name": "暗影胶卷",
+			"icon": "🎞️",
+			"price": 12,
+			"type": "consumable",
+			"effect": { "film": 2 },
+			"desc": "暗面特制胶卷，一次获得两卷",
+			"image_path": ""
+		}
+	},
 	"refresh_cost": 5
 }

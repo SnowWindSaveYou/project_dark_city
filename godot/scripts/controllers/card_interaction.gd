@@ -13,6 +13,12 @@ var _event_handler: EventHandler = null
 var _photo_row: int = -1
 var _photo_col: int = -1
 
+## 待确认的转化事件数据
+var _pending_conv: Dictionary = {}
+var _pending_conv_card: Card = null
+var _pending_conv_row: int = -1
+var _pending_conv_col: int = -1
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
@@ -55,6 +61,12 @@ func handle_card_click(row: int, col: int) -> void:
 		m._vfx.action_banner("只能移动到相邻格子", Color(0.7, 0.7, 0.7), 0.6)
 		return
 
+	# 步数检查 (changelog #3): 每日步数用完则无法移动
+	if not GameData.has_steps_remaining():
+		m.board_visual.play_shake_animation(row, col)
+		m._vfx.action_banner("今日步数已用完!", Color(0.86, 0.31, 0.31), 0.8)
+		return
+
 	# 移动 Token
 	_move_token(card, row, col)
 
@@ -79,6 +91,8 @@ func _flip_current_card(card: Card, row: int, col: int) -> void:
 
 func _move_token(_card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("moving")
+	# 消耗步数 (changelog #3)
+	GameData.use_step()
 	# 移动前清除环绕幽灵
 	m.board_visual.mg_clear_surround()
 	m.token.target_row = row
@@ -112,7 +126,13 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 
 func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	var card_type: String = card.type
-	print("[Flip] (%d,%d) 翻面触发, 类型: %s, trap_subtype: %s" % [row, col, card_type, card.trap_subtype if card_type == "trap" else "N/A"])
+	var _effects_dbg: Dictionary = card.get_effects()
+	print("[Flip] (%d,%d) 类型=%s, event_id=%s, trap_sub=%s, effects=%s" % [
+		row, col, card_type,
+		card.event_id if card.event_id != "" else "-",
+		card.trap_subtype if card.trap_subtype != "" else "-",
+		_effects_dbg if _effects_dbg.size() > 0 else "-",
+	])
 	GameData.cards_revealed += 1
 
 	# 地标光环净化已在 board.generate_cards() 阶段完成 (_apply_landmark_aura)
@@ -127,6 +147,24 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				GameData.modify_resource(reward[0], reward[1])
 				m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 					Color(0.4, 0.8, 0.5), 0.8)
+
+	# 转化事件 (changelog #8): 从事件池随机抽取, 基于 event_id 判断
+	if card.event_id != "":
+		var conv: Dictionary = EventPool.get_event_conversion(card.event_id)
+		if not conv.is_empty():
+			_pending_conv = conv
+			_pending_conv_card = card
+			_pending_conv_row = row
+			_pending_conv_col = col
+			GameData.set_demo_state("popup")
+			m._conversion_popup.show_conversion(conv)
+			return
+
+	_continue_after_conversion(card, row, col)
+
+## 转化弹窗之后的翻牌后续流程 (怪物/陷阱/商店/表情/粒子等)
+func _continue_after_conversion(card: Card, row: int, col: int) -> void:
+	var card_type: String = card.type
 
 	# 怪物翻出: 生成环绕幽灵 chibi
 	if card_type == "monster":
@@ -370,6 +408,45 @@ func on_rift_confirmed() -> void:
 func on_rift_cancelled() -> void:
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
+
+# ---------------------------------------------------------------------------
+# 转化确认回调
+# ---------------------------------------------------------------------------
+
+## 玩家确认转化: 执行资源交换, 继续翻牌后续流程
+func on_conversion_confirmed() -> void:
+	var conv: Dictionary = _pending_conv
+	if not conv.is_empty():
+		var from_key: String = conv.get("from", "")
+		var cost: int = conv.get("cost", 2)
+		var to_key: String = conv.get("to", "")
+		var gain_val: int = conv.get("gain", 2)
+		var cur_from: int = GameData.get_resource(from_key)
+		if cur_from >= cost:
+			GameData.modify_resource(from_key, -cost)
+			GameData.modify_resource(to_key, gain_val)
+			m._vfx.action_banner(conv.get("label", "资源转化"),
+				GameTheme.info, 0.8)
+	_resume_after_conversion()
+
+## 玩家取消转化: 跳过资源交换, 继续翻牌后续流程
+func on_conversion_cancelled() -> void:
+	_resume_after_conversion()
+
+## 恢复翻牌后续流程 (转化确认/取消后共用)
+func _resume_after_conversion() -> void:
+	var card: Card = _pending_conv_card
+	var row: int = _pending_conv_row
+	var col: int = _pending_conv_col
+	_pending_conv = {}
+	_pending_conv_card = null
+	_pending_conv_row = -1
+	_pending_conv_col = -1
+	if card:
+		_continue_after_conversion(card, row, col)
+	else:
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
 
 # =========================================================================
 # 弹窗关闭回调

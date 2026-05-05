@@ -20,13 +20,13 @@ static func get_board_gap() -> float:
 # ============================================================================
 
 static func get_card_width() -> float:
-	return ProjectSettings.get_setting("game/card/width", 0.6)
+	return ProjectSettings.get_setting("game/card/width", 0.64)
 
 static func get_card_height() -> float:
-	return ProjectSettings.get_setting("game/card/height", 0.85)
+	return ProjectSettings.get_setting("game/card/height", 0.90)
 
 static func get_card_thickness() -> float:
-	return ProjectSettings.get_setting("game/card/thickness", 0.02)
+	return ProjectSettings.get_setting("game/card/thickness", 0.015)
 
 # ============================================================================
 # 动画时长配置

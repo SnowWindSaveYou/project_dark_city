@@ -1,24 +1,29 @@
 ## Card - 卡牌数据定义与工厂
 ## 对应原版 Card.lua (数据部分)
+## @description 表示棋盘上的一张卡牌，包含地点、事件类型、状态等信息
 class_name Card
 extends RefCounted
 
 # ---------------------------------------------------------------------------
 # 常量: 卡牌物理尺寸 (3D 世界坐标, 单位: 米)
+# 唯一真相源: GameConfig.get_card_*()，此处数值必须保持同步
+# 保留 const 以避免大量调用点替换为函数调用
 # ---------------------------------------------------------------------------
 const CARD_W: float = 0.64
 const CARD_H: float = 0.90
 const CARD_THICKNESS: float = 0.015
 
 # ---------------------------------------------------------------------------
-# 结构常量 (保留在代码中，不外部化)
+# 地点列表（动态派生自 Locations autoload）
 # ---------------------------------------------------------------------------
-const REGULAR_LOCATIONS: Array = [
-	"company", "school", "park", "alley",
-	"station", "hospital", "library", "bank",
-]
 
-const LANDMARK_LOCATIONS: Array = ["church", "police", "shrine"]
+## 获取所有普通地点 ID（排除 home/shop/landmark）
+static func get_regular_locations() -> Array:
+	return Locations.get_regular_locations()
+
+## 获取所有地标地点 ID
+static func get_landmark_locations() -> Array:
+	return Locations.get_landmark_locations()
 
 # ---------------------------------------------------------------------------
 # 实例属性
@@ -67,56 +72,36 @@ func get_darkside_info() -> Dictionary:
 		var loc_data: Dictionary = Locations.get_real_location(location)
 		if not loc_data.is_empty():
 			return { "icon": loc_data.get("icon", "❓"), "label": loc_data.get("label", "未知") }
-		# fallback: CardConfig
-		var loc_info: Dictionary = CardConfig.location_info.get(location, { "icon": "❓", "label": "未知" })
-		return { "icon": loc_info["icon"], "label": loc_info["label"] }
-	# 优先从 Locations 获取暗面显示
-	var dark_disp: Dictionary = Locations.get_dark_display(location)
-	if not dark_disp.is_empty() and type in dark_disp:
-		return dark_disp[type]
-	# fallback: CardConfig.darkside_info
-	var ds: Dictionary = CardConfig.darkside_info
-	if location in ds and type in ds[location]:
-		return ds[location][type]
+	else:
+		var dark_disp: Dictionary = Locations.get_dark_display(location)
+		if not dark_disp.is_empty() and type in dark_disp:
+			return dark_disp[type]
 	# fallback: 主题
 	var type_info: Dictionary = GameTheme.card_type_info(type)
 	return { "icon": type_info["icon"], "label": type_info["label"] }
 
 ## 获取事件效果 (trap 按子类型返回)
 func get_effects() -> Dictionary:
-	# 优先从 EventPool 获取
 	if event_id != "":
-		var effects: Dictionary = EventPool.get_event_effects(event_id)
-		if not effects.is_empty():
-			return effects
-	# fallback: 旧逻辑
-	if type == "trap" and trap_subtype != "":
-		var sub_info: Dictionary = CardConfig.trap_subtype_info.get(trap_subtype, {})
-		return sub_info.get("effect", {})
+		return EventPool.get_event_effects(event_id)
+	# fallback: 无 event_id 的旧卡牌
 	return CardConfig.card_effects.get(type, {})
 
 ## 获取随机事件文本 (trap 按子类型返回)
 func get_event_text() -> String:
-	# 优先从 EventPool 获取
 	if event_id != "":
-		var text: String = EventPool.get_event_random_text(event_id)
-		if text != "发生了什么...":
-			return text
-	# fallback: 旧逻辑
-	if type == "trap" and trap_subtype != "":
-		var texts: Array = CardConfig.trap_subtype_texts.get(trap_subtype, ["发生了一些事情..."])
-		return texts[randi() % texts.size()]
+		return EventPool.get_event_random_text(event_id)
+	# fallback: 无 event_id 的旧卡牌
 	var texts: Array = CardConfig.event_texts.get(type, ["发生了一些事情..."])
 	return texts[randi() % texts.size()]
 
 ## 获取陷阱子类型信息
 func get_trap_subtype_info() -> Dictionary:
-	# 优先从 EventPool 获取
 	if trap_subtype != "":
 		var sub: Dictionary = EventPool.get_trap_subtype(trap_subtype)
 		if not sub.is_empty():
 			return sub
-	return CardConfig.trap_subtype_info.get(trap_subtype, { "icon": "⚡", "label": "陷阱", "effect": {} })
+	return { "icon": "⚡", "label": "陷阱", "effect": {} }
 
 ## 获取地点信息
 func get_location_info() -> Dictionary:
@@ -127,11 +112,11 @@ func get_location_info() -> Dictionary:
 			"label": loc_data.get("label", "未知"),
 			"image_path": loc_data.get("image_path", "")
 		}
-	return CardConfig.location_info.get(location, { "icon": "❓", "label": "未知" })
+	return { "icon": "❓", "label": "未知" }
 
 ## 是否是地标
 func is_landmark() -> bool:
-	return location in LANDMARK_LOCATIONS
+	return Locations.is_landmark(location)
 
 ## 工厂方法 (现实世界卡牌)
 static func create(loc: String, evt_type: String, r: int, c: int, evt_id: String = "") -> Card:

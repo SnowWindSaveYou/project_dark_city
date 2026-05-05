@@ -117,6 +117,32 @@ var dark_energy: Color = h("#22D3EE")
 var dark_energy_low: Color = h("#F43F5E")
 var dark_passage: Color = h("#6366F1")
 var dark_abyss: Color = h("#DC2626")
+var dark_text_primary: Color = h("#C8B4FF")    # 暗面主文字色 (亮紫)
+var dark_text_secondary: Color = h("#B4A0DC")  # 暗面副文字色 (淡紫)
+var dark_strip_top: Color = c(30, 24, 50)      # 暗面条带渐变-上
+var dark_strip_bottom: Color = c(18, 14, 35)   # 暗面条带渐变-下
+var dark_shadow: Color = c(8, 4, 20)           # 暗面阴影色
+
+# ---------------------------------------------------------------------------
+# 线索簿 / 羊皮纸色 (sepia palette)
+# ---------------------------------------------------------------------------
+var sepia_paper: Color = h("#F5F0E3")          # 旧纸背景
+var sepia_border: Color = h("#A68C6B")         # 边框/分隔线
+var sepia_text_primary: Color = h("#402E1F")   # 深褐文字
+var sepia_text_secondary: Color = h("#73614D") # 中褐文字/副标题
+var sepia_highlight: Color = h("#B38C59")      # 高亮/选中态
+var sepia_decoration: Color = h("#8C6B4D")     # 装饰/标题栏
+
+# ---------------------------------------------------------------------------
+# 对话框色
+# ---------------------------------------------------------------------------
+var dialogue_paper: Color = h("#FAF5EB")       # 对话纸张背景
+var dialogue_line: Color = h("#B3D1EB")        # 横线纹理
+var dialogue_border: Color = h("#A6998C")      # 边框
+var dialogue_nametag: Color = h("#598CBF")     # 名牌填充
+var dialogue_nametag_border: Color = h("#4073A6") # 名牌边框
+var dialogue_text: Color = h("#262626")        # 对话正文
+var dialogue_indicator: Color = h("#668CB3")   # 翻页三角
 
 # ---------------------------------------------------------------------------
 # 字号

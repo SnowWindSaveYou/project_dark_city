@@ -17,9 +17,9 @@ signal dark_exit_pressed  # 暗面世界返回按钮被点击
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
-var _display_values: Dictionary = { "san": 10.0, "order": 10.0, "money": 50.0 }
-var _flash_timers: Dictionary = { "san": 0.0, "order": 0.0, "money": 0.0 }
-var _flash_dirs: Dictionary = { "san": 0, "order": 0, "money": 0 }  # +1 增 / -1 减
+var _display_values: Dictionary = { "san": 10.0, "health": 10.0, "inspiration": 10.0, "money": 50.0 }
+var _flash_timers: Dictionary = { "san": 0.0, "health": 0.0, "inspiration": 0.0, "money": 0.0 }
+var _flash_dirs: Dictionary = { "san": 0, "health": 0, "inspiration": 0, "money": 0 }  # +1 增 / -1 减
 var _delta_texts: Array = []  # { "key", "text", "timer", "color" }
 
 const FLASH_DURATION: float = 0.6
@@ -54,9 +54,10 @@ const SEP_PAD: float = 18.0
 # 资源定义
 # ---------------------------------------------------------------------------
 const RESOURCES_DEF: Array = [
-	{ "key": "san",   "icon": "🧠", "label": "理智", "color_key": "info" },
-	{ "key": "order", "icon": "⚖️",  "label": "秩序", "color_key": "safe" },
-	{ "key": "money", "icon": "💰", "label": "钱币", "color_key": "warning" },
+	{ "key": "san",         "icon": "🧠", "label": "理智", "color_key": "info" },
+	{ "key": "health",      "icon": "❤️", "label": "体力", "color_key": "danger" },
+	{ "key": "inspiration", "icon": "💡", "label": "灵感", "color_key": "safe" },
+	{ "key": "money",       "icon": "💰", "label": "钱币", "color_key": "warning" },
 ]
 
 # ---------------------------------------------------------------------------
@@ -104,25 +105,26 @@ func _ready() -> void:
 	_strip_area.draw.connect(_on_strip_draw)
 
 func _apply_dark_exit_style() -> void:
+	var t = GameTheme
 	# 按钮样式: 暗紫色圆角背景
 	var normal_sb := StyleBoxFlat.new()
-	normal_sb.bg_color = Color(0.137, 0.11, 0.235, 0.86)
-	normal_sb.border_color = Color(0.545, 0.361, 0.965, 0.31)
+	normal_sb.bg_color = Color(t.dark_strip_top, 0.86)
+	normal_sb.border_color = Color(t.dark_accent, 0.31)
 	normal_sb.set_border_width_all(1)
 	normal_sb.set_corner_radius_all(30)
 	normal_sb.set_content_margin_all(12)
 	_dark_exit_btn.add_theme_stylebox_override("normal", normal_sb)
 
 	var hover_sb := normal_sb.duplicate()
-	hover_sb.bg_color = Color(0.18, 0.14, 0.3, 0.92)
+	hover_sb.bg_color = Color(GameTheme.lighten(t.dark_strip_top, 0.3), 0.92)
 	_dark_exit_btn.add_theme_stylebox_override("hover", hover_sb)
 
 	var pressed_sb := normal_sb.duplicate()
-	pressed_sb.bg_color = Color(0.22, 0.18, 0.36, 0.95)
+	pressed_sb.bg_color = Color(GameTheme.lighten(t.dark_strip_top, 0.5), 0.95)
 	_dark_exit_btn.add_theme_stylebox_override("pressed", pressed_sb)
 
-	_dark_exit_btn.add_theme_color_override("font_color", Color(0.784, 0.706, 1.0, 0.9))
-	_dark_exit_btn.add_theme_color_override("font_hover_color", Color(0.85, 0.78, 1.0, 1.0))
+	_dark_exit_btn.add_theme_color_override("font_color", Color(t.dark_text_primary, 0.9))
+	_dark_exit_btn.add_theme_color_override("font_hover_color", Color(GameTheme.lighten(t.dark_text_primary, 0.3), 1.0))
 	_dark_exit_btn.add_theme_font_size_override("font_size", 36)
 
 func _on_dark_exit_pressed() -> void:
@@ -277,20 +279,18 @@ func _draw_normal_strip(sx: float, sy: float, sw: float, _scy: float,
 # 暗面模式石板背景
 # ---------------------------------------------------------------------------
 func _draw_dark_strip(sx: float, sy: float, sw: float, _scy: float,
-		_font: Font, _t) -> void:
+		_font: Font, t) -> void:
 	# 深邃阴影
 	var shadow_rect: Rect2 = Rect2(sx - 18, sy - 6, sw + 36, STRIP_H + 30)
-	_strip_area.draw_rect(shadow_rect, Color(0.03, 0.015, 0.08, 0.35))
+	_strip_area.draw_rect(shadow_rect, Color(t.dark_shadow, 0.35))
 
 	# 面板主体 (深紫渐变 — 两段模拟)
-	var top_color: Color = Color(0.118, 0.094, 0.196, 0.88)
-	var bot_color: Color = Color(0.071, 0.055, 0.137, 0.94)
-	_strip_area.draw_rect(Rect2(sx, sy, sw, STRIP_H / 2), top_color)
-	_strip_area.draw_rect(Rect2(sx, sy + STRIP_H / 2, sw, STRIP_H / 2), bot_color)
+	_strip_area.draw_rect(Rect2(sx, sy, sw, STRIP_H / 2), Color(t.dark_strip_top, 0.88))
+	_strip_area.draw_rect(Rect2(sx, sy + STRIP_H / 2, sw, STRIP_H / 2), Color(t.dark_strip_bottom, 0.94))
 
 	# 横纹灵纹 (暗紫)
 	var line_y: float = sy + LINE_SPACING * 0.6
-	var vein_color: Color = Color(0.545, 0.361, 0.965, 0.06)
+	var vein_color: Color = Color(t.dark_accent, 0.06)
 	while line_y < sy + STRIP_H:
 		_strip_area.draw_line(Vector2(sx + 12, line_y), Vector2(sx + sw - 12, line_y),
 			vein_color, 1.2)
@@ -300,12 +300,11 @@ func _draw_dark_strip(sx: float, sy: float, sw: float, _scy: float,
 	_draw_dark_edge(sx, sy + STRIP_H, sw)
 
 	# 上缘灵光
-	var glow_color: Color = Color(0.545, 0.361, 0.965, 0.18)
-	_strip_area.draw_rect(Rect2(sx, sy, sw, 12), glow_color)
-	_strip_area.draw_rect(Rect2(sx, sy + 12, sw, 12), Color(0.545, 0.361, 0.965, 0.06))
+	_strip_area.draw_rect(Rect2(sx, sy, sw, 12), Color(t.dark_accent, 0.18))
+	_strip_area.draw_rect(Rect2(sx, sy + 12, sw, 12), Color(t.dark_accent, 0.06))
 
 	# 三边边框 (暗紫)
-	var border_color: Color = Color(0.545, 0.361, 0.965, 0.22)
+	var border_color: Color = Color(t.dark_accent, 0.22)
 	_strip_area.draw_line(Vector2(sx, sy + STRIP_H), Vector2(sx, sy), border_color, 2.4)
 	_strip_area.draw_line(Vector2(sx, sy), Vector2(sx + sw, sy), border_color, 2.4)
 	_strip_area.draw_line(Vector2(sx + sw, sy), Vector2(sx + sw, sy + STRIP_H), border_color, 2.4)
@@ -335,7 +334,7 @@ func _draw_resources(sx: float, sy: float, _sw: float,
 		# --- 图标 ---
 		var icon_color: Color
 		if _dark_mode:
-			icon_color = Color(0.784, 0.706, 1.0, 0.86)
+			icon_color = Color(t.dark_text_primary, 0.86)
 		else:
 			icon_color = Color(t.text_primary, 0.78)
 		_strip_area.draw_string(font, Vector2(cx, scy + 6), icon_str,
@@ -346,7 +345,7 @@ func _draw_resources(sx: float, sy: float, _sw: float,
 		# --- 标签 (手写小字) ---
 		var label_color: Color
 		if _dark_mode:
-			label_color = Color(0.706, 0.627, 0.863, 0.63)
+			label_color = Color(t.dark_text_secondary, 0.63)
 		else:
 			label_color = Color(t.text_secondary, 0.63)
 		_strip_area.draw_string(font, Vector2(icon_end + 3, scy - 15), label_str,
@@ -376,7 +375,7 @@ func _draw_resources(sx: float, sy: float, _sw: float,
 		if i < count - 1:
 			var sep_color: Color
 			if _dark_mode:
-				sep_color = Color(0.545, 0.361, 0.965, 0.2)
+				sep_color = Color(t.dark_accent, 0.2)
 			else:
 				sep_color = Color(t.notebook_border, 0.4)
 			_strip_area.draw_line(Vector2(next_x, sy + SEP_PAD),
@@ -420,8 +419,38 @@ func _draw_normal_right(sy: float, scy: float, right_x: float,
 	_strip_area.draw_string(font, Vector2(day_right - sub_w, scy + 27), sub_text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.55))
 
+	# 步数显示 (Day左侧)
+	var max_text_w: float = maxf(day_text_w, sub_w)
+	var steps_sep_x: float = day_right - max_text_w - 24.0
+	_strip_area.draw_line(Vector2(steps_sep_x, sy + SEP_PAD),
+		Vector2(steps_sep_x, sy + STRIP_H - SEP_PAD),
+		Color(t.notebook_border, 0.4), 0.8)
+
+	var steps_r: int = GameData.steps_remaining
+	var steps_t: int = GameData.steps_total
+	var steps_icon: String = "👟"
+	var steps_text: String = str(steps_r) + "/" + str(steps_t)
+	var steps_label: String = "步数"
+
+	var steps_right_x: float = steps_sep_x - 12.0
+
+	# 步数图标
+	_strip_area.draw_string(font, Vector2(steps_right_x - 90, scy + 6), steps_icon,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(t.text_primary, 0.86))
+
+	# 步数标签
+	_strip_area.draw_string(font, Vector2(steps_right_x - 48, scy - 15), steps_label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.63))
+
+	# 步数数值 (低步数变红)
+	var steps_color: Color = Color(t.text_primary, 0.86)
+	if steps_t > 0 and steps_r <= ceili(steps_t * 0.25):
+		steps_color = Color(t.danger, 0.9)
+	_strip_area.draw_string(font, Vector2(steps_right_x - 48, scy + 27), steps_text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, steps_color)
+
 	# 分隔竖线
-	var sep_x: float = day_right - maxf(day_text_w, sub_w) - 24.0
+	var sep_x: float = steps_right_x - 108.0
 	_strip_area.draw_line(Vector2(sep_x, sy + SEP_PAD),
 		Vector2(sep_x, sy + STRIP_H - SEP_PAD),
 		Color(t.notebook_border, 0.4), 0.8)
@@ -431,7 +460,7 @@ func _draw_normal_right(sy: float, scy: float, right_x: float,
 # 右半: 暗面模式 — 层级 + 能量 (退出按钮已由 Button 节点处理)
 # ---------------------------------------------------------------------------
 func _draw_dark_right(sx: float, sy: float, _sw: float, scy: float,
-		right_x: float, font: Font, _t) -> void:
+		right_x: float, font: Font, t) -> void:
 	# 退出按钮区域不再手动绘制——由 DarkExitButton 节点负责
 
 	# --- 层级信息组 (退出按钮左侧) ---
@@ -441,7 +470,7 @@ func _draw_dark_right(sx: float, sy: float, _sw: float, scy: float,
 	var layer_name: String = _dark_layer_name if _dark_layer_name != "" else "暗面"
 	var layer_w: float = font.get_string_size(layer_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 42).x
 	_strip_area.draw_string(font, Vector2(info_right_x - layer_w, scy - 6), layer_name,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(0.133, 0.827, 0.933, 0.86))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(t.dark_energy, 0.86))
 
 	# 能量副行
 	var energy_ratio: float = float(_dark_energy) / maxf(float(_dark_max_energy), 1.0)
@@ -450,9 +479,9 @@ func _draw_dark_right(sx: float, sy: float, _sw: float, scy: float,
 	# 能量颜色 (低于 30% 变红)
 	var e_color: Color
 	if energy_ratio <= 0.3:
-		e_color = Color(0.957, 0.247, 0.369)  # #F43F5E
+		e_color = t.dark_energy_low
 	else:
-		e_color = Color(0.133, 0.827, 0.933)   # #22D3EE
+		e_color = t.dark_energy
 
 	# 闪光
 	var flash_alpha: float = 0.63
@@ -473,7 +502,7 @@ func _draw_dark_right(sx: float, sy: float, _sw: float, scy: float,
 
 	# 背景槽
 	_strip_area.draw_rect(Rect2(m_bar_x, m_bar_y, mini_bar_w, mini_bar_h),
-		Color(0.078, 0.059, 0.157, 0.71))
+		Color(t.dark_shadow, 0.71))
 
 	# 填充
 	var fill_w: float = mini_bar_w * energy_ratio
@@ -484,7 +513,7 @@ func _draw_dark_right(sx: float, sy: float, _sw: float, scy: float,
 	var sep_x: float = info_right_x - maxf(layer_w, energy_text_w + mini_bar_w + 9) - 24.0
 	_strip_area.draw_line(Vector2(sep_x, sy + SEP_PAD),
 		Vector2(sep_x, sy + STRIP_H - SEP_PAD),
-		Color(0.545, 0.361, 0.965, 0.2), 0.8)
+		Color(t.dark_accent, 0.2), 0.8)
 
 
 # ---------------------------------------------------------------------------
@@ -500,8 +529,9 @@ func _draw_delta_texts(scy: float, font: Font) -> void:
 
 		var dx: float = 180.0
 		match dt["key"]:
-			"order": dx = 390.0
-			"money": dx = 600.0
+			"health": dx = 330.0
+			"inspiration": dx = 510.0
+			"money": dx = 690.0
 
 		_strip_area.draw_string(font, Vector2(dx, scy - 24 + offset_y), dt["text"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 36, color)
@@ -529,7 +559,7 @@ func _draw_torn_edge(x: float, y: float, w: float, base_color: Color) -> void:
 # 辅助: 腐蚀边缘 (暗面模式底部)
 # ---------------------------------------------------------------------------
 func _draw_dark_edge(x: float, y: float, w: float) -> void:
-	var edge_color: Color = Color(0.071, 0.055, 0.137, 0.94)
+	var edge_color: Color = Color(GameTheme.dark_strip_bottom, 0.94)
 	var step: float = 12.0
 	var cx: float = x
 	var i: int = 0
@@ -566,9 +596,10 @@ func _draw_tape(center: Vector2, tw: float, th: float, angle: float) -> void:
 # 辅助: 暗面封印装饰 (暗面模式)
 # ---------------------------------------------------------------------------
 func _draw_dark_seal(center: Vector2, tw: float, th: float, angle: float) -> void:
-	var seal_body: Color = Color(0.545, 0.361, 0.965, 0.10)
-	var seal_line: Color = Color(0.133, 0.827, 0.933, 0.14)
-	var seal_border: Color = Color(0.545, 0.361, 0.965, 0.14)
+	var t = GameTheme
+	var seal_body: Color = Color(t.dark_accent, 0.10)
+	var seal_line: Color = Color(t.dark_energy, 0.14)
+	var seal_border: Color = Color(t.dark_accent, 0.14)
 
 	var xf: Transform2D = Transform2D()
 	xf = xf.translated(-center)
@@ -585,9 +616,9 @@ func _draw_dark_seal(center: Vector2, tw: float, th: float, angle: float) -> voi
 
 	# 两端节点
 	_strip_area.draw_circle(Vector2(center.x - tw / 2 + 15, center.y), 3.0,
-		Color(0.133, 0.827, 0.933, 0.18))
+		Color(t.dark_energy, 0.18))
 	_strip_area.draw_circle(Vector2(center.x + tw / 2 - 15, center.y), 3.0,
-		Color(0.133, 0.827, 0.933, 0.18))
+		Color(t.dark_energy, 0.18))
 
 	# 边框轮廓
 	_strip_area.draw_rect(Rect2(center.x - tw / 2, center.y - th / 2, tw, th),

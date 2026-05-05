@@ -1,13 +1,13 @@
-## RiftPopup - 裂隙确认弹窗 (Scene 化)
-## 从 EventPopup 拆分出的独立场景，使用 Control 节点替代 _draw()
-class_name RiftPopup
+## ConversionPopup - 资源转化确认弹窗
+## hospital/park/gym 地点的资源转化需玩家确认
+class_name ConversionPopup
 extends Control
 
 # ---------------------------------------------------------------------------
 # 信号
 # ---------------------------------------------------------------------------
-signal rift_confirmed()
-signal rift_cancelled()
+signal conversion_confirmed()
+signal conversion_cancelled()
 
 # ---------------------------------------------------------------------------
 # 节点引用
@@ -18,14 +18,15 @@ signal rift_cancelled()
 @onready var _icon_label: Label = $PanelAnchor/Panel/Content/IconLabel
 @onready var _title_label: Label = $PanelAnchor/Panel/Content/TitleLabel
 @onready var _desc_label: Label = $PanelAnchor/Panel/Content/DescLabel
-@onready var _enter_button: Button = $PanelAnchor/Panel/Content/ButtonRow/EnterButton
-@onready var _stay_button: Button = $PanelAnchor/Panel/Content/ButtonRow/StayButton
+@onready var _confirm_button: Button = $PanelAnchor/Panel/Content/ButtonRow/ConfirmButton
+@onready var _cancel_button: Button = $PanelAnchor/Panel/Content/ButtonRow/CancelButton
 
 # ---------------------------------------------------------------------------
 # 状态
 # ---------------------------------------------------------------------------
 var _active: bool = false
 var _phase: String = "none"  # "enter" | "idle" | "exit"
+var _conv_data: Dictionary = {}  # 当前转化数据
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -36,7 +37,7 @@ func _ready() -> void:
 
 	# 应用主题色
 	var t = GameTheme
-	_color_bar.color = t.dark_accent
+	_color_bar.color = t.info
 	_icon_label.add_theme_font_size_override("font_size", 108)
 	_title_label.add_theme_font_size_override("font_size", 48)
 	_title_label.add_theme_color_override("font_color", t.text_primary)
@@ -46,65 +47,82 @@ func _ready() -> void:
 	# 面板样式
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.96)
-	panel_style.border_color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, 0.4)
+	panel_style.border_color = Color(t.info.r, t.info.g, t.info.b, 0.4)
 	panel_style.set_border_width_all(3)
 	panel_style.set_corner_radius_all(42)
 	panel_style.set_content_margin_all(24)
 	_panel.add_theme_stylebox_override("panel", panel_style)
 	_panel.custom_minimum_size = Vector2(780, 555)
 
-	# "进入暗面" 按钮样式
-	var enter_style := StyleBoxFlat.new()
-	enter_style.bg_color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, 0.86)
-	enter_style.set_corner_radius_all(21)
-	enter_style.content_margin_left = 36
-	enter_style.content_margin_right = 36
-	enter_style.content_margin_top = 12
-	enter_style.content_margin_bottom = 12
-	_enter_button.add_theme_stylebox_override("normal", enter_style)
-	var enter_hover := enter_style.duplicate()
-	enter_hover.bg_color = GameTheme.lighten(t.dark_accent, 0.15)
-	_enter_button.add_theme_stylebox_override("hover", enter_hover)
-	var enter_pressed := enter_style.duplicate()
-	enter_pressed.bg_color = GameTheme.darken(t.dark_accent, 0.85)
-	_enter_button.add_theme_stylebox_override("pressed", enter_pressed)
-	_enter_button.add_theme_color_override("font_color", Color.WHITE)
-	_enter_button.add_theme_color_override("font_hover_color", Color.WHITE)
-	_enter_button.add_theme_font_size_override("font_size", 39)
-	_enter_button.custom_minimum_size = Vector2(300, 90)
+	# "确认转化" 按钮样式
+	var confirm_style := StyleBoxFlat.new()
+	confirm_style.bg_color = Color(t.info.r, t.info.g, t.info.b, 0.86)
+	confirm_style.set_corner_radius_all(21)
+	confirm_style.content_margin_left = 36
+	confirm_style.content_margin_right = 36
+	confirm_style.content_margin_top = 12
+	confirm_style.content_margin_bottom = 12
+	_confirm_button.add_theme_stylebox_override("normal", confirm_style)
+	var confirm_hover := confirm_style.duplicate()
+	confirm_hover.bg_color = GameTheme.lighten(t.info, 0.15)
+	_confirm_button.add_theme_stylebox_override("hover", confirm_hover)
+	var confirm_pressed := confirm_style.duplicate()
+	confirm_pressed.bg_color = GameTheme.darken(t.info, 0.85)
+	_confirm_button.add_theme_stylebox_override("pressed", confirm_pressed)
+	_confirm_button.add_theme_color_override("font_color", Color.WHITE)
+	_confirm_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	_confirm_button.add_theme_font_size_override("font_size", 39)
+	_confirm_button.custom_minimum_size = Vector2(300, 90)
 
-	# "留在原地" 按钮样式
-	var stay_style := StyleBoxFlat.new()
-	stay_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.24)
-	stay_style.border_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.47)
-	stay_style.set_border_width_all(1)
-	stay_style.set_corner_radius_all(21)
-	stay_style.content_margin_left = 36
-	stay_style.content_margin_right = 36
-	stay_style.content_margin_top = 12
-	stay_style.content_margin_bottom = 12
-	_stay_button.add_theme_stylebox_override("normal", stay_style)
-	var stay_hover := stay_style.duplicate()
-	stay_hover.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.35)
-	_stay_button.add_theme_stylebox_override("hover", stay_hover)
-	_stay_button.add_theme_color_override("font_color", t.text_primary)
-	_stay_button.add_theme_color_override("font_hover_color", t.text_primary)
-	_stay_button.add_theme_font_size_override("font_size", 39)
-	_stay_button.custom_minimum_size = Vector2(300, 90)
+	# "不了" 按钮样式
+	var cancel_style := StyleBoxFlat.new()
+	cancel_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.24)
+	cancel_style.border_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.47)
+	cancel_style.set_border_width_all(1)
+	cancel_style.set_corner_radius_all(21)
+	cancel_style.content_margin_left = 36
+	cancel_style.content_margin_right = 36
+	cancel_style.content_margin_top = 12
+	cancel_style.content_margin_bottom = 12
+	_cancel_button.add_theme_stylebox_override("normal", cancel_style)
+	var cancel_hover := cancel_style.duplicate()
+	cancel_hover.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.35)
+	_cancel_button.add_theme_stylebox_override("hover", cancel_hover)
+	_cancel_button.add_theme_color_override("font_color", t.text_primary)
+	_cancel_button.add_theme_color_override("font_hover_color", t.text_primary)
+	_cancel_button.add_theme_font_size_override("font_size", 39)
+	_cancel_button.custom_minimum_size = Vector2(300, 90)
 
 	# 信号连接
-	_enter_button.pressed.connect(_on_enter_pressed)
-	_stay_button.pressed.connect(_on_stay_pressed)
+	_confirm_button.pressed.connect(_on_confirm_pressed)
+	_cancel_button.pressed.connect(_on_cancel_pressed)
 
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
 
-## 显示裂隙确认弹窗
-func show_rift_confirm(_cx: float = 0.0, _cy: float = 0.0) -> void:
+## 显示资源转化确认弹窗
+## conv: { from, to, cost, gain, label }
+func show_conversion(conv: Dictionary) -> void:
+	_conv_data = conv
 	_active = true
 	_phase = "enter"
 	visible = true
+
+	# 更新描述文本
+	var label: String = conv.get("label", "资源转化")
+	_desc_label.text = label + "？"
+
+	# 检查资源是否足够
+	var from_key: String = conv.get("from", "")
+	var cost: int = conv.get("cost", 2)
+	var cur_from: int = GameData.get_resource(from_key)
+	if cur_from < cost:
+		_confirm_button.disabled = true
+		_confirm_button.text = "资源不足"
+	else:
+		_confirm_button.disabled = false
+		_confirm_button.text = "确认转化"
 
 	# 初始状态
 	_overlay.color.a = 0.0
@@ -114,8 +132,8 @@ func show_rift_confirm(_cx: float = 0.0, _cy: float = 0.0) -> void:
 	_icon_label.modulate.a = 0.0
 	_title_label.modulate.a = 0.0
 	_desc_label.modulate.a = 0.0
-	_enter_button.modulate.a = 0.0
-	_stay_button.modulate.a = 0.0
+	_confirm_button.modulate.a = 0.0
+	_cancel_button.modulate.a = 0.0
 
 	# 入场动画
 	var tw: Tween = create_tween()
@@ -132,9 +150,9 @@ func show_rift_confirm(_cx: float = 0.0, _cy: float = 0.0) -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(_desc_label, "modulate:a", 1.0, 0.3).set_delay(base + 0.16) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_enter_button, "modulate:a", 1.0, 0.3).set_delay(base + 0.24) \
+	tw.tween_property(_confirm_button, "modulate:a", 1.0, 0.3).set_delay(base + 0.24) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(_stay_button, "modulate:a", 1.0, 0.3).set_delay(base + 0.30) \
+	tw.tween_property(_cancel_button, "modulate:a", 1.0, 0.3).set_delay(base + 0.30) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.chain().tween_callback(func(): _phase = "idle")
 
@@ -152,20 +170,23 @@ func dismiss(accepted: bool) -> void:
 	tw.tween_property(_icon_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_title_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_desc_label, "modulate:a", 0.0, 0.15)
-	tw.tween_property(_enter_button, "modulate:a", 0.0, 0.15)
-	tw.tween_property(_stay_button, "modulate:a", 0.0, 0.15)
+	tw.tween_property(_confirm_button, "modulate:a", 0.0, 0.15)
+	tw.tween_property(_cancel_button, "modulate:a", 0.0, 0.15)
 	tw.chain().tween_callback(func():
 		_active = false
 		_phase = "none"
 		visible = false
 		if accepted:
-			rift_confirmed.emit()
+			conversion_confirmed.emit()
 		else:
-			rift_cancelled.emit()
+			conversion_cancelled.emit()
 	)
 
 func is_active() -> bool:
 	return _active
+
+func get_conv_data() -> Dictionary:
+	return _conv_data
 
 # ---------------------------------------------------------------------------
 # 输入处理
@@ -180,7 +201,7 @@ func _gui_input(event: InputEvent) -> void:
 			if _phase == "enter":
 				accept_event()
 				return
-			# 点击面板外 = 留在原地
+			# 点击面板外 = 取消
 			var panel_rect: Rect2 = _panel.get_global_rect()
 			if not panel_rect.has_point(mb.global_position):
 				dismiss(false)
@@ -190,12 +211,12 @@ func _gui_input(event: InputEvent) -> void:
 # 按钮回调
 # ---------------------------------------------------------------------------
 
-func _on_enter_pressed() -> void:
+func _on_confirm_pressed() -> void:
 	if _phase != "idle":
 		return
 	dismiss(true)
 
-func _on_stay_pressed() -> void:
+func _on_cancel_pressed() -> void:
 	if _phase != "idle":
 		return
 	dismiss(false)
