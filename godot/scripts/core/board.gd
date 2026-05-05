@@ -307,6 +307,8 @@ func _apply_landmark_aura() -> void:
 				var nb_card: Card = get_card(nb.x, nb.y)
 				if nb_card and (nb_card.type == "monster" or nb_card.type == "trap"):
 					nb_card.type = "safe"
+					nb_card.event_id = ""
+					nb_card.trap_subtype = ""
 
 # ---------------------------------------------------------------------------
 # 螺旋发牌顺序
