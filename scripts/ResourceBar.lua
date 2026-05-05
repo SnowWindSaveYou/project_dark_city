@@ -1,7 +1,7 @@
 -- ============================================================================
 -- ResourceBar.lua - 资源数值 HUD (动画滚动 + 闪光)
 -- 笔记本撕页纸条风格，与底部 HandPanel 画风统一
--- San(理智) / Order(秩序) / Money(钱币) + 天数 / 天气
+-- San(理智) / Health(健康) / Inspiration(灵感) / Money(钱币) + 天数 / 天气
 -- ============================================================================
 
 local Tween = require "lib.Tween"
@@ -51,6 +51,18 @@ end
 local darkExitBtnRect_ = { x = 0, y = 0, w = 0, h = 0 }
 
 -- ---------------------------------------------------------------------------
+-- 步数显示状态 (由 CardInteraction 每帧设置)
+-- ---------------------------------------------------------------------------
+local stepsUsed_ = 0
+local stepsMax_  = 0
+
+--- 设置当前步数状态 (每帧由外部调用)
+function M.setSteps(used, max)
+    stepsUsed_ = used or 0
+    stepsMax_  = max or 0
+end
+
+-- ---------------------------------------------------------------------------
 -- 资源定义
 -- ---------------------------------------------------------------------------
 
@@ -71,16 +83,21 @@ local resources = {}
 
 function M.init()
     resources = {
-        { key = "san",   icon = "🧠", label = "理智", value = 10, displayValue = 10, maxValue = 10,
+        { key = "san",         icon = "🧠", label = "理智", value = 10, displayValue = 10, maxValue = 10,
           colorKey = "info",      flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },
-        { key = "order", icon = "⚖️",  label = "秩序", value = 10,  displayValue = 10,  maxValue = 10,
+        { key = "health",      icon = "❤️",  label = "健康", value = 10,  displayValue = 10,  maxValue = 10,
           colorKey = "safe",      flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },
-        { key = "money", icon = "💰", label = "钱币", value = 50,  displayValue = 50,  maxValue = 999,
+        { key = "inspiration", icon = "✨", label = "灵感", value = 10,  displayValue = 10,  maxValue = 999,
+          colorKey = "highlight", flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },
+        { key = "money",       icon = "💰", label = "钱币", value = 50,  displayValue = 50,  maxValue = 999,
           colorKey = "warning",   flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 },
     }
-    -- film 不在资源栏显示，但仍可通过 get/change 操作
-    filmData = { key = "film", value = 3, displayValue = 3, maxValue = 10,
-                 colorKey = "highlight", flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 }
+    -- 每日胶卷: 每天重置为3，不累积到第二天
+    dailyFilmData = { key = "dailyFilm", value = 3, displayValue = 3, maxValue = 10,
+                      colorKey = "highlight", flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 }
+    -- 长期胶卷: 可跨天留存，通过事件奖励和商店获取
+    permFilmData = { key = "permFilm", value = 0, displayValue = 0, maxValue = 99,
+                     colorKey = "highlight", flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 }
 end
 
 -- ---------------------------------------------------------------------------
@@ -88,12 +105,31 @@ end
 -- ---------------------------------------------------------------------------
 
 --- 改变资源值
----@param key string 资源 key: "san"|"order"|"film"|"money"
+---@param key string 资源 key: "san"|"health"|"inspiration"|"money"|"dailyFilm"|"permFilm"|"film"
 ---@param delta number 变化量 (正数增加，负数减少)
 function M.change(key, delta)
     local res = nil
-    if key == "film" then
-        res = filmData
+    if key == "dailyFilm" then
+        res = dailyFilmData
+    elseif key == "permFilm" then
+        res = permFilmData
+    elseif key == "film" then
+        -- 兼容旧代码: "film" 优先扣每日胶卷，不够再扣长期胶卷
+        if delta < 0 then
+            local dailyVal = dailyFilmData.value
+            if dailyVal + delta >= 0 then
+                res = dailyFilmData
+            else
+                -- 每日不够，先扣完每日，剩余从长期扣
+                local remaining = math.abs(delta) - dailyVal
+                if dailyVal > 0 then M.change("dailyFilm", -dailyVal) end
+                if remaining > 0 then M.change("permFilm", -remaining) end
+                return
+            end
+        else
+            -- 正向增加 film → 加到长期胶卷
+            res = permFilmData
+        end
     else
         for _, r in ipairs(resources) do
             if r.key == key then res = r; break end
@@ -125,11 +161,33 @@ end
 
 --- 获取资源值
 function M.get(key)
-    if key == "film" then return filmData.value end
+    if key == "dailyFilm" then return dailyFilmData.value end
+    if key == "permFilm" then return permFilmData.value end
+    if key == "film" then return dailyFilmData.value + permFilmData.value end
     for _, res in ipairs(resources) do
         if res.key == key then return res.value end
     end
     return 0
+end
+
+--- 获取资源最大值
+function M.getMax(key)
+    if key == "dailyFilm" then return dailyFilmData.maxValue end
+    if key == "permFilm" then return permFilmData.maxValue end
+    for _, res in ipairs(resources) do
+        if res.key == key then return res.maxValue end
+    end
+    return 0
+end
+
+--- 设置资源最大值 (用于成长系统提升上限)
+function M.setMax(key, newMax)
+    for _, res in ipairs(resources) do
+        if res.key == key then
+            res.maxValue = newMax
+            return
+        end
+    end
 end
 
 --- 重置所有资源到初始值
@@ -147,8 +205,11 @@ function M.update(dt)
             res.flashTimer = res.flashTimer - dt
         end
     end
-    if filmData.flashTimer > 0 then
-        filmData.flashTimer = filmData.flashTimer - dt
+    if dailyFilmData.flashTimer > 0 then
+        dailyFilmData.flashTimer = dailyFilmData.flashTimer - dt
+    end
+    if permFilmData.flashTimer > 0 then
+        permFilmData.flashTimer = permFilmData.flashTimer - dt
     end
     if darkEnergyFlash_ > 0 then
         darkEnergyFlash_ = darkEnergyFlash_ - dt
@@ -673,8 +734,38 @@ function M.draw(vg, logicalW, logicalH, dayCount)
         nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
         nvgText(vg, dayRightX, stripCY + 7, "第" .. dayCount .. "天", nil)
 
-        -- 天数区和资源区之间的竖线分隔
-        drawSeparator(vg, dayRightX - dayTextW - 8, stripY, STRIP_H, t)
+        -- 天数组左侧分隔线
+        local daySepX = dayRightX - dayTextW - 8
+        drawSeparator(vg, daySepX, stripY, STRIP_H, t)
+
+        -- ---- 步数指示 (仅明面世界, 有步数上限时显示) ----
+        if stepsMax_ > 0 then
+            local stepsRemain = math.max(0, stepsMax_ - stepsUsed_)
+            local stepRatio = stepsRemain / stepsMax_
+
+            -- 上行: 👟 + 剩余步数 (14px)
+            nvgFontSize(vg, 14)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+            if stepRatio <= 0.2 then
+                nvgFillColor(vg, nvgRGBA(t.danger.r, t.danger.g, t.danger.b, 230))
+            elseif stepRatio <= 0.4 then
+                nvgFillColor(vg, nvgRGBA(t.warning.r, t.warning.g, t.warning.b, 220))
+            else
+                nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 210))
+            end
+            local stepMainText = "👟" .. stepsRemain
+            nvgText(vg, daySepX - 6, stripCY - 4, stepMainText, nil)
+
+            -- 下行: /max步 (9px)
+            nvgFontSize(vg, 9)
+            nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
+            local stepSubText = "/" .. stepsMax_ .. "步"
+            nvgText(vg, daySepX - 6, stripCY + 7, stepSubText, nil)
+
+            -- 步数组左侧分隔线
+            local stepTxtW = nvgTextBounds(vg, 0, 0, stepMainText, nil) or 30
+            drawSeparator(vg, daySepX - stepTxtW - 12, stripY, STRIP_H, t)
+        end
     end
 
     nvgRestore(vg)

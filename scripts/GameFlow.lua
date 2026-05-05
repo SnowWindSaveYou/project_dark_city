@@ -36,7 +36,7 @@ local recalcLayout_    -- function: 重新计算布局
 local resetMainState_  -- function: 重置 main.lua 特有的局部状态 (savedReality 等)
 
 -- 常量 (从 main.lua 搬过来)
-local MAX_DAYS = 3
+local MAX_DAYS = 7
 
 -- NPC 对话脚本
 local QINXIN_DIALOGUE = {
@@ -63,6 +63,7 @@ end
 
 function M.startDeal()
     G.demoState = "dealing"
+    G.stepsUsed = 0   -- 每日步数重置
     G.gameStats.dayStartRevealed = G.gameStats.cardsRevealed
     AudioManager.playSFX("card_deal")
     VFX.spawnBanner("第 " .. G.dayCount .. " 天", 255, 255, 255, 28, 1.2)
@@ -170,7 +171,7 @@ function M.startRedeal()
         Board.destroyAllNodes(G.board)
         CardTextures.clearCache()
         local locs = CardManager.preSelectLocations()
-        Board.generateCards(G.board, locs)
+        Board.generateCards(G.board, locs, { dayCount = G.dayCount })
         CardTextures.preloadBoard(G.board, Board.ROWS, Board.COLS)
         Board.createAllNodes(G.board, scene_, CardTextures)
         recalcLayout_()
@@ -200,20 +201,20 @@ function M.advanceDay()
         end
     end
     if penaltyCount > 0 then
-        VFX.spawnBanner("⚠ " .. penaltyCount .. "项日程未完成! 秩序-" .. totalPenalty, 220, 80, 80, 18, 1.2)
+        VFX.spawnBanner("⚠ " .. penaltyCount .. "项日程未完成!", 220, 80, 80, 18, 1.2)
         VFX.flashScreen(180, 30, 30, 0.25, 100)
     end
 
     ResourceBar.change("san", 1)
-    ResourceBar.change("order", 1)
 
-    local currentFilm = ResourceBar.get("film")
-    if currentFilm < 3 then
-        ResourceBar.change("film", 3 - currentFilm)
+    -- 每日胶卷重置为 3（仅补足 dailyFilm）
+    local curDaily = ResourceBar.get("dailyFilm")
+    if curDaily < 3 then
+        ResourceBar.change("dailyFilm", 3 - curDaily)
     end
     ResourceBar.change("money", 10)
 
-    if ResourceBar.get("order") <= 0 or ResourceBar.get("san") <= 0 then
+    if ResourceBar.get("health") <= 0 or ResourceBar.get("san") <= 0 then
         M.checkDefeat()
         return
     end
@@ -242,7 +243,7 @@ function M.advanceDay()
 
         DateTransition.play(G.dayCount, function()
             local locs = CardManager.preSelectLocations()
-            Board.generateCards(G.board, locs)
+            Board.generateCards(G.board, locs, { dayCount = G.dayCount })
             CardTextures.preloadBoard(G.board, Board.ROWS, Board.COLS)
             Board.createAllNodes(G.board, scene_, CardTextures)
             recalcLayout_()
@@ -257,9 +258,9 @@ end
 
 function M.checkDefeat()
     if G.gamePhase ~= "playing" then return end
-    local san   = ResourceBar.get("san")
-    local order = ResourceBar.get("order")
-    if san <= 0 or order <= 0 then
+    local san    = ResourceBar.get("san")
+    local health = ResourceBar.get("health")
+    if san <= 0 or health <= 0 then
         AudioManager.playStinger("defeat_sting", 0.9)
         local delay = { t = 0 }
         Tween.to(delay, { t = 1 }, 0.8, {
@@ -317,6 +318,7 @@ function M.onGameRestart()
     G.hoveredCard = nil
 
     G.dayCount = 1
+    G.stepsUsed = 0
     G.gamePhase = "playing"
     G.gameStats.cardsRevealed = 0
     G.gameStats.dayStartRevealed = 0
@@ -341,7 +343,7 @@ function M.onGameRestart()
     CardTextures.clearCache()
 
     local locs = CardManager.preSelectLocations()
-    Board.generateCards(G.board, locs)
+    Board.generateCards(G.board, locs, { dayCount = G.dayCount })
     CardTextures.preloadBoard(G.board, Board.ROWS, Board.COLS)
     Board.createAllNodes(G.board, scene_, CardTextures)
     recalcLayout_()
@@ -374,9 +376,9 @@ function M.checkPendingRift()
     local row, col = G.pendingRiftRow, G.pendingRiftCol
     G.pendingRiftRow, G.pendingRiftCol = nil, nil
 
-    if not DarkWorld.canEnter(G.dayCount) then
+    if not DarkWorld.canEnter() then
         local tc2 = Theme.current
-        VFX.spawnBanner("🌀 裂隙出现... 暗面世界第2天解锁",
+        VFX.spawnBanner("🌀 裂隙出现... 灵感不足，暗面世界尚未开启",
             tc2.darkAccent.r, tc2.darkAccent.g, tc2.darkAccent.b, 16, 0.8)
         return false
     end

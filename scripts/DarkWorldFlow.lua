@@ -72,8 +72,8 @@ function M.enterDarkWorld(riftRow, riftCol)
     local token = G.token
 
     if DarkWorld.isActive() then return end
-    if not DarkWorld.canEnter(G.dayCount) then
-        VFX.spawnBanner("暗面世界尚未开启 (第2天解锁)", 180, 80, 80, 16, 0.8)
+    if not DarkWorld.canEnter() then
+        VFX.spawnBanner("暗面世界尚未开启 (灵感≥15解锁)", 180, 80, 80, 16, 0.8)
         G.demoState = "ready"
         CameraButton.show()
         return
@@ -131,7 +131,7 @@ function M.enterDarkWorld(riftRow, riftCol)
         ResourceBar.setDarkMode(true, {
             layerName = DarkWorld.getLayerName(),
             energy = DarkWorld.getEnergy(),
-            maxEnergy = 10,
+            maxEnergy = ResourceBar.get("san"),
             layerIdx = layerIdx,
             layerCount = 3,
         })
@@ -310,7 +310,7 @@ function M.changeDarkLayer(targetLayer, dc)
     oldLayerData.savedCards = board.cards
 
     -- 2. 切换层级 (DarkWorld 内部更新 currentLayer_)
-    local success, layerName = DarkWorld.beginChangeLayer(targetLayer, dc)
+    local success, layerName = DarkWorld.beginChangeLayer(targetLayer)
     if not success then
         G.demoState = "ready"
         return
@@ -335,7 +335,7 @@ function M.changeDarkLayer(targetLayer, dc)
         ResourceBar.setDarkMode(true, {
             layerName = DarkWorld.getLayerName(),
             energy = DarkWorld.getEnergy(),
-            maxEnergy = 10,
+            maxEnergy = ResourceBar.get("san"),
             layerIdx = newLayerIdx,
             layerCount = 3,
         })

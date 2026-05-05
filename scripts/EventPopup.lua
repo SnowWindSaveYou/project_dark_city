@@ -5,9 +5,10 @@
 -- 退场: 缩放收回(easeInBack) + 淡出
 -- ============================================================================
 
-local Tween = require "lib.Tween"
-local Theme = require "Theme"
-local Card  = require "Card"
+local Tween       = require "lib.Tween"
+local Theme       = require "Theme"
+local Card        = require "Card"
+local ResourceBar = require "ResourceBar"
 
 local M = {}
 
@@ -36,7 +37,7 @@ M.templates = {
         { title = "镜中来客", desc = "橱窗玻璃里映出的不是你的倒影。它在微笑。" },
     },
     trap = {
-        { title = "地面塌陷", desc = "脚下的地面突然下沉！你勉强抓住边缘，但秩序感正在崩溃。" },
+        { title = "地面塌陷", desc = "脚下的地面突然下沉！你勉强抓住边缘，身体传来一阵剧痛。" },
         { title = "迷雾弥漫", desc = "浓雾从巷子里涌出，方向感瞬间消失。你开始怀疑自己是否还在原地。" },
         { title = "时间错乱", desc = "手表指针疯狂旋转。你感觉刚刚过了一秒，但街上的人都不见了。" },
     },
@@ -46,7 +47,7 @@ M.templates = {
         { title = "失物招领", desc = "桌上放着一叠钞票和记录着什么的胶片。似乎有人特意留给你。" },
     },
     plot = {
-        { title = "字条",     desc = "折叠的纸条上写着：\"不要相信第三面墙。\" 秩序正在恢复。" },
+        { title = "字条",     desc = "折叠的纸条上写着：\"不要相信第三面墙。\" 你似乎领悟了什么。" },
         { title = "电话响了", desc = "废弃电话亭的话筒在震动。你接起来，听到了很久以前的声音。" },
         { title = "旧报纸",   desc = "报纸头版刊登着一则不可能的新闻——日期是明天。" },
     },
@@ -74,14 +75,26 @@ M.cardEffects = {
     safe     = { { "san", 1 } },
     landmark = {},
     shop     = {},
-    monster  = { { "san", -2 }, { "order", -1 } },
+    monster  = { { "san", -2 }, { "health", -1 } },  -- 基础值; 实际使用 getMonsterEffects()
     trap     = {},  -- 旧通用 trap 已废弃; 由 trapSubtypeEffects 替代
     reward   = { { "money", 15 }, { "film", 1 } },
-    plot     = { { "order", 1 } },
+    plot     = { { "inspiration", 1 } },
     clue     = { { "film", 1 } },
     photo    = {},  -- 相片：安全格，无资源效果
     rift     = {},  -- 裂隙：无资源效果，触发暗面世界入口
 }
+
+--- 动态计算怪物伤害 (灵感越高, 暗面感知越强, 怪物伤害越大)
+--- 基础: san-2, health-1; 额外: +floor((inspiration-10)/15), 上限+3
+---@return table effects
+function M.getMonsterEffects()
+    local inspiration = ResourceBar.get("inspiration")
+    local extra = math.min(3, math.max(0, math.floor((inspiration - 10) / 15)))
+    return {
+        { "san", -(2 + extra) },
+        { "health", -1 },
+    }
+end
 
 -- ---------------------------------------------------------------------------
 -- 陷阱子类型: 效果 / 文案 / 图标
@@ -129,10 +142,13 @@ M.trapSubtypeInfo = {
 
 -- 资源中文名 / 图标
 local resourceMeta = {
-    san   = { icon = "🧠", label = "理智" },
-    order = { icon = "⚖️",  label = "秩序" },
-    film  = { icon = "🎞️",  label = "胶卷" },
-    money = { icon = "💰", label = "钱币" },
+    san         = { icon = "🧠", label = "理智" },
+    health      = { icon = "❤️",  label = "健康" },
+    inspiration = { icon = "✨", label = "灵感" },
+    film        = { icon = "🎞️",  label = "胶卷" },
+    dailyFilm   = { icon = "🎞️",  label = "每日胶卷" },
+    permFilm    = { icon = "🎞️",  label = "长期胶卷" },
+    money       = { icon = "💰", label = "钱币" },
 }
 
 -- ---------------------------------------------------------------------------
@@ -217,7 +233,7 @@ function M.show(cardType, cx, cy, onDismiss, location)
     state.cardType = cardType
     state.title = displayTitle
     state.desc = tmpl.desc
-    state.effects = M.cardEffects[cardType] or {}
+    state.effects = (cardType == "monster") and M.getMonsterEffects() or (M.cardEffects[cardType] or {})
     state.cx = cx
     state.cy = cy
     state.onDismiss = onDismiss
@@ -1338,6 +1354,14 @@ local riftState = {
     cx = 0, cy = 0,
     onConfirm = nil,       -- 点击"进入"
     onCancel  = nil,       -- 点击"留下"
+    -- 可配置文案 (nil 时使用默认裂隙文案)
+    icon = nil,
+    title = nil,
+    desc1 = nil,
+    desc2 = nil,
+    btnConfirmLabel = nil,
+    btnCancelLabel  = nil,
+    accentColor = nil,     -- { r, g, b }
     -- 动画
     overlayAlpha = 0,
     popupScale   = 0,
@@ -1357,18 +1381,27 @@ local RIFT_BTN_W   = 100
 local RIFT_BTN_H   = 30
 local RIFT_BTN_GAP = 12
 
---- 显示裂隙确认弹窗
+--- 显示双选确认弹窗 (裂隙 / 转换事件等通用)
 ---@param cx number 弹窗中心 X
 ---@param cy number 弹窗中心 Y
----@param onConfirm function 进入暗面回调
----@param onCancel function|nil 留在原地回调
-function M.showRiftConfirm(cx, cy, onConfirm, onCancel)
+---@param onConfirm function 确认回调
+---@param onCancel function|nil 取消回调
+---@param opts table|nil 可选文案 { icon, title, desc1, desc2, btnConfirm, btnCancel, accent }
+function M.showRiftConfirm(cx, cy, onConfirm, onCancel, opts)
     riftState.active = true
     riftState.phase = "enter"
     riftState.cx = cx
     riftState.cy = cy
     riftState.onConfirm = onConfirm
     riftState.onCancel  = onCancel
+    -- 可配置文案
+    riftState.icon           = opts and opts.icon or nil
+    riftState.title          = opts and opts.title or nil
+    riftState.desc1          = opts and opts.desc1 or nil
+    riftState.desc2          = opts and opts.desc2 or nil
+    riftState.btnConfirmLabel = opts and opts.btnConfirm or nil
+    riftState.btnCancelLabel  = opts and opts.btnCancel or nil
+    riftState.accentColor    = opts and opts.accent or nil
 
     riftState.overlayAlpha = 0
     riftState.popupScale   = 0.3
@@ -1521,12 +1554,15 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
     nvgStrokeWidth(vg, 1.2)
     nvgStroke(vg)
 
+    -- 主题色 (可配置或默认 darkAccent)
+    local accent = riftState.accentColor or t.darkAccent
+
     -- 顶部色条
     nvgSave(vg)
     nvgScissor(vg, -hw, -hh, RIFT_POPUP_W, 4)
     nvgBeginPath(vg)
     nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
-    nvgFillColor(vg, Theme.rgba(t.darkAccent))
+    nvgFillColor(vg, Theme.rgba(accent))
     nvgFill(vg)
     nvgRestore(vg)
 
@@ -1538,8 +1574,8 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontFace(vg, "sans")
         nvgFontSize(vg, 36)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgba(t.darkAccent))
-        nvgText(vg, 0, 0, "🌀", nil)
+        nvgFillColor(vg, Theme.rgba(accent))
+        nvgText(vg, 0, 0, riftState.icon or "🌀", nil)
         nvgRestore(vg)
     end
 
@@ -1552,7 +1588,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 16)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgba(t.textPrimary))
-        nvgText(vg, 0, 0, "发现空间裂隙", nil)
+        nvgText(vg, 0, 0, riftState.title or "发现空间裂隙", nil)
         nvgRestore(vg)
     end
 
@@ -1565,8 +1601,8 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 12)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
-        nvgText(vg, 0, 0, "此处出现通往暗面世界的裂隙", nil)
-        nvgText(vg, 0, 16, "是否要进入？", nil)
+        nvgText(vg, 0, 0, riftState.desc1 or "此处出现通往暗面世界的裂隙", nil)
+        nvgText(vg, 0, 16, riftState.desc2 or "是否要进入？", nil)
         nvgRestore(vg)
     end
 
@@ -1586,7 +1622,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         local h = riftState.btnEnterHover
         local sc = 1.0 + h * 0.05
         nvgScale(vg, sc, sc)
-        local da = t.darkAccent
+        local da = accent
         local br = math.floor(da.r + (255 - da.r) * h * 0.15)
         local bg = math.floor(da.g + (255 - da.g) * h * 0.15)
         local bb = math.floor(da.b + (255 - da.b) * h * 0.15)
@@ -1598,7 +1634,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 13)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
-        nvgText(vg, 0, 0, "进入暗面", nil)
+        nvgText(vg, 0, 0, riftState.btnConfirmLabel or "进入暗面", nil)
         nvgRestore(vg)
     end
 
@@ -1624,7 +1660,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 13)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
-        nvgText(vg, 0, 0, "留在原地", nil)
+        nvgText(vg, 0, 0, riftState.btnCancelLabel or "留在原地", nil)
         nvgRestore(vg)
     end
 

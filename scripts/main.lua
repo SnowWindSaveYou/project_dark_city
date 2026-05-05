@@ -89,6 +89,7 @@ local G = {
     dayCount       = 1,
     pendingRiftRow = nil,
     pendingRiftCol = nil,
+    stepsUsed      = 0,
     gameStats      = nil,   -- → Start() 中赋值
     board          = nil,   -- → Start() 中赋值
     token          = nil,   -- → Start() 中赋值
@@ -430,7 +431,7 @@ function Start()
     -- 棋盘
     board = Board.new()
     local reqLocs = CardManager.preSelectLocations()
-    Board.generateCards(board, reqLocs)
+    Board.generateCards(board, reqLocs, { dayCount = G.dayCount })
     NPCManager.setBoard(board, Board)
     recalcLayout()
 
@@ -1092,6 +1093,7 @@ function HandleNanoVGRender(eventType, eventData)
     VFX.drawTransition()
 
     -- === 资源栏 ===
+    ResourceBar.setSteps(G.stepsUsed or 0, ResourceBar.get("health"))
     ResourceBar.draw(vg, logicalW, logicalH, G.dayCount)
 
     -- === 手牌面板 ===

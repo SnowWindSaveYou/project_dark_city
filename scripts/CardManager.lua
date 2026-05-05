@@ -19,14 +19,15 @@ local SCHEDULE_TEMPLATES = {
     alley       = { verb = "穿过小巷",       reward = { "money",  8 } },
     station     = { verb = "去车站接人",     reward = { "money",  6 } },
     hospital    = { verb = "去医院看病",     reward = { "san",    1 } },
-    library     = { verb = "去图书馆学习",   reward = { "order",  1 } },
+    library     = { verb = "去图书馆学习",   reward = { "inspiration", 1 } },
     bank        = { verb = "去银行办事",     reward = { "money", 12 } },
+    cemetery    = { verb = "去墓地调查",     reward = { "inspiration", 1 } },
+    gym         = { verb = "去健身房锻炼",   reward = { "health", 1 } },
     -- 商店地点
     convenience = { verb = "去便利店购物",   reward = { "money",  5 } },
     -- 地标地点 (也可作为日程目标，且走到地标区域是安全的)
     church      = { verb = "去教堂祈祷",     reward = { "san",    1 } },
-    police      = { verb = "去警察局报案",   reward = { "order",  1 } },
-    shrine      = { verb = "去神社参拜",     reward = { "san",    1 } },
+    police      = { verb = "去警察局报案",   reward = { "san",    1 } },
 }
 
 -- ---------------------------------------------------------------------------
@@ -314,9 +315,11 @@ function M.settleDay()
             }
             print("[CardManager] Deferred to tomorrow: " .. sched.label)
         else
-            -- 未完成且未推迟: 扣秩序值
-            effects[#effects + 1] = { "order", -3 }
-            print("[CardManager] Penalty: order -3 for " .. sched.label)
+            -- 未完成且未推迟: 三维各扣 1
+            effects[#effects + 1] = { "san", -1 }
+            effects[#effects + 1] = { "health", -1 }
+            effects[#effects + 1] = { "inspiration", -1 }
+            print("[CardManager] Penalty: san/health/inspiration -1 for " .. sched.label)
         end
     end
 
