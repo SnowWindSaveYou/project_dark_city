@@ -38,26 +38,30 @@ func _ready() -> void:
 	# 应用主题色
 	var t = GameTheme
 	_color_bar.color = t.info
-	_icon_label.add_theme_font_size_override("font_size", 36)
-	_title_label.add_theme_font_size_override("font_size", 16)
+	_icon_label.add_theme_font_size_override("font_size", 108)
+	_title_label.add_theme_font_size_override("font_size", 48)
 	_title_label.add_theme_color_override("font_color", t.text_primary)
-	_desc_label.add_theme_font_size_override("font_size", 12)
+	_desc_label.add_theme_font_size_override("font_size", 36)
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
 	# 面板样式
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.96)
 	panel_style.border_color = Color(t.info.r, t.info.g, t.info.b, 0.4)
-	panel_style.set_border_width_all(1)
-	panel_style.set_corner_radius_all(4)
-	panel_style.set_content_margin_all(0)
+	panel_style.set_border_width_all(3)
+	panel_style.set_corner_radius_all(42)
+	panel_style.set_content_margin_all(24)
 	_panel.add_theme_stylebox_override("panel", panel_style)
+	_panel.custom_minimum_size = Vector2(780, 555)
 
 	# "确认转化" 按钮样式
 	var confirm_style := StyleBoxFlat.new()
 	confirm_style.bg_color = Color(t.info.r, t.info.g, t.info.b, 0.86)
-	confirm_style.set_corner_radius_all(4)
-	confirm_style.set_content_margin_all(4)
+	confirm_style.set_corner_radius_all(21)
+	confirm_style.content_margin_left = 36
+	confirm_style.content_margin_right = 36
+	confirm_style.content_margin_top = 12
+	confirm_style.content_margin_bottom = 12
 	_confirm_button.add_theme_stylebox_override("normal", confirm_style)
 	var confirm_hover := confirm_style.duplicate()
 	confirm_hover.bg_color = GameTheme.lighten(t.info, 0.15)
@@ -67,22 +71,27 @@ func _ready() -> void:
 	_confirm_button.add_theme_stylebox_override("pressed", confirm_pressed)
 	_confirm_button.add_theme_color_override("font_color", Color.WHITE)
 	_confirm_button.add_theme_color_override("font_hover_color", Color.WHITE)
-	_confirm_button.add_theme_font_size_override("font_size", 13)
+	_confirm_button.add_theme_font_size_override("font_size", 39)
+	_confirm_button.custom_minimum_size = Vector2(300, 90)
 
 	# "不了" 按钮样式
 	var cancel_style := StyleBoxFlat.new()
 	cancel_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.24)
 	cancel_style.border_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.47)
 	cancel_style.set_border_width_all(1)
-	cancel_style.set_corner_radius_all(4)
-	cancel_style.set_content_margin_all(4)
+	cancel_style.set_corner_radius_all(21)
+	cancel_style.content_margin_left = 36
+	cancel_style.content_margin_right = 36
+	cancel_style.content_margin_top = 12
+	cancel_style.content_margin_bottom = 12
 	_cancel_button.add_theme_stylebox_override("normal", cancel_style)
 	var cancel_hover := cancel_style.duplicate()
 	cancel_hover.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.35)
 	_cancel_button.add_theme_stylebox_override("hover", cancel_hover)
 	_cancel_button.add_theme_color_override("font_color", t.text_primary)
 	_cancel_button.add_theme_color_override("font_hover_color", t.text_primary)
-	_cancel_button.add_theme_font_size_override("font_size", 13)
+	_cancel_button.add_theme_font_size_override("font_size", 39)
+	_cancel_button.custom_minimum_size = Vector2(300, 90)
 
 	# 信号连接
 	_confirm_button.pressed.connect(_on_confirm_pressed)

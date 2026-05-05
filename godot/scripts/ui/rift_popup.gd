@@ -37,26 +37,30 @@ func _ready() -> void:
 	# 应用主题色
 	var t = GameTheme
 	_color_bar.color = t.dark_accent
-	_icon_label.add_theme_font_size_override("font_size", 36)
-	_title_label.add_theme_font_size_override("font_size", 16)
+	_icon_label.add_theme_font_size_override("font_size", 108)
+	_title_label.add_theme_font_size_override("font_size", 48)
 	_title_label.add_theme_color_override("font_color", t.text_primary)
-	_desc_label.add_theme_font_size_override("font_size", 12)
+	_desc_label.add_theme_font_size_override("font_size", 36)
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
 	# 面板样式
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.96)
 	panel_style.border_color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, 0.4)
-	panel_style.set_border_width_all(1)
-	panel_style.set_corner_radius_all(4)
-	panel_style.set_content_margin_all(0)
+	panel_style.set_border_width_all(3)
+	panel_style.set_corner_radius_all(42)
+	panel_style.set_content_margin_all(24)
 	_panel.add_theme_stylebox_override("panel", panel_style)
+	_panel.custom_minimum_size = Vector2(780, 555)
 
 	# "进入暗面" 按钮样式
 	var enter_style := StyleBoxFlat.new()
 	enter_style.bg_color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, 0.86)
-	enter_style.set_corner_radius_all(4)
-	enter_style.set_content_margin_all(4)
+	enter_style.set_corner_radius_all(21)
+	enter_style.content_margin_left = 36
+	enter_style.content_margin_right = 36
+	enter_style.content_margin_top = 12
+	enter_style.content_margin_bottom = 12
 	_enter_button.add_theme_stylebox_override("normal", enter_style)
 	var enter_hover := enter_style.duplicate()
 	enter_hover.bg_color = GameTheme.lighten(t.dark_accent, 0.15)
@@ -66,22 +70,27 @@ func _ready() -> void:
 	_enter_button.add_theme_stylebox_override("pressed", enter_pressed)
 	_enter_button.add_theme_color_override("font_color", Color.WHITE)
 	_enter_button.add_theme_color_override("font_hover_color", Color.WHITE)
-	_enter_button.add_theme_font_size_override("font_size", 13)
+	_enter_button.add_theme_font_size_override("font_size", 39)
+	_enter_button.custom_minimum_size = Vector2(300, 90)
 
 	# "留在原地" 按钮样式
 	var stay_style := StyleBoxFlat.new()
 	stay_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.24)
 	stay_style.border_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.47)
 	stay_style.set_border_width_all(1)
-	stay_style.set_corner_radius_all(4)
-	stay_style.set_content_margin_all(4)
+	stay_style.set_corner_radius_all(21)
+	stay_style.content_margin_left = 36
+	stay_style.content_margin_right = 36
+	stay_style.content_margin_top = 12
+	stay_style.content_margin_bottom = 12
 	_stay_button.add_theme_stylebox_override("normal", stay_style)
 	var stay_hover := stay_style.duplicate()
 	stay_hover.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.35)
 	_stay_button.add_theme_stylebox_override("hover", stay_hover)
 	_stay_button.add_theme_color_override("font_color", t.text_primary)
 	_stay_button.add_theme_color_override("font_hover_color", t.text_primary)
-	_stay_button.add_theme_font_size_override("font_size", 13)
+	_stay_button.add_theme_font_size_override("font_size", 39)
+	_stay_button.custom_minimum_size = Vector2(300, 90)
 
 	# 信号连接
 	_enter_button.pressed.connect(_on_enter_pressed)

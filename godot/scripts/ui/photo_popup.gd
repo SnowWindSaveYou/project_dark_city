@@ -12,10 +12,10 @@ signal photo_popup_closed(card_type: String)
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const PHOTO_W: int = 200
-const PHOTO_H: int = 260
-const PHOTO_BORDER: int = 10
-const PHOTO_BOTTOM: int = 40
+const PHOTO_W: int = 600
+const PHOTO_H: int = 780
+const PHOTO_BORDER: int = 30
+const PHOTO_BOTTOM: int = 120
 
 # ---------------------------------------------------------------------------
 # 节点引用
@@ -53,12 +53,12 @@ func _ready() -> void:
 	var frame_style := StyleBoxFlat.new()
 	frame_style.bg_color = Color(0.988, 0.980, 0.961, 0.98)
 	frame_style.border_color = Color(0.824, 0.784, 0.725, 0.47)
-	frame_style.set_border_width_all(1)
-	frame_style.set_corner_radius_all(3)
+	frame_style.set_border_width_all(3)
+	frame_style.set_corner_radius_all(9)
 	frame_style.content_margin_left = PHOTO_BORDER
 	frame_style.content_margin_right = PHOTO_BORDER
 	frame_style.content_margin_top = PHOTO_BORDER
-	frame_style.content_margin_bottom = 6
+	frame_style.content_margin_bottom = 18
 	_photo_frame.add_theme_stylebox_override("panel", frame_style)
 	_photo_frame.custom_minimum_size = Vector2(PHOTO_W, PHOTO_H)
 
@@ -66,21 +66,21 @@ func _ready() -> void:
 	var image_style := StyleBoxFlat.new()
 	image_style.bg_color = Color(0.098, 0.118, 0.157, 0.94)
 	image_style.border_color = Color(0, 0, 0, 0.16)
-	image_style.set_border_width_all(1)
+	image_style.set_border_width_all(3)
 	image_style.set_corner_radius_all(0)
-	image_style.set_content_margin_all(10)
+	image_style.set_content_margin_all(30)
 	_image_area.add_theme_stylebox_override("panel", image_style)
 
 	# 字号设置
-	_icon_label.add_theme_font_size_override("font_size", 42)
-	_title_label.add_theme_font_size_override("font_size", 16)
-	_desc_label.add_theme_font_size_override("font_size", 10)
+	_icon_label.add_theme_font_size_override("font_size", 126)
+	_title_label.add_theme_font_size_override("font_size", 48)
+	_desc_label.add_theme_font_size_override("font_size", 30)
 	_desc_label.add_theme_color_override("font_color", Color(0.784, 0.784, 0.824, 0.7))
-	_location_label.add_theme_font_size_override("font_size", 12)
+	_location_label.add_theme_font_size_override("font_size", 36)
 	_location_label.add_theme_color_override("font_color", Color(0.314, 0.294, 0.255, 0.78))
-	_scout_label.add_theme_font_size_override("font_size", 10)
+	_scout_label.add_theme_font_size_override("font_size", 30)
 	_scout_label.add_theme_color_override("font_color", Color(0.588, 0.549, 0.490, 0.63))
-	_hint_label.add_theme_font_size_override("font_size", 10)
+	_hint_label.add_theme_font_size_override("font_size", 30)
 	_hint_label.add_theme_color_override("font_color", Color(0.706, 0.667, 0.608, 0.7))
 
 # ===========================================================================

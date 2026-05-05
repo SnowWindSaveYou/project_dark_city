@@ -34,7 +34,7 @@ mouse_filter = 2
 
 [node name="PhotoFrame" type="PanelContainer" parent="PhotoAnchor"]
 layout_mode = 2
-custom_minimum_size = Vector2(200, 260)
+custom_minimum_size = Vector2(600, 780)
 mouse_filter = 2
 
 [node name="VBox" type="VBoxContainer" parent="PhotoAnchor/PhotoFrame"]
@@ -43,7 +43,7 @@ mouse_filter = 2
 
 [node name="ImageArea" type="PanelContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(180, 200)
+custom_minimum_size = Vector2(540, 600)
 size_flags_vertical = 3
 mouse_filter = 2
 
@@ -70,7 +70,7 @@ text = "事件描述"
 
 [node name="BottomStrip" type="HBoxContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 32)
+custom_minimum_size = Vector2(0, 96)
 mouse_filter = 2
 
 [node name="LocationLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/BottomStrip"]
@@ -85,7 +85,7 @@ text = "📷 侦察"
 
 [node name="TapeDecor" type="ColorRect" parent="PhotoAnchor"]
 layout_mode = 2
-custom_minimum_size = Vector2(36, 10)
+custom_minimum_size = Vector2(108, 30)
 mouse_filter = 2
 color = Color(0.863, 0.824, 0.706, 0.63)
 

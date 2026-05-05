@@ -33,13 +33,13 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="PanelAnchor"]
-custom_minimum_size = Vector2(280, 200)
+custom_minimum_size = Vector2(780, 555)
 layout_mode = 2
 mouse_filter = 0
 
 [node name="ColorBar" type="ColorRect" parent="PanelAnchor/Panel"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 4)
+custom_minimum_size = Vector2(0, 12)
 size_flags_vertical = 0
 mouse_filter = 2
 
@@ -49,7 +49,7 @@ mouse_filter = 2
 
 [node name="Spacer1" type="Control" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 30)
 
 [node name="IconLabel" type="Label" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
@@ -58,7 +58,7 @@ text = "🔄"
 
 [node name="Spacer2" type="Control" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 4)
+custom_minimum_size = Vector2(0, 12)
 
 [node name="TitleLabel" type="Label" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
@@ -67,7 +67,7 @@ text = "资源转化"
 
 [node name="Spacer3" type="Control" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 4)
+custom_minimum_size = Vector2(0, 12)
 
 [node name="DescLabel" type="Label" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
@@ -77,26 +77,26 @@ text = "是否进行资源转化？"
 
 [node name="Spacer4" type="Control" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 8)
+custom_minimum_size = Vector2(0, 24)
 
 [node name="ButtonRow" type="HBoxContainer" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
 alignment = 1
 
 [node name="ConfirmButton" type="Button" parent="PanelAnchor/Panel/Content/ButtonRow"]
-custom_minimum_size = Vector2(100, 30)
+custom_minimum_size = Vector2(300, 90)
 layout_mode = 2
 text = "确认转化"
 
 [node name="Spacer" type="Control" parent="PanelAnchor/Panel/Content/ButtonRow"]
 layout_mode = 2
-custom_minimum_size = Vector2(12, 0)
+custom_minimum_size = Vector2(36, 0)
 
 [node name="CancelButton" type="Button" parent="PanelAnchor/Panel/Content/ButtonRow"]
-custom_minimum_size = Vector2(100, 30)
+custom_minimum_size = Vector2(300, 90)
 layout_mode = 2
 text = "不了"
 
 [node name="Spacer5" type="Control" parent="PanelAnchor/Panel/Content"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 30)
