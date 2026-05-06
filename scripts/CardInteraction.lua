@@ -18,6 +18,7 @@ local DialogueSystem = require "DialogueSystem"
 local BoardItems    = require "BoardItems"
 local AudioManager  = require "AudioManager"
 local BubbleDialogue = require "BubbleDialogue"
+local EventPool      = require "EventPool"
 local DarkWorld     = require "DarkWorld"
 local Theme         = require "Theme"
 local Tween         = require "lib.Tween"
@@ -393,36 +394,8 @@ end
 -- #2 健康/理智转换事件 (医院/公园/健身房)
 -- ============================================================================
 
---- 转换事件配置: 地点 → { icon, title, desc1, desc2, costRes, costAmt, gainRes, gainAmt, accent }
-local CONVERSION_CONFIG = {
-    hospital = {
-        icon = "🏥",
-        title = "医院 · 心理诊疗",
-        desc1 = "医生提供了心理辅导服务",
-        desc2 = "消耗 2 健康 → 恢复 2 理智？",
-        costRes = "health", costAmt = 2,
-        gainRes = "san",    gainAmt = 2,
-        accent = { r = 100, g = 180, b = 220 },
-    },
-    park = {
-        icon = "🌳",
-        title = "公园 · 散步疗愈",
-        desc1 = "宁静的环境让身心放松",
-        desc2 = "消耗 2 理智 → 恢复 2 健康？",
-        costRes = "san",    costAmt = 2,
-        gainRes = "health", gainAmt = 2,
-        accent = { r = 100, g = 190, b = 130 },
-    },
-    gym = {
-        icon = "🏋️",
-        title = "健身房 · 体能训练",
-        desc1 = "专注训练让你恢复体力",
-        desc2 = "消耗 2 理智 → 恢复 2 健康？",
-        costRes = "san",    costAmt = 2,
-        gainRes = "health", gainAmt = 2,
-        accent = { r = 220, g = 160, b = 80 },
-    },
-}
+--- 转换事件配置（来自 EventPool 单一数据源）
+local CONVERSION_CONFIG = EventPool.CONVERSION_CONFIG
 
 --- 尝试触发转换事件 (safe 事件结算后调用)
 ---@param location string 地点 key

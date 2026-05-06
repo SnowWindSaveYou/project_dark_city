@@ -6,6 +6,7 @@
 
 local Tween = require "lib.Tween"
 local Theme = require "Theme"
+local EventPool = require "EventPool"
 
 local M = {}
 
@@ -29,141 +30,20 @@ M.CARD_THICKNESS = 0.015 -- 厚度 (Y 方向)
 M.ICON_QUAD = 0.18       -- 侦查/揭示图标边长 (米)
 
 -- ---------------------------------------------------------------------------
--- 地点信息 (卡牌正面显示的都市地点)
+-- 地点 & 事件类型定义 → 统一由 EventPool 管理
+-- Card.XXX 保留为兼容别名，供外部模块继续以 Card.LOCATION_INFO 方式访问
 -- ---------------------------------------------------------------------------
-M.LOCATION_INFO = {
-    -- 特殊地点
-    home        = { icon = "🏠", label = "家" },
-    -- 商店地点 (便利店 = 商店)
-    convenience = { icon = "🏪", label = "便利店" },
-    -- 地标地点 (有祛邪光环的庇护所)
-    church      = { icon = "⛪", label = "教堂" },
-    police      = { icon = "🚔", label = "警察局" },
-    -- 普通地点
-    company     = { icon = "🏢", label = "公司" },
-    school      = { icon = "🏫", label = "学校" },
-    park        = { icon = "🌳", label = "公园" },
-    alley       = { icon = "🌙", label = "小巷" },
-    station     = { icon = "🚉", label = "车站" },
-    hospital    = { icon = "🏥", label = "医院" },
-    library     = { icon = "📚", label = "图书馆" },
-    bank        = { icon = "🏦", label = "银行" },
-    cemetery    = { icon = "🪦", label = "墓地" },
-    gym         = { icon = "🏋️", label = "健身房" },
-}
-
--- 可随机分配的普通地点 (不含 home/landmark/shop)
-M.REGULAR_LOCATIONS = {
-    "company", "school", "park",
-    "alley", "station", "hospital", "library", "bank",
-    "cemetery", "gym",
-}
-
--- 地标可用地点 (有祛邪力量的场所)
-M.LANDMARK_LOCATIONS = { "church", "police" }
+M.LOCATION_INFO      = EventPool.LOCATION_INFO
+M.REGULAR_LOCATIONS  = EventPool.REGULAR_LOCATIONS
+M.LANDMARK_LOCATIONS = EventPool.LANDMARK_LOCATIONS
+M.EVENT_TYPES        = EventPool.EVENT_TYPES
+M.ALL_TYPES          = EventPool.ALL_TYPES
 
 -- ---------------------------------------------------------------------------
--- 事件类型 (翻开卡牌后显示的隐藏事件)
+-- 暗面世界映射 → 统一由 EventPool 管理
 -- ---------------------------------------------------------------------------
-M.EVENT_TYPES = { "safe", "monster", "trap", "reward", "plot", "clue" }
-
--- 兼容旧代码的完整类型列表 (含特殊类型)
-M.ALL_TYPES = { "safe", "home", "landmark", "shop", "monster", "trap", "reward", "plot", "clue" }
-
--- ---------------------------------------------------------------------------
--- 暗面世界映射
--- ---------------------------------------------------------------------------
-M.DARKSIDE_INFO = {
-    company = {
-        safe    = { icon = "🏢", label = "空荡办公室" },
-        monster = { icon = "🕴️", label = "影子上司" },
-        trap    = { icon = "📋", label = "无尽加班令" },
-        reward  = { icon = "💼", label = "遗落的公文包" },
-        plot    = { icon = "🖥️", label = "异常邮件" },
-        clue    = { icon = "📂", label = "机密档案" },
-    },
-    school = {
-        safe    = { icon = "🏫", label = "安静教室" },
-        monster = { icon = "👤", label = "无面教师" },
-        trap    = { icon = "🔔", label = "永不下课" },
-        reward  = { icon = "📒", label = "旧笔记本" },
-        plot    = { icon = "🎒", label = "无主书包" },
-        clue    = { icon = "📝", label = "黑板留言" },
-    },
-    park = {
-        safe    = { icon = "🌳", label = "寂静长椅" },
-        monster = { icon = "🌑", label = "树影低语" },
-        trap    = { icon = "🕸️", label = "缠绕藤蔓" },
-        reward  = { icon = "🍃", label = "净化之风" },
-        plot    = { icon = "🗿", label = "奇怪雕像" },
-        clue    = { icon = "🪶", label = "地上羽毛" },
-    },
-    alley = {
-        safe    = { icon = "🌙", label = "寂静小巷" },
-        monster = { icon = "👁️", label = "墙缝窥视" },
-        trap    = { icon = "🕳️", label = "地面塌陷" },
-        reward  = { icon = "📦", label = "角落包裹" },
-        plot    = { icon = "🚪", label = "不存在的门" },
-        clue    = { icon = "✍️", label = "涂鸦暗号" },
-    },
-    station = {
-        safe    = { icon = "🚉", label = "末班列车" },
-        monster = { icon = "🚇", label = "不停靠的车" },
-        trap    = { icon = "🌀", label = "循环站台" },
-        reward  = { icon = "🎫", label = "神秘车票" },
-        plot    = { icon = "📻", label = "广播异响" },
-        clue    = { icon = "🗺️", label = "失落线路图" },
-    },
-    hospital = {
-        safe    = { icon = "🏥", label = "空病房" },
-        monster = { icon = "💉", label = "游走护士" },
-        trap    = { icon = "🩺", label = "错误诊断" },
-        reward  = { icon = "💊", label = "遗留药品" },
-        plot    = { icon = "📋", label = "诡异病历" },
-        clue    = { icon = "🔬", label = "实验记录" },
-    },
-    library = {
-        safe    = { icon = "📚", label = "安静角落" },
-        monster = { icon = "📖", label = "自翻的书" },
-        trap    = { icon = "🔇", label = "沉默诅咒" },
-        reward  = { icon = "📜", label = "古老卷轴" },
-        plot    = { icon = "📕", label = "禁书" },
-        clue    = { icon = "🔖", label = "夹页纸条" },
-    },
-    bank = {
-        safe    = { icon = "🏦", label = "空金库" },
-        monster = { icon = "🎭", label = "面具柜员" },
-        trap    = { icon = "🔒", label = "锁死的门" },
-        reward  = { icon = "💰", label = "无主存款" },
-        plot    = { icon = "🏧", label = "异常终端" },
-        clue    = { icon = "🧾", label = "可疑账单" },
-    },
-    cemetery = {
-        safe    = { icon = "🪦", label = "寂静墓园" },
-        monster = { icon = "💀", label = "游荡亡灵" },
-        trap    = { icon = "🕳️", label = "塌陷墓穴" },
-        reward  = { icon = "📿", label = "古老护符" },
-        plot    = { icon = "🪦", label = "无名墓碑" },
-        clue    = { icon = "📜", label = "墓志铭文" },
-    },
-    gym = {
-        safe    = { icon = "🏋️", label = "空旷训练场" },
-        monster = { icon = "🥊", label = "暴走训练机" },
-        trap    = { icon = "🔗", label = "锁死的器械" },
-        reward  = { icon = "💪", label = "力量结晶" },
-        plot    = { icon = "🪞", label = "扭曲镜面" },
-        clue    = { icon = "🩹", label = "带血绷带" },
-    },
-}
-
---- 获取暗面显示信息
-function M.getDarksideInfo(location, eventType)
-    local locMap = M.DARKSIDE_INFO[location]
-    if locMap and locMap[eventType] then
-        return locMap[eventType]
-    end
-    return nil
-end
+M.DARKSIDE_INFO  = EventPool.DARKSIDE_INFO
+M.getDarksideInfo = EventPool.getDarksideInfo
 
 -- ---------------------------------------------------------------------------
 -- 构造

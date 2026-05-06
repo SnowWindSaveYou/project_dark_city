@@ -6,6 +6,7 @@
 
 local Card = require "Card"
 local Theme = require "Theme"
+local EventPool = require "EventPool"
 
 local M = {}
 
@@ -94,27 +95,9 @@ local function randomPositions(count, exclude)
 end
 
 -- ---------------------------------------------------------------------------
--- 陷阱子类型权重 (生成时随机分配)
+-- 陷阱子类型 → 委托给 EventPool
 -- ---------------------------------------------------------------------------
-local TRAP_SUBTYPE_WEIGHTS = {
-    { "sanity",   30 },  -- 阴气侵蚀: san -1
-    { "money",    30 },  -- 财物散失: money -10
-    { "film",     20 },  -- 灵雾曝光: film -1
-    { "teleport", 20 },  -- 空间错位: 随机传送到未翻开格子
-}
-
---- 根据权重随机选取陷阱子类型
-function M.randomTrapSubtype()
-    local total = 0
-    for _, w in ipairs(TRAP_SUBTYPE_WEIGHTS) do total = total + w[2] end
-    local roll = math.random(1, total)
-    local acc = 0
-    for _, w in ipairs(TRAP_SUBTYPE_WEIGHTS) do
-        acc = acc + w[2]
-        if roll <= acc then return w[1] end
-    end
-    return "sanity"
-end
+M.randomTrapSubtype = EventPool.randomTrapSubtype
 
 -- ---------------------------------------------------------------------------
 -- 暗面世界地图生成
@@ -409,21 +392,9 @@ function M.generateDarkCards(board, layerData, darkLocations, darkConfig)
 end
 
 -- ---------------------------------------------------------------------------
--- 地点专属事件权重偏移 (#9)
--- 在基础权重上叠加, 值越大越容易出现该事件
+-- 地点专属事件权重偏移 → 由 EventPool 管理
 -- ---------------------------------------------------------------------------
-local LOCATION_WEIGHT_OFFSET = {
-    cemetery = { monster = 10, trap = 3 },
-    alley    = { monster = 3,  trap = 5 },
-    gym      = { reward = 5, safe = 3 },
-    hospital = { reward = 3, safe = 2 },
-    park     = { safe = 5 },
-    school   = { clue = 3 },
-    station  = { trap = 3 },
-    market   = { reward = 2 },
-    company  = {},
-    police   = { safe = 5 },
-}
+local LOCATION_WEIGHT_OFFSET = EventPool.LOCATION_WEIGHT_OFFSET
 
 -- ---------------------------------------------------------------------------
 -- 生成卡牌 (地点 + 事件双层系统)
@@ -561,35 +532,8 @@ function M.generateCards(board, requiredLocations, opts)
     end
     local locIdx = 1
 
-    -- 5. 事件池
-    local BASE_EVENT_WEIGHTS = {
-        { "safe",   30 },
-        { "monster", 20 },
-        { "trap",   15 },
-        { "reward", 15 },
-        { "plot",   10 },
-        { "clue",   10 },
-    }
-
-    --- 按地点偏移权重后随机选取事件 (#9)
-    local function randomEvent(location)
-        local offsets = location and LOCATION_WEIGHT_OFFSET[location] or nil
-        local total = 0
-        local adjusted = {}
-        for i, w in ipairs(BASE_EVENT_WEIGHTS) do
-            local extra = offsets and offsets[w[1]] or 0
-            local val = w[2] + extra
-            adjusted[i] = { w[1], val }
-            total = total + val
-        end
-        local roll = math.random(1, total)
-        local acc = 0
-        for _, w in ipairs(adjusted) do
-            acc = acc + w[2]
-            if roll <= acc then return w[1] end
-        end
-        return "safe"
-    end
+    -- 5. 事件池 → 委托给 EventPool.randomEvent
+    local randomEvent = EventPool.randomEvent
 
     -- 6. 填充棋盘
     local specialMap = {}

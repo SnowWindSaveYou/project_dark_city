@@ -3,47 +3,18 @@
 -- 负责生成、状态追踪、完成检测、日结算
 -- ============================================================================
 
-local Card = require "Card"
+local Card      = require "Card"
 local ResourceBar = require "ResourceBar"
+local EventPool = require "EventPool"
 
 local M = {}
 
 -- ---------------------------------------------------------------------------
--- 日程卡模板 (根据地点生成描述)
+-- 事件数据引用（来自 EventPool 单一数据源）
 -- ---------------------------------------------------------------------------
-local SCHEDULE_TEMPLATES = {
-    -- 普通地点 (可作为日程目标)
-    company     = { verb = "去公司上班",     reward = { "money", 10 } },
-    school      = { verb = "去学校上课",     reward = { "money",  8 } },
-    park        = { verb = "去公园散步",     reward = { "san",    1 } },
-    alley       = { verb = "穿过小巷",       reward = { "money",  8 } },
-    station     = { verb = "去车站接人",     reward = { "money",  6 } },
-    hospital    = { verb = "去医院看病",     reward = { "san",    1 } },
-    library     = { verb = "去图书馆学习",   reward = { "inspiration", 1 } },
-    bank        = { verb = "去银行办事",     reward = { "money", 12 } },
-    cemetery    = { verb = "去墓地调查",     reward = { "inspiration", 1 } },
-    gym         = { verb = "去健身房锻炼",   reward = { "health", 1 } },
-    -- 商店地点
-    convenience = { verb = "去便利店购物",   reward = { "money",  5 } },
-    -- 地标地点 (也可作为日程目标，且走到地标区域是安全的)
-    church      = { verb = "去教堂祈祷",     reward = { "san",    1 } },
-    police      = { verb = "去警察局报案",   reward = { "san",    1 } },
-}
-
--- ---------------------------------------------------------------------------
--- 传闻模板
--- ---------------------------------------------------------------------------
-local RUMOR_SAFE_TEXTS = {
-    "今天%s很平静",
-    "%s附近没有异常",
-    "听说%s今天很安全",
-}
-
-local RUMOR_DANGER_TEXTS = {
-    "%s有脏东西",
-    "别去%s，有危险",
-    "听说%s闹鬼了",
-}
+local SCHEDULE_TEMPLATES = EventPool.SCHEDULE_TEMPLATES
+local RUMOR_SAFE_TEXTS   = EventPool.RUMOR_SAFE_TEXTS
+local RUMOR_DANGER_TEXTS = EventPool.RUMOR_DANGER_TEXTS
 
 -- ---------------------------------------------------------------------------
 -- 状态

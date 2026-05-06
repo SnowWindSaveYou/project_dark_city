@@ -9,136 +9,27 @@ local Tween       = require "lib.Tween"
 local Theme       = require "Theme"
 local Card        = require "Card"
 local ResourceBar = require "ResourceBar"
+local EventPool   = require "EventPool"
 
 local M = {}
 
 -- ---------------------------------------------------------------------------
--- 事件文案模板（每种卡牌类型多条，随机选取增加变化感）
+-- 事件数据引用（来自 EventPool 单一数据源）
 -- ---------------------------------------------------------------------------
 
-M.templates = {
-    safe = {
-        { title = "安全屋",   desc = "一间整洁的公寓，窗帘紧闭。你短暂休整，理智稍有恢复。" },
-        { title = "便利店",   desc = "24小时亮着灯的便利店，店员面无表情。热咖啡让你安心不少。" },
-        { title = "公园长椅", desc = "街边公园空无一人。你坐下来深呼吸，周围暂时没有异常。" },
-    },
-    landmark = {
-        { title = "地标建筑", desc = "这座建筑是这片区域的标志。周围的街道以它为中心延伸。" },
-        { title = "钟塔广场", desc = "古老的钟塔矗立在十字路口。指针停在了一个不存在的时刻。" },
-    },
-    shop = {
-        { title = "黑市商人", desc = "\"需要什么？\" 戴兜帽的人低声问道。交易总是伴随代价。" },
-        { title = "旧货铺",   desc = "货架上摆满了不知来源的物品。有些东西看起来不属于这个世界。" },
-        { title = "自动售货机", desc = "孤零零的售货机发出嗡嗡声。投币口旁刻着你看不懂的符号。" },
-    },
-    monster = {
-        { title = "阴影蠕动", desc = "墙壁上的影子扭曲变形，朝你涌来。你的理智在动摇……" },
-        { title = "回声追踪", desc = "身后传来与你步伐完全同步的脚步声。你不敢回头。" },
-        { title = "镜中来客", desc = "橱窗玻璃里映出的不是你的倒影。它在微笑。" },
-    },
-    trap = {
-        { title = "地面塌陷", desc = "脚下的地面突然下沉！你勉强抓住边缘，身体传来一阵剧痛。" },
-        { title = "迷雾弥漫", desc = "浓雾从巷子里涌出，方向感瞬间消失。你开始怀疑自己是否还在原地。" },
-        { title = "时间错乱", desc = "手表指针疯狂旋转。你感觉刚刚过了一秒，但街上的人都不见了。" },
-    },
-    reward = {
-        { title = "隐藏宝箱", desc = "墙缝里藏着一个锡盒，里面是现金和一卷未曝光的胶卷。" },
-        { title = "神秘馈赠", desc = "邮箱里有一个写着你名字的包裹。里面的东西意外地有用。" },
-        { title = "失物招领", desc = "桌上放着一叠钞票和记录着什么的胶片。似乎有人特意留给你。" },
-    },
-    plot = {
-        { title = "字条",     desc = "折叠的纸条上写着：\"不要相信第三面墙。\" 你似乎领悟了什么。" },
-        { title = "电话响了", desc = "废弃电话亭的话筒在震动。你接起来，听到了很久以前的声音。" },
-        { title = "旧报纸",   desc = "报纸头版刊登着一则不可能的新闻——日期是明天。" },
-    },
-    clue = {
-        { title = "涂鸦暗号", desc = "墙上的涂鸦里藏着符号。你举起相机，胶卷自动记录了一切。" },
-        { title = "监控残影", desc = "碎裂的屏幕闪过一帧画面——那是一张你从未去过的地方的照片。" },
-        { title = "录音磁带", desc = "老旧的录音机里残留着一段对话，说的是一个你似乎忘记的名字。" },
-    },
-    photo = {
-        { title = "留影", desc = "相片上定格的画面取代了原本的恐惧。这里现在安全了。" },
-        { title = "净化", desc = "曝光的胶片封印了阴影。被拍下的事物不再具有威胁。" },
-    },
-    rift = {
-        { title = "时空裂隙", desc = "地面出现一道蜿蜒的裂缝，透出幽蓝色的微光。你感到另一个世界在呼唤。" },
-        { title = "维度缝隙", desc = "空气中浮现扭曲的纹路，仿佛现实被撕开了一道口子。裂隙另一端的景象若隐若现。" },
-        { title = "异界入口", desc = "脚下的地砖突然龟裂，缝隙中涌出暗紫色的雾气。这是通往暗面世界的通道。" },
-    },
-}
-
--- ---------------------------------------------------------------------------
--- 资源变化映射（与 main.lua 保持一致）
--- ---------------------------------------------------------------------------
-
-M.cardEffects = {
-    safe     = { { "san", 1 } },
-    landmark = {},
-    shop     = {},
-    monster  = { { "san", -2 }, { "health", -1 } },  -- 基础值; 实际使用 getMonsterEffects()
-    trap     = {},  -- 旧通用 trap 已废弃; 由 trapSubtypeEffects 替代
-    reward   = { { "money", 15 }, { "film", 1 } },
-    plot     = { { "inspiration", 1 } },
-    clue     = { { "film", 1 } },
-    photo    = {},  -- 相片：安全格，无资源效果
-    rift     = {},  -- 裂隙：无资源效果，触发暗面世界入口
-}
+M.templates             = EventPool.TEMPLATES
+M.cardEffects           = EventPool.CARD_EFFECTS
+M.trapSubtypeEffects    = EventPool.TRAP_SUBTYPE_EFFECTS
+M.trapSubtypeTemplates  = EventPool.TRAP_SUBTYPE_TEMPLATES
+M.trapSubtypeInfo       = EventPool.TRAP_SUBTYPE_INFO
 
 --- 动态计算怪物伤害 (灵感越高, 暗面感知越强, 怪物伤害越大)
 --- 基础: san-2, health-1; 额外: +floor((inspiration-10)/15), 上限+3
 ---@return table effects
 function M.getMonsterEffects()
     local inspiration = ResourceBar.get("inspiration")
-    local extra = math.min(3, math.max(0, math.floor((inspiration - 10) / 15)))
-    return {
-        { "san", -(2 + extra) },
-        { "health", -1 },
-    }
+    return EventPool.getMonsterEffects(inspiration)
 end
-
--- ---------------------------------------------------------------------------
--- 陷阱子类型: 效果 / 文案 / 图标
--- ---------------------------------------------------------------------------
-
---- 子类型→资源变化
-M.trapSubtypeEffects = {
-    sanity   = { { "san",   -1 } },   -- 阴气侵蚀
-    money    = { { "money", -10 } },   -- 财物散失
-    film     = { { "film",  -1 } },    -- 灵雾曝光
-    teleport = {},                      -- 空间错位 (无资源伤害)
-}
-
---- 子类型→文案 (覆盖通用 M.templates.trap)
-M.trapSubtypeTemplates = {
-    sanity = {
-        { title = "阴气侵蚀", desc = "一股寒意从地面渗入脚底，直冲脑门。周围的空气变得凝重，理智在无声中消磨。" },
-        { title = "低语缠绕", desc = "耳边响起断断续续的低语，内容听不清楚。你的思维开始变得混乱。" },
-        { title = "幻象涌动", desc = "视野边缘浮现模糊的影像，分不清是真实还是幻觉。你努力保持清醒。" },
-    },
-    money = {
-        { title = "财物散失", desc = "口袋突然变轻了——零钱从破洞滑落，怎么也捡不回来。" },
-        { title = "无形窃取", desc = "一转眼，钱包里的钞票少了几张。你确信没有人靠近过。" },
-        { title = "诅咒流失", desc = "硬币在手中变得灼热，你不得不松手。它们落地后消失不见。" },
-    },
-    film = {
-        { title = "灵雾曝光", desc = "一团幽蓝色的雾气突然涌来，相机发出咔嗒声——胶卷被意外曝光了。" },
-        { title = "闪光干扰", desc = "空气中闪过一道强光，相机自动触发了快门。一卷珍贵的胶卷报废了。" },
-        { title = "异光侵蚀", desc = "从墙缝渗出的异样光芒照射到你的相机上，胶卷上留下了无法冲洗的痕迹。" },
-    },
-    teleport = {
-        { title = "空间错位", desc = "脚下的地面突然扭曲，你的身体被一股力量拉扯到了别处！" },
-        { title = "维度跳跃", desc = "眨眼之间，周围的景色全变了。你不知道自己被传送到了哪里。" },
-        { title = "瞬间位移", desc = "一阵眩晕过后，你发现自己站在一个完全不同的地方。" },
-    },
-}
-
---- 子类型→图标/名称 (Toast 中覆盖默认 trap 图标)
-M.trapSubtypeInfo = {
-    sanity   = { icon = "👁️",  label = "阴气侵蚀" },
-    money    = { icon = "💸", label = "财物散失" },
-    film     = { icon = "📷", label = "灵雾曝光" },
-    teleport = { icon = "🌀", label = "空间错位" },
-}
 
 -- 资源中文名 / 图标
 local resourceMeta = {
@@ -935,21 +826,8 @@ end
 -- Toast 子系统 (非阻塞卡牌通知)
 -- ===========================================================================
 
--- 哪些事件使用阻塞模态弹窗 (其余走 toast)
-local BLOCKING_EVENTS = {
-    shop = true,
-    -- 未来: 带有选择的 plot 事件
-}
-
---- 判断事件类型是否需要阻塞模态
----@param cardType string
----@param hasChoices boolean|nil  未来: 剧情选择
----@return boolean
-function M.isBlockingEvent(cardType, hasChoices)
-    if BLOCKING_EVENTS[cardType] then return true end
-    if cardType == "plot" and hasChoices then return true end
-    return false
-end
+--- 判断事件类型是否需要阻塞模态（委托 EventPool）
+M.isBlockingEvent = EventPool.isBlockingEvent
 
 -- ---------------------------------------------------------------------------
 -- Toast 常量
