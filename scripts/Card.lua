@@ -6,7 +6,6 @@
 
 local Tween = require "lib.Tween"
 local Theme = require "Theme"
-local EventPool = require "EventPool"
 
 local M = {}
 
@@ -28,22 +27,6 @@ M.CARD_W = 0.64          -- 世界宽
 M.CARD_H = 0.90          -- 世界高(深度方向 Z)
 M.CARD_THICKNESS = 0.015 -- 厚度 (Y 方向)
 M.ICON_QUAD = 0.18       -- 侦查/揭示图标边长 (米)
-
--- ---------------------------------------------------------------------------
--- 地点 & 事件类型定义 → 统一由 EventPool 管理
--- Card.XXX 保留为兼容别名，供外部模块继续以 Card.LOCATION_INFO 方式访问
--- ---------------------------------------------------------------------------
-M.LOCATION_INFO      = EventPool.LOCATION_INFO
-M.REGULAR_LOCATIONS  = EventPool.REGULAR_LOCATIONS
-M.LANDMARK_LOCATIONS = EventPool.LANDMARK_LOCATIONS
-M.EVENT_TYPES        = EventPool.EVENT_TYPES
-M.ALL_TYPES          = EventPool.ALL_TYPES
-
--- ---------------------------------------------------------------------------
--- 暗面世界映射 → 统一由 EventPool 管理
--- ---------------------------------------------------------------------------
-M.DARKSIDE_INFO  = EventPool.DARKSIDE_INFO
-M.getDarksideInfo = EventPool.getDarksideInfo
 
 -- ---------------------------------------------------------------------------
 -- 构造

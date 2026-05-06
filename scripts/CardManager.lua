@@ -3,9 +3,8 @@
 -- 负责生成、状态追踪、完成检测、日结算
 -- ============================================================================
 
-local Card      = require "Card"
 local ResourceBar = require "ResourceBar"
-local EventPool = require "EventPool"
+local EventPool   = require "EventPool"
 
 local M = {}
 
@@ -63,7 +62,7 @@ end
 
 --- 创建一张日程卡
 local function createSchedule(location)
-    local locInfo = Card.LOCATION_INFO[location]
+    local locInfo = EventPool.LOCATION_INFO[location]
     local template = SCHEDULE_TEMPLATES[location]
     if not locInfo or not template then return nil end
 
@@ -78,7 +77,7 @@ end
 
 --- 创建一张传闻卡
 local function createRumor(location, isSafe)
-    local locInfo = Card.LOCATION_INFO[location]
+    local locInfo = EventPool.LOCATION_INFO[location]
     if not locInfo then return nil end
 
     local templates = isSafe and RUMOR_SAFE_TEXTS or RUMOR_DANGER_TEXTS
@@ -100,7 +99,7 @@ end
 function M.preSelectLocations()
     -- 收集可用的日程地点 (排除地标和商店, 它们有专用格子)
     local excludeSet = { convenience = true }
-    for _, lmLoc in ipairs(Card.LANDMARK_LOCATIONS) do
+    for _, lmLoc in ipairs(EventPool.LANDMARK_LOCATIONS) do
         excludeSet[lmLoc] = true
     end
 

@@ -206,7 +206,7 @@ local function onCardFlipped(card, screenX, screenY)
     end
 
     if card.type == "home" or card.type == "landmark" then
-        local locInfo = Card.LOCATION_INFO[card.location]
+        local locInfo = EventPool.LOCATION_INFO[card.location]
         local safeName = locInfo and locInfo.label or "安全区"
         local sc = Theme.current.safe
         VFX.spawnBanner(safeName .. " · 安全", sc.r, sc.g, sc.b, 18, 0.8)
@@ -227,7 +227,7 @@ local function onCardFlipped(card, screenX, screenY)
     -- -----------------------------------------------------------------------
     -- 阻塞 vs 非阻塞 分流
     -- -----------------------------------------------------------------------
-    local isBlocking = EventPopup.isBlockingEvent(card.type)
+    local isBlocking = EventPool.isBlockingEvent(card.type)
 
     if isBlocking then
         -- === 阻塞路径: 商店 / 未来剧情选择 → 模态弹窗 ===
@@ -258,11 +258,11 @@ local function onCardFlipped(card, screenX, screenY)
         -- 效果表: 怪物动态计算, 陷阱按子类型, 其他查静态表
         local effects
         if card.type == "monster" then
-            effects = EventPopup.getMonsterEffects()
+            effects = EventPool.getMonsterEffects(ResourceBar.get("inspiration"))
         elseif card.type == "trap" and card.trapSubtype then
-            effects = EventPopup.trapSubtypeEffects[card.trapSubtype] or {}
+            effects = EventPool.TRAP_SUBTYPE_EFFECTS[card.trapSubtype] or {}
         else
-            effects = EventPopup.cardEffects[card.type] or {}
+            effects = EventPool.CARD_EFFECTS[card.type] or {}
         end
 
         local shieldUsed = false
@@ -502,8 +502,8 @@ local function onPhotographFlipped(card, screenX, screenY)
                         VFX.spawnBanner("👻 发现怪物! 已驱除!", pc.r, pc.g, pc.b, 20, 1.0)
                     else
                         local trapLabel = "陷阱"
-                        if card.trapSubtype and EventPopup.trapSubtypeInfo[card.trapSubtype] then
-                            trapLabel = EventPopup.trapSubtypeInfo[card.trapSubtype].label
+                        if card.trapSubtype and EventPool.TRAP_SUBTYPE_INFO[card.trapSubtype] then
+                            trapLabel = EventPool.TRAP_SUBTYPE_INFO[card.trapSubtype].label
                         end
                         VFX.spawnBanner("⚡ 发现" .. trapLabel .. "! 已清除!", pc.r, pc.g, pc.b, 20, 1.0)
                     end

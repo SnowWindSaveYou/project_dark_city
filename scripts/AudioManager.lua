@@ -95,11 +95,7 @@ local SFX_PATHS = {
     ghost_dispel    = "audio/sfx/ghost_dispel.ogg",
     layer_transition = "audio/sfx/layer_transition.ogg",
     -- 道具使用
-    item_use_coffee   = "audio/sfx/item_use_coffee.ogg",
-    item_use_sedative = "audio/sfx/item_use_sedative.ogg",
-    item_use_order    = "audio/sfx/item_use_order.ogg",
-    item_use_shield   = "audio/sfx/item_use_shield.ogg",
-    item_use_map      = "audio/sfx/item_use_map.ogg",
+    item_use          = "audio/sfx/item_use.ogg",
     item_use_fail     = "audio/sfx/item_use_fail.ogg",
     -- 特效/转场
     screen_shake    = "audio/sfx/screen_shake.ogg",
@@ -480,22 +476,17 @@ end
 
 --- 道具 key → 使用音效 key 映射
 local ITEM_USE_SFX = {
-    coffee    = "item_use_coffee",
-    sedative  = "item_use_sedative",
-    orderManual = "item_use_order",
-    shield    = "item_use_shield",
-    mapReveal = "item_use_map",
     exorcism  = "exorcise",  -- 驱魔香复用已有的 exorcise 音效
 }
 
 --- 播放道具使用音效 (根据道具 key 自动选择)
----@param itemKey string 道具 key (coffee/sedative/orderManual/shield/mapReveal/exorcism)
+---@param itemKey string 道具 key
 function M.playItemUse(itemKey)
     local sfxKey = ITEM_USE_SFX[itemKey]
     if sfxKey then
         M.playSFX(sfxKey)
     else
-        M.playSFX("item_pickup")  -- fallback
+        M.playSFX("item_use")  -- 通用道具使用音效
     end
 end
 

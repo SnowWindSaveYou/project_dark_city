@@ -442,7 +442,7 @@ function M.generateCards(board, requiredLocations, opts)
 
     -- 地标和商店地点集合 (不应出现在普通格子中)
     local specialLocSet = { home = true, convenience = true }
-    for _, lmLoc in ipairs(Card.LANDMARK_LOCATIONS) do
+    for _, lmLoc in ipairs(EventPool.LANDMARK_LOCATIONS) do
         specialLocSet[lmLoc] = true
     end
 
@@ -469,7 +469,7 @@ function M.generateCards(board, requiredLocations, opts)
 
     -- 回填: 从 REGULAR_LOCATIONS 中选择未使用的地点, 避免重复
     local fillCandidates = {}
-    for _, loc in ipairs(Card.REGULAR_LOCATIONS) do
+    for _, loc in ipairs(EventPool.REGULAR_LOCATIONS) do
         if not usedInPool[loc] then
             fillCandidates[#fillCandidates + 1] = loc
         end
@@ -502,15 +502,15 @@ function M.generateCards(board, requiredLocations, opts)
             locCount[loc] = (locCount[loc] or 0) + 1
         else
             -- 已无不重复地点可用, 从全部 REGULAR_LOCATIONS 随机补
-            local loc = Card.REGULAR_LOCATIONS[math.random(1, #Card.REGULAR_LOCATIONS)]
+            local loc = EventPool.REGULAR_LOCATIONS[math.random(1, #EventPool.REGULAR_LOCATIONS)]
             -- 同样受日程地点稀缺性约束
             if requiredSet[loc] then
                 local cur = locCount[loc] or 0
                 if cur >= scheduleMaxRepeat then
                     -- 尝试找一个不受限的地点
                     local found = false
-                    for _ = 1, #Card.REGULAR_LOCATIONS do
-                        loc = Card.REGULAR_LOCATIONS[math.random(1, #Card.REGULAR_LOCATIONS)]
+                    for _ = 1, #EventPool.REGULAR_LOCATIONS do
+                        loc = EventPool.REGULAR_LOCATIONS[math.random(1, #EventPool.REGULAR_LOCATIONS)]
                         if not requiredSet[loc] or (locCount[loc] or 0) < scheduleMaxRepeat then
                             found = true
                             break
@@ -549,7 +549,7 @@ function M.generateCards(board, requiredLocations, opts)
     end
 
     local landmarkLocations = {}
-    for i, loc in ipairs(Card.LANDMARK_LOCATIONS) do
+    for i, loc in ipairs(EventPool.LANDMARK_LOCATIONS) do
         landmarkLocations[i] = loc
     end
     for i = #landmarkLocations, 2, -1 do

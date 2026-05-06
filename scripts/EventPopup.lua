@@ -7,29 +7,10 @@
 
 local Tween       = require "lib.Tween"
 local Theme       = require "Theme"
-local Card        = require "Card"
 local ResourceBar = require "ResourceBar"
 local EventPool   = require "EventPool"
 
 local M = {}
-
--- ---------------------------------------------------------------------------
--- 事件数据引用（来自 EventPool 单一数据源）
--- ---------------------------------------------------------------------------
-
-M.templates             = EventPool.TEMPLATES
-M.cardEffects           = EventPool.CARD_EFFECTS
-M.trapSubtypeEffects    = EventPool.TRAP_SUBTYPE_EFFECTS
-M.trapSubtypeTemplates  = EventPool.TRAP_SUBTYPE_TEMPLATES
-M.trapSubtypeInfo       = EventPool.TRAP_SUBTYPE_INFO
-
---- 动态计算怪物伤害 (灵感越高, 暗面感知越强, 怪物伤害越大)
---- 基础: san-2, health-1; 额外: +floor((inspiration-10)/15), 上限+3
----@return table effects
-function M.getMonsterEffects()
-    local inspiration = ResourceBar.get("inspiration")
-    return EventPool.getMonsterEffects(inspiration)
-end
 
 -- 资源中文名 / 图标
 local resourceMeta = {
@@ -109,14 +90,14 @@ local BTN_R     = 8
 ---@param location string|nil 地点类型，用于显示暗面世界名称
 function M.show(cardType, cx, cy, onDismiss, location)
     -- 随机选取文案
-    local pool = M.templates[cardType]
+    local pool = EventPool.TEMPLATES[cardType]
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
     end
     local tmpl = pool[math.random(1, #pool)]
 
     -- 暗面世界标题：优先使用地点+事件类型对应的暗面名称
-    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = darkInfo and darkInfo.label or tmpl.title
 
     state.active = true
@@ -124,7 +105,9 @@ function M.show(cardType, cx, cy, onDismiss, location)
     state.cardType = cardType
     state.title = displayTitle
     state.desc = tmpl.desc
-    state.effects = (cardType == "monster") and M.getMonsterEffects() or (M.cardEffects[cardType] or {})
+    state.effects = (cardType == "monster")
+        and EventPool.getMonsterEffects(ResourceBar.get("inspiration"))
+        or (EventPool.CARD_EFFECTS[cardType] or {})
     state.cx = cx
     state.cy = cy
     state.onDismiss = onDismiss
@@ -193,14 +176,14 @@ end
 ---@param location string|nil 地点类型
 function M.showPhoto(cardType, cx, cy, onDismiss, location)
     -- 随机选取文案
-    local pool = M.templates[cardType]
+    local pool = EventPool.TEMPLATES[cardType]
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
     end
     local tmpl = pool[math.random(1, #pool)]
 
     -- 暗面世界标题
-    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = darkInfo and darkInfo.label or tmpl.title
 
     state.active = true
@@ -769,7 +752,7 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
         nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT)
 
         -- 地点图标和名称
-        local locInfo = state.photoLocation and Card.LOCATION_INFO[state.photoLocation]
+        local locInfo = state.photoLocation and EventPool.LOCATION_INFO[state.photoLocation]
         local locLabel = locInfo and (locInfo.icon .. " " .. locInfo.label) or ""
 
         nvgFontFace(vg, "sans")
@@ -826,8 +809,6 @@ end
 -- Toast 子系统 (非阻塞卡牌通知)
 -- ===========================================================================
 
---- 判断事件类型是否需要阻塞模态（委托 EventPool）
-M.isBlockingEvent = EventPool.isBlockingEvent
 
 -- ---------------------------------------------------------------------------
 -- Toast 常量
@@ -861,10 +842,10 @@ local toastNextId = 1
 function M.toast(cardType, appliedEffects, shieldUsed, location, trapSubtype)
     -- 随机文案: 陷阱子类型使用专属文案池
     local pool
-    if cardType == "trap" and trapSubtype and M.trapSubtypeTemplates[trapSubtype] then
-        pool = M.trapSubtypeTemplates[trapSubtype]
+    if cardType == "trap" and trapSubtype and EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype] then
+        pool = EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype]
     else
-        pool = M.templates[cardType]
+        pool = EventPool.TEMPLATES[cardType]
     end
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
@@ -872,7 +853,7 @@ function M.toast(cardType, appliedEffects, shieldUsed, location, trapSubtype)
     local tmpl = pool[math.random(1, #pool)]
 
     -- 暗面世界标题
-    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = darkInfo and darkInfo.label or tmpl.title
 
     local id = toastNextId
@@ -1076,8 +1057,8 @@ function M.drawToasts(vg, logicalW, logicalH, gameTime)
         local info = Theme.cardTypeInfo(t.cardType)
         -- 陷阱子类型: 使用专属图标
         local displayIcon = (info and info.icon or "❓")
-        if t.cardType == "trap" and t.trapSubtype and M.trapSubtypeInfo[t.trapSubtype] then
-            displayIcon = M.trapSubtypeInfo[t.trapSubtype].icon
+        if t.cardType == "trap" and t.trapSubtype and EventPool.TRAP_SUBTYPE_INFO[t.trapSubtype] then
+            displayIcon = EventPool.TRAP_SUBTYPE_INFO[t.trapSubtype].icon
         end
         nvgFontFace(vg, "sans")
 
