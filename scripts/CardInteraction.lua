@@ -18,7 +18,8 @@ local DialogueSystem = require "DialogueSystem"
 local BoardItems    = require "BoardItems"
 local AudioManager  = require "AudioManager"
 local BubbleDialogue = require "BubbleDialogue"
-local EventPool      = require "EventPool"
+local EventPool         = require "EventPool"
+local StoryEventManager = require "StoryEventManager"
 local DarkWorld     = require "DarkWorld"
 local Theme         = require "Theme"
 local Tween         = require "lib.Tween"
@@ -254,6 +255,37 @@ local function onCardFlipped(card, screenX, screenY)
         })
     else
         -- === 非阻塞路径: 怪物/陷阱/安全/线索/剧情/照片/悬赏 → Toast ===
+
+        -- === 剧情事件拦截 (plot/clue 优先查询剧情对话) ===
+        if (card.type == "plot" or card.type == "clue") and G.storyMgr then
+            local ctx = { dayCount = G.dayCount or 1, weather = G.weather or "" }
+            local storyEvt = StoryEventManager.queryEvent(card.type, G.storyMgr, ctx)
+            if storyEvt then
+                -- 走剧情对话路径, 替代原有 toast
+                G.demoState = "story_dialogue"
+                StoryEventManager.triggerEvent(storyEvt, G.storyMgr, ResourceBar, function()
+                    -- 应用原有卡牌效果
+                    local baseEffects = EventPool.CARD_EFFECTS[card.type] or {}
+                    for _, eff in ipairs(baseEffects) do
+                        ResourceBar.change(eff[1], eff[2])
+                    end
+                    -- 统计
+                    G.gameStats.cardsRevealed = G.gameStats.cardsRevealed + 1
+                    -- clue: 传闻
+                    if card.type == "clue" then
+                        local added = CardManager.addRumor(G.board)
+                        if added then
+                            local tc2 = Theme.current
+                            VFX.spawnBanner("📰 获得了新传闻!", tc2.rumor.r, tc2.rumor.g, tc2.rumor.b, 18, 0.8)
+                        end
+                    end
+                    G.demoState = "ready"
+                    CameraButton.show()
+                    G.checkDefeat()
+                end)
+                return  -- 跳过后续 toast 路径
+            end
+        end
 
         -- 效果表: 怪物动态计算, 陷阱按子类型, 其他查静态表
         local effects

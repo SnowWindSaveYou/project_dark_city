@@ -9,6 +9,7 @@ local Theme          = require "Theme"
 local Card           = require "Card"
 local Board          = require "Board"
 local Token          = require "Token"
+local Baiye          = require "Baiye"
 local CardTextures   = require "CardTextures"
 local ResourceBar    = require "ResourceBar"
 local EventPopup     = require "EventPopup"
@@ -24,6 +25,8 @@ local NPCManager     = require "NPCManager"
 local DialogueSystem = require "DialogueSystem"
 local DarkWorld      = require "DarkWorld"
 local AudioManager   = require "AudioManager"
+local StoryManager   = require "StoryManager"
+local EndingSystem   = require "EndingSystem"
 
 local M = {}
 
@@ -35,8 +38,13 @@ local scene_           -- Scene (3D 场景根)
 local recalcLayout_    -- function: 重新计算布局
 local resetMainState_  -- function: 重置 main.lua 特有的局部状态 (savedReality 等)
 
--- 常量 (从 main.lua 搬过来)
-local MAX_DAYS = 7
+-- 动态最大天数 (由 StoryManager 碎片数决定)
+local function getMaxDays()
+    if G and G.storyMgr then
+        return StoryManager.getMaxDays(G.storyMgr)
+    end
+    return 7
+end
 
 -- NPC 对话脚本
 local QINXIN_DIALOGUE = {
@@ -96,6 +104,7 @@ function M.startDeal()
         local wx, wz = Board.cardPos(G.board, homeRow, homeCol)
         local shareOff = NPCManager.getShareOffset(homeRow, homeCol)
         Token.show(G.token, wx + shareOff, wz)
+        if G.baiye then Baiye.show(G.baiye, wx + shareOff, wz) end
         G.token.targetRow = homeRow
         G.token.targetCol = homeCol
 
@@ -161,6 +170,7 @@ function M.startRedeal()
 
     G.token.visible = false
     G.token.alpha = 0
+    if G.baiye then G.baiye.visible = false; G.baiye.alpha = 0 end
     HandPanel.hide()
     CameraButton.hide()
     BoardItems.clear()
@@ -228,6 +238,7 @@ function M.advanceDay()
 
     G.token.visible = false
     G.token.alpha = 0
+    if G.baiye then G.baiye.visible = false; G.baiye.alpha = 0 end
     HandPanel.hide()
     CameraButton.hide()
     BoardItems.clear()
@@ -236,6 +247,13 @@ function M.advanceDay()
 
     Board.undealAll(G.board, function()
         G.dayCount = G.dayCount + 1
+
+        -- 故事系统: 每日结算
+        if G.storyMgr then
+            StoryManager.tickSleep(G.storyMgr)
+            StoryManager.updateChapter(G.storyMgr, G.dayCount)
+        end
+
         if M.checkVictory() then return end
 
         Board.destroyAllNodes(G.board)
@@ -287,20 +305,35 @@ end
 
 function M.checkVictory()
     if G.gamePhase ~= "playing" then return false end
-    if G.dayCount > MAX_DAYS then
+    local maxDays = getMaxDays()
+    if G.dayCount > maxDays then
+        -- 结局判定
+        local ending = nil
+        if G.storyMgr then
+            local ctx = { dayCount = G.dayCount }
+            ending = EndingSystem.judge(G.storyMgr, ctx)
+        end
+
+        local isVictory = ending and ending.isVictory ~= false or true
         G.gamePhase = "gameover"
         G.demoState = "idle"
-        Token.setEmotion(G.token, "happy")
-        AudioManager.playStinger("victory_sting", 0.9)
-        AudioManager.playBGM("victory", 2.0)
+        Token.setEmotion(G.token, isVictory and "happy" or "dead")
+        AudioManager.playStinger(isVictory and "victory_sting" or "defeat_sting", 0.9)
+        AudioManager.playBGM(isVictory and "victory" or "defeat", 2.0)
         AudioManager.stopAmbient()
-        VFX.flashScreen(255, 215, 100, 0.5, 180)
-        GameOver.show(true, {
-            daysSurvived  = MAX_DAYS,
+
+        if isVictory then
+            VFX.flashScreen(255, 215, 100, 0.5, 180)
+        else
+            VFX.flashScreen(180, 30, 30, 0.5, 200)
+        end
+
+        GameOver.show(isVictory, {
+            daysSurvived  = maxDays,
             cardsRevealed = G.gameStats.cardsRevealed,
             monstersSlain = G.gameStats.monstersSlain,
             photosUsed    = G.gameStats.photosUsed,
-        }, M.onGameRestart)
+        }, M.onGameRestart, ending)
         return true
     end
     return false
@@ -328,6 +361,11 @@ function M.onGameRestart()
     -- 重置 main.lua 特有的状态 (savedReality, bgTransition, cameraPan 等)
     resetMainState_()
 
+    -- 故事系统重置
+    if G.storyMgr then
+        StoryManager.reset(G.storyMgr)
+    end
+
     ResourceBar.reset()
     CardManager.reset()
     HandPanel.reset()
@@ -353,6 +391,13 @@ function M.onGameRestart()
     token.textures = Token.loadTextures()
     Token.createNode(token, scene_)
     G.token = token
+
+    -- 重建白夜跟随精灵
+    if G.baiye then Baiye.destroyNode(G.baiye) end
+    local baiye = Baiye.new()
+    baiye.texture = Baiye.loadTexture()
+    Baiye.createNode(baiye, scene_)
+    G.baiye = baiye
 
     -- 重置气泡对话
     local playerBubble = BubbleDialogue.newBubble()

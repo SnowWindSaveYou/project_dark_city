@@ -38,6 +38,9 @@ local state = {
     -- 回调
     onRestart = nil,
 
+    -- 结局信息 (来自 EndingSystem, 可选)
+    ending = nil,
+
     -- 粒子定时
     particleTimer = 0,
 }
@@ -53,12 +56,13 @@ local TAG = "gameover"
 ---@param isVictory boolean 是否胜利
 ---@param stats table { daysSurvived, cardsRevealed, monstersSlain, photosUsed }
 ---@param onRestart function 重新开始回调
-function M.show(isVictory, stats, onRestart)
+function M.show(isVictory, stats, onRestart, ending)
     state.active    = true
     state.phase     = "enter"
     state.isVictory = isVictory
     state.stats     = stats or state.stats
     state.onRestart = onRestart
+    state.ending    = ending  -- EndingSystem 返回的结局表, 可 nil
 
     -- 重置
     state.overlayAlpha  = 0
@@ -199,7 +203,8 @@ function M.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 标题 ===
     if state.titleAlpha > 0.01 then
-        local titleText = state.isVictory and "任务完成" or "意识崩溃"
+        local titleText = (state.ending and state.ending.title)
+            or (state.isVictory and "任务完成" or "意识崩溃")
         local titleColor = state.isVictory and t.safe or t.danger
 
         nvgSave(vg)
@@ -230,9 +235,10 @@ function M.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 副标题 ===
     if state.subtitleAlpha > 0.01 then
-        local subText = state.isVictory
-            and "你在暗面都市中幸存了下来。"
-            or  "黑暗吞噬了你最后的理智..."
+        local subText = (state.ending and state.ending.subtitle)
+            or (state.isVictory
+                and "你在暗面都市中幸存了下来。"
+                or  "黑暗吞噬了你最后的理智...")
 
         nvgFontFace(vg, "sans")
         nvgFontSize(vg, 15)

@@ -11,6 +11,7 @@ local Theme       = require "Theme"
 local Card        = require "Card"
 local Board       = require "Board"
 local Token       = require "Token"
+local Baiye       = require "Baiye"
 local CardTextures = require "CardTextures"
 local ResourceBar = require "ResourceBar"
 local EventPopup  = require "EventPopup"
@@ -33,6 +34,8 @@ local AudioManager     = require "AudioManager"
 local CardInteraction  = require "CardInteraction"
 local GameFlow         = require "GameFlow"
 local DarkWorldFlow    = require "DarkWorldFlow"
+local StoryManager     = require "StoryManager"
+local DebugPanel       = require "DebugPanel"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -99,6 +102,7 @@ local G = {
     worldToScreen  = nil,   -- → Start() 中赋值
     checkDefeat    = nil,   -- → Start() 中赋值 (跨模块回调)
     enterDarkWorld = nil,   -- → Start() 中赋值 (跨模块回调)
+    storyMgr       = nil,   -- → Start() 中赋值 (StoryManager 实例)
 }
 
 -- 模块实例 (同时存储在 G 中供子模块访问)
@@ -106,6 +110,8 @@ local G = {
 local board = nil
 ---@type table token
 local token = nil
+---@type table baiye companion
+local baiye = nil
 
 -- 气泡对话
 local playerBubble = nil
@@ -444,12 +450,21 @@ function Start()
     token.textures = Token.loadTextures()
     Token.createNode(token, scene_)
 
+    -- 白夜跟随精灵 (3D Billboard)
+    baiye = Baiye.new()
+    baiye.texture = Baiye.loadTexture()
+    Baiye.createNode(baiye, scene_)
+
     -- 气泡对话
     playerBubble = BubbleDialogue.newBubble()
+
+    -- 故事管理器
+    G.storyMgr = StoryManager.new()
 
     -- 同步引用类型到共享状态表
     G.board         = board
     G.token         = token
+    G.baiye         = baiye
     G.playerBubble  = playerBubble
     G.gameStats     = gameStats
     G.logicalW      = logicalW
@@ -484,6 +499,14 @@ function Start()
     })
     G.checkDefeat = GameFlow.checkDefeat
     CardInteraction.init(G)
+    DebugPanel.init(G, {
+        enterDarkWorld = function()
+            DarkWorldFlow.enterDarkWorld(token.targetRow or 3, token.targetCol or 3)
+        end,
+        advanceDay = function()
+            GameFlow.advanceDay()
+        end,
+    })
 
     -- 注入回调
     Card.setRumorQuery(function(location)
@@ -599,6 +622,7 @@ end
 
 function Stop()
     DarkWorld.reset()
+    Baiye.destroyNode(baiye)
     Token.destroyNode(token)
     NPCManager.destroy()
     DialogueSystem.reset()
@@ -644,6 +668,11 @@ local function handleClick(inputX, inputY)
 
     if DialogueSystem.isActive() then
         DialogueSystem.handleClick(lx, ly)
+        return
+    end
+
+    if DebugPanel.isActive() then
+        DebugPanel.handleClick(lx, ly, logicalW, logicalH)
         return
     end
 
@@ -839,9 +868,9 @@ function HandleKeyDown(eventType, eventData)
         return
     end
 
-    -- [DEBUG] 按 1 强制进入暗面世界
-    if key == KEY_1 and G.demoState == "ready" then
-        DarkWorldFlow.enterDarkWorld(token.targetRow or 3, token.targetCol or 3)
+    -- [DEBUG] 按 1 切换调试面板
+    if key == KEY_1 then
+        DebugPanel.toggle()
         return
     end
 
@@ -862,6 +891,7 @@ local function updateHover(dt)
     GameOver.updateHover(lx, ly, dt, logicalW, logicalH)
     ShopPopup.updateHover(lx, ly, dt)
     EventPopup.updateHover(lx, ly, dt)
+    DialogueSystem.updateChoiceHover(lx, ly)
     EventPopup.updateRiftHover(lx, ly, dt)
     CameraButton.updateHover(lx, ly, dt)
     HandPanel.updateHover(lx, ly, dt, logicalW, logicalH)
@@ -920,6 +950,7 @@ function HandleUpdate(eventType, eventData)
     DateTransition.update(dt)
     Board.update(board, dt)
     Token.update(token, dt)
+    Baiye.update(baiye, dt, token.worldX, token.worldZ)
     ResourceBar.update(dt)
     CameraButton.update(dt)
     EventPopup.updateToasts(dt)
@@ -968,6 +999,7 @@ function HandleUpdate(eventType, eventData)
     -- 3D 节点同步 (每帧将 Lua 属性映射到 Node Transform)
     Board.syncAllNodes(board)
     Token.syncNode(token, gameTime)
+    Baiye.syncNode(baiye, gameTime)
 
     -- 屏幕抖动 → 相机偏移 (叠加 pan 平移)
     local shakeX, shakeY = VFX.getShakeOffset()
@@ -1114,6 +1146,9 @@ function HandleNanoVGRender(eventType, eventData)
     EventPopup.draw(vg, logicalW, logicalH, gameTime)
     EventPopup.drawRiftConfirm(vg, logicalW, logicalH)
     ShopPopup.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 调试面板 (弹窗之上, 对话之下) ===
+    DebugPanel.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 对话系统 (Gal 风格, 在弹窗之上、结算之下) ===
     DialogueSystem.draw(vg, logicalW, logicalH, gameTime)

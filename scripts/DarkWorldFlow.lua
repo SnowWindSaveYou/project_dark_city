@@ -9,6 +9,7 @@ local VFX           = require "lib.VFX"
 local Board         = require "Board"
 local Card          = require "Card"
 local Token         = require "Token"
+local Baiye         = require "Baiye"
 local CardTextures  = require "CardTextures"
 local ResourceBar   = require "ResourceBar"
 local CameraButton  = require "CameraButton"
@@ -18,6 +19,7 @@ local MonsterGhost  = require "MonsterGhost"
 local BoardItems    = require "BoardItems"
 local NPCManager    = require "NPCManager"
 local AudioManager  = require "AudioManager"
+local StoryManager  = require "StoryManager"
 
 local M = {}
 
@@ -46,6 +48,7 @@ local savedBgTransition = 0
 ---@param opts table  { scene, camera, recalcLayout, setBgTransitionTarget, getBgTransitionTarget }
 function M.init(gameState, opts)
     G = gameState
+    DarkWorld.setGameState(G)
     scene_         = opts.scene
     camera_        = opts.camera
     recalcLayout_  = opts.recalcLayout
@@ -108,9 +111,25 @@ function M.enterDarkWorld(riftRow, riftCol)
     BoardItems.clear()
     NPCManager.clear()
 
-    -- 3. 隐藏 Token
+    -- 3. 隐藏 Token (白夜根据条件决定)
     token.visible = false
     token.alpha = 0
+    -- 白夜跟随条件: 信任>=3 且可用
+    local baiyeFollowDark = false
+    if G.baiye and G.storyMgr then
+        baiyeFollowDark = StoryManager.isBaiyeAvailable(G.storyMgr)
+            and G.storyMgr.baiye_trust >= 3
+    end
+    if G.baiye then
+        if baiyeFollowDark then
+            -- 暂时隐藏, 发牌完成后在暗面显示
+            G.baiye.visible = false
+            G.baiye.alpha = 0
+        else
+            Baiye.hide(G.baiye)
+        end
+    end
+    G.baiyeFollowDark = baiyeFollowDark  -- 记录到共享状态
 
     -- 4. 收牌 → 销毁 → 重建暗面卡牌
     local physW, physH = graphics:GetWidth(), graphics:GetHeight()
@@ -168,6 +187,13 @@ function M.enterDarkWorld(riftRow, riftCol)
             token.targetCol = pCol
             Token.setEmotion(token, "normal")
 
+            -- 白夜暗面跟随: 发牌完成后显示
+            if baiyeFollowDark and G.baiye then
+                Baiye.show(G.baiye, wx, wz)
+                print("[DarkWorldFlow] Baiye following in dark world (trust="
+                    .. (G.storyMgr and G.storyMgr.baiye_trust or "?") .. ")")
+            end
+
             -- 暗面卡牌全明牌: 翻开所有可通行卡
             for r = 1, Board.ROWS do
                 for c = 1, Board.COLS do
@@ -218,9 +244,10 @@ function M.exitDarkWorld()
     -- 2. 获取裂隙位置 (返回现实世界后 Token 站的位置)
     local riftRow, riftCol, _ = DarkWorld.beginExit()
 
-    -- 3. 隐藏 Token
+    -- 3. 隐藏 Token + 白夜
     token.visible = false
     token.alpha = 0
+    if G.baiye then G.baiye.visible = false; G.baiye.alpha = 0 end
 
     -- 4. 收牌 → 销毁 → 恢复现实
     Tween.cancelTag("cardflip")
@@ -279,6 +306,8 @@ function M.exitDarkWorld()
             -- Token 回到裂隙卡位置
             local wx, wz = Board.cardPos(board, riftRow, riftCol)
             Token.show(token, wx, wz)
+            if G.baiye then Baiye.show(G.baiye, wx, wz) end
+            G.baiyeFollowDark = false  -- 清理暗面跟随标记
             token.targetRow = riftRow
             token.targetCol = riftCol
             Token.setEmotion(token, "normal")
@@ -316,9 +345,10 @@ function M.changeDarkLayer(targetLayer, dc)
         return
     end
 
-    -- 3. 隐藏 Token
+    -- 3. 隐藏 Token + 白夜 (层间切换)
     token.visible = false
     token.alpha = 0
+    if G.baiye then G.baiye.visible = false; G.baiye.alpha = 0 end
 
     VFX.spawnBanner("前往 " .. (layerName or "未知区域"), 200, 180, 255, 20, 1.0)
 
@@ -377,6 +407,11 @@ function M.changeDarkLayer(targetLayer, dc)
                         Card.updateTexture(cd, CardTextures)
                     end
                 end
+            end
+
+            -- 白夜暗面跟随: 层间切换后恢复
+            if G.baiyeFollowDark and G.baiye then
+                Baiye.show(G.baiye, wx, wz)
             end
 
             G.demoState = "ready"
