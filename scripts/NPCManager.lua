@@ -296,8 +296,8 @@ function M.update(dt, gameTime)
         local s = npc.scale * breatheScale * ss
         local actualH = SPRITE_3D_H * s
 
-        -- 节点位置: Y 基于实际精灵高度，确保底部贴地
-        npc.node3d:SetPosition(Vector3(npc.worldX, breatheY, npc.worldZ))
+        -- 节点位置: 0.25 与 Token 一致 (45°视角避免被前排遮挡)
+        npc.node3d:SetPosition(Vector3(npc.worldX, 0.25 + breatheY, npc.worldZ))
         bb.position = Vector3(0, actualH / 2, 0)
         bb.size = Vector2(SPRITE_3D_W * s, actualH)
         bb.color = Color(1, 1, 1, npc.alpha)

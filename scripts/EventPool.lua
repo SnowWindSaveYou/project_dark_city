@@ -155,6 +155,30 @@ M.CARD_EFFECTS = {
     rift     = {},                           -- 裂隙事件走 confirm 流程
 }
 
+--- 安全格按地点场景的差异化奖励
+--- 不在表中的地点回落到 CARD_EFFECTS.safe 默认值 (+1 san)
+M.SAFE_LOCATION_EFFECTS = {
+    park      = { { "health", 1 } },                -- 公园: 散步恢复体力
+    gym       = { { "health", 1 } },                -- 健身房: 锻炼恢复体力
+    hospital  = { { "health", 1 } },                -- 医院: 治疗恢复体力
+    library   = { { "inspiration", 1 } },           -- 图书馆: 阅读获得灵感
+    school    = { { "inspiration", 1 } },           -- 学校: 学习获得灵感
+    church    = { { "san", 2 } },                   -- 教堂: 安宁恢复更多理智
+    police    = { { "san", 1 }, { "health", 1 } },  -- 警察局: 安全感 + 休整
+    bank      = { { "money", 8 } },                 -- 银行: 取点钱
+    -- 默认 (home/convenience/company/station/alley/cemetery): 走 CARD_EFFECTS.safe → +1 san
+}
+
+--- 获取 safe 格的效果 (按地点分化)
+---@param location string|nil
+---@return table effects
+function M.getSafeEffects(location)
+    if location and M.SAFE_LOCATION_EFFECTS[location] then
+        return M.SAFE_LOCATION_EFFECTS[location]
+    end
+    return M.CARD_EFFECTS.safe
+end
+
 --- 怪物效果（动态，基于灵感值缩放伤害）
 --- san -(2+extra), health -1
 --- extra = min(3, max(0, floor((inspiration-10)/15)))

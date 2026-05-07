@@ -292,12 +292,14 @@ local function onCardFlipped(card, screenX, screenY)
             end
         end
 
-        -- 效果表: 怪物动态计算, 陷阱按子类型, 其他查静态表
+        -- 效果表: 怪物动态计算, 陷阱按子类型, safe按地点, 其他查静态表
         local effects
         if card.type == "monster" then
             effects = EventPool.getMonsterEffects(ResourceBar.get("inspiration"))
         elseif card.type == "trap" and card.trapSubtype then
             effects = EventPool.TRAP_SUBTYPE_EFFECTS[card.trapSubtype] or {}
+        elseif card.type == "safe" then
+            effects = EventPool.getSafeEffects(card.location)
         else
             effects = EventPool.CARD_EFFECTS[card.type] or {}
         end
@@ -435,11 +437,15 @@ end
 local CONVERSION_CONFIG = EventPool.CONVERSION_CONFIG
 
 --- 尝试触发转换事件 (safe 事件结算后调用)
+--- 30% 概率触发, 避免与 NPC 交换功能重复
 ---@param location string 地点 key
 ---@return boolean triggered 是否触发了转换弹窗
 function M._tryConversionEvent(location)
     local cfg = CONVERSION_CONFIG[location]
     if not cfg then return false end
+
+    -- 概率门控: 30% 触发
+    if math.random() > 0.30 then return false end
 
     -- 资源不足: 跳过
     if ResourceBar.get(cfg.costRes) < cfg.costAmt then

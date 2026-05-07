@@ -19,35 +19,35 @@ local M = {}
 -- 房东对话组 (Day 3+): 日常寒暄 → 选项触发资源交换
 -- ============================================================================
 local FANGDONG_DIALOGUES = {
-    -- 对话组 1: 关心租客
+    -- 对话组 1: 关心租客 (健康 → 理智)
     {
         { speaker = "房东", text = "又出去了？最近这附近不太平，早点回来。" },
-        { speaker = "房东", text = "对了，你上次说身体不太舒服……" },
-        { speaker = "房东", text = "要不要拿点东西给你？我这儿有些用得上的。",
+        { speaker = "房东", text = "对了，你精神看着不太好……要不坐下来歇歇？" },
+        { speaker = "房东", text = "我这有点安神的茶，喝了能好受些。",
             choices = {
-                { label = "用 15 金币换 3 健康", action = "trade", cost = { "money", 15 }, gain = { "health", 3 } },
+                { label = "休息一下（2 健康 → 3 理智）", action = "trade", cost = { "health", 2 }, gain = { "san", 3 } },
                 { label = "不用了，谢谢", action = "none" },
             }
         },
     },
-    -- 对话组 2: 聊到白夜
+    -- 对话组 2: 聊到白夜 (理智 → 健康)
     {
         { speaker = "房东", text = "说起来，你那个朋友……白夜？" },
         { speaker = "房东", text = "好久没见她出来了呢。她还好吧？" },
-        { speaker = "房东", text = "如果你需要什么，说一声就行。",
+        { speaker = "房东", text = "你自己也注意身体。我那儿有副药，管用的。",
             choices = {
-                { label = "用 20 金币换 2 理智", action = "trade", cost = { "money", 20 }, gain = { "san", 2 } },
+                { label = "要药（2 理智 → 3 健康）", action = "trade", cost = { "san", 2 }, gain = { "health", 3 } },
                 { label = "我再想想", action = "none" },
             }
         },
     },
-    -- 对话组 3: 谈天气
+    -- 对话组 3: 谈天气 (健康 → 胶卷)
     {
         { speaker = "房东", text = "今天天气不错啊……虽然那些雾还是怪怪的。" },
         { speaker = "房东", text = "最近有邻居搬走了，说总看到影子。" },
-        { speaker = "房东", text = "你胆子大，这点我挺佩服的。需要帮忙吗？",
+        { speaker = "房东", text = "对了，他走的时候留了些胶卷，你要不？",
             choices = {
-                { label = "用 10 金币换 1 胶卷", action = "trade", cost = { "money", 10 }, gain = { "film", 1 } },
+                { label = "帮忙搬东西换胶卷（2 健康 → 2 胶卷）", action = "trade", cost = { "health", 2 }, gain = { "film", 2 } },
                 { label = "不了", action = "none" },
             }
         },
@@ -58,14 +58,14 @@ local FANGDONG_DIALOGUES = {
         { speaker = "房东", text = "……不过我没告诉他们是你。" },
         { speaker = "房东", text = "行了，有事敲门。" },
     },
-    -- 对话组 5: 给点东西
+    -- 对话组 5: 双向选择
     {
         { speaker = "房东", text = "这个月你的房租我就不催了。" },
-        { speaker = "房东", text = "看你最近够辛苦的了。" },
-        { speaker = "房东", text = "来，拿点东西傍身吧。",
+        { speaker = "房东", text = "看你最近够辛苦的了。有什么需要帮忙的？" },
+        { speaker = "房东", text = "我能帮的不多，但这些还是有的。",
             choices = {
-                { label = "用 12 金币换 2 健康", action = "trade", cost = { "money", 12 }, gain = { "health", 2 } },
-                { label = "用 18 金币换 1 理智", action = "trade", cost = { "money", 18 }, gain = { "san", 1 } },
+                { label = "帮我缓缓神（2 健康 → 2 理智）", action = "trade", cost = { "health", 2 }, gain = { "san", 2 } },
+                { label = "帮我养养伤（2 理智 → 2 健康）", action = "trade", cost = { "san", 2 }, gain = { "health", 2 } },
                 { label = "不用了", action = "none" },
             }
         },
