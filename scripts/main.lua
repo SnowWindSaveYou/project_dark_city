@@ -35,6 +35,7 @@ local CardInteraction  = require "CardInteraction"
 local GameFlow         = require "GameFlow"
 local DarkWorldFlow    = require "DarkWorldFlow"
 local StoryManager     = require "StoryManager"
+local StoryEventManager = require "StoryEventManager"
 local DebugPanel       = require "DebugPanel"
 
 -- ---------------------------------------------------------------------------
@@ -439,6 +440,9 @@ function Start()
     local reqLocs = CardManager.preSelectLocations()
     Board.generateCards(board, reqLocs, { dayCount = G.dayCount })
     NPCManager.setBoard(board, Board)
+    -- 注册 NPC 类型 (对话脚本 + 功能回调)
+    local NPCDialogues = require "data.npc_dialogues"
+    NPCDialogues.registerAll()
     recalcLayout()
 
     -- 预加载纹理 + 创建 3D 节点
@@ -614,7 +618,11 @@ function Start()
     TitleScreen.show(function()
         G.gamePhase = "playing"
         AudioManager.playBGM("day_light", 2.0)
-        GameFlow.startDeal()
+        -- Day 1 开场剧情 (每日开场演出系统)
+        local morningCtx = { dayCount = G.dayCount }
+        StoryEventManager.tryMorningEvent(G.storyMgr, morningCtx, function()
+            GameFlow.startDeal()
+        end)
     end)
 
     print("[Main] Initialization complete (3D mode)")

@@ -239,6 +239,11 @@ function M.checkCondition(sm, cond, ctx)
         return (ctx.dayCount or 0) >= cond.min_day
     end
 
+    -- 原子: max_day (天数上限)
+    if cond.max_day then
+        return (ctx.dayCount or 0) <= cond.max_day
+    end
+
     -- 原子: flag
     if cond.flag then
         return M.hasFlag(sm, cond.flag)

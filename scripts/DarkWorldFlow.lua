@@ -18,8 +18,9 @@ local BubbleDialogue = require "BubbleDialogue"
 local MonsterGhost  = require "MonsterGhost"
 local BoardItems    = require "BoardItems"
 local NPCManager    = require "NPCManager"
-local AudioManager  = require "AudioManager"
-local StoryManager  = require "StoryManager"
+local AudioManager      = require "AudioManager"
+local StoryManager      = require "StoryManager"
+local MilestoneManager  = require "MilestoneManager"
 
 local M = {}
 
@@ -205,10 +206,15 @@ function M.enterDarkWorld(riftRow, riftCol)
                 end
             end
 
-            G.demoState = "ready"
-            CameraButton.show()
             DarkWorld.onEnterComplete()
             print("[Main] Dark world entered, layer=" .. layerIdx)
+
+            -- 里程碑: 进入暗面 hook
+            local msCtx = { dayCount = G.dayCount }
+            MilestoneManager.tryTrigger("enter_dark_world", G.storyMgr, msCtx, function()
+                G.demoState = "ready"
+                CameraButton.show()
+            end)
         end)
     end)
 end
@@ -312,10 +318,15 @@ function M.exitDarkWorld()
             token.targetCol = riftCol
             Token.setEmotion(token, "normal")
 
-            G.demoState = "ready"
-            CameraButton.show()
-            HandPanel.show(G.logicalH, { showcase = false })
             print("[Main] Returned to reality from dark world")
+
+            -- 里程碑: 退出暗面 hook
+            local msCtx = { dayCount = G.dayCount }
+            MilestoneManager.tryTrigger("exit_dark_world", G.storyMgr, msCtx, function()
+                G.demoState = "ready"
+                CameraButton.show()
+                HandPanel.show(G.logicalH, { showcase = false })
+            end)
         end)
     end)
 end

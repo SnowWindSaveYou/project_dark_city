@@ -1,0 +1,158 @@
+-- ============================================================================
+-- data/morning_events.lua - 每日开场事件数据
+-- 由 morning_events.json 转换而来，使用 Lua table 以确保被构建系统打包
+-- ============================================================================
+
+return {
+    version = 1,
+    events = {
+        {
+            id = "morning_day1",
+            priority = 10,
+            onceFlag = "morning_day1_seen",
+            condition = {
+                all = {
+                    { min_day = 1 },
+                    { max_day = 1 },
+                    { not_flag = "morning_day1_seen" },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "出院第一个夜晚，公寓比记忆中更安静。" },
+                { speaker = "", text = "凌晨三点，衣柜里传来低低的哭声。" },
+                { speaker = "苏柚", text = "……谁在那儿？" },
+                { speaker = "", text = "拉开柜门的瞬间，一团半透明的黑影蜷缩在衣服堆里，金色的眼睛猛地亮了。" },
+                { speaker = "???", text = "你……你终于回来了……" },
+                { speaker = "", text = "它激动地扑过来，打翻了床头的牛奶。然后缩在角落，开始哭。" },
+                { speaker = "苏柚", text = "（把自己反锁在卫生间里，坐到天亮。）" },
+                { speaker = "", text = "推开门时，床头放着一碗粥，还冒着热气。" },
+                { speaker = "", text = "犹豫了很久，尝了一口——味道意外地好。" },
+                { speaker = "", text = "门框后面，金色的眼睛偷偷亮了一下。" },
+            },
+        },
+        {
+            id = "morning_day2",
+            priority = 10,
+            onceFlag = "morning_day2_seen",
+            condition = {
+                all = {
+                    { min_day = 2 },
+                    { max_day = 2 },
+                    { not_flag = "morning_day2_seen" },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "入夜后暴雨倾盆，闪电劈开天际。" },
+                { speaker = "", text = "白夜缩成拳头大的毛球，钻进了被窝。" },
+                { speaker = "苏柚", text = "……你怕打雷？" },
+                { speaker = "", text = "毛球发出细小的呜咽声，身体微微发抖。" },
+                { speaker = "苏柚", text = "（僵了很久，最终还是伸手把它拢住了。）" },
+                { speaker = "", text = "那一夜，梦境变得不一样了——灰暗扭曲的镜像世界，影子在追逐。" },
+                { speaker = "", text = "捡起一块碎片的瞬间，看到一段闪回：有人和白夜并肩站着，背对着你，看不清面容。" },
+            },
+        },
+        {
+            id = "morning_day3",
+            priority = 10,
+            onceFlag = "morning_day3_seen",
+            condition = {
+                all = {
+                    { min_day = 3 },
+                    { max_day = 4 },
+                    { not_flag = "morning_day3_seen" },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "这几天开始主动配合白夜的「训练」——学习在暗面中辨别安全路线。" },
+                { speaker = "苏柚", text = "我好像……没那么怕你了。" },
+                { speaker = "", text = "白夜飘在身后，不说话，只是一直跟着。" },
+                { speaker = "", text = "去厨房，它跟着；去客厅，它跟着；去卫生间，它趴在门口等。" },
+                { speaker = "", text = "回头看它，它就停住；转回去，它又跟上来。" },
+                { speaker = "苏柚", text = "……我不会丢掉你的。" },
+                { speaker = "", text = "白夜停在原地，过了好一会儿才慢慢飘到肩膀上趴着，像是确认了什么。" },
+            },
+        },
+        {
+            id = "morning_day5",
+            priority = 10,
+            onceFlag = "morning_day5_seen",
+            condition = {
+                all = {
+                    { min_day = 5 },
+                    { max_day = 5 },
+                    { not_flag = "morning_day5_seen" },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "准备出门时发现手机没电了，充了半小时还是开不了机。" },
+                { speaker = "白夜", text = "在家吃吧，外面不安全。" },
+                { speaker = "", text = "它端来一盘煎蛋，笑得很开心的样子。" },
+                { speaker = "苏柚", text = "（妥协了。也不确定是因为信任还是因为懒得对抗。）" },
+                { speaker = "", text = "晚上白夜照常问'明天穿我选的那件外套好不好'。" },
+                { speaker = "", text = "点了头。保护和控制之间的线，越来越模糊。" },
+            },
+        },
+        {
+            id = "morning_day6",
+            priority = 10,
+            onceFlag = "morning_day6_seen",
+            condition = {
+                all = {
+                    { min_day = 6 },
+                    { max_day = 6 },
+                    { not_flag = "morning_day6_seen" },
+                    { baiye_available = false },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "白夜昨晚释放了全部力量，缩成拳头大的毛球，沉沉睡去。" },
+                { speaker = "", text = "把它放在枕头边，每隔一会儿就摸一下确认还有温度。" },
+                { speaker = "苏柚", text = "……还在呼吸。" },
+                { speaker = "", text = "今天得一个人面对一切了。" },
+            },
+        },
+        {
+            id = "morning_day6_awake",
+            priority = 5,
+            onceFlag = "morning_day6_awake_seen",
+            condition = {
+                all = {
+                    { min_day = 6 },
+                    { max_day = 6 },
+                    { not_flag = "morning_day6_awake_seen" },
+                    { baiye_available = true },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "早上醒来，白夜在四处张望。" },
+                { speaker = "", text = "从枕头飘到床头柜，飘到门口，飘到厨房，最后在客厅找到了你。" },
+                { speaker = "", text = "它安静地飘到身边，什么都没说，只是一直看着。" },
+                { speaker = "苏柚", text = "（端着热粥坐到床边）以后别再这样了。" },
+            },
+        },
+        {
+            id = "morning_day7",
+            priority = 10,
+            onceFlag = "morning_day7_seen",
+            condition = {
+                all = {
+                    { min_day = 7 },
+                    { max_day = 7 },
+                    { not_flag = "morning_day7_seen" },
+                },
+            },
+            dialogue = {
+                { speaker = "", text = "新的碎片补全了闪回画面。" },
+                { speaker = "", text = "终于看清了那个和白夜并肩站着的人——容貌和自己相似，但气质截然不同。" },
+                { speaker = "", text = "眉眼凛冽，站姿笔直，像一柄收在鞘中的刀。" },
+                { speaker = "白夜", text = "棠……" },
+                { speaker = "", text = "盯着那个画面看了很久。" },
+                { speaker = "", text = "从出院那天起，白夜教的一切——走路的姿态、战斗的方式、甚至喝粥的习惯——" },
+                { speaker = "", text = "都是在把自己往棠的方向改造。" },
+                { speaker = "苏柚", text = "（我不是被选中的人。我是备用的模具。）" },
+                { speaker = "白夜", text = "怎么了？" },
+                { speaker = "苏柚", text = "……没什么。" },
+            },
+        },
+    },
+}

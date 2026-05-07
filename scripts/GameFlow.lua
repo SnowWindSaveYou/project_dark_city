@@ -25,8 +25,11 @@ local NPCManager     = require "NPCManager"
 local DialogueSystem = require "DialogueSystem"
 local DarkWorld      = require "DarkWorld"
 local AudioManager   = require "AudioManager"
-local StoryManager   = require "StoryManager"
-local EndingSystem   = require "EndingSystem"
+local StoryManager        = require "StoryManager"
+local EndingSystem        = require "EndingSystem"
+local MilestoneManager    = require "MilestoneManager"
+local MonsterGhost        = require "MonsterGhost"
+local StoryEventManager   = require "StoryEventManager"
 
 local M = {}
 
@@ -83,20 +86,49 @@ function M.startDeal()
         local homeRow = G.board.homeRow
         local homeCol = G.board.homeCol
 
-        -- Day 1: 放置琴馨 NPC
-        if G.dayCount == 1 then
-            local candidates = {}
+        -- NPC 生成
+        local usedTiles = {}  -- 已占用的格子 (含 home)
+        usedTiles[homeRow * 10 + homeCol] = true
+
+        local function pickFreeTile()
+            local cands = {}
             for r = 1, Board.ROWS do
                 for c = 1, Board.COLS do
-                    if not (r == homeRow and c == homeCol) then
-                        candidates[#candidates + 1] = { r = r, c = c }
+                    if not usedTiles[r * 10 + c] then
+                        cands[#cands + 1] = { r = r, c = c }
                     end
                 end
             end
-            if #candidates > 0 then
-                local pick = candidates[math.random(#candidates)]
+            if #cands == 0 then return nil end
+            local p = cands[math.random(#cands)]
+            usedTiles[p.r * 10 + p.c] = true
+            return p
+        end
+
+        -- Day 1: 琴馨 (相机教学)
+        if G.dayCount == 1 then
+            local pick = pickFreeTile()
+            if pick then
                 NPCManager.spawnNPC("qinxin", "琴馨", pick.r, pick.c,
                     "image/怪物_面具使v2_20260426072832.png", QINXIN_DIALOGUE)
+            end
+        end
+
+        -- Day 3+: 房东 (资源交换)
+        if G.dayCount >= 3 then
+            local pick = pickFreeTile()
+            if pick then
+                NPCManager.spawnNPC("fangdong", "房东", pick.r, pick.c,
+                    "image/npc_房东_chibi_20260507035549.png", nil)
+            end
+        end
+
+        -- 随机: 猫 (50% 概率出现)
+        if math.random() < 0.5 then
+            local pick = pickFreeTile()
+            if pick then
+                NPCManager.spawnNPC("cat", "猫", pick.r, pick.c,
+                    "image/npc_猫咪_自然_20260507040343.png", nil)
             end
         end
 
@@ -249,9 +281,16 @@ function M.advanceDay()
         G.dayCount = G.dayCount + 1
 
         -- 故事系统: 每日结算
+        local baiyeWokeUp = false
+        local chapterChanged = false
         if G.storyMgr then
+            local wasSleeping = G.storyMgr.sleep_days_left > 0
             StoryManager.tickSleep(G.storyMgr)
+            baiyeWokeUp = wasSleeping and G.storyMgr.sleep_days_left <= 0
+
+            local oldChapter = G.storyMgr.currentChapter
             StoryManager.updateChapter(G.storyMgr, G.dayCount)
+            chapterChanged = (oldChapter ~= G.storyMgr.currentChapter)
         end
 
         if M.checkVictory() then return end
@@ -265,7 +304,37 @@ function M.advanceDay()
             CardTextures.preloadBoard(G.board, Board.ROWS, Board.COLS)
             Board.createAllNodes(G.board, scene_, CardTextures)
             recalcLayout_()
-            M.startDeal()
+
+            -- 每日开场 → 里程碑 hook 链: morning → baiye_return → chapter_enter → resource_low → startDeal
+            local msCtx = { dayCount = G.dayCount }
+            local function afterMilestones()
+                M.startDeal()
+            end
+            local function tryResourceLow()
+                local hp = ResourceBar.get("health")
+                local san = ResourceBar.get("san")
+                if hp <= 2 or san <= 2 then
+                    MilestoneManager.tryTrigger("resource_low", G.storyMgr, msCtx, afterMilestones)
+                else
+                    afterMilestones()
+                end
+            end
+            local function tryChapterEnter()
+                if chapterChanged then
+                    MilestoneManager.tryTrigger("chapter_enter", G.storyMgr, msCtx, tryResourceLow)
+                else
+                    tryResourceLow()
+                end
+            end
+            local function tryMilestoneChain()
+                if baiyeWokeUp then
+                    MilestoneManager.tryTrigger("baiye_return", G.storyMgr, msCtx, tryChapterEnter)
+                else
+                    tryChapterEnter()
+                end
+            end
+            -- 每日开场事件 (morning event → milestone chain)
+            StoryEventManager.tryMorningEvent(G.storyMgr, msCtx, tryMilestoneChain)
         end)
     end)
 end
@@ -365,6 +434,8 @@ function M.onGameRestart()
     if G.storyMgr then
         StoryManager.reset(G.storyMgr)
     end
+    MilestoneManager.reset()
+    StoryEventManager.reset()
 
     ResourceBar.reset()
     CardManager.reset()
@@ -404,7 +475,11 @@ function M.onGameRestart()
     G.playerBubble = playerBubble
 
     AudioManager.playBGM("day_light", 2.0)
-    M.startDeal()
+    -- Day 1 开场剧情 (重启后也播放)
+    local morningCtx = { dayCount = G.dayCount }
+    StoryEventManager.tryMorningEvent(G.storyMgr, morningCtx, function()
+        M.startDeal()
+    end)
 end
 
 -- ============================================================================
@@ -434,6 +509,12 @@ function M.checkPendingRift()
     local tc2 = Theme.current
     VFX.spawnBanner("🌀 发现裂隙！", tc2.darkAccent.r, tc2.darkAccent.g, tc2.darkAccent.b, 18, 0.8)
 
+    -- 在卡牌上显示裂隙 chibi
+    local riftCard = G.board.cards[row] and G.board.cards[row][col]
+    if riftCard then
+        MonsterGhost.showRiftOnCard(riftCard)
+    end
+
     local riftDelay = { t = 0 }
     Tween.to(riftDelay, { t = 1 }, 0.5, {
         tag = "riftconfirm",
@@ -442,9 +523,11 @@ function M.checkPendingRift()
             local popCY = G.logicalH * 0.42
             EventPopup.showRiftConfirm(popCX, popCY,
                 function()
+                    MonsterGhost.clearCardGhosts()
                     G.enterDarkWorld(row, col)
                 end,
                 function()
+                    MonsterGhost.clearCardGhosts()
                     G.demoState = "ready"
                     CameraButton.show()
                 end

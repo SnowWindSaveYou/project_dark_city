@@ -20,7 +20,8 @@ local AudioManager  = require "AudioManager"
 local BubbleDialogue = require "BubbleDialogue"
 local EventPool         = require "EventPool"
 local StoryEventManager = require "StoryEventManager"
-local DarkWorld     = require "DarkWorld"
+local DarkWorld         = require "DarkWorld"
+local MilestoneManager  = require "MilestoneManager"
 local Theme         = require "Theme"
 local Tween         = require "lib.Tween"
 local VFX           = require "lib.VFX"
@@ -242,11 +243,15 @@ local function onCardFlipped(card, screenX, screenY)
                 local popCX = G.logicalW / 2
                 local popCY = G.logicalH * 0.42
                 if card.type == "shop" then
-                    ShopPopup.show(popCX, popCY, function()
-                        G.gameStats.cardsRevealed = G.gameStats.cardsRevealed + 1
-                        Token.setEmotion(G.token, "happy")
-                        G.demoState = "ready"
-                        G.checkDefeat()
+                    -- 里程碑: 打开商店 hook (对话结束后再打开商店)
+                    local msCtx = { dayCount = G.dayCount or 1 }
+                    MilestoneManager.tryTrigger("open_shop", G.storyMgr, msCtx, function()
+                        ShopPopup.show(popCX, popCY, function()
+                            G.gameStats.cardsRevealed = G.gameStats.cardsRevealed + 1
+                            Token.setEmotion(G.token, "happy")
+                            G.demoState = "ready"
+                            G.checkDefeat()
+                        end)
                     end)
                 else
                     EventPopup.show(card.type, popCX, popCY, onPopupDismissed, card.location)
@@ -282,7 +287,7 @@ local function onCardFlipped(card, screenX, screenY)
                     G.demoState = "ready"
                     CameraButton.show()
                     G.checkDefeat()
-                end)
+                end, ctx)
                 return  -- 跳过后续 toast 路径
             end
         end
@@ -683,6 +688,9 @@ function M.handleInventoryExorcism()
 
     if card.faceUp and card.type == "monster" then
         doExorcise(card, row, col, true)
+        -- 里程碑: 使用道具 hook (非阻塞, 驱魔完成后触发)
+        local msCtx = { dayCount = G.dayCount or 1 }
+        MilestoneManager.tryTrigger("use_item", G.storyMgr, msCtx, nil)
     else
         ShopPopup.addItem("exorcism", 1)
         AudioManager.playItemUseFail()
@@ -811,23 +819,31 @@ function M.handleNormalModeClick(card, row, col)
             -- 已翻开的裂隙卡: 弹确认窗
             G.demoState = "popup"
             CameraButton.hide()
+            MonsterGhost.showRiftOnCard(card)
             local popCX = G.logicalW / 2
             local popCY = G.logicalH * 0.42
             EventPopup.showRiftConfirm(popCX, popCY,
-                function() G.enterDarkWorld(row, col) end,
-                function() G.demoState = "ready"; CameraButton.show() end
+                function() MonsterGhost.clearCardGhosts(); G.enterDarkWorld(row, col) end,
+                function() MonsterGhost.clearCardGhosts(); G.demoState = "ready"; CameraButton.show() end
             )
         else
             -- 点击已翻开的当前格 → 检查是否有 NPC 可交互
             local npc = NPCManager.getNPCAt(row, col)
-            if npc and npc.dialogueScript and not DialogueSystem.isActive() then
-                G.demoState = "dialogue"
-                CameraButton.hide()
-                if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
-                DialogueSystem.start(npc.dialogueScript, npc.texPath, function()
-                    G.demoState = "ready"
-                    CameraButton.show()
-                end)
+            if npc and not DialogueSystem.isActive() then
+                local dialogue = NPCManager.getRandomDialogue(npc)
+                if dialogue and #dialogue > 0 then
+                    G.demoState = "dialogue"
+                    CameraButton.hide()
+                    if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+
+                    local choiceHandler = NPCManager.getChoiceHandler(npc.id)
+                    DialogueSystem.start(dialogue, npc.texPath, function()
+                        G.demoState = "ready"
+                        CameraButton.show()
+                    end, choiceHandler and function(idx, choiceData)
+                        choiceHandler(idx, choiceData, npc, G)
+                    end or nil)
+                end
             elseif G.playerBubble then
                 BubbleDialogue.clickTrigger(G.playerBubble)
             end
