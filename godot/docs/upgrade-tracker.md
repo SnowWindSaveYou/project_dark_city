@@ -475,4 +475,58 @@ Day 3+: 固定出 房东 (资源兑换)
 - Rule 12 draw_string 对齐 → ✅ 通过
 - Rule 13/14 Billboard/Sprite3D → N/A
 
-*最后更新: 2026-05-08 (遗留项修复 + 综合审计)*
+### 2026-05-09 配置对齐 + 运行时崩溃修复
+
+**修复内容**:
+
+1. **Modulo by zero 崩溃** — `card_manager.gd:185` `generate_rumor_from_board()` 中 `randi() % templates.size()` 在 `templates` 为空数组时除零崩溃
+   - **根因**: `card_config.gd._load_real_world()` 从不存在的 `res://data/real_world.json` 加载 → `rumor_safe_texts` / `rumor_danger_texts` 始终为空
+   - **修复 A** (`card_config.gd`): `_load_real_world()` 路径改为 `card_config.json`，字段映射修正 (`locations→location_info`, 嵌套 `rumors→` 改为根级 `rumor_safe_texts/rumor_danger_texts`)
+   - **修复 B** (`card_manager.gd`): `generate_rumor_from_board()` 和 `add_rumor_from_board()` 两处加空数组守卫，回退到 `Locations.get_safe_rumor()` / `Locations.get_danger_rumor()`
+
+2. **问号卡片 (❓ 图标)** — 所有卡牌类型显示 ❓ 而非正确图标
+   - **根因**: `card_config.gd._load_card_types()` 从不存在的 `res://data/card_types.json` 加载 → `CardConfig.card_types` 为空字典 → `theme.gd:164` fallback 返回 `{ "icon": "❓" }`
+   - **修复** (`card_config.gd`): `_load_card_types()` 路径改为 `card_config.json`，字段映射修正 (`reality→card_types`, `dark→dark_card_types`)
+
+3. **Rule 1 `:=` 违规** — `card_config.gd._load_json()` 中 3 处 `:=` + `locations.gd._load_json()` 中 3 处 `:=`
+   - 全部改为显式类型标注 (`var file: FileAccess = ...` 等)
+
+4. ~~配置对齐 — shrine~~ **已撤回**: 用户确认 shrine 地点应移除而非添加
+
+**涉及文件**:
+- `scripts/autoload/card_config.gd` — 3 处编辑 (路径+字段映射+`:=`)
+- `scripts/core/card_manager.gd` — 2 处编辑 (空数组守卫)
+- `scripts/autoload/locations.gd` — 1 处编辑 (`:=` 修复)
+
+---
+
+### 2026-05-09 main→Godot 同步 (stash@{1} 对齐)
+
+**背景**: 发现 main 分支有未提交改动 (stash@{1})，Godot 迁移遗漏了这些最新内容。
+
+**stash@{1} 差异分析**（6 文件，Lua 侧 4 个脚本变更）：
+
+| 变更项 | Lua stash 最新 | Godot 现状 | 结论 |
+|--------|---------------|-----------|------|
+| NPC spawn 简化 | `spawnNPC("id", nil, r, c)` | `spawn_npc("id", x, y)` | ✅ 已对齐 |
+| NPC 类型注册 | `registerNPCType` + fallback | `_npc_types` dictionary | ✅ 已对齐 |
+| DarkWorld NPC 动态缩放 | 恢复 `scale` + `DARK_NPC_BASE_H` | 无 scale 字段 | ⏳ 低优先级(视觉) |
+| **琴馨 NPC 数据** | `npc_dialogues.lua` 注册 | **缺失** | 🔧 已补充 |
+| **琴馨 Day 1 生成** | `dayCount == 1` 时 spawn | **缺失** | 🔧 已补充 |
+
+**执行的修复**:
+
+1. **shrine 移除** — 用户确认 shrine 地点应移除
+   - `data/locations.json` 删除 `shrine` 条目
+   - `data/card_config.json` 之前添加的 shrine 已在上轮撤回
+
+2. **琴馨 NPC 补充** — stash 中新增的 Day 1 教学 NPC
+   - `data/npc_dialogues.json` 新增 `qinxin` 条目（name/tex_path/sprite_scale/dialogues）
+   - `scripts/controllers/game_flow.gd` 新增 Day 1 琴馨生成逻辑
+
+**涉及文件**:
+- `data/locations.json` — 1 处编辑 (shrine 移除)
+- `data/npc_dialogues.json` — 1 处编辑 (琴馨数据)
+- `scripts/controllers/game_flow.gd` — 1 处编辑 (Day 1 琴馨 spawn)
+
+*最后更新: 2026-05-09 (main stash 同步)*

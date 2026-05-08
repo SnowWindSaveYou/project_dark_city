@@ -18,6 +18,23 @@
 	},
 
 	"npcs": {
+		"qinxin": {
+			"name": "琴馨",
+			"tex_path": "image/怪物_面具使v2_20260426072832.png",
+			"sprite_scale": 0.7,
+			"dialogues": [
+				{
+					"lines": [
+						{ "speaker": "琴馨", "text": "唔……你也能看到那些奇怪的东西啊……" },
+						{ "speaker": "琴馨", "text": "……我还以为只有我一个人呢。" },
+						{ "speaker": "琴馨", "text": "这台相机……可以拍下一些肉眼看不到的东西。" },
+						{ "speaker": "琴馨", "text": "比如那些影子。它们害怕闪光灯。" },
+						{ "speaker": "琴馨", "text": "你也小心点吧。" }
+					]
+				}
+			]
+		},
+
 		"fangdong": {
 			"name": "房东",
 			"tex_path": "image/npc_房东_chibi_20260507035549.png",

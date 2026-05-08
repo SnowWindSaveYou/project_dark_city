@@ -181,8 +181,13 @@ func generate_rumor_from_board(board: Board) -> void:
 		var is_safe: bool = card.type in ["safe", "reward", "plot", "clue", "landmark"]
 		var loc_info: Dictionary = card.get_location_info()
 		var label: String = loc_info.get("label", "未知")
+		var text: String
 		var templates: Array = CardConfig.rumor_safe_texts if is_safe else CardConfig.rumor_danger_texts
-		var text: String = templates[randi() % templates.size()] % label
+		if templates.is_empty():
+			# CardConfig 为空时回退到 Locations autoload
+			text = Locations.get_safe_rumor(label) if is_safe else Locations.get_danger_rumor(label)
+		else:
+			text = templates[randi() % templates.size()] % label
 		rumors.append({
 			"location": card.location,
 			"label": label,
@@ -213,8 +218,12 @@ func add_rumor_from_board(board: Board) -> bool:
 	var is_safe: bool = pick.type in ["safe", "reward", "plot", "clue", "landmark"]
 	var loc_info: Dictionary = pick.get_location_info()
 	var label: String = loc_info.get("label", "未知")
+	var text: String
 	var templates: Array = CardConfig.rumor_safe_texts if is_safe else CardConfig.rumor_danger_texts
-	var text: String = templates[randi() % templates.size()] % label
+	if templates.is_empty():
+		text = Locations.get_safe_rumor(label) if is_safe else Locations.get_danger_rumor(label)
+	else:
+		text = templates[randi() % templates.size()] % label
 	rumors.append({
 		"location": pick.location,
 		"label": label,

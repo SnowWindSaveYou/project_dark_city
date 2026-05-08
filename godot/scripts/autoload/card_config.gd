@@ -69,26 +69,25 @@ func _load_all() -> void:
 # 加载：real_world.json
 # ---------------------------------------------------------------------------
 func _load_real_world() -> void:
-	var data: Dictionary = _load_json("res://data/real_world.json")
+	var data: Dictionary = _load_json("res://data/card_config.json")
 	if data.is_empty():
 		return
 
-	location_info      = data.get("locations", {})
+	location_info      = data.get("location_info", {})
 	schedule_templates = data.get("schedule_templates", {})
-	var rumors: Dictionary = data.get("rumors", {})
-	rumor_safe_texts   = rumors.get("safe_texts", [])
-	rumor_danger_texts = rumors.get("danger_texts", [])
+	rumor_safe_texts   = data.get("rumor_safe_texts", [])
+	rumor_danger_texts = data.get("rumor_danger_texts", [])
 	_convert_schedule_rewards()
 
 # ---------------------------------------------------------------------------
 # 加载：card_types.json
 # ---------------------------------------------------------------------------
 func _load_card_types() -> void:
-	var data: Dictionary = _load_json("res://data/card_types.json")
+	var data: Dictionary = _load_json("res://data/card_config.json")
 	if data.is_empty():
 		return
-	card_types       = data.get("reality", {})
-	dark_card_types  = data.get("dark", {})
+	card_types       = data.get("card_types", {})
+	dark_card_types  = data.get("dark_card_types", {})
 
 # ---------------------------------------------------------------------------
 # 加载：events.json (支持按地点覆盖)
@@ -161,12 +160,12 @@ func _load_dark_world() -> void:
 # JSON 加载辅助
 # ---------------------------------------------------------------------------
 func _load_json(path: String) -> Dictionary:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		push_error("CardConfig: 无法打开 %s" % path)
 		return {}
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	file.close()
 	if err != OK:
 		push_error("CardConfig: JSON 解析失败 %s: %s (行 %d)" % [path, json.get_error_message(), json.get_error_line()])

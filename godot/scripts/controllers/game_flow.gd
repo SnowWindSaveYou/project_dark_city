@@ -142,6 +142,11 @@ func _spawn_daily_npcs() -> void:
 
 	var day: int = m.day_count
 
+	# Day 1: 琴馨 (相机教学)
+	if day == 1:
+		var tile: Vector2i = _pick_free_tile()
+		npc_manager.spawn_npc("qinxin", tile.x, tile.y)
+
 	# Day 3+: 房东 (资源交换)
 	if day >= 3:
 		var tile: Vector2i = _pick_free_tile()
