@@ -30,6 +30,12 @@
 		"inspiration": "✨"
 	},
 
+	"location_scarcity": {
+		"day_1_2": 3,
+		"day_3_4": 2,
+		"day_5_plus": 1
+	},
+
 	"resource_names": {
 		"san": "理智",
 		"order": "秩序",

@@ -16,6 +16,7 @@ var MAX_DAYS: int = 3
 var INITIAL_RESOURCES: Dictionary = {}
 var RESOURCE_MAX: Dictionary = {}
 var RESOURCE_ICONS: Dictionary = {}
+var LOCATION_SCARCITY: Dictionary = { "day_1_2": 3, "day_3_4": 2, "day_5_plus": 1 }
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -49,15 +50,15 @@ func _ready() -> void:
 	reset()
 
 func _load_game_config() -> void:
-	var file := FileAccess.open("res://data/game_config.json", FileAccess.READ)
+	var file: FileAccess = FileAccess.open("res://data/game_config.json", FileAccess.READ)
 	if file == null:
 		push_warning("[GameData] game_config.json not found, using defaults")
 		INITIAL_RESOURCES = { "san": 10, "order": 10, "money": 50, "film": 3, "health": 5, "inspiration": 10 }
 		RESOURCE_MAX = { "san": 10, "order": 10, "money": -1, "film": -1, "health": 10, "inspiration": -1 }
 		RESOURCE_ICONS = { "san": "🧠", "order": "⚖️", "money": "💰", "film": "📷", "health": "❤️", "inspiration": "✨" }
 		return
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	if err != OK:
 		push_warning("[GameData] Failed to parse game_config.json: %s" % json.get_error_message())
 		return
@@ -71,6 +72,11 @@ func _load_game_config() -> void:
 	for k in raw_max:
 		RESOURCE_MAX[k] = int(raw_max[k])
 	RESOURCE_ICONS = data.get("resource_icons", {})
+	var raw_scarcity: Dictionary = data.get("location_scarcity", {})
+	if not raw_scarcity.is_empty():
+		LOCATION_SCARCITY = {}
+		for k in raw_scarcity:
+			LOCATION_SCARCITY[k] = int(raw_scarcity[k])
 	print("[GameData] Loaded game_config.json: max_days=%d, resources=%s" % [MAX_DAYS, str(INITIAL_RESOURCES)])
 
 func reset() -> void:

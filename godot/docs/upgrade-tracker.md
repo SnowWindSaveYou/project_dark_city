@@ -292,7 +292,7 @@ Day 3+: 固定出 房东 (资源兑换)
 - [x] 深渊 Boss: 碎片>=9 + 白夜跟随 -> 对话选择 -> 迎战(-3 san, 获 frag_10, 设 memory_complete) ✅ P5.5b-2 (`check_boss_encounter()`)
 - [x] item 奖励池 (10 种, 含稀有属性上限): san+5(x2), money+15(x2), film+1(x2), ins+3(x2), sanMax+2(x1), healthMax+2(x1) ✅ P5.5b-2 (`roll_item_reward()`)
 - [x] 层间通道: L2 双向通道 (去 L1 / 去 L3) ✅ P5.5b-3 (PASSAGE branch in flow)
-- [ ] 相机驱灵: 拍照消灭幽灵 (淡出动画) — 需独立实现，依赖 camera 交互系统
+- [x] 相机驱灵: 拍照消灭幽灵 (淡出动画) ✅ P5.5b-3 (`_handle_dark_camera()`)
 - [x] 能量初始化: 进入时 energy = 当前 san 值 ✅ P5.5b-2 (`mini(san, max_energy)`)
 
 ### 2.4 dark_world_flow.gd [P1]
@@ -321,7 +321,7 @@ Day 3+: 固定出 房东 (资源兑换)
 
 | 文件 | 变更内容 | 状态 |
 |------|---------|------|
-| `data/game_config.json` | 新增 `health`(初始 5, 上限 10) 和 `inspiration`(初始 10, 无上限) 资源 | [ ] |
+| `data/game_config.json` | 新增 `health`/`inspiration` 资源 + `location_scarcity` | ✅ |
 | `data/event_pool.json` | 新增 cemetery/gym 地点; 地点权重偏移; 怪物动态伤害公式; 兑换事件; 传送陷阱 | [ ] |
 | `data/locations.json` | 同步 cemetery/gym; 更新安全地点效果 (park/gym/hospital->+health) | [ ] |
 | `data/story_config.json` | 补充章节(4 阶段), 结局(5 个), 碎片(10 个), 天数常量 | [ ] |
@@ -404,7 +404,7 @@ Day 3+: 固定出 房东 (资源兑换)
 - [x] `card_config.gd` 升级 (fragment_drops/elite/boss/item_reward_pool 加载) ✅ P5.5b-1
 - [x] `dark_world.gd` 升级 (get_npc_at, 碎片/精英/Boss/奖池, 能量=san) ✅ P5.5b-2
 - [x] `dark_world_flow.gd` 升级 (白夜跟随, 里程碑hook, 碎片/精英/Boss/奖池/L2通道集成) ✅ P5.5b-3
-- [ ] 相机驱灵功能 (拍照消灭幽灵) — 待独立实现
+- [x] 相机驱灵功能 (拍照消灭幽灵) ✅ P5.5b-3
 
 ### Phase 6 - 辅助系统 ✅
 > AudioManager + DebugPanel
@@ -443,4 +443,36 @@ Day 3+: 固定出 房东 (资源兑换)
 
 ---
 
-*最后更新: 2026-05-08 (Phase 6 完成)*
+---
+
+## 七、修复日志
+
+### 2026-05-08 遗留项修复 + 综合审计
+
+**修复内容**:
+
+1. **LOCATION_SCARCITY 运行时错误** — `card_manager.gd` 引用 `GameData.LOCATION_SCARCITY` 但该属性不存在
+   - `data/game_config.json`: 新增 `location_scarcity` 字段 (`day_1_2:3, day_3_4:2, day_5_plus:1`)
+   - `game_data.gd`: 新增 `LOCATION_SCARCITY` 属性声明 + `_load_game_config()` 加载逻辑
+
+2. **Rule 1 `:=` 违规** — `game_data.gd` 的 `_load_game_config()` 中 3 处 `:=`
+   - `var file := ...` → `var file: FileAccess = ...`
+   - `var json := ...` → `var json: JSON = ...`
+   - `var err := ...` → `var err: Error = ...`
+
+3. **相机驱灵标记更新** — `_handle_dark_camera()` 已在 P5.5b-3 实现，tracker 中遗漏标记
+   - Section 2.3 + Phase 5 两处 `[ ]` → `[x]`
+
+**综合 porting rules 审计** (14 条规则, 51 个 .gd 文件):
+- Rule 1 `:=` → ✅ 通过 (game_data.gd 已修复)
+- Rule 2 autoload 命名 → ✅ 通过
+- Rule 5 Array tween → ✅ 通过
+- Rule 6 方法名冲突 → ✅ 通过
+- Rule 7 _draw() 随机 → ✅ 通过
+- Rule 9 truthy/falsy → ✅ 通过
+- Rule 10 render_priority → ✅ 通过
+- Rule 11 modulate 3D → ✅ 通过
+- Rule 12 draw_string 对齐 → ✅ 通过
+- Rule 13/14 Billboard/Sprite3D → N/A
+
+*最后更新: 2026-05-08 (遗留项修复 + 综合审计)*
