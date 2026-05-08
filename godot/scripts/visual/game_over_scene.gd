@@ -1,5 +1,6 @@
 ## GameOver (Scene 版) — 游戏结算画面
 ## 全 Scene 化: 标题/副标题/统计/按钮均为节点，光晕保留 _draw()
+## Phase 5 升级: 支持 EndingSystem 5 种结局展示 (专属标题/副标题/配色)
 extends Control
 
 # ---------------------------------------------------------------------------
@@ -36,6 +37,9 @@ var _stats: Dictionary = {
 	"monsters_slain": 0,
 	"photos_used": 0,
 }
+
+## Phase 5: 缓存当前结局的标题颜色 (供光晕绘制使用)
+var _title_color: Color = Color.WHITE
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -136,7 +140,7 @@ func _btn_hover_tween(enter: bool) -> void:
 # API
 # ---------------------------------------------------------------------------
 
-func show_result(is_victory: bool, stats: Dictionary = {}) -> void:
+func show_result(is_victory: bool, stats: Dictionary = {}, ending: Dictionary = {}) -> void:
 	_phase = Phase.ENTER
 	_is_victory = is_victory
 	if stats.size() > 0:
@@ -146,22 +150,43 @@ func show_result(is_victory: bool, stats: Dictionary = {}) -> void:
 	set_process_input(true)
 	_game_time = 0.0
 
-	# 根据胜利/失败设置颜色
-	var title_color: Color = GameTheme.safe if _is_victory else GameTheme.danger
-	var btn_color: Color = GameTheme.safe if _is_victory else GameTheme.accent
+	# Phase 5: 通过 EndingSystem 获取结局专属展示数据
+	var display: Dictionary = {}
+	if not ending.is_empty():
+		display = EndingSystem.get_ending_display(ending)
+		# 结局可能覆盖 is_victory 判定
+		_is_victory = display.get("is_victory", is_victory)
 
-	# 遮罩底色
-	if _is_victory:
-		_overlay.color = Color(15/255.0, 25/255.0, 45/255.0, 0.0)
+	# 从结局展示数据获取配色, 无结局时回退到旧逻辑
+	var title_color: Color
+	var btn_color: Color
+	var bg_color: Color
+
+	if not display.is_empty():
+		title_color = display.get("primary_color", GameTheme.safe)
+		bg_color = display.get("bg_color", Color(0.05, 0.1, 0.2))
+		btn_color = title_color
 	else:
-		_overlay.color = Color(40/255.0, 10/255.0, 10/255.0, 0.0)
+		title_color = GameTheme.safe if _is_victory else GameTheme.danger
+		btn_color = GameTheme.safe if _is_victory else GameTheme.accent
+		bg_color = Color(15/255.0, 25/255.0, 45/255.0) if _is_victory \
+			else Color(40/255.0, 10/255.0, 10/255.0)
 
-	# 标题内容和颜色
-	_title_label.text = "任务完成" if _is_victory else "意识崩溃"
+	# 遮罩底色 (从结局配色中获取)
+	_overlay.color = Color(bg_color.r, bg_color.g, bg_color.b, 0.0)
+
+	# 标题: 优先使用结局标题
+	if not display.is_empty():
+		_title_label.text = display.get("title", "未知结局")
+	else:
+		_title_label.text = "任务完成" if _is_victory else "意识崩溃"
 	_title_label.add_theme_color_override("font_color", title_color)
+	_title_color = title_color  # 缓存供光晕使用
 
-	# 副标题
-	if _is_victory:
+	# 副标题: 优先使用结局副标题
+	if not display.is_empty():
+		_subtitle_label.text = display.get("subtitle", "")
+	elif _is_victory:
 		_subtitle_label.text = "你在暗面都市中幸存了下来。"
 	else:
 		_subtitle_label.text = "黑暗吞噬了你最后的理智..."
@@ -311,10 +336,10 @@ func _draw_glow() -> void:
 	if _title_label.modulate.a < 0.3:
 		return
 
-	var title_color: Color = GameTheme.safe if _is_victory else GameTheme.danger
+	# Phase 5: 使用缓存的结局配色 (不再硬编码 safe/danger)
 	var pulse: float = 0.8 + 0.2 * sin(_game_time * 2.0)
 	var glow_r: float = 240.0 + 30.0 * sin(_game_time * 2.0)
 	var center: Vector2 = _glow_circle.size / 2.0
 
 	_glow_circle.draw_circle(center, glow_r,
-		Color(title_color.r, title_color.g, title_color.b, 0.15 * pulse))
+		Color(_title_color.r, _title_color.g, _title_color.b, 0.15 * pulse))

@@ -98,6 +98,8 @@ enum ResourceType {
 	MONEY = 1,      # 金钱
 	FILM = 2,       # 胶卷
 	FRAGMENT = 3,   # 碎片
+	HEALTH = 4,     # 健康（每日行动步数上限）
+	INSPIRATION = 5, # 灵感（影响怪物伤害公式）
 }
 
 # ============================================================================
@@ -175,4 +177,6 @@ static func get_resource_name(type: ResourceType) -> String:
 		ResourceType.MONEY: return "金钱"
 		ResourceType.FILM: return "胶卷"
 		ResourceType.FRAGMENT: return "碎片"
+		ResourceType.HEALTH: return "健康"
+		ResourceType.INSPIRATION: return "灵感"
 	return "未知"

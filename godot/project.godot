@@ -23,6 +23,8 @@ CardConfig="*res://scripts/autoload/card_config.gd"
 GameTheme="*res://scripts/autoload/theme.gd"
 StoryManager="*res://scripts/autoload/story_manager.gd"
 GameData="*res://scripts/autoload/game_data.gd"
+MilestoneManager="*res://scripts/autoload/milestone_manager.gd"
+AudioManager="*res://scripts/autoload/audio_manager.gd"
 
 [display]
 

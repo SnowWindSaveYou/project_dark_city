@@ -9,6 +9,10 @@ extends Node
 signal flag_changed(key: String, value: Variant)
 signal clue_collected(clue_id: String)
 signal chapter_changed(old_chapter: String, new_chapter: String)
+signal fragment_collected(fragment_id: String, total: int)
+signal baiye_trust_changed(old_val: int, new_val: int)
+signal baiye_sleep_started(days: int)
+signal baiye_woke_up()
 
 # ---------------------------------------------------------------------------
 # 配置数据 (从 story_config.json 加载)
@@ -19,13 +23,24 @@ var _plot_events: Array = []          # [{ condition, weight, text, set_flags, c
 var _clue_events: Array = []          # [{ condition, weight, text, clue_id, set_flags }]
 var _npc_dialogues: Dictionary = {}   # npc_id → [{ condition, lines }]
 var _dark_clue_events: Array = []     # [{ condition, weight, text, clue_id, set_flags }]
+var _endings: Array = []              # [{ id, title, subtitle, priority, conditions, is_victory }]
+var _fragments_def: Array = []        # [{ id, name, chapter, order, desc }]
+var _day_constants: Dictionary = {}   # { base_days, extended_days, extend_threshold }
 
 # ---------------------------------------------------------------------------
 # 运行时状态
 # ---------------------------------------------------------------------------
 var flags: Dictionary = {}
 var collected_clues: Array = []       # Array of clue_id (String)
-var current_chapter: String = "prologue"
+var current_chapter: String = "awakening"
+
+# --- 白夜状态 ---
+var baiye_trust: int = 0              # 信任度 0-10
+var baiye_power: int = 0              # 力量等级 0-5
+var sleep_days_left: int = 0          # 沉睡剩余天数 (0 = 可用)
+
+# --- 碎片收集 ---
+var collected_fragments: Dictionary = {}  # { "frag_01": true, ... }
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -52,12 +67,21 @@ func _load_story_config() -> void:
 		push_warning("[StoryManager] JSON root must be Dictionary")
 		return
 
-	_chapters         = data.get("chapters", {})
+	# 章节: 数组 → 字典 (id 为 key) 方便按 id 查找
+	var chapters_arr: Array = data.get("chapters", [])
+	_chapters = {}
+	for ch in chapters_arr:
+		if ch is Dictionary and ch.has("id"):
+			_chapters[ch["id"]] = ch
+
 	_clue_defs        = data.get("clues", {})
 	_plot_events      = data.get("plot_events", [])
 	_clue_events      = data.get("clue_events", [])
 	_npc_dialogues    = data.get("npc_dialogues", {})
 	_dark_clue_events = data.get("dark_clue_events", [])
+	_endings          = data.get("endings", [])
+	_fragments_def    = data.get("fragments", [])
+	_day_constants    = data.get("day_constants", { "base_days": 7, "extended_days": 14, "extend_threshold": 5 })
 
 	# weight 转 int
 	for evt in _plot_events:
@@ -70,9 +94,12 @@ func _load_story_config() -> void:
 		if evt.has("weight"):
 			evt["weight"] = int(evt["weight"])
 
-	print("[StoryManager] Loaded: %d chapters, %d clues, %d plot_events, %d clue_events, %d npc_dialogues" % [
+	# endings 按 priority 排序 (升序, 低 priority = 高优先级)
+	_endings.sort_custom(func(a, b): return int(a.get("priority", 99)) < int(b.get("priority", 99)))
+
+	print("[StoryManager] Loaded: %d chapters, %d clues, %d plot_events, %d clue_events, %d npc_dialogues, %d endings, %d fragments" % [
 		_chapters.size(), _clue_defs.size(), _plot_events.size(),
-		_clue_events.size(), _npc_dialogues.size()])
+		_clue_events.size(), _npc_dialogues.size(), _endings.size(), _fragments_def.size()])
 
 # ---------------------------------------------------------------------------
 # Flag CRUD
@@ -162,12 +189,22 @@ func get_clue_categories() -> Array:
 ## { "has_clue": "id" }    → has_clue(id)
 ## { "min_clues": N }      → collected_clues.size() >= N
 ## { "min_day": N }        → GameData.current_day >= N
+## { "max_day": N }        → GameData.current_day <= N
 ## { "min_san": N }        → GameData.get_resource("san") >= N
 ## { "max_san": N }        → GameData.get_resource("san") <= N
 ## { "min_money": N }      → GameData.get_resource("money") >= N
-## { "min_order": N }      → GameData.get_resource("order") >= N
+## { "min_order": N }      → GameData.get_resource("order") >= N (legacy)
+## { "min_inspiration": N }→ GameData.get_resource("inspiration") >= N
+## { "min_health": N }     → GameData.get_resource("health") >= N
 ## { "has_item": "key" }   → GameData.has_item(key)
 ## { "not_item": "key" }   → not GameData.has_item(key)
+## { "min_trust": N }      → baiye_trust >= N
+## { "max_trust": N }      → baiye_trust <= N
+## { "min_fragments": N }  → collected_fragments.size() >= N
+## { "baiye_available": v }→ is_baiye_available() == v
+## { "chapter": "id" }     → current_chapter == id
+## { "weather": "type" }   → GameData.current_weather == type
+## { "not": {sub} }        → not check_condition(sub)
 ## { "all": [...] }        → all sub-conditions true
 ## { "any": [...] }        → any sub-condition true
 func check_condition(cond) -> bool:
@@ -197,6 +234,9 @@ func check_condition(cond) -> bool:
 	if cond.has("min_day"):
 		return GameData.current_day >= int(cond["min_day"])
 
+	if cond.has("max_day"):
+		return GameData.current_day <= int(cond["max_day"])
+
 	# --- Phase 4: 资源/道具条件扩展 ---
 	if cond.has("min_san"):
 		return GameData.get_resource("san") >= int(cond["min_san"])
@@ -209,6 +249,38 @@ func check_condition(cond) -> bool:
 
 	if cond.has("min_order"):
 		return GameData.get_resource("order") >= int(cond["min_order"])
+
+	if cond.has("min_inspiration"):
+		return GameData.get_resource("inspiration") >= int(cond["min_inspiration"])
+
+	if cond.has("min_health"):
+		return GameData.get_resource("health") >= int(cond["min_health"])
+
+	# --- 白夜 / 碎片 / 章节 / 天气条件 ---
+	if cond.has("min_trust"):
+		return baiye_trust >= int(cond["min_trust"])
+
+	if cond.has("max_trust"):
+		return baiye_trust <= int(cond["max_trust"])
+
+	if cond.has("min_fragments"):
+		return get_fragment_count() >= int(cond["min_fragments"])
+
+	if cond.has("baiye_available"):
+		var want: bool = cond["baiye_available"]
+		if want is bool:
+			return is_baiye_available() == want
+		return is_baiye_available()
+
+	if cond.has("chapter"):
+		return current_chapter == str(cond["chapter"])
+
+	if cond.has("weather"):
+		return GameData.current_weather == str(cond["weather"])
+
+	# --- 取反包装器 ---
+	if cond.has("not"):
+		return not check_condition(cond["not"])
 
 	if cond.has("has_item"):
 		return GameData.has_item(str(cond["has_item"]))
@@ -295,23 +367,26 @@ func get_npc_dialogue(npc_id: String) -> Array:
 # 章节管理
 # ---------------------------------------------------------------------------
 
-func _check_chapter_progression() -> void:
+## 根据当前天数自动推进章节 (day_range 驱动)
+func update_chapter_by_day() -> void:
+	var day: int = GameData.current_day
 	for chapter_id in _chapters:
-		if chapter_id == current_chapter:
-			continue
-		var chapter: Dictionary = _chapters[chapter_id]
-		var unlock_cond = chapter.get("unlock")
-		if unlock_cond != null and check_condition(unlock_cond):
-			# 找到了一个已解锁但不是当前章节的章节
-			# 简单逻辑: 按配置顺序取最后一个已解锁的
-			pass
+		var ch: Dictionary = _chapters[chapter_id]
+		var dr: Array = ch.get("day_range", [])
+		if dr.size() >= 2 and day >= int(dr[0]) and day <= int(dr[1]):
+			if chapter_id != current_chapter:
+				set_chapter(chapter_id)
+			return
 
-	# v1 简化: 不自动推进章节，由事件的 set_flags 驱动
-	# 例如 set_flags: { "current_chapter": "chapter1" } 可手动触发
+func _check_chapter_progression() -> void:
+	update_chapter_by_day()
 
 func get_chapter_name() -> String:
 	var chapter: Dictionary = _chapters.get(current_chapter, {})
 	return chapter.get("name", current_chapter)
+
+func get_chapter_info() -> Dictionary:
+	return _chapters.get(current_chapter, {})
 
 ## 手动设置章节
 func set_chapter(chapter_id: String) -> void:
@@ -325,32 +400,159 @@ func set_chapter(chapter_id: String) -> void:
 	chapter_changed.emit(old, chapter_id)
 
 # ---------------------------------------------------------------------------
+# 白夜状态管理
+# ---------------------------------------------------------------------------
+
+func modify_baiye_trust(delta: int) -> void:
+	var old_val: int = baiye_trust
+	baiye_trust = clampi(baiye_trust + delta, 0, 10)
+	if old_val != baiye_trust:
+		baiye_trust_changed.emit(old_val, baiye_trust)
+
+func set_baiye_trust(value: int) -> void:
+	var old_val: int = baiye_trust
+	baiye_trust = clampi(value, 0, 10)
+	if old_val != baiye_trust:
+		baiye_trust_changed.emit(old_val, baiye_trust)
+
+func modify_baiye_power(delta: int) -> void:
+	baiye_power = clampi(baiye_power + delta, 0, 5)
+
+func is_baiye_available() -> bool:
+	return sleep_days_left <= 0
+
+## 触发白夜沉睡 (持续 N 天)
+func trigger_baiye_sleep(days: int = 2) -> void:
+	sleep_days_left = maxi(days, 1)
+	baiye_sleep_started.emit(sleep_days_left)
+
+## 每天调用: 递减沉睡天数
+func advance_baiye_sleep() -> void:
+	if sleep_days_left > 0:
+		sleep_days_left -= 1
+		if sleep_days_left <= 0:
+			baiye_woke_up.emit()
+
+# ---------------------------------------------------------------------------
+# 碎片系统
+# ---------------------------------------------------------------------------
+
+## 收集碎片 (去重)，返回是否为新碎片
+func collect_fragment(fragment_id: String) -> bool:
+	if collected_fragments.has(fragment_id):
+		return false
+	collected_fragments[fragment_id] = true
+	fragment_collected.emit(fragment_id, collected_fragments.size())
+	return true
+
+func has_fragment(fragment_id: String) -> bool:
+	return collected_fragments.has(fragment_id)
+
+func get_fragment_count() -> int:
+	return collected_fragments.size()
+
+## 获取碎片定义信息
+func get_fragment_info(fragment_id: String) -> Dictionary:
+	for frag in _fragments_def:
+		if frag.get("id") == fragment_id:
+			return frag
+	return {}
+
+## 获取所有碎片 (定义 + 是否已收集)
+func get_all_fragments() -> Array:
+	var result: Array = []
+	for frag in _fragments_def:
+		var fid: String = frag.get("id", "")
+		result.append({
+			"id": fid,
+			"info": frag,
+			"collected": collected_fragments.has(fid),
+		})
+	return result
+
+# ---------------------------------------------------------------------------
+# 动态天数
+# ---------------------------------------------------------------------------
+
+## 获取最大天数: 碎片 >= threshold → extended_days, 否则 base_days
+func get_max_days() -> int:
+	var threshold: int = int(_day_constants.get("extend_threshold", 5))
+	if get_fragment_count() >= threshold:
+		return int(_day_constants.get("extended_days", 14))
+	return int(_day_constants.get("base_days", 7))
+
+# ---------------------------------------------------------------------------
 # 应用事件效果
 # ---------------------------------------------------------------------------
 
-## 应用事件中的 set_flags + clue_id
-## 返回 { "clue_name": String or "", "is_new_clue": bool }
+## 应用事件中的全部效果
+## 支持: set_flags, clue_id, baiye_trust_change, trigger_sleep, fragment_id,
+##       baiye_power_change, resource_effects
+## 返回 { "clue_name", "is_new_clue", "fragment_name", "is_new_fragment" }
 func apply_event_effects(event: Dictionary) -> Dictionary:
-	var result: Dictionary = { "clue_name": "", "is_new_clue": false }
+	var result: Dictionary = {
+		"clue_name": "",
+		"is_new_clue": false,
+		"fragment_name": "",
+		"is_new_fragment": false,
+	}
 
 	# 设置 flag
-	var set_flags: Dictionary = event.get("set_flags", {})
-	for key in set_flags:
-		# 特殊处理章节切换
-		if key == "current_chapter":
-			set_chapter(str(set_flags[key]))
-		else:
-			set_flag(key, set_flags[key])
+	var set_flags = event.get("set_flags", {})
+	if set_flags is Dictionary:
+		for key in set_flags:
+			if key == "current_chapter":
+				set_chapter(str(set_flags[key]))
+			else:
+				set_flag(key, set_flags[key])
+	elif set_flags is Array:
+		# 支持数组形式: ["flag_a", "flag_b"]
+		for f in set_flags:
+			set_flag(str(f), true)
 
 	# 收集线索
 	var clue_id = event.get("clue_id")
-	if clue_id != null and clue_id != "":
-		var is_new: bool = collect_clue(clue_id)
-		var info: Dictionary = get_clue_info(clue_id)
+	if clue_id != null and str(clue_id) != "":
+		var is_new: bool = collect_clue(str(clue_id))
+		var info: Dictionary = get_clue_info(str(clue_id))
 		result["clue_name"] = info.get("name", clue_id)
 		result["is_new_clue"] = is_new
 
+	# 白夜信任度变化
+	var trust_change = event.get("baiye_trust_change")
+	if trust_change != null:
+		modify_baiye_trust(int(trust_change))
+
+	# 白夜力量变化
+	var power_change = event.get("baiye_power_change")
+	if power_change != null:
+		modify_baiye_power(int(power_change))
+
+	# 触发白夜沉睡
+	var sleep = event.get("trigger_sleep")
+	if sleep != null:
+		var days: int = int(sleep) if sleep is float or sleep is int else 2
+		trigger_baiye_sleep(days)
+
+	# 收集碎片
+	var fragment_id = event.get("fragment_id")
+	if fragment_id != null and str(fragment_id) != "":
+		var is_new: bool = collect_fragment(str(fragment_id))
+		var info: Dictionary = get_fragment_info(str(fragment_id))
+		result["fragment_name"] = info.get("name", fragment_id)
+		result["is_new_fragment"] = is_new
+
+	# 资源效果 (choice_effects 中的 effects 字典)
+	var res_effects: Dictionary = event.get("effects", {})
+	if not res_effects.is_empty():
+		GameData.apply_effects(res_effects)
+
 	return result
+
+## 应用选择效果 (story_events.json 的 choice_effects)
+## choice_effect 结构与 event 类似, 直接复用 apply_event_effects
+func apply_choice_effects(choice_effect: Dictionary) -> Dictionary:
+	return apply_event_effects(choice_effect)
 
 # ---------------------------------------------------------------------------
 # 生命周期
@@ -359,18 +561,30 @@ func apply_event_effects(event: Dictionary) -> Dictionary:
 func reset() -> void:
 	flags.clear()
 	collected_clues.clear()
-	current_chapter = "prologue"
+	collected_fragments.clear()
+	current_chapter = "awakening"
+	baiye_trust = 0
+	baiye_power = 0
+	sleep_days_left = 0
 
-## 存档 (预留)
+## 存档
 func save_state() -> Dictionary:
 	return {
 		"flags": flags.duplicate(),
 		"collected_clues": collected_clues.duplicate(),
+		"collected_fragments": collected_fragments.duplicate(),
 		"current_chapter": current_chapter,
+		"baiye_trust": baiye_trust,
+		"baiye_power": baiye_power,
+		"sleep_days_left": sleep_days_left,
 	}
 
-## 读档 (预留)
+## 读档
 func load_state(data: Dictionary) -> void:
 	flags = data.get("flags", {}).duplicate()
 	collected_clues = data.get("collected_clues", []).duplicate()
-	current_chapter = data.get("current_chapter", "prologue")
+	collected_fragments = data.get("collected_fragments", {}).duplicate()
+	current_chapter = data.get("current_chapter", "awakening")
+	baiye_trust = int(data.get("baiye_trust", 0))
+	baiye_power = int(data.get("baiye_power", 0))
+	sleep_days_left = int(data.get("sleep_days_left", 0))

@@ -1,21 +1,19 @@
 ## CardConfig - 统一配置加载器 (Autoload)
 ## 从 data/ 下多个 JSON 文件加载配置，并提供带 fallback 的查询接口
 ##
-## ⚠️ 迁移状态 (Phase 6):
-## - location_info / schedule_templates / rumor_*
-##   → 已迁移到 Locations (data/locations.json)，CardConfig 委托 Locations 获取
+## ⚠️ 迁移状态 (Phase 5):
 ## - event_weights / card_effects / event_texts / trap_subtype_* / dark_texts
 ##   → 已迁移到 EventPool (data/event_pool.json)，本文件保留作为 fallback
-## - card_types / dark_card_types
-##   → 已迁移到 EventPool (event_types / dark_card_types)，CardConfig 委托获取
-## - shop_* / dw_*
+## - location_info / schedule_templates / rumor_*
+##   → 已迁移到 Locations (data/locations.json)，本文件保留作为 fallback
+## - shop_* / dw_* / card_types / dark_card_types
 ##   → 尚未迁移，仍由 CardConfig 独占管理
 extends Node
 
 # ---------------------------------------------------------------------------
 # 配置数据 (按文件组织)
 # ---------------------------------------------------------------------------
-# 地点数据（委托 Locations autoload，原 real_world.json）
+# real_world.json
 var location_info: Dictionary = {}
 var schedule_templates: Dictionary = {}
 var rumor_safe_texts: Array = []
@@ -33,7 +31,7 @@ var trap_subtype_info: Dictionary = {}
 var trap_subtype_texts: Dictionary = {}  # 兼容旧代码 { subtype: [text, ...] }
 var darkside_info: Dictionary = {}  # 兼容旧代码 { loc: { type: {icon, label, image_path} } }
 var dark_texts: Dictionary = {}  # 暗面事件文本 { type: {icon, label, texts: []} }
-var _event_defaults: Dictionary = {}  # events.json defaults 原始数据 (含 inspiration_clue_threshold 等)
+var _event_locations: Dictionary = {}  # per-location overrides
 
 # shop.json
 var shop_items: Dictionary = {}
@@ -48,11 +46,10 @@ var dw_location_pools: Dictionary = {}
 var dw_npcs: Dictionary = {}
 var dw_ghost_textures: Array = []
 var dw_layer_generation: Dictionary = {}
-var dw_item_reward_pool: Array = []  # 暗面道具奖励池 (加权)
-
-# shop.json (暗面商店)
-var dark_items: Dictionary = {}       # 暗面专属道具
-var dark_variants: Array = []         # 暗面商店变体
+var dw_fragment_drops: Array = []
+var dw_elite_encounter: Dictionary = {}
+var dw_boss_encounter: Dictionary = {}
+var dw_item_reward_pool: Array = []
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -69,26 +66,32 @@ func _load_all() -> void:
 	_load_dark_world()
 
 # ---------------------------------------------------------------------------
-# 加载：地点数据（委托 Locations autoload）
+# 加载：real_world.json
 # ---------------------------------------------------------------------------
 func _load_real_world() -> void:
-	# real_world.json 已删除，数据统一由 Locations (data/locations.json) 管理
-	location_info      = Locations.get_location_info()
-	schedule_templates = Locations.get_schedule_templates()
-	rumor_safe_texts   = Locations.rumors.get("safe_texts", [])
-	rumor_danger_texts = Locations.rumors.get("danger_texts", [])
+	var data: Dictionary = _load_json("res://data/real_world.json")
+	if data.is_empty():
+		return
+
+	location_info      = data.get("locations", {})
+	schedule_templates = data.get("schedule_templates", {})
+	var rumors: Dictionary = data.get("rumors", {})
+	rumor_safe_texts   = rumors.get("safe_texts", [])
+	rumor_danger_texts = rumors.get("danger_texts", [])
+	_convert_schedule_rewards()
 
 # ---------------------------------------------------------------------------
-# 加载：卡牌类型（委托 EventPool autoload，原 card_types.json）
+# 加载：card_types.json
 # ---------------------------------------------------------------------------
 func _load_card_types() -> void:
-	# card_types.json 已删除，数据统一由 EventPool (data/event_pool.json) 管理
-	card_types      = EventPool.event_types
-	dark_card_types = EventPool.dark_card_types
+	var data: Dictionary = _load_json("res://data/card_types.json")
+	if data.is_empty():
+		return
+	card_types       = data.get("reality", {})
+	dark_card_types  = data.get("dark", {})
 
 # ---------------------------------------------------------------------------
-# 加载：events.json (仅保留 effects/texts/inspiration_clue_threshold)
-# 已迁移字段委托 EventPool / Locations 获取
+# 加载：events.json (支持按地点覆盖)
 # ---------------------------------------------------------------------------
 func _load_events() -> void:
 	var data: Dictionary = _load_json("res://data/events.json")
@@ -96,31 +99,27 @@ func _load_events() -> void:
 		return
 
 	var defaults: Dictionary = data.get("defaults", {})
-	_event_defaults   = defaults  # 保留原始引用供 get_event_config() 使用
+	event_weights     = defaults.get("weights", {})
 	card_effects      = defaults.get("effects", {})
 	event_texts       = defaults.get("texts", {})
-
-	# weights → 委托 EventPool.base_weights
-	event_weights     = EventPool.base_weights
-
-	# trap_subtypes → 委托 EventPool.trap_subtypes
-	trap_subtype_info = EventPool.trap_subtypes
+	trap_subtype_info = defaults.get("trap_subtypes", {})
+	# 填充 trap_subtype_texts 兼容层 (供 card.gd / event_popup_scene.gd 使用)
 	trap_subtype_texts.clear()
 	for sub_name in trap_subtype_info:
 		var sub: Dictionary = trap_subtype_info[sub_name]
 		if sub.has("texts"):
 			trap_subtype_texts[sub_name] = sub["texts"]
+	_event_locations  = data.get("locations", {})
 
-	# darkside_info → 委托 Locations.get_dark_display()
+	# 构建 darkside_info 兼容层 (供 card.gd / event_popup_scene.gd 使用)
 	darkside_info.clear()
-	for loc_id in Locations.get_real_location_ids():
-		var dd: Dictionary = Locations.get_dark_display(loc_id)
-		if not dd.is_empty():
-			darkside_info[loc_id] = dd
+	for loc_name in _event_locations:
+		var loc: Dictionary = _event_locations[loc_name]
+		if loc.has("dark_display"):
+			darkside_info[loc_name] = loc["dark_display"]
 
-	# dark_texts → 委托 EventPool（get_dark_event_info / get_dark_event_text）
-	# 保留空字典，旧代码通过 CardConfig.get_dark_event_info() 访问时会 fallback 到 EventPool
-	dark_texts = {}
+	# 加载暗面事件文本
+	dark_texts = data.get("dark_texts", {})
 
 	_convert_events_to_int()
 
@@ -136,8 +135,6 @@ func _load_shop() -> void:
 	consumable_order  = data.get("consumable_order", [])
 	shop_variants     = data.get("variants", [])
 	shop_refresh_cost = int(data.get("refresh_cost", 5))
-	dark_items        = data.get("dark_items", {})
-	dark_variants     = data.get("dark_variants", [])
 	_convert_shop_to_int()
 
 # ---------------------------------------------------------------------------
@@ -154,7 +151,11 @@ func _load_dark_world() -> void:
 	dw_npcs             = data.get("npcs", {})
 	dw_ghost_textures   = data.get("ghost_textures", [])
 	dw_layer_generation = data.get("layer_generation", {})
-	dw_item_reward_pool = data.get("item_reward_pool", [])
+	dw_fragment_drops   = data.get("fragment_drops", [])
+	dw_elite_encounter  = data.get("elite_encounter", {})
+	dw_boss_encounter   = data.get("boss_encounter", {})
+	var _pool = data.get("item_reward_pool", {})
+	dw_item_reward_pool = _pool.get("items", []) if _pool is Dictionary else []
 
 # ---------------------------------------------------------------------------
 # JSON 加载辅助
@@ -185,10 +186,22 @@ func _convert_to_int_dict(d: Dictionary) -> Dictionary:
 	return result
 
 func _convert_events_to_int() -> void:
-	# trap_subtype_info / event_weights 已由 EventPool 完成转换
+	for key in trap_subtype_info:
+		var info: Dictionary = trap_subtype_info[key]
+		if info.has("effect"):
+			info["effect"] = _convert_to_int_dict(info["effect"])
 	for key in card_effects:
 		card_effects[key] = _convert_to_int_dict(card_effects[key])
+	for key in event_weights:
+		event_weights[key] = int(event_weights[key])
 
+func _convert_schedule_rewards() -> void:
+	for key in schedule_templates:
+		var tmpl: Dictionary = schedule_templates[key]
+		if tmpl.has("reward"):
+			var reward: Array = tmpl["reward"]
+			if reward.size() >= 2:
+				reward[1] = int(reward[1])
 
 func _convert_shop_to_int() -> void:
 	for key in shop_items:
@@ -197,34 +210,61 @@ func _convert_shop_to_int() -> void:
 			item["price"] = int(item["price"])
 		if item.has("effect"):
 			item["effect"] = _convert_to_int_dict(item["effect"])
-	for key in dark_items:
-		var item: Dictionary = dark_items[key]
-		if item.has("price"):
-			item["price"] = int(item["price"])
-		if item.has("effect"):
-			item["effect"] = _convert_to_int_dict(item["effect"])
 
 # ---------------------------------------------------------------------------
-# 查询接口：事件系统（兼容层，委托 EventPool）
+# 查询接口：事件系统 (支持按地点 fallback)
 # ---------------------------------------------------------------------------
+
+## 获取事件效果 — 优先取地点覆盖，否则取 default
+func get_event_effect(event_type: String, location: String = "") -> Dictionary:
+	if not location.is_empty() and _event_locations.has(location):
+		var loc: Dictionary = _event_locations[location]
+		if loc.has("effects") and loc["effects"].has(event_type):
+			return _merge_dict(card_effects.get(event_type, {}), loc["effects"][event_type])
+	return card_effects.get(event_type, {})
+
+## 获取事件文本列表 — 优先取地点覆盖，否则取 default
+func get_event_texts(event_type: String, location: String = "") -> Array:
+	if not location.is_empty() and _event_locations.has(location):
+		var loc: Dictionary = _event_locations[location]
+		if loc.has("texts") and loc["texts"].has(event_type):
+			return loc["texts"][event_type]
+	return event_texts.get(event_type, [])
+
+## 获取暗面地点显示信息（用于 darkside_info 兼容）
+## 返回 { "icon": String, "label": String, "image_path": String } 或空 Dictionary
+func get_dark_display(location: String, event_type: String) -> Dictionary:
+	if _event_locations.has(location):
+		var loc: Dictionary = _event_locations[location]
+		if loc.has("dark_display") and loc["dark_display"].has(event_type):
+			return loc["dark_display"][event_type]
+	return {}
 
 ## @deprecated 请使用 EventPool.get_dark_event_info()
-## 获取暗面事件文本信息 — 委托 EventPool
+## 获取暗面事件文本信息
+## 返回 { "icon": String, "label": String, "texts": Array } 或空 Dictionary
 func get_dark_event_info(dark_type: String) -> Dictionary:
-	return EventPool.get_dark_event_info(dark_type)
+	return dark_texts.get(dark_type, {})
 
 ## @deprecated 请使用 EventPool.get_dark_event_text()
-## 获取暗面事件随机文本 — 委托 EventPool
+## 获取暗面事件随机文本
 func get_dark_event_text(dark_type: String) -> String:
-	return EventPool.get_dark_event_text(dark_type)
+	var info: Dictionary = dark_texts.get(dark_type, {})
+	var texts: Array = info.get("texts", [])
+	if texts.size() > 0:
+		return texts[randi() % texts.size()]
+	return "发生了什么..."
+
+## 合并字典：base 为基础值，override 为覆盖值（override 优先级更高）
+func _merge_dict(base: Dictionary, override: Dictionary) -> Dictionary:
+	var result: Dictionary = base.duplicate()
+	for k in override:
+		result[k] = override[k]
+	return result
 
 # ---------------------------------------------------------------------------
 # 查询接口：暗面世界
 # ---------------------------------------------------------------------------
-
-## 获取事件配置 (events.json defaults 层级)
-func get_event_config() -> Dictionary:
-	return _event_defaults
 
 func get_dw_max_energy() -> int:
 	return dw_constants.get("max_energy", 10)
@@ -257,23 +297,21 @@ func get_dw_npcs(layer_idx: int) -> Array:
 func get_dw_ghost_textures() -> Array:
 	return dw_ghost_textures
 
-## 获取暗面道具奖励池 (加权随机选取一个, 返回 [resource, amount])
+## 获取碎片掉落表 — 返回完整 Array，每项 { min_frags, layer_min, frag_id }
+func get_dw_fragment_drops() -> Array:
+	return dw_fragment_drops
+
+## 获取精英遭遇配置 — { conditions: {}, dialogue: [], choices: [] }
+func get_dw_elite_encounter() -> Dictionary:
+	return dw_elite_encounter
+
+## 获取 Boss 遭遇配置 — { conditions: {}, dialogue: [], choices: [] }
+func get_dw_boss_encounter() -> Dictionary:
+	return dw_boss_encounter
+
+## 获取道具奖励池 — Array of { type, key/resource/amount, weight }
 func get_dw_item_reward_pool() -> Array:
-	if dw_item_reward_pool.is_empty():
-		return []
-	# 加权随机
-	var total_weight: float = 0.0
-	for entry in dw_item_reward_pool:
-		total_weight += float(entry.get("weight", 1))
-	var roll: float = randf() * total_weight
-	var cumulative: float = 0.0
-	for entry in dw_item_reward_pool:
-		cumulative += float(entry.get("weight", 1))
-		if roll <= cumulative:
-			return [entry.get("resource", "san"), int(entry.get("amount", 1))]
-	# fallback: 返回最后一个
-	var last: Dictionary = dw_item_reward_pool[dw_item_reward_pool.size() - 1]
-	return [last.get("resource", "san"), int(last.get("amount", 1))]
+	return dw_item_reward_pool
 
 ## 获取层生成配置 (返回值中的 range 会自动 randi_range)
 func get_dw_layer_gen(layer_idx: int) -> Dictionary:

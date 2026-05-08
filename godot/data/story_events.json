@@ -1,0 +1,129 @@
+{
+	"version": 1,
+	"events": [
+		{
+			"id": "plot_newspaper",
+			"card_type": "plot",
+			"priority": 10,
+			"once_flag": "seen_newspaper",
+			"condition": {
+				"all": [
+					{ "min_day": 2 },
+					{ "not_flag": "seen_newspaper" }
+				]
+			},
+			"dialogue": [
+				{ "speaker": "旁白", "text": "你在废弃报亭的角落发现一张旧报纸。标题触目惊心——日期却是明天。" },
+				{
+					"speaker": "白夜", "text": "……这张报纸上写的事情还没有发生。你要仔细看看吗？",
+					"choices": [
+						{ "label": "仔细研究", "choice_id": "study" },
+						{ "label": "丢掉它", "choice_id": "discard" }
+					]
+				}
+			],
+			"choice_effects": {
+				"study": {
+					"set_flags": { "studied_paper": true },
+					"baiye_trust_change": 1,
+					"effects": { "inspiration": 1 }
+				},
+				"discard": {
+					"baiye_trust_change": -1
+				}
+			}
+		},
+		{
+			"id": "clue_graffiti",
+			"card_type": "clue",
+			"priority": 10,
+			"once_flag": "seen_graffiti",
+			"condition": {
+				"all": [
+					{ "min_day": 1 },
+					{ "not_flag": "seen_graffiti" }
+				]
+			},
+			"dialogue": [
+				{ "speaker": "旁白", "text": "墙上的涂鸦里藏着一组奇怪的符号。你举起相机，胶卷自动记录了一切。" },
+				{ "speaker": "白夜", "text": "这些符号……我好像见过。是很久以前的事了。" },
+				{ "speaker": "旁白", "text": "一段模糊的画面在脑海中闪过——你和一个身影站在废墟之上。" }
+			],
+			"fragment": "frag_01"
+		},
+		{
+			"id": "plot_phone_call",
+			"card_type": "plot",
+			"priority": 10,
+			"once_flag": "seen_phone_call",
+			"condition": {
+				"all": [
+					{ "min_day": 4 },
+					{ "chapter": "bonding" },
+					{ "not_flag": "seen_phone_call" }
+				]
+			},
+			"dialogue": [
+				{ "speaker": "旁白", "text": "废弃电话亭的话筒突然震动起来。你犹豫片刻，还是接了起来。" },
+				{ "speaker": "???", "text": "……你终于接了。我等了很久。" },
+				{
+					"speaker": "白夜", "text": "这个声音……！挂掉！快挂掉！",
+					"choices": [
+						{ "label": "继续听", "choice_id": "listen" },
+						{ "label": "挂断电话", "choice_id": "hangup" }
+					]
+				}
+			],
+			"choice_effects": {
+				"listen": {
+					"set_flags": { "heard_voice": true },
+					"baiye_trust_change": -1,
+					"effects": { "inspiration": 2 }
+				},
+				"hangup": {
+					"baiye_trust_change": 2
+				}
+			},
+			"fragment": "frag_04"
+		},
+		{
+			"id": "plot_mirror",
+			"card_type": "plot",
+			"priority": 20,
+			"once_flag": "seen_mirror",
+			"condition": {
+				"all": [
+					{ "min_day": 3 },
+					{ "baiye_available": true },
+					{ "not_flag": "seen_mirror" }
+				]
+			},
+			"dialogue": [
+				{ "speaker": "旁白", "text": "健身房角落的全身镜映出一个不属于你的影像。那个身影正在朝你微笑。" },
+				{ "speaker": "白夜", "text": "别看！那不是镜子，是……门。" },
+				{ "speaker": "旁白", "text": "白夜猛地拉住你的手臂。镜面泛起涟漪后恢复了平静。" },
+				{ "speaker": "白夜", "text": "……抱歉，吓到你了。下次经过这种东西，离远点。" }
+			]
+		},
+		{
+			"id": "clue_tape",
+			"card_type": "clue",
+			"priority": 15,
+			"once_flag": "seen_tape",
+			"condition": {
+				"all": [
+					{ "min_day": 6 },
+					{ "min_trust": 3 },
+					{ "not_flag": "seen_tape" }
+				]
+			},
+			"dialogue": [
+				{ "speaker": "旁白", "text": "老旧的录音机里残留着一段对话。你按下了播放键。" },
+				{ "speaker": "???", "text": "「……训练结束了。明天开始，你就是正式的骑士了。」" },
+				{ "speaker": "???", "text": "「嗯！我会成为最强的骑士，然后保护你！」" },
+				{ "speaker": "白夜", "text": "……这是我们的声音。是很久很久以前的事了。" }
+			],
+			"fragment": "frag_03"
+		}
+	]
+}

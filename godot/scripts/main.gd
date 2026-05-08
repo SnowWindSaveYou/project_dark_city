@@ -90,6 +90,7 @@ var _game_over: Control = null
 var _date_transition: Control = null
 var _dialogue_overlay: Control = null
 var _bubble_overlay: Control = null
+var _debug_panel: DebugPanel = null
 
 # ---------------------------------------------------------------------------
 # 场景节点
@@ -297,6 +298,9 @@ func _setup_scene_tree() -> void:
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
+	# DebugPanel (开发调试面板, F1 切换)
+	_debug_panel = DebugPanel.create(ui_layer)
+
 	# Title Screen (最顶层) — Scene 化
 	_title_screen = load("res://scenes/screens/title_screen.tscn").instantiate()
 	ui_layer.add_child(_title_screen)
@@ -449,6 +453,10 @@ func _connect_signals() -> void:
 	_resource_bar.dark_exit_pressed.connect(
 		func(): dark_world_flow.on_dark_exit_requested())
 
+	# DebugPanel 调试动作
+	if _debug_panel:
+		_debug_panel.debug_action.connect(_on_debug_action)
+
 # =========================================================================
 # 信号回调
 # =========================================================================
@@ -470,6 +478,40 @@ func _on_camera_mode_entered() -> void:
 func _on_camera_mode_exited() -> void:
 	board_visual.mg_clear_card_ghosts()
 	board_visual.mg_clear_trail_ghosts()
+
+func _on_debug_action(action_id: String) -> void:
+	match action_id:
+		"enter_dark":
+			if GameData.demo_state == "ready":
+				dark_world_flow.enter_dark_world(token.target_row, token.target_col)
+		"insp_10":
+			GameData.modify_resource("inspiration", 10)
+		"insp_50":
+			GameData.modify_resource("inspiration", 50)
+		"trust_up":
+			GameData.modify_resource("trust", 1)
+		"trust_down":
+			GameData.modify_resource("trust", -1)
+		"power_up":
+			GameData.modify_resource("power", 1)
+		"power_max":
+			GameData.set_resource("power", 10)
+		"clear_sleep":
+			GameData.set_resource("sleep_days", 0)
+		"frag_1":
+			StoryManager.collect_fragment("memory_01")
+		"frag_4":
+			for i in range(1, 5):
+				StoryManager.collect_fragment("memory_%02d" % i)
+		"frag_9":
+			for i in range(1, 10):
+				StoryManager.collect_fragment("memory_%02d" % i)
+		"reset_flags":
+			StoryManager.reset_flags()
+		"next_day":
+			if GameData.demo_state == "ready":
+				game_flow.advance_day()
+	print("[Debug] action: %s" % action_id)
 
 func _on_photograph_request() -> void:
 	if GameData.demo_state != "ready":
@@ -645,6 +687,26 @@ func _process(dt: float) -> void:
 
 	# 3D 氛围过渡 (背景色 + 灯光 + 环境光 + 雾)
 	_apply_atmosphere(_bg_transition)
+
+	# DebugPanel 数据刷新 (仅可见时)
+	if _debug_panel and _debug_panel.visible:
+		_debug_panel.refresh({
+			"day": day_count,
+			"phase": GameData.game_phase,
+			"state": GameData.demo_state,
+			"san": GameData.get_resource("san"),
+			"health": GameData.get_resource("health"),
+			"inspiration": GameData.get_resource("inspiration"),
+			"trust": GameData.get_resource("trust"),
+			"power": GameData.get_resource("power"),
+			"money": GameData.get_resource("money"),
+			"film": GameData.get_resource("film"),
+			"order": GameData.get_resource("order"),
+			"fragments": StoryManager.get_fragment_count(),
+			"chapter": StoryManager.current_chapter,
+			"dark_active": dark_world.active,
+			"cards_revealed": GameData.cards_revealed,
+		})
 
 # ---------------------------------------------------------------------------
 # 卡牌悬停高亮

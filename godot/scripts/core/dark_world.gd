@@ -130,20 +130,15 @@ func reset() -> void:
 # 层级查询 (配置来源: CardConfig / dark_world.json)
 # ---------------------------------------------------------------------------
 
-func can_enter(_day_count: int) -> bool:
-	# 改为灵感解锁 (changelog #4): 第一层解锁需灵感 >= unlock_inspiration
+func can_enter(day_count: int) -> bool:
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(0)
-	var threshold: int = cfg.get("unlock_inspiration", 15)
-	return GameData.get_resource("inspiration") >= threshold
+	return day_count >= cfg.get("unlock_day", 999)
 
-func is_layer_unlocked(layer_idx: int, _day_count: int, fragments: int = 0) -> bool:
+func is_layer_unlocked(layer_idx: int, day_count: int, fragments: int = 0) -> bool:
 	if layer_idx < 0 or layer_idx >= 3:
 		return false
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(layer_idx)
-	# 灵感阈值解锁 (替代 unlock_day)
-	var threshold: int = cfg.get("unlock_inspiration", 999)
-	var insp: int = GameData.get_resource("inspiration")
-	return insp >= threshold and fragments >= cfg.get("unlock_fragments", 0)
+	return day_count >= cfg.get("unlock_day", 999) and fragments >= cfg.get("unlock_fragments", 0)
 
 func get_energy() -> int:
 	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
@@ -261,6 +256,22 @@ func generate_overlay_data(layer_idx: int) -> void:
 	generate_npcs(layer_idx)
 	layers[layer_idx].generated = true
 
+## 查询指定格子 (0-based) 是否有暗面 NPC
+## 返回 { id, name, dialogue, tex } 或 {} (空字典)
+func get_npc_at(row: int, col: int) -> Dictionary:
+	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
+		return {}
+	var layer: LayerData = layers[current_layer]
+	for npc in layer.npcs:
+		if npc.row == row and npc.col == col:
+			return {
+				"id": npc.id,
+				"name": npc.npc_name,
+				"dialogue": npc.dialogue,
+				"tex": npc.tex_path,
+			}
+	return {}
+
 # ---------------------------------------------------------------------------
 # 幽灵 AI
 # ---------------------------------------------------------------------------
@@ -350,6 +361,89 @@ func check_ghost_collision(player_row: int, player_col: int) -> GhostData:
 	return null
 
 # ---------------------------------------------------------------------------
+# 碎片掉落 / 精英遭遇 / Boss 遭遇 / 道具奖池
+# ---------------------------------------------------------------------------
+
+## 检查当前条件是否可以掉落碎片 (在踩到 clue 卡时调用)
+## current_frags: 玩家已持有碎片数, flags: 全局 flag 字典
+## 返回 frag_id (如 "frag_02") 或空字符串 (不掉落)
+func check_fragment_drop(current_frags: int, flags: Dictionary) -> String:
+	var drops: Array = CardConfig.get_dw_fragment_drops()
+	var layer_1based: int = current_layer + 1
+	for drop in drops:
+		var min_f: int = int(drop.get("min_frags", 0))
+		var layer_min: int = int(drop.get("layer_min", 1))
+		var flag: String = drop.get("flag", "")
+		# 条件: 碎片数 >= min_frags, 当前层 >= layer_min, flag 未设置
+		if current_frags >= min_f and layer_1based >= layer_min:
+			if flag.is_empty() or not flags.get(flag, false):
+				return drop.get("frag_id", "")
+	return ""
+
+## 检查是否触发精英遭遇
+## fragments: 碎片数, has_baiye: 白夜是否跟随, has_clue_card: 是否踩到线索卡
+func check_elite_encounter(fragments: int, has_baiye: bool,
+		has_clue_card: bool, flags: Dictionary) -> bool:
+	var enc: Dictionary = CardConfig.get_dw_elite_encounter()
+	if enc.is_empty():
+		return false
+	var cond: Dictionary = enc.get("conditions", {})
+	if fragments < int(cond.get("min_fragments", 999)):
+		return false
+	if cond.get("requires_baiye_follow", false) and not has_baiye:
+		return false
+	if cond.get("requires_clue_card", false) and not has_clue_card:
+		return false
+	var not_flag: String = cond.get("not_flag", "")
+	if not not_flag.is_empty() and flags.get(not_flag, false):
+		return false
+	return true
+
+## 检查是否触发 Boss 遭遇
+## fragments: 碎片数, has_baiye: 白夜是否跟随, has_abyss_core: 是否踩到深渊核心
+func check_boss_encounter(fragments: int, has_baiye: bool,
+		has_abyss_core: bool, flags: Dictionary) -> bool:
+	var enc: Dictionary = CardConfig.get_dw_boss_encounter()
+	if enc.is_empty():
+		return false
+	var cond: Dictionary = enc.get("conditions", {})
+	if fragments < int(cond.get("min_fragments", 999)):
+		return false
+	if cond.get("requires_baiye_follow", false) and not has_baiye:
+		return false
+	if cond.get("requires_abyss_core", false) and not has_abyss_core:
+		return false
+	var not_flag: String = cond.get("not_flag", "")
+	if not not_flag.is_empty() and flags.get(not_flag, false):
+		return false
+	return true
+
+## 从道具奖池按权重随机抽取一项
+## 返回 { res: String, amt: int, label: String } 或空 Dictionary
+func roll_item_reward() -> Dictionary:
+	var items: Array = CardConfig.get_dw_item_reward_pool()
+	if items.is_empty():
+		return {}
+	var total_weight: int = 0
+	for item in items:
+		total_weight += int(item.get("weight", 1))
+	if total_weight <= 0:
+		return {}
+	var roll: int = randi() % total_weight
+	var cumulative: int = 0
+	for item in items:
+		cumulative += int(item.get("weight", 1))
+		if roll < cumulative:
+			return {
+				"res": item.get("res", ""),
+				"amt": int(item.get("amt", 0)),
+				"label": item.get("label", ""),
+			}
+	# fallback (不应到达)
+	var last = items[items.size() - 1]
+	return { "res": last.get("res", ""), "amt": int(last.get("amt", 0)), "label": last.get("label", "") }
+
+# ---------------------------------------------------------------------------
 # 进入/退出/层间移动
 # ---------------------------------------------------------------------------
 
@@ -372,8 +466,10 @@ func enter(day_count: int, rift_r: int, rift_c: int,
 			layers[i].unlocked = true
 
 	var layer: LayerData = layers[current_layer]
-	# energy = san (changelog #4): 进入暗面时能量等于当前理智值
-	layer.energy = GameData.get_resource("san")
+	# 能量 = min(当前san, max_energy)，san 越低探索越受限
+	var max_e: int = CardConfig.get_dw_max_energy()
+	var san: int = GameData.get_resource("san")
+	layer.energy = mini(san, max_e)
 	dark_state = "transition"
 
 ## 暗面完全进入 (发牌完成后)
@@ -404,8 +500,10 @@ func begin_change_layer(target_layer: int, day_count: int) -> Dictionary:
 
 	dark_state = "transition"
 	current_layer = target_layer
-	# energy = san (changelog #4): 切层时能量重置为当前理智值
-	layers[current_layer].energy = GameData.get_resource("san")
+	# 能量 = min(当前san, max_energy)
+	var max_e: int = CardConfig.get_dw_max_energy()
+	var san: int = GameData.get_resource("san")
+	layers[current_layer].energy = mini(san, max_e)
 
 	return { "success": true, "layer_name": CardConfig.get_dw_layer_config(target_layer).get("name", "") }
 

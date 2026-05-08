@@ -28,7 +28,8 @@
 			"schedule": { "verb": "去教堂祈祷", "reward": ["san", 1] },
 			"forced_type": "landmark",
 			"weight_mods": {},
-			"event_pool": ["evt_landmark_visit"]
+			"event_pool": ["evt_landmark_visit"],
+			"location_effect": { "san": 2 }
 		},
 
 		"police": {
@@ -37,6 +38,18 @@
 			"image_path": "",
 			"is_landmark": true,
 			"schedule": { "verb": "去警察局报案", "reward": ["order", 1] },
+			"forced_type": "landmark",
+			"weight_mods": {},
+			"event_pool": ["evt_landmark_visit"],
+			"location_effect": { "san": 1, "health": 1 }
+		},
+
+		"shrine": {
+			"label": "神社",
+			"icon": "⛩️",
+			"image_path": "",
+			"is_landmark": true,
+			"schedule": { "verb": "去神社参拜", "reward": ["san", 1] },
 			"forced_type": "landmark",
 			"weight_mods": {},
 			"event_pool": ["evt_landmark_visit"]
@@ -105,7 +118,7 @@
 				"clue": 5,
 				"safe": 5
 			},
-			"location_effect": {},
+			"location_effect": { "inspiration": 1 },
 			"dark_display": {
 				"safe":    { "icon": "🏫", "label": "安静教室",   "image_path": "" },
 				"monster": { "icon": "👤", "label": "无面教师",   "image_path": "" },
@@ -129,7 +142,6 @@
 				"evt_trap_generic",
 				"evt_park_herb_find",
 				"evt_park_nature_clue",
-				"evt_park_conversion",
 				"evt_clue_generic",
 				"evt_plot_inscription",
 				"evt_plot_symbol_wall",
@@ -141,7 +153,15 @@
 				"trap": -5,
 				"clue": 5
 			},
-			"location_effect": { "san": 1 },
+			"location_effect": { "health": 1 },
+			"conversion_config": {
+				"cost_res": "san",
+				"cost_amt": 2,
+				"gain_res": "health",
+				"gain_amt": 2,
+				"trigger_chance": 0.3,
+				"prompt": "公园的清新空气让你想锻炼一下，消耗2点理智恢复2点健康？"
+			},
 			"dark_display": {
 				"safe":    { "icon": "🌳", "label": "寂静长椅",   "image_path": "" },
 				"monster": { "icon": "🌑", "label": "树影低语",   "image_path": "" },
@@ -240,7 +260,6 @@
 				"evt_hospital_medicine_reward",
 				"evt_reward_supply",
 				"evt_hospital_medical_record",
-				"evt_hospital_conversion",
 				"evt_clue_blood_trail",
 				"evt_clue_generic",
 				"evt_plot_inscription",
@@ -254,7 +273,15 @@
 				"clue": 10,
 				"plot": 5
 			},
-			"location_effect": {},
+			"location_effect": { "health": 1 },
+			"conversion_config": {
+				"cost_res": "health",
+				"cost_amt": 2,
+				"gain_res": "san",
+				"gain_amt": 2,
+				"trigger_chance": 0.3,
+				"prompt": "医生建议你做一次心理疏导，消耗2点健康恢复2点理智？"
+			},
 			"dark_display": {
 				"safe":    { "icon": "🏥", "label": "空病房",     "image_path": "" },
 				"monster": { "icon": "💉", "label": "游走护士",   "image_path": "" },
@@ -269,7 +296,7 @@
 			"label": "图书馆",
 			"icon": "📚",
 			"image_path": "",
-			"schedule": { "verb": "去图书馆学习", "reward": ["order", 1] },
+			"schedule": { "verb": "去图书馆学习", "reward": ["inspiration", 1] },
 			"forced_type": null,
 			"event_pool": [
 				"evt_library_deep_read",
@@ -293,7 +320,7 @@
 				"plot": 10,
 				"trap": -10
 			},
-			"location_effect": {},
+			"location_effect": { "inspiration": 1 },
 			"dark_display": {
 				"safe":    { "icon": "📚", "label": "安静角落",   "image_path": "" },
 				"monster": { "icon": "📖", "label": "自翻的书",   "image_path": "" },
@@ -330,7 +357,7 @@
 				"monster": -5,
 				"safe": -5
 			},
-			"location_effect": {},
+			"location_effect": { "money": 8 },
 			"dark_display": {
 				"safe":    { "icon": "🏦", "label": "空金库",     "image_path": "" },
 				"monster": { "icon": "🎭", "label": "面具柜员",   "image_path": "" },
@@ -341,44 +368,6 @@
 			}
 		},
 
-		"gym": {
-			"label": "健身房",
-			"icon": "💪",
-			"image_path": "",
-			"schedule": { "verb": "去健身房锻炼", "reward": ["health", 1] },
-			"forced_type": null,
-			"event_pool": [
-				"evt_gym_workout",
-				"evt_safe_rest",
-				"evt_gym_mirror_horror",
-				"evt_monster_shadow",
-				"evt_gym_broken_machine",
-				"evt_trap_generic",
-				"evt_gym_locker_find",
-				"evt_reward_supply",
-				"evt_gym_schedule_board",
-				"evt_gym_conversion",
-				"evt_clue_generic",
-				"evt_plot_inscription",
-				"evt_plot_deep_rumble"
-			],
-			"weight_mods": {
-				"safe": 10,
-				"monster": -5,
-				"trap": -5,
-				"reward": 5
-			},
-			"location_effect": {},
-			"dark_display": {
-				"safe":    { "icon": "💪", "label": "空荡器械室", "image_path": "" },
-				"monster": { "icon": "🪞", "label": "镜中异影",   "image_path": "" },
-				"trap":    { "icon": "⚙️", "label": "失控器械",   "image_path": "" },
-				"reward":  { "icon": "🎒", "label": "遗忘储物柜", "image_path": "" },
-				"plot":    { "icon": "📋", "label": "诡异课程表", "image_path": "" },
-				"clue":    { "icon": "🔢", "label": "异常记录",   "image_path": "" }
-			}
-		},
-
 		"cemetery": {
 			"label": "墓地",
 			"icon": "🪦",
@@ -386,45 +375,85 @@
 			"schedule": { "verb": "去墓地调查", "reward": ["inspiration", 1] },
 			"forced_type": null,
 			"event_pool": [
-				"evt_cemetery_silence",
 				"evt_safe_rest",
-				"evt_cemetery_restless_dead",
+				"evt_cemetery_quiet",
+				"evt_cemetery_wandering_spirit",
 				"evt_monster_shadow",
 				"evt_monster_whisper",
-				"evt_cemetery_fog_trap",
+				"evt_cemetery_sinkhole",
 				"evt_trap_generic",
-				"evt_cemetery_offering_find",
+				"evt_cemetery_ancient_amulet",
+				"evt_reward_supply",
 				"evt_cemetery_epitaph_clue",
-				"evt_cemetery_grave_whisper",
 				"evt_clue_generic",
-				"evt_clue_footprints",
 				"evt_plot_inscription",
+				"evt_plot_find_photo",
 				"evt_plot_deep_rumble"
 			],
 			"weight_mods": {
-				"monster": 15,
-				"trap": 5,
-				"safe": -10,
-				"plot": 10,
-				"clue": 5
+				"monster": 10,
+				"trap": 3
 			},
 			"location_effect": {},
 			"dark_display": {
 				"safe":    { "icon": "🪦", "label": "寂静墓园",   "image_path": "" },
-				"monster": { "icon": "💀", "label": "不安的亡灵", "image_path": "" },
-				"trap":    { "icon": "🌫️", "label": "迷雾墓碑",   "image_path": "" },
-				"reward":  { "icon": "🏺", "label": "古老祭品",   "image_path": "" },
-				"plot":    { "icon": "🗣️", "label": "坟墓低语",   "image_path": "" },
+				"monster": { "icon": "👻", "label": "游荡亡灵",   "image_path": "" },
+				"trap":    { "icon": "🕳️", "label": "塌陷墓穴",   "image_path": "" },
+				"reward":  { "icon": "🛡️", "label": "古老护符",   "image_path": "" },
+				"plot":    { "icon": "🪦", "label": "无名墓碑",   "image_path": "" },
 				"clue":    { "icon": "📜", "label": "墓志铭文",   "image_path": "" }
+			}
+		},
+
+		"gym": {
+			"label": "健身房",
+			"icon": "🏋️",
+			"image_path": "",
+			"schedule": { "verb": "去健身房锻炼", "reward": ["health", 1] },
+			"forced_type": null,
+			"event_pool": [
+				"evt_safe_rest",
+				"evt_gym_training",
+				"evt_gym_berserk_machine",
+				"evt_monster_shadow",
+				"evt_gym_locked_equipment",
+				"evt_trap_generic",
+				"evt_gym_power_crystal",
+				"evt_reward_supply",
+				"evt_gym_bandage_clue",
+				"evt_clue_generic",
+				"evt_plot_inscription",
+				"evt_plot_deep_rumble"
+			],
+			"weight_mods": {
+				"reward": 5,
+				"safe": 3
+			},
+			"location_effect": { "health": 1 },
+			"conversion_config": {
+				"cost_res": "san",
+				"cost_amt": 2,
+				"gain_res": "health",
+				"gain_amt": 2,
+				"trigger_chance": 0.3,
+				"prompt": "高强度训练可以增强体质，消耗2点理智恢复2点健康？"
+			},
+			"dark_display": {
+				"safe":    { "icon": "🏋️", "label": "空旷训练场", "image_path": "" },
+				"monster": { "icon": "🤖", "label": "暴走训练机", "image_path": "" },
+				"trap":    { "icon": "⛓️", "label": "锁死的器械", "image_path": "" },
+				"reward":  { "icon": "💪", "label": "力量结晶",   "image_path": "" },
+				"plot":    { "icon": "🪞", "label": "扭曲镜面",   "image_path": "" },
+				"clue":    { "icon": "🩹", "label": "带血绷带",   "image_path": "" }
 			}
 		}
 	},
 
 	"dark_world": {
 		"layers": [
-			{ "name": "表层·暗巷", "unlock_day": 2, "unlock_fragments": 0 },
-			{ "name": "中层·暗市", "unlock_day": 4, "unlock_fragments": 0 },
-			{ "name": "深层·暗渊", "unlock_day": 6, "unlock_fragments": 1 }
+			{ "name": "表层·暗巷", "unlock_inspiration": 15, "unlock_fragments": 0 },
+			{ "name": "中层·暗市", "unlock_inspiration": 25, "unlock_fragments": 0 },
+			{ "name": "深层·暗渊", "unlock_inspiration": 45, "unlock_fragments": 1 }
 		],
 
 		"locations": {
@@ -478,6 +507,18 @@
 			"黑曜石碎片": { "layer": 2, "dark_type": "item",       "event_pool": ["evt_dark_item_random"],   "weight_mods": {} },
 			"最深处":     { "layer": 2, "dark_type": "abyss_core", "event_pool": ["evt_dark_abyss"],         "weight_mods": {} }
 		}
+	},
+
+	"safe_location_effects": {
+		"_comment": "安全事件触发时的额外地点效果覆盖（默认 +1 san）",
+		"park":     { "health": 1 },
+		"gym":      { "health": 1 },
+		"hospital": { "health": 1 },
+		"library":  { "inspiration": 1 },
+		"school":   { "inspiration": 1 },
+		"church":   { "san": 2 },
+		"police":   { "san": 1, "health": 1 },
+		"bank":     { "money": 8 }
 	},
 
 	"rumors": {

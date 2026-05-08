@@ -1,0 +1,180 @@
+{
+	"version": 1,
+
+	"resource_names": {
+		"health": "健康",
+		"san": "理智",
+		"money": "金币",
+		"film": "胶卷",
+		"inspiration": "灵感"
+	},
+
+	"resource_icons": {
+		"health": "❤️",
+		"san": "🧠",
+		"money": "💰",
+		"film": "📷",
+		"inspiration": "✨"
+	},
+
+	"npcs": {
+		"fangdong": {
+			"name": "房东",
+			"tex_path": "image/npc_房东_chibi_20260507035549.png",
+			"daily_cooldown": true,
+			"dialogues": [
+				{
+					"lines": [
+						{ "speaker": "房东", "text": "又出去了？最近这附近不太平，早点回来。" },
+						{ "speaker": "房东", "text": "对了，你精神看着不太好……要不坐下来歇歇？" },
+						{
+							"speaker": "房东",
+							"text": "我这有点安神的茶，喝了能好受些。",
+							"choices": [
+								{ "label": "休息一下（2 健康 → 3 理智）", "action": "trade", "cost": ["health", 2], "gain": ["san", 3] },
+								{ "label": "不用了，谢谢", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "房东", "text": "说起来，你那个朋友……白夜？" },
+						{ "speaker": "房东", "text": "好久没见她出来了呢。她还好吧？" },
+						{
+							"speaker": "房东",
+							"text": "你自己也注意身体。我那儿有副药，管用的。",
+							"choices": [
+								{ "label": "要药（2 理智 → 3 健康）", "action": "trade", "cost": ["san", 2], "gain": ["health", 3] },
+								{ "label": "我再想想", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "房东", "text": "今天天气不错啊……虽然那些雾还是怪怪的。" },
+						{ "speaker": "房东", "text": "最近有邻居搬走了，说总看到影子。" },
+						{
+							"speaker": "房东",
+							"text": "对了，他走的时候留了些胶卷，你要不？",
+							"choices": [
+								{ "label": "帮忙搬东西换胶卷（2 健康 → 2 胶卷）", "action": "trade", "cost": ["health", 2], "gain": ["film", 2] },
+								{ "label": "不了", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "房东", "text": "垃圾记得分类啊，上次被投诉了。" },
+						{ "speaker": "房东", "text": "……不过我没告诉他们是你。" },
+						{ "speaker": "房东", "text": "行了，有事敲门。" }
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "房东", "text": "这个月你的房租我就不催了。" },
+						{ "speaker": "房东", "text": "看你最近够辛苦的了。有什么需要帮忙的？" },
+						{
+							"speaker": "房东",
+							"text": "我能帮的不多，但这些还是有的。",
+							"choices": [
+								{ "label": "帮我缓缓神（2 健康 → 2 理智）", "action": "trade", "cost": ["health", 2], "gain": ["san", 2] },
+								{ "label": "帮我养养伤（2 理智 → 2 健康）", "action": "trade", "cost": ["san", 2], "gain": ["health", 2] },
+								{ "label": "不用了", "action": "none" }
+							]
+						}
+					]
+				}
+			]
+		},
+
+		"cat": {
+			"name": "猫",
+			"tex_path": "image/npc_猫咪_自然_20260507040343.png",
+			"sprite_scale": 0.5,
+			"daily_cooldown": true,
+			"dialogues": [
+				{
+					"lines": [
+						{ "speaker": "???", "text": "（一只橘猫蹲在路边，用尾巴拍着地面。）" },
+						{
+							"speaker": "???",
+							"text": "喵～",
+							"choices": [
+								{ "label": "摸摸它", "action": "pet", "gain": ["san", 1] },
+								{ "label": "蹲下来看它", "action": "look" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "???", "text": "（橘猫打了个哈欠，眯着眼睛看你。）" },
+						{
+							"speaker": "???",
+							"text": "（它蹭了蹭你的脚踝。）",
+							"choices": [
+								{ "label": "蹲下来陪它一会", "action": "pet", "gain": ["san", 1] },
+								{ "label": "给它点吃的", "action": "feed", "cost": ["money", 5], "gain": ["san", 2] }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "???", "text": "（橘猫趴在一张已翻开的卡牌上，呼噜呼噜地响。）" },
+						{ "speaker": "???", "text": "（它好像完全不在意周围那些奇怪的影子。）" },
+						{ "speaker": "???", "text": "（看着它你觉得稍微安心了一点。）" }
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "???", "text": "（橘猫叼着什么东西跑过来。）" },
+						{
+							"speaker": "???",
+							"text": "（是一枚旧硬币。它放在你脚边然后走开了。）",
+							"choices": [
+								{ "label": "收下礼物", "action": "gift" },
+								{ "label": "摸摸它", "action": "pet", "gain": ["san", 1] }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "???", "text": "（橘猫用爪子挠了挠你的裤腿。）" },
+						{ "speaker": "???", "text": "（它仰头看着你，发出细小的叫声。）" },
+						{
+							"speaker": "???",
+							"text": "喵呜……",
+							"choices": [
+								{ "label": "陪它玩一会", "action": "pet", "gain": ["san", 1] },
+								{ "label": "只是看着它", "action": "look" }
+							]
+						}
+					]
+				}
+			]
+		}
+	},
+
+	"action_config": {
+		"gift": {
+			"resource": "money",
+			"amount": 8,
+			"banner": "💰 +8 金币（猫的礼物）"
+		},
+		"look": {
+			"banner": "🐱 ……",
+			"no_cooldown": true
+		},
+		"pet": {
+			"banner": "🐱 被治愈了"
+		},
+		"feed": {
+			"banner": "🐱 猫吃饱了，舒服地蜷起来"
+		}
+	}
+}

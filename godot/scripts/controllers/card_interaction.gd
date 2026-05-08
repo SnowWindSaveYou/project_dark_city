@@ -1,6 +1,7 @@
 ## CardInteraction - 卡牌交互控制器
 ## 负责: 普通点击(翻牌/移动)、相机模式(拍照/驱魔)、
 ##       NPC 对话触发、裂隙确认、道具使用
+## Phase 5: StoryEventManager 故事事件拦截、NPC 同格对话、灵感退化、步数限制
 extends RefCounted
 
 # ---------------------------------------------------------------------------
@@ -13,11 +14,8 @@ var _event_handler: EventHandler = null
 var _photo_row: int = -1
 var _photo_col: int = -1
 
-## 待确认的转化事件数据
-var _pending_conv: Dictionary = {}
-var _pending_conv_card: Card = null
-var _pending_conv_row: int = -1
-var _pending_conv_col: int = -1
+## Phase 5: 每日步数计数
+var _steps_today: int = 0
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -27,6 +25,10 @@ func setup(main_ref) -> void:
 	m = main_ref
 	_event_handler = EventHandler.new()
 	_event_handler.setup(main_ref)
+
+## Phase 5: 每日重置步数 (由 game_flow 在新一天开始时调用)
+func reset_daily_steps() -> void:
+	_steps_today = 0
 
 # =========================================================================
 # 普通模式卡牌交互
@@ -55,16 +57,32 @@ func handle_card_click(row: int, col: int) -> void:
 			_flip_current_card(card, row, col)
 		return
 
+	# Phase 5: 步数限制 (health = 每日最大步数) — 统一检查
+	var max_steps: int = GameData.get_resource("health")
+
 	# 检查相邻
 	if not m.board.is_adjacent(m.token.target_row, m.token.target_col, row, col):
-		m.board_visual.play_shake_animation(row, col)
-		m._vfx.action_banner("只能移动到相邻格子", Color(0.7, 0.7, 0.7), 0.6)
+		# 非相邻 → 尝试 BFS 自动寻路 (沿已翻开卡牌路径)
+		var path: Array = _find_path(m.token.target_row, m.token.target_col, row, col)
+		if path.is_empty():
+			m.board_visual.play_shake_animation(row, col)
+			m._vfx.action_banner("沿途有未翻开的卡牌, 无法到达", Color(0.7, 0.7, 0.7), 0.6)
+			return
+		# 步数预算检查 (整条路径)
+		if max_steps > 0 and _steps_today + path.size() > max_steps:
+			m.board_visual.play_shake_animation(row, col)
+			m._vfx.action_banner("体力不足! (需要 %d 步, 剩余 %d 步)" % [
+				path.size(), max_steps - _steps_today],
+				Color(0.86, 0.31, 0.31), 0.8)
+			return
+		_execute_auto_walk(path)
 		return
 
-	# 步数检查 (changelog #3): 每日步数用完则无法移动
-	if not GameData.has_steps_remaining():
+	# 相邻: 单步步数检查
+	if max_steps > 0 and _steps_today >= max_steps:
 		m.board_visual.play_shake_animation(row, col)
-		m._vfx.action_banner("今日步数已用完!", Color(0.86, 0.31, 0.31), 0.8)
+		m._vfx.action_banner("体力不足! (已走 %d/%d 步)" % [_steps_today, max_steps],
+			Color(0.86, 0.31, 0.31), 0.8)
 		return
 
 	# 移动 Token
@@ -76,6 +94,7 @@ func handle_card_click(row: int, col: int) -> void:
 
 func _flip_current_card(card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("flipping")
+	AudioManager.play_sfx("card_flip")
 	m.board.flip_card(row, col)
 	card.is_flipping = true
 
@@ -91,13 +110,14 @@ func _flip_current_card(card: Card, row: int, col: int) -> void:
 
 func _move_token(_card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("moving")
-	# 消耗步数 (changelog #3)
-	GameData.use_step()
 	# 移动前清除环绕幽灵
 	m.board_visual.mg_clear_surround()
 	m.token.target_row = row
 	m.token.target_col = col
 	m.token.set_emotion("running")
+
+	# Phase 5: 计步
+	_steps_today += 1
 
 	m.board_visual.animate_token_move(row, col, func():
 		# 道具拾取 (到达后才触发, 而非移动开始时)
@@ -106,6 +126,7 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 		var arrived_card: Card = m.board.get_card(row, col)
 		if arrived_card and not arrived_card.is_flipped:
 			GameData.set_demo_state("flipping")
+			AudioManager.play_sfx("card_flip")
 			m.board.flip_card(row, col)
 			arrived_card.is_flipping = true
 
@@ -115,6 +136,8 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 				_on_card_flipped(arrived_card, row, col)
 			)
 		else:
+			# Phase 5: NPC 同格对话 (到达已翻开格子时触发)
+			_try_npc_dialogue(row, col)
 			m.token.set_emotion("default")
 			GameData.set_demo_state("ready")
 			m._camera_button.show_button()
@@ -126,17 +149,20 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 
 func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	var card_type: String = card.type
-	var _effects_dbg: Dictionary = card.get_effects()
-	print("[Flip] (%d,%d) 类型=%s, event_id=%s, trap_sub=%s, effects=%s" % [
-		row, col, card_type,
-		card.event_id if card.event_id != "" else "-",
-		card.trap_subtype if card.trap_subtype != "" else "-",
-		_effects_dbg if _effects_dbg.size() > 0 else "-",
-	])
+	print("[Flip] (%d,%d) 翻面触发, 类型: %s, trap_subtype: %s" % [row, col, card_type, card.trap_subtype if card_type == "trap" else "N/A"])
 	GameData.cards_revealed += 1
 
 	# 地标光环净化已在 board.generate_cards() 阶段完成 (_apply_landmark_aura)
 	# 地标邻近的 monster/trap 在生成时已转为 safe，翻牌时无需重复净化
+
+	# Phase 5: 灵感阈值退化 — inspiration < 20 时线索牌退化为 safe
+	if card_type == "clue" and GameData.get_resource("inspiration") < 20:
+		print("[Flip] inspiration=%d < 20, 线索牌(%d,%d)退化为 safe" % [
+			GameData.get_resource("inspiration"), row, col])
+		card.type = "safe"
+		card_type = "safe"
+		m.board_visual.update_card_visual(row, col)
+		m._vfx.action_banner("灵感不足, 线索消散...", Color(0.6, 0.6, 0.6), 0.8)
 
 	# 日程完成检查
 	if card.location != "":
@@ -148,26 +174,9 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 				m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 					Color(0.4, 0.8, 0.5), 0.8)
 
-	# 转化事件 (changelog #8): 从事件池随机抽取, 基于 event_id 判断
-	if card.event_id != "":
-		var conv: Dictionary = EventPool.get_event_conversion(card.event_id)
-		if not conv.is_empty():
-			_pending_conv = conv
-			_pending_conv_card = card
-			_pending_conv_row = row
-			_pending_conv_col = col
-			GameData.set_demo_state("popup")
-			m._conversion_popup.show_conversion(conv)
-			return
-
-	_continue_after_conversion(card, row, col)
-
-## 转化弹窗之后的翻牌后续流程 (怪物/陷阱/商店/表情/粒子等)
-func _continue_after_conversion(card: Card, row: int, col: int) -> void:
-	var card_type: String = card.type
-
-	# 怪物翻出: 生成环绕幽灵 chibi
+	# 怪物翻出: 生成环绕幽灵 chibi + 音效
 	if card_type == "monster":
+		AudioManager.play_sfx("ghost_encounter")
 		m.board_visual.mg_spawn_around_player(row, col, card.location)
 
 	# 表情映射
@@ -231,40 +240,34 @@ func _continue_after_conversion(card: Card, row: int, col: int) -> void:
 			for key in effects:
 				GameData.modify_resource(key, effects[key])
 
-		# 剧情事件: 优先从事件定义驱动 set_flags/clue_id
-		if card_type == "plot":
-			if card.event_id != "":
-				# 新路径: 事件定义驱动
-				var evt_result: EventHandler.EventResult = _event_handler.resolve_event_by_id(card.event_id, card)
-				# set_flags/clue_id 由 execute_event 处理
-				_event_handler.execute_event(evt_result, card)
-			else:
-				# fallback: 旧路径
-				var story_evt: Dictionary = StoryManager.pick_plot_event()
-				if not story_evt.is_empty():
-					var result: Dictionary = StoryManager.apply_event_effects(story_evt)
-					if result["is_new_clue"]:
-						m._vfx.action_banner("获得线索: %s" % result["clue_name"],
-							Color(0.5, 0.8, 0.6), 1.0)
-
-		# 线索事件: 优先从事件定义驱动 clue_id
-		if card_type == "clue":
-			if card.event_id != "":
-				# 新路径: 事件定义驱动
-				var evt_result: EventHandler.EventResult = _event_handler.resolve_event_by_id(card.event_id, card)
-				_event_handler.execute_event(evt_result, card)
-			else:
-				# fallback: 旧路径
-				var clue_evt: Dictionary = StoryManager.pick_clue_event()
-				if not clue_evt.is_empty():
-					var result: Dictionary = StoryManager.apply_event_effects(clue_evt)
-					if result["is_new_clue"]:
-						m._vfx.action_banner("获得线索: %s" % result["clue_name"],
-							Color(0.5, 0.8, 0.6), 1.0)
-					else:
-						m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+		# Phase 5: 剧情/线索事件 — 优先走 StoryEventManager (条件匹配), 然后 event_id, 最后 fallback
+		if card_type == "plot" or card_type == "clue":
+			var story_event_handled: bool = _try_story_event(card, card_type, row, col)
+			if not story_event_handled:
+				# 次优先: event_id (EventPool 驱动)
+				if card.event_id != "":
+					var evt_result: EventHandler.EventResult = _event_handler.resolve_event_by_id(card.event_id, card)
+					_event_handler.execute_event(evt_result, card)
 				else:
-					m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+					# fallback: 旧路径 (StoryManager.pick_xxx_event)
+					if card_type == "plot":
+						var story_evt: Dictionary = StoryManager.pick_plot_event()
+						if not story_evt.is_empty():
+							var result: Dictionary = StoryManager.apply_event_effects(story_evt)
+							if result["is_new_clue"]:
+								m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+									Color(0.5, 0.8, 0.6), 1.0)
+					else:  # clue
+						var clue_evt: Dictionary = StoryManager.pick_clue_event()
+						if not clue_evt.is_empty():
+							var result: Dictionary = StoryManager.apply_event_effects(clue_evt)
+							if result["is_new_clue"]:
+								m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+									Color(0.5, 0.8, 0.6), 1.0)
+							else:
+								m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+						else:
+							m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
 		# Toast 通知
 		var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card_type) \
@@ -282,6 +285,11 @@ func _continue_after_conversion(card: Card, row: int, col: int) -> void:
 				_show_rift_confirm(row, col)
 				return
 			m.game_flow.check_defeat()
+			return
+
+		# Phase 5: 兑换事件 (safe 牌 + 特定 location, 30% 概率)
+		if card_type == "safe" and card.location != "" and _try_conversion_event(card.location):
+			# 兑换弹窗已显示, 状态由回调管理
 			return
 
 		GameData.set_demo_state("ready")
@@ -409,45 +417,6 @@ func on_rift_cancelled() -> void:
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
 
-# ---------------------------------------------------------------------------
-# 转化确认回调
-# ---------------------------------------------------------------------------
-
-## 玩家确认转化: 执行资源交换, 继续翻牌后续流程
-func on_conversion_confirmed() -> void:
-	var conv: Dictionary = _pending_conv
-	if not conv.is_empty():
-		var from_key: String = conv.get("from", "")
-		var cost: int = conv.get("cost", 2)
-		var to_key: String = conv.get("to", "")
-		var gain_val: int = conv.get("gain", 2)
-		var cur_from: int = GameData.get_resource(from_key)
-		if cur_from >= cost:
-			GameData.modify_resource(from_key, -cost)
-			GameData.modify_resource(to_key, gain_val)
-			m._vfx.action_banner(conv.get("label", "资源转化"),
-				GameTheme.info, 0.8)
-	_resume_after_conversion()
-
-## 玩家取消转化: 跳过资源交换, 继续翻牌后续流程
-func on_conversion_cancelled() -> void:
-	_resume_after_conversion()
-
-## 恢复翻牌后续流程 (转化确认/取消后共用)
-func _resume_after_conversion() -> void:
-	var card: Card = _pending_conv_card
-	var row: int = _pending_conv_row
-	var col: int = _pending_conv_col
-	_pending_conv = {}
-	_pending_conv_card = null
-	_pending_conv_row = -1
-	_pending_conv_col = -1
-	if card:
-		_continue_after_conversion(card, row, col)
-	else:
-		GameData.set_demo_state("ready")
-		m._camera_button.show_button()
-
 # =========================================================================
 # 弹窗关闭回调
 # =========================================================================
@@ -527,6 +496,7 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 	GameData.set_demo_state("photographing")
 	m._camera_button.exit_camera_mode()
 	m.token.set_emotion("determined")
+	AudioManager.play_sfx("card_flip")
 
 	# 快门闪光
 	m._vfx.screen_flash(Color.WHITE, 0.5)
@@ -670,6 +640,7 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 
 	GameData.photos_used += 1
 	GameData.monsters_slain += 1
+	AudioManager.play_sfx("ghost_encounter")
 
 	GameData.set_demo_state("exorcising")
 	m._camera_button.exit_camera_mode()
@@ -728,6 +699,8 @@ func handle_inventory_exorcism() -> void:
 		return
 
 	if card.is_flipped and card.type == "monster":
+		# Phase 5: 使用道具 → 触发里程碑 hook
+		MilestoneManager.try_trigger("use_item")
 		_do_exorcise(card, row, col, true)
 	else:
 		GameData.add_item("exorcism")
@@ -735,3 +708,287 @@ func handle_inventory_exorcism() -> void:
 			m._vfx.action_banner("需要先翻开卡牌!", Color(0.86, 0.63, 0.31), 0.7)
 		else:
 			m._vfx.action_banner("当前格子没有怪物", Color(0.7, 0.7, 0.7), 0.6)
+
+# =========================================================================
+# Phase 5: 故事事件 + NPC 对话辅助方法
+# =========================================================================
+
+## 尝试触发 StoryEventManager 故事事件 (plot/clue 翻牌时优先调用)
+## 返回 true 表示事件已匹配并正在走对话流程; false 表示无匹配, 交由下级处理
+func _try_story_event(card: Card, card_type: String, _row: int, _col: int) -> bool:
+	var sem: StoryEventManager = m.game_flow.story_event_mgr
+	if sem == null:
+		return false
+
+	var event = sem.query_event(card_type)
+	if event == null:
+		return false
+
+	# 触发事件 (设置 onceFlag)
+	event = sem.trigger_event(event)
+
+	# 通过 game_flow 信号委托 main.gd 展示对话
+	# 对话完成后应用效果 (碎片收集、里程碑 hook 等)
+	m.game_flow.event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
+		var result: Dictionary = sem.on_event_complete(event, chosen_id)
+
+		# 碎片收集通知
+		if result.get("is_new_fragment", false):
+			m._vfx.action_banner("获得记忆碎片: %s" % result.get("fragment_name", ""),
+				Color(0.6, 0.4, 0.9), 1.0)
+
+		# 线索收集通知
+		if result.get("is_new_clue", false):
+			m._vfx.action_banner("获得线索: %s" % result.get("clue_name", ""),
+				Color(0.5, 0.8, 0.6), 1.0)
+	)
+
+	AudioManager.play_sfx("story_event")
+	print("[CardInteraction] StoryEvent '%s' triggered for %s card" % [
+		event.get("id", ""), card_type])
+	return true
+
+## NPC 同格对话: 到达已翻开格子时, 检查是否有 NPC 并触发对话
+func _try_npc_dialogue(row: int, col: int) -> void:
+	var npc_mgr: NPCManager = m.game_flow.npc_manager
+	if npc_mgr == null:
+		return
+
+	var npc: NPCManager.NPCData = npc_mgr.get_npc_at(row, col)
+	if npc == null:
+		return
+
+	# 获取随机对话组
+	var lines: Array = npc_mgr.get_random_dialogue(npc.id)
+	if lines.is_empty():
+		return
+
+	print("[CardInteraction] NPC dialogue triggered: %s at (%d,%d)" % [npc.npc_name, row, col])
+	AudioManager.play_sfx("npc_talk")
+
+	# 通过对话系统展示 NPC 对话
+	GameData.set_demo_state("popup")
+	m.token.set_emotion("surprised")
+
+	# 构建对话 + 选项数据, 委托对话系统
+	if m._dialogue_system:
+		m._dialogue_system.start(
+			lines,
+			npc.tex_path,
+			func() -> void:
+				# 对话结束: 检查最后一行是否有 choice action
+				var last_line: Dictionary = lines[lines.size() - 1] if lines.size() > 0 else {}
+				var choices: Array = last_line.get("choices", [])
+
+				# 如果有选项, 对话系统已处理; 这里只需恢复状态
+				m.token.set_emotion("default")
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+		)
+
+# =========================================================================
+# Phase 5: BFS 自动寻路
+# =========================================================================
+
+## BFS 寻找从 (sr,sc) 到 (er,ec) 的最短路径 (沿已翻开卡牌)
+## 中间格子必须 is_flipped; 目标格子无此限制 (到达后会自动翻面)
+## 返回路径数组 [{row, col}, ...] (不含起点, 含终点), 空数组表示不可达
+func _find_path(sr: int, sc: int, er: int, ec: int) -> Array:
+	var board: Board = m.board
+	var dirs: Array = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+
+	# key 函数: 5x5 棋盘, r*10+c 保证唯一
+	var visited: Dictionary = {}
+	var parent: Dictionary = {}
+	var queue: Array = []
+
+	var start_key: int = sr * 10 + sc
+	visited[start_key] = true
+	queue.append([sr, sc])
+	var head: int = 0
+
+	while head < queue.size():
+		var cr: int = queue[head][0]
+		var cc: int = queue[head][1]
+		head += 1
+
+		for d in dirs:
+			var nr: int = cr + d[0]
+			var nc: int = cc + d[1]
+			if nr < 1 or nr > Board.ROWS or nc < 1 or nc > Board.COLS:
+				continue
+			var nk: int = nr * 10 + nc
+			if visited.has(nk):
+				continue
+
+			var card: Card = board.get_card(nr, nc)
+			if card == null:
+				continue
+
+			var is_target: bool = (nr == er and nc == ec)
+			# 中间格子必须已翻开; 目标格子无限制
+			if is_target or card.is_flipped:
+				visited[nk] = true
+				parent[nk] = [cr, cc]
+
+				if is_target:
+					# 回溯重建路径
+					var path: Array = []
+					var pr: int = nr
+					var pc: int = nc
+					while pr != sr or pc != sc:
+						path.insert(0, {"row": pr, "col": pc})
+						var prev: Array = parent[pr * 10 + pc]
+						pr = prev[0]
+						pc = prev[1]
+					return path
+
+				queue.append([nr, nc])
+
+	return []  # 不可达
+
+## 沿 BFS 路径逐步自动行走
+func _execute_auto_walk(path: Array) -> void:
+	GameData.set_demo_state("moving")
+	m.board_visual.mg_clear_surround()
+	m._camera_button.hide_button()
+	m.token.set_emotion("running")
+
+	_walk_step(path, 0)
+
+## 递归执行自动行走的每一步
+func _walk_step(path: Array, step_idx: int) -> void:
+	var step: Dictionary = path[step_idx]
+	var row: int = step["row"]
+	var col: int = step["col"]
+	var is_last: bool = (step_idx == path.size() - 1)
+
+	_steps_today += 1
+	m.token.target_row = row
+	m.token.target_col = col
+
+	m.board_visual.animate_token_move(row, col, func():
+		# 道具拾取
+		m.game_flow.try_collect_item(row, col)
+
+		if is_last:
+			# 最后一步: 翻牌或恢复状态
+			var arrived_card: Card = m.board.get_card(row, col)
+			if arrived_card and not arrived_card.is_flipped and not arrived_card.is_flipping:
+				GameData.set_demo_state("flipping")
+				m.board.flip_card(row, col)
+				arrived_card.is_flipping = true
+				m.board_visual.play_flip_animation(row, col, func():
+					arrived_card.is_flipping = false
+					m.board_visual.update_card_visual(row, col)
+					_on_card_flipped(arrived_card, row, col)
+				)
+			else:
+				# 已翻开格子: 检查日程到达 + NPC 对话
+				if arrived_card and arrived_card.is_flipped and arrived_card.location != "":
+					var completed: Dictionary = m.card_manager.complete_schedule_at(arrived_card.location)
+					if not completed.is_empty():
+						var reward: Array = completed.get("reward", [])
+						if reward.size() >= 2:
+							GameData.modify_resource(reward[0], reward[1])
+							m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
+								Color(0.4, 0.8, 0.5), 0.8)
+				_try_npc_dialogue(row, col)
+				m.token.set_emotion("default")
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+		else:
+			# 中间步: 检查日程到达, 然后继续下一步
+			var mid_card: Card = m.board.get_card(row, col)
+			if mid_card and mid_card.is_flipped and mid_card.location != "":
+				var completed: Dictionary = m.card_manager.complete_schedule_at(mid_card.location)
+				if not completed.is_empty():
+					var reward: Array = completed.get("reward", [])
+					if reward.size() >= 2:
+						GameData.modify_resource(reward[0], reward[1])
+						m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
+							Color(0.4, 0.8, 0.5), 0.8)
+			_walk_step(path, step_idx + 1)
+	)
+
+# =========================================================================
+# Phase 5: 兑换事件 (hospital/park/gym)
+# =========================================================================
+
+## 兑换配置: location → {icon, title, desc, cost_res, cost_amt, gain_res, gain_amt, accent}
+const CONVERSION_CONFIG: Dictionary = {
+	"hospital": {
+		"icon": "🏥", "title": "医院 · 心理诊疗",
+		"desc": "消耗 2 健康 → 恢复 2 理智?",
+		"cost_res": "health", "cost_amt": 2,
+		"gain_res": "san", "gain_amt": 2,
+		"accent": Color(0.39, 0.71, 0.86),
+	},
+	"park": {
+		"icon": "🌳", "title": "公园 · 散步疗愈",
+		"desc": "消耗 2 理智 → 恢复 2 健康?",
+		"cost_res": "san", "cost_amt": 2,
+		"gain_res": "health", "gain_amt": 2,
+		"accent": Color(0.39, 0.75, 0.51),
+	},
+	"gym": {
+		"icon": "🏋️", "title": "健身房 · 体能训练",
+		"desc": "消耗 2 理智 → 恢复 2 健康?",
+		"cost_res": "san", "cost_amt": 2,
+		"gain_res": "health", "gain_amt": 2,
+		"accent": Color(0.86, 0.63, 0.31),
+	},
+}
+
+## 尝试触发兑换事件 (safe 牌着陆时, 30% 概率)
+## 返回 true 表示弹出了兑换确认; false 表示未触发
+func _try_conversion_event(location: String) -> bool:
+	if not CONVERSION_CONFIG.has(location):
+		return false
+
+	# 30% 概率门
+	if randf() > 0.30:
+		return false
+
+	var cfg: Dictionary = CONVERSION_CONFIG[location]
+
+	# 资源不足检查
+	if GameData.get_resource(cfg["cost_res"]) < cfg["cost_amt"]:
+		return false
+
+	print("[CardInteraction] Conversion event triggered at %s" % location)
+
+	# 显示确认弹窗 (通过 event_popup 委托给 rift_popup)
+	GameData.set_demo_state("popup")
+	m._camera_button.hide_button()
+
+	var popup: RiftPopup = m._event_popup.show_custom_confirm(
+		cfg["icon"], cfg["title"], cfg["desc"], "接受", "拒绝", cfg["accent"])
+	if popup == null:
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
+		return false
+
+	# 一次性信号连接: 确认
+	var on_confirm: Callable
+	var on_cancel: Callable
+	on_confirm = func():
+		popup.rift_cancelled.disconnect(on_cancel)
+		GameData.modify_resource(cfg["cost_res"], -cfg["cost_amt"])
+		GameData.modify_resource(cfg["gain_res"], cfg["gain_amt"])
+		m._vfx.action_banner("%s %s +%d" % [cfg["icon"], cfg["gain_res"], cfg["gain_amt"]],
+			cfg["accent"], 0.8)
+		m.token.set_emotion("happy")
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
+
+	on_cancel = func():
+		popup.rift_confirmed.disconnect(on_confirm)
+		m.token.set_emotion("default")
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
+
+	popup.rift_confirmed.connect(on_confirm, CONNECT_ONE_SHOT)
+	popup.rift_cancelled.connect(on_cancel, CONNECT_ONE_SHOT)
+
+	return true

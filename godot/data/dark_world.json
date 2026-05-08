@@ -1,7 +1,7 @@
 {
-	"$schema_comment": "暗面世界配置 — 层级、地点池、NPC、幽灵、层生成参数",
+	"$schema_comment": "暗面世界配置 — 层级、地点池、NPC、幽灵、层生成参数、碎片掉落、精英/Boss、道具奖池",
 	"constants": {
-		"energy_from_san": true,
+		"max_energy": 10,
 		"ghost_san_damage": 2,
 		"ghost_chase_dist": 2,
 		"ghost_count": [2, 3, 2]
@@ -23,18 +23,100 @@
 			"unlock_fragments": 1
 		}
 	],
-	"item_reward_pool": [
-		{ "resource": "san",         "amount": 3,  "weight": 2 },
-		{ "resource": "san",         "amount": 5,  "weight": 1 },
-		{ "resource": "money",       "amount": 15, "weight": 2 },
-		{ "resource": "money",       "amount": 25, "weight": 1 },
-		{ "resource": "film",        "amount": 1,  "weight": 2 },
-		{ "resource": "inspiration", "amount": 3,  "weight": 2 },
-		{ "resource": "inspiration", "amount": 5,  "weight": 1 },
-		{ "resource": "health",      "amount": 2,  "weight": 1 },
-		{ "resource": "sanMax",      "amount": 1,  "weight": 0.5 },
-		{ "resource": "healthMax",   "amount": 1,  "weight": 0.5 }
+
+	"fragment_drops": [
+		{ "min_frags": 0, "layer_min": 1, "frag_id": "frag_02", "flag": "dark_frag_02" },
+		{ "min_frags": 2, "layer_min": 2, "frag_id": "frag_06", "flag": "dark_frag_06" },
+		{ "min_frags": 5, "layer_min": 2, "frag_id": "frag_07", "flag": "dark_frag_07" },
+		{ "min_frags": 7, "layer_min": 3, "frag_id": "frag_08", "flag": "dark_frag_08" },
+		{ "min_frags": 8, "layer_min": 3, "frag_id": "frag_09", "flag": "dark_frag_09" }
 	],
+
+	"elite_encounter": {
+		"_comment": "精英守卫遭遇 — 满足条件时在暗面探索中触发",
+		"conditions": {
+			"min_fragments": 4,
+			"requires_baiye_follow": true,
+			"requires_clue_card": true,
+			"not_flag": "elite_defeated"
+		},
+		"dialogue": [
+			{ "speaker": "???", "text": "一个巨大的影子挡住了去路……它似乎在守护着什么。" },
+			{ "speaker": "白夜", "text": "……它认出我了。那是深渊的守门者。" },
+			{ "speaker": "白夜", "text": "如果你愿意的话……我可以用这张线索卡换取通行权。但代价是你所有的力量。" }
+		],
+		"choices": [
+			{
+				"label": "让白夜进行交涉（蜕变）",
+				"effects": {
+					"set_flags": { "elite_defeated": true },
+					"set_power": 0,
+					"add_sleep_days": 3,
+					"add_fragment": "frag_05"
+				},
+				"result_text": "白夜向守门者展示了线索卡，一阵耀眼的光芒之后……你失去了所有力量，但获得了一枚珍贵的碎片。接下来三天你需要休息。"
+			},
+			{
+				"label": "先撤退",
+				"effects": {},
+				"result_text": "你决定暂时撤退，守门者没有追来。"
+			}
+		]
+	},
+
+	"boss_encounter": {
+		"_comment": "深渊Boss遭遇 — 在最深处/深渊核心附近满足条件时触发",
+		"conditions": {
+			"min_fragments": 9,
+			"requires_baiye_follow": true,
+			"requires_abyss_core": true,
+			"not_flag": "boss_defeated"
+		},
+		"dialogue": [
+			{ "speaker": "???", "text": "深渊的核心在脉动……一个不可名状的存在从黑暗中浮现。" },
+			{ "speaker": "白夜", "text": "这就是……记忆的守护者。我们收集的碎片足够了。" },
+			{ "speaker": "白夜", "text": "与它对峙会很危险，但如果成功……所有的记忆都会回来。" }
+		],
+		"choices": [
+			{
+				"label": "与记忆守护者对峙",
+				"effects": {
+					"set_flags": { "boss_defeated": true, "memory_complete": true },
+					"san": -3,
+					"add_fragment": "frag_10"
+				},
+				"result_text": "一场惊心动魄的对峙之后……记忆守护者崩解了。最后一枚碎片落入手中，所有碎片开始共鸣。你失去了3点理智，但所有记忆已经完整。"
+			},
+			{
+				"label": "还没准备好",
+				"effects": {},
+				"result_text": "你后退了一步，深渊的黑暗重新将一切吞没。下次再来吧。"
+			}
+		]
+	},
+
+	"item_reward_pool": {
+		"_comment": "暗面道具格子奖池 — 按权重随机抽取，2个稀有上限提升奖励",
+		"items": [
+			{ "res": "san",         "amt": 5,  "label": "🧠理智+5",      "weight": 2 },
+			{ "res": "san",         "amt": 5,  "label": "🧠理智+5",      "weight": 2 },
+			{ "res": "money",       "amt": 15, "label": "💰金币+15",     "weight": 2 },
+			{ "res": "money",       "amt": 15, "label": "💰金币+15",     "weight": 2 },
+			{ "res": "film",        "amt": 1,  "label": "🎞️胶卷+1",     "weight": 2 },
+			{ "res": "film",        "amt": 1,  "label": "🎞️胶卷+1",     "weight": 2 },
+			{ "res": "inspiration", "amt": 3,  "label": "💡灵感+3",      "weight": 2 },
+			{ "res": "inspiration", "amt": 3,  "label": "💡灵感+3",      "weight": 2 },
+			{ "res": "san_max",     "amt": 2,  "label": "🧠理智上限+2",  "weight": 1, "rare": true },
+			{ "res": "health_max",  "amt": 2,  "label": "❤️健康上限+2",  "weight": 1, "rare": true }
+		]
+	},
+
+	"passage_behavior": {
+		"_comment": "L2双向通道行为说明",
+		"l2_first_passage": "返回L1",
+		"l2_second_passage": "前往L3（深层）"
+	},
+
 	"location_pools": {
 		"0": {
 			"normal": ["锈蚀小巷", "断灯走廊", "裂墙弄堂", "落灰阶梯", "无名死路",

@@ -19,6 +19,8 @@ var _saved_board: Board = null
 ## 保存的现实 token 位置
 var _saved_token_row: int = 0
 var _saved_token_col: int = 0
+## 白夜是否跟随进入暗面 (trust>=3 且 available)
+var _baiye_following: bool = false
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -42,6 +44,17 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		return
 
 	GameData.set_demo_state("transition")
+	AudioManager.play_sfx("dark_world_enter")
+
+	# 判断白夜是否跟随 (trust>=3 且 available)
+	_baiye_following = m._baiye != null and m._baiye.should_show()
+
+	# 里程碑 hook: enter_dark_world
+	var ms_event = MilestoneManager.try_trigger("enter_dark_world")
+	if ms_event != null and m._dialogue_system:
+		m._dialogue_system.start(ms_event.get("dialogue", []), "", func():
+			MilestoneManager.on_event_complete(ms_event)
+		)
 
 	# 清除所有 MonsterGhost chibi (进入暗面前)
 	m.board_visual.mg_clear_all()
@@ -284,11 +297,39 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 		EventHandler.EventType.CLUE:
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
 			_event_handler.execute_event(result, card)
+			# 碎片掉落检查
+			var frag_id: String = m.dark_world.check_fragment_drop(
+				StoryManager.get_fragment_count(), StoryManager.flags)
+			if frag_id != "":
+				var is_new: bool = StoryManager.collect_fragment(frag_id)
+				if is_new:
+					var frag_info: Dictionary = StoryManager.get_fragment_info(frag_id)
+					m._vfx.action_banner("碎片: %s" % frag_info.get("name", frag_id),
+						Color(0.9, 0.7, 0.2), 1.2)
+					# 设置防重复 flag
+					var drops: Array = CardConfig.get_dw_fragment_drops()
+					for drop in drops:
+						if drop.get("frag_id", "") == frag_id:
+							var flag_key: String = drop.get("flag", "")
+							if flag_key != "":
+								StoryManager.set_flag(flag_key)
+							break
+			# 精英遭遇检查 (线索卡触发)
+			if m.dark_world.check_elite_encounter(
+					StoryManager.get_fragment_count(), _baiye_following,
+					true, StoryManager.flags):
+				_trigger_encounter_dialogue(CardConfig.get_dw_elite_encounter())
+				return
 			m.dark_world.set_ready()
 		
 		EventHandler.EventType.ITEM:
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 8, Color(0.8, 0.7, 0.3))
 			_event_handler.execute_event(result, card)
+			# 从奖池额外抽取奖励
+			var reward: Dictionary = m.dark_world.roll_item_reward()
+			if not reward.is_empty():
+				GameData.modify_resource(reward["res"], reward["amt"])
+				m._vfx.action_banner(reward["label"], Color(0.9, 0.8, 0.3), 0.8)
 			m.dark_world.set_ready()
 		
 		EventHandler.EventType.SHOP:
@@ -304,13 +345,35 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 			m.dark_world.set_ready()
 		
 		EventHandler.EventType.PASSAGE:
-			_change_layer(1)  # 默认往 L1 走
+			# L2 双向通道: 根据当前层决定目标
+			var cur_layer: int = m.dark_world.current_layer
+			if cur_layer == 1:
+				# L2 有两个通道: 第一个回 L1, 第二个去 L3
+				# 检查 L3 是否解锁来决定是否提供选择
+				if m.dark_world.is_layer_unlocked(2, m.day_count,
+						StoryManager.get_fragment_count()):
+					# 弹出选择对话框
+					m.dark_world.dark_state = "popup"
+					_show_passage_choice()
+					return
+				else:
+					_change_layer(0)  # L3 未解锁，回 L1
+			elif cur_layer == 0:
+				_change_layer(1)  # L1 → L2
+			else:
+				_change_layer(1)  # L3 → L2
 			m.dark_world.set_ready()
 		
 		EventHandler.EventType.ABYSS_CORE:
 			_event_handler.execute_event(result, card)
 			m._vfx.screen_flash(Color(0.3, 0.1, 0.5, 0.6), 0.5)
 			m._vfx.screen_shake(5.0, 0.3)
+			# Boss 遭遇检查 (深渊核心触发)
+			if m.dark_world.check_boss_encounter(
+					StoryManager.get_fragment_count(), _baiye_following,
+					true, StoryManager.flags):
+				_trigger_encounter_dialogue(CardConfig.get_dw_boss_encounter())
+				return
 			m.dark_world.set_ready()
 		
 		_:
@@ -332,6 +395,85 @@ func _show_dark_toast(dark_type: String, effects: Dictionary) -> void:
 		.set_icon(dark_info.get("icon", "🌑")) \
 		.set_effects(effects)
 	m._event_popup.show_toast(toast)
+
+# ---------------------------------------------------------------------------
+# 精英/Boss 遭遇对话
+# ---------------------------------------------------------------------------
+
+## 触发精英或 Boss 遭遇对话 (带选择)
+## encounter_data: CardConfig.get_dw_elite_encounter() 或 get_dw_boss_encounter()
+func _trigger_encounter_dialogue(encounter_data: Dictionary) -> void:
+	var dialogue: Array = encounter_data.get("dialogue", [])
+	var choices: Array = encounter_data.get("choices", [])
+
+	if dialogue.is_empty():
+		m.dark_world.set_ready()
+		return
+
+	m.dark_world.dark_state = "popup"
+
+	# 播放对话 → 完成后展示选择
+	m._dialogue_system.start(dialogue, "", func():
+		if choices.is_empty():
+			m.dark_world.set_ready()
+			return
+		# 构建选择按钮
+		var choice_labels: Array = []
+		for ch in choices:
+			choice_labels.append(ch.get("label", "..."))
+		m._event_popup.show_choice(choice_labels, func(idx: int):
+			var chosen: Dictionary = choices[idx] if idx < choices.size() else {}
+			var effects: Dictionary = chosen.get("effects", {})
+			var result_text: String = chosen.get("result_text", "")
+			# 应用效果
+			_apply_encounter_effects(effects)
+			# 显示结果文本
+			if result_text != "":
+				m._vfx.action_banner(result_text, Color(0.8, 0.7, 0.4), 1.5)
+			m.dark_world.set_ready()
+		)
+	)
+
+## 应用遭遇选择效果
+func _apply_encounter_effects(effects: Dictionary) -> void:
+	# set_flags: { "elite_defeated": true, ... }
+	var set_flags: Dictionary = effects.get("set_flags", {})
+	for flag_key in set_flags:
+		StoryManager.set_flag(flag_key, set_flags[flag_key])
+
+	# 资源修改
+	if effects.has("san"):
+		GameData.modify_resource("san", int(effects["san"]))
+	if effects.has("set_power"):
+		GameData.set_resource("power", int(effects["set_power"]))
+
+	# 强制休息天数
+	if effects.has("add_sleep_days"):
+		GameData.modify_resource("sleep_days", int(effects["add_sleep_days"]))
+
+	# 碎片奖励
+	if effects.has("add_fragment"):
+		var frag: String = effects["add_fragment"]
+		var is_new: bool = StoryManager.collect_fragment(frag)
+		if is_new:
+			var info: Dictionary = StoryManager.get_fragment_info(frag)
+			m._vfx.action_banner("获得碎片: %s" % info.get("name", frag),
+				Color(0.9, 0.7, 0.2), 1.2)
+
+# ---------------------------------------------------------------------------
+# L2 双向通道选择
+# ---------------------------------------------------------------------------
+
+## 在 L2 层展示通道方向选择
+func _show_passage_choice() -> void:
+	var labels: Array = ["返回 表层·暗巷", "前往 深层·暗渊"]
+	m._event_popup.show_choice(labels, func(idx: int):
+		if idx == 0:
+			_change_layer(0)  # → L1
+		else:
+			_change_layer(2)  # → L3
+		m.dark_world.set_ready()
+	)
 
 # ---------------------------------------------------------------------------
 # 幽灵 3D 渲染辅助
@@ -366,6 +508,7 @@ func _process_ghost_collisions(collisions: Array) -> void:
 		_process_single_ghost_collision(ghost)
 
 func _process_single_ghost_collision(ghost: DarkWorld.GhostData) -> void:
+	AudioManager.play_sfx("ghost_encounter")
 	GameData.modify_resource("san", CardConfig.get_dw_ghost_san_damage())
 	m._vfx.screen_flash(Color(0.5, 0.1, 0.6, 0.6), 0.3)
 	m._vfx.screen_shake(4.0, 0.2)
@@ -463,8 +606,17 @@ func on_dark_exit_requested() -> void:
 	if m.dark_world.dark_state != "ready":
 		return
 
+	# 里程碑 hook: exit_dark_world
+	var ms_event = MilestoneManager.try_trigger("exit_dark_world")
+	if ms_event != null and m._dialogue_system:
+		m._dialogue_system.start(ms_event.get("dialogue", []), "", func():
+			MilestoneManager.on_event_complete(ms_event)
+		)
+
 	GameData.set_demo_state("transition")
+	AudioManager.play_sfx("dark_world_exit")
 	m.dark_world.begin_exit()
+	_baiye_following = false
 
 	# 隐藏 Token
 	m.token.visible = false

@@ -164,6 +164,15 @@ func show_rift_confirm(cx: float = 0.0, cy: float = 0.0) -> void:
 	if _rift_popup:
 		_rift_popup.show_rift_confirm(cx, cy)
 
+## 委托给 RiftPopup: 自定义确认弹窗 (兑换事件等)
+## 返回 RiftPopup 实例供调用方连接信号, null 表示不可用
+func show_custom_confirm(icon: String, title: String, desc: String,
+		btn_yes: String, btn_no: String, accent: Color) -> RiftPopup:
+	if _rift_popup:
+		_rift_popup.show_custom_confirm(icon, title, desc, btn_yes, btn_no, accent)
+		return _rift_popup as RiftPopup
+	return null
+
 ## 委托给 PhotoPopup
 func show_photo(card: Card) -> void:
 	if _photo_popup:

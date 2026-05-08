@@ -100,8 +100,45 @@ func _ready() -> void:
 # API
 # ---------------------------------------------------------------------------
 
+## 显示自定义确认弹窗 (兑换事件等复用)
+func show_custom_confirm(icon: String, title: String, desc: String,
+		btn_yes: String, btn_no: String, accent: Color) -> void:
+	_icon_label.text = icon
+	_title_label.text = title
+	_desc_label.text = desc
+	_enter_button.text = btn_yes
+	_stay_button.text = btn_no
+	_color_bar.color = accent
+	# 更新确认按钮颜色
+	var enter_style := StyleBoxFlat.new()
+	enter_style.bg_color = Color(accent.r, accent.g, accent.b, 0.86)
+	enter_style.set_corner_radius_all(4)
+	enter_style.set_content_margin_all(4)
+	_enter_button.add_theme_stylebox_override("normal", enter_style)
+	var enter_hover := enter_style.duplicate()
+	enter_hover.bg_color = accent.lightened(0.15)
+	_enter_button.add_theme_stylebox_override("hover", enter_hover)
+	show_rift_confirm()
+
 ## 显示裂隙确认弹窗
 func show_rift_confirm(_cx: float = 0.0, _cy: float = 0.0) -> void:
+	# 恢复默认裂隙文案 (防止 show_custom_confirm 残留)
+	_icon_label.text = "🌀"
+	_title_label.text = "发现空间裂隙"
+	_desc_label.text = "是否进入暗面世界?"
+	_enter_button.text = "进入暗面"
+	_stay_button.text = "留在原地"
+	_color_bar.color = GameTheme.dark_accent
+	# 恢复按钮样式
+	var enter_style := StyleBoxFlat.new()
+	enter_style.bg_color = Color(GameTheme.dark_accent.r, GameTheme.dark_accent.g, GameTheme.dark_accent.b, 0.86)
+	enter_style.set_corner_radius_all(4)
+	enter_style.set_content_margin_all(4)
+	_enter_button.add_theme_stylebox_override("normal", enter_style)
+	var enter_hover := enter_style.duplicate()
+	enter_hover.bg_color = GameTheme.lighten(GameTheme.dark_accent, 0.15)
+	_enter_button.add_theme_stylebox_override("hover", enter_hover)
+
 	_active = true
 	_phase = "enter"
 	visible = true
