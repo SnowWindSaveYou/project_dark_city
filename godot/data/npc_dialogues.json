@@ -38,6 +38,7 @@
 		"fangdong": {
 			"name": "房东",
 			"tex_path": "res://assets/image/怪物_无脸商人_20260426071011.png",
+			"sprite_scale": 1.0,
 			"daily_cooldown": true,
 			"dialogues": [
 				{

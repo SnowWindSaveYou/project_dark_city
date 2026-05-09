@@ -61,6 +61,7 @@ func generate_board() -> void:
 
 ## 启动发牌 → 横幅 → 螺旋飞牌 → _on_deal_complete
 func start_deal() -> void:
+	print("[GameFlow] start_deal: day=%d, demo_state=%s" % [m.day_count, GameData.demo_state])
 	GameData.current_day = m.day_count
 	GameData.set_demo_state("dealing")
 	# 每日氛围重置 (匹配 Lua: dayStartRevealed = cardsRevealed)
@@ -255,6 +256,7 @@ func advance_day() -> void:
 
 ## 日期过渡完成回调 (由 main.gd 信号桥接)
 func on_date_transition_complete() -> void:
+	print("[GameFlow] on_date_transition_complete: day=%d, demo_state=%s" % [m.day_count, GameData.demo_state])
 	# ① 故事 Tick: 白夜沉睡递减 + 章节推进
 	StoryManager.advance_baiye_sleep()
 	StoryManager.update_chapter_by_day()
@@ -268,9 +270,11 @@ func on_date_transition_complete() -> void:
 ## 晨间事件检查
 func _try_morning_event() -> void:
 	var event = story_event_mgr.query_morning_event()
+	print("[GameFlow] _try_morning_event: event=%s" % ("null" if event == null else event.get("id", "?")))
 	if event != null:
 		event = story_event_mgr.trigger_morning_event(event)
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
+			print("[GameFlow] morning event on_complete called, chosen='%s'" % chosen_id)
 			story_event_mgr.on_morning_event_complete(event, chosen_id)
 			_try_milestone_chain()
 		)
@@ -279,6 +283,7 @@ func _try_morning_event() -> void:
 
 ## 里程碑链: baiye_return → chapter_enter → resource_low → 开始新一天
 func _try_milestone_chain() -> void:
+	print("[GameFlow] _try_milestone_chain entered")
 	_try_milestone("baiye_return", func() -> void:
 		_try_milestone("chapter_enter", func() -> void:
 			_try_milestone("resource_low", func() -> void:
@@ -290,6 +295,7 @@ func _try_milestone_chain() -> void:
 ## 尝试触发单个里程碑; 有对话则显示后回调, 否则直接回调
 func _try_milestone(hook_id: String, on_done: Callable) -> void:
 	var event = MilestoneManager.try_trigger(hook_id)
+	print("[GameFlow] _try_milestone '%s': event=%s" % [hook_id, "null" if event == null else event.get("id", "?")])
 	if event != null:
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
 			MilestoneManager.on_event_complete(event, chosen_id)
@@ -300,6 +306,7 @@ func _try_milestone(hook_id: String, on_done: Callable) -> void:
 
 ## 晨间链完毕, 真正开始新一天
 func _begin_new_day() -> void:
+	print("[GameFlow] _begin_new_day: day=%d, demo_state=%s" % [m.day_count, GameData.demo_state])
 	# Phase 5: 重置每日步数
 	m.card_interaction.reset_daily_steps()
 	m.board = Board.new()
