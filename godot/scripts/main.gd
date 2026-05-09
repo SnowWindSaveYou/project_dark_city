@@ -522,8 +522,8 @@ func _on_debug_action(action_id: String) -> void:
 func _on_event_dialogue_requested(event: Dictionary, on_complete: Callable) -> void:
 	var dialogue: Array = event.get("dialogue", [])
 	var portrait_path: String = event.get("portrait", "")
-	if dialogue.is_empty():
-		# 无台词直接回调
+	if dialogue.is_empty() or _dialogue_system.state != "idle":
+		# 无台词 或 对话系统忙碌 → 直接回调, 避免链断裂
 		on_complete.call("")
 		return
 	_dialogue_system.start(dialogue, portrait_path, func() -> void:
