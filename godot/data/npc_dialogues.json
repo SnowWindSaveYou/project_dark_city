@@ -20,7 +20,7 @@
 	"npcs": {
 		"qinxin": {
 			"name": "琴馨",
-			"tex_path": "image/怪物_面具使v2_20260426072832.png",
+			"tex_path": "res://assets/image/怪物_面具使v2_20260426072832.png",
 			"sprite_scale": 0.7,
 			"dialogues": [
 				{
@@ -37,7 +37,7 @@
 
 		"fangdong": {
 			"name": "房东",
-			"tex_path": "image/npc_房东_chibi_20260507035549.png",
+			"tex_path": "res://assets/image/怪物_无脸商人_20260426071011.png",
 			"daily_cooldown": true,
 			"dialogues": [
 				{
@@ -109,7 +109,7 @@
 
 		"cat": {
 			"name": "猫",
-			"tex_path": "image/npc_猫咪_自然_20260507040343.png",
+			"tex_path": "res://assets/image/怪物_双尾猫妖v3_20260426071805.png",
 			"sprite_scale": 0.5,
 			"daily_cooldown": true,
 			"dialogues": [

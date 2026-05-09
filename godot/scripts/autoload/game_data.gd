@@ -42,6 +42,10 @@ var photos_used: int = 0
 ## 道具栏 { "coffee": 2, "shield": 1, ... }
 var inventory: Dictionary[String, int] = {}
 
+## 步数追踪 (health = 每日最大步数, 由 card_interaction 维护)
+var steps_remaining: int = 0
+var steps_total: int = 0
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------

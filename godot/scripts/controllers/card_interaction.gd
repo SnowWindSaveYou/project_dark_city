@@ -29,6 +29,13 @@ func setup(main_ref) -> void:
 ## Phase 5: 每日重置步数 (由 game_flow 在新一天开始时调用)
 func reset_daily_steps() -> void:
 	_steps_today = 0
+	_sync_steps_to_gamedata()
+
+## 将步数状态同步到 GameData，供 resource_bar_scene UI 读取
+func _sync_steps_to_gamedata() -> void:
+	var max_steps: int = GameData.get_resource("health")
+	GameData.steps_total = max_steps
+	GameData.steps_remaining = max_steps - _steps_today
 
 # =========================================================================
 # 普通模式卡牌交互
@@ -118,6 +125,7 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 
 	# Phase 5: 计步
 	_steps_today += 1
+	_sync_steps_to_gamedata()
 
 	m.board_visual.animate_token_move(row, col, func():
 		# 道具拾取 (到达后才触发, 而非移动开始时)
@@ -864,6 +872,7 @@ func _walk_step(path: Array, step_idx: int) -> void:
 	var is_last: bool = (step_idx == path.size() - 1)
 
 	_steps_today += 1
+	_sync_steps_to_gamedata()
 	m.token.target_row = row
 	m.token.target_col = col
 
