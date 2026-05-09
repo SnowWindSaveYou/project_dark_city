@@ -1025,6 +1025,7 @@ func create_npc_nodes(npcs_dict: Dictionary) -> void:
 	for npc in npcs_dict.values():
 		var tex: Texture2D = load(npc.tex_path)
 		if not tex:
+			push_warning("[BoardVisual] NPC '%s' 贴图加载失败: %s" % [npc.id, npc.tex_path])
 			i += 1
 			continue
 		var sprite: Sprite3D = Sprite3D.new()

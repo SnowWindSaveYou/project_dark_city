@@ -109,6 +109,8 @@ func _load_data() -> void:
 	_loaded = true
 	print("[NPCManager] Loaded %d NPC types, %d action configs" % [
 		_npc_types.size(), _action_config.size()])
+	for npc_id in _npc_types:
+		print("[NPCManager]   %s → tex_path=%s" % [npc_id, _npc_types[npc_id].get("tex_path", "")])
 
 # ---------------------------------------------------------------------------
 # Board 引用

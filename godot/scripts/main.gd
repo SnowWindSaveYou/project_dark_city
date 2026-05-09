@@ -457,6 +457,9 @@ func _connect_signals() -> void:
 	if _debug_panel:
 		_debug_panel.debug_action.connect(_on_debug_action)
 
+	# 故事/晨间/里程碑事件对话 (game_flow 触发, 由 DialogueSystem 呈现)
+	game_flow.event_dialogue_requested.connect(_on_event_dialogue_requested)
+
 # =========================================================================
 # 信号回调
 # =========================================================================
@@ -512,6 +515,20 @@ func _on_debug_action(action_id: String) -> void:
 			if GameData.demo_state == "ready":
 				game_flow.advance_day()
 	print("[Debug] action: %s" % action_id)
+
+## 故事/晨间/里程碑事件对话请求
+## event: 含 dialogue(Array) 和 portrait(String) 的事件数据
+## on_complete: 对话结束后回调, 参数为 chosen_choice_id (无选择时传 "")
+func _on_event_dialogue_requested(event: Dictionary, on_complete: Callable) -> void:
+	var dialogue: Array = event.get("dialogue", [])
+	var portrait_path: String = event.get("portrait", "")
+	if dialogue.is_empty():
+		# 无台词直接回调
+		on_complete.call("")
+		return
+	_dialogue_system.start(dialogue, portrait_path, func() -> void:
+		on_complete.call("")
+	)
 
 func _on_photograph_request() -> void:
 	if GameData.demo_state != "ready":
