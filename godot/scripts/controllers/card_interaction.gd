@@ -765,13 +765,6 @@ func handle_npc_click(row: int, col: int) -> void:
 	if npc == null:
 		return
 
-	# 每日冷却检查: 已用过则展示提示后返回
-	if npc_mgr.is_used_today(npc.id):
-		print("[CardInteraction] NPC %s already used today, skipping." % npc.id)
-		if m._vfx:
-			m._vfx.action_banner("今天已经聊过啦~", GameTheme.text_secondary, 1.5)
-		return
-
 	# 获取随机对话组
 	var lines: Array = npc_mgr.get_random_dialogue(npc.id)
 	if lines.is_empty():
