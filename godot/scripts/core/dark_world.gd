@@ -46,17 +46,6 @@ class GhostData:
 	var screen_y: float = 0.0
 
 # ---------------------------------------------------------------------------
-# NPC 数据 (暗面世界专属, 不同于 NPCManager 的现实 NPC)
-# ---------------------------------------------------------------------------
-
-class DarkNPCData:
-	var id: String
-	var npc_name: String
-	var row: int
-	var col: int
-	var tex_path: String
-	var dialogue: Array  # Array of { "speaker": String, "text": String }
-
 # ---------------------------------------------------------------------------
 # 层级数据
 # ---------------------------------------------------------------------------
@@ -67,7 +56,7 @@ class LayerData:
 	var generated: bool = false
 	var walkable: Dictionary = {}  # "row,col" → bool
 	var ghosts: Array = []    # Array of GhostData
-	var npcs: Array = []      # Array of DarkNPCData
+	## NPC 由 NPCManager 统一管理，此处不再单独存储
 	var player_row: int = 2   # 0-based (对应 Board 中心 3行/3列)
 	var player_col: int = 2
 	var energy: int = DEFAULT_MAX_ENERGY
@@ -82,6 +71,9 @@ class LayerData:
 var active: bool = false
 var current_layer: int = 0        # 0-based 内部索引
 var layers: Array = []            # Array[LayerData] x3
+
+## 共享 NPCManager 引用（由外部注入，暗面和现实共用同一 manager）
+var _npc_manager: NPCManager = null
 var energy_flash: float = 0.0
 
 ## 暗面子状态: "idle" | "ready" | "moving" | "popup" | "transition"
@@ -220,9 +212,9 @@ func generate_ghosts(layer_idx: int) -> void:
 		gd.float_phase = randf() * TAU
 		layer.ghosts.append(gd)
 
-## 为指定层生成 NPC 数据
+## 为指定层生成 NPC 数据，统一存入 npc_manager
 ## 配置来源: CardConfig.get_dw_npcs() → dark_world.json → npcs
-func generate_npcs(layer_idx: int) -> void:
+func generate_npcs(layer_idx: int, npc_manager: NPCManager) -> void:
 	var layer: LayerData = layers[layer_idx]
 	var npc_defs: Array = CardConfig.get_dw_npcs(layer_idx)
 
@@ -236,41 +228,43 @@ func generate_npcs(layer_idx: int) -> void:
 				walkable_pos.append(Vector2i(r, c))
 	walkable_pos.shuffle()
 
-	layer.npcs.clear()
 	for i in range(npc_defs.size()):
 		if i >= walkable_pos.size():
 			break
 		var def: Dictionary = npc_defs[i]
-		var npc: DarkNPCData = DarkNPCData.new()
-		npc.id = def["id"]
-		npc.npc_name = def["name"]
-		npc.row = walkable_pos[i].x
-		npc.col = walkable_pos[i].y
-		npc.tex_path = def["tex"]
-		npc.dialogue = def["dialogue"]
-		layer.npcs.append(npc)
+		var npc_id: String = def["id"]
+		# 注册类型（对话包装成 dialogues 多组格式）
+		npc_manager._npc_types[npc_id] = {
+			"name": def["name"],
+			"tex_path": def["tex"],
+			"dialogues": [def["dialogue"]],
+			"sprite_scale": 1.0,
+		}
+		npc_manager.spawn_npc(npc_id, walkable_pos[i].x, walkable_pos[i].y)
 
 ## 一次性生成幽灵 + NPC + 标记 generated
 func generate_overlay_data(layer_idx: int) -> void:
 	generate_ghosts(layer_idx)
-	generate_npcs(layer_idx)
+	generate_npcs(layer_idx, _npc_manager)
 	layers[layer_idx].generated = true
 
-## 查询指定格子 (0-based) 是否有暗面 NPC
+## 查询指定格子 (0-based) 是否有暗面 NPC，委托给 npc_manager
 ## 返回 { id, name, dialogue, tex } 或 {} (空字典)
 func get_npc_at(row: int, col: int) -> Dictionary:
-	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
+	if _npc_manager == null:
 		return {}
-	var layer: LayerData = layers[current_layer]
-	for npc in layer.npcs:
-		if npc.row == row and npc.col == col:
-			return {
-				"id": npc.id,
-				"name": npc.npc_name,
-				"dialogue": npc.dialogue,
-				"tex": npc.tex_path,
-			}
-	return {}
+	var npc: NPCManager.NPCData = _npc_manager.get_npc_at(row, col)
+	if npc == null:
+		return {}
+	var type_cfg: Dictionary = _npc_manager._npc_types.get(npc.id, {})
+	var dialogues: Array = type_cfg.get("dialogues", [])
+	var dialogue: Array = dialogues[0] if dialogues.size() > 0 else []
+	return {
+		"id": npc.id,
+		"name": npc.npc_name,
+		"dialogue": dialogue,
+		"tex": npc.tex_path,
+	}
 
 # ---------------------------------------------------------------------------
 # 幽灵 AI

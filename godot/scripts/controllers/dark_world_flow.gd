@@ -21,6 +21,8 @@ var _saved_token_row: int = 0
 var _saved_token_col: int = 0
 ## 白夜是否跟随进入暗面 (trust>=3 且 available)
 var _baiye_following: bool = false
+## 保存的现实 NPC 快照 (进入暗面时保存, 退出时恢复)
+var _saved_real_npcs: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -128,10 +130,17 @@ func _generate_dark_board() -> void:
 				var key: String = "%d,%d" % [r, c]
 				layer_data.walkable[key] = walkable[r][c]
 
-		# 生成幽灵和 NPC
+		# 生成幽灵和 NPC (进入暗面前快照并清除现实 NPC，注入共享 manager)
+		_saved_real_npcs = m.game_flow.npc_manager.npcs.duplicate()
+		m.game_flow.npc_manager.clear()
+		m.dark_world._npc_manager = m.game_flow.npc_manager
 		m.dark_world.generate_overlay_data(layer_idx)
 	else:
-		# 层已生成, 复用已有数据重建 Board
+		# 层已生成, 复用已有数据重建 Board (确保 npc_manager 注入)
+		_saved_real_npcs = m.game_flow.npc_manager.npcs.duplicate()
+		m.game_flow.npc_manager.clear()
+		m.dark_world._npc_manager = m.game_flow.npc_manager
+		m.dark_world.generate_npcs(layer_idx, m.game_flow.npc_manager)
 		m.board = Board.new()
 		var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
 		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
@@ -166,7 +175,7 @@ func _on_dark_deal_complete() -> void:
 
 	# 创建幽灵 & NPC 3D 节点
 	m.board_visual.create_ghost_nodes(layer_data.ghosts)
-	m.board_visual.create_npc_nodes(layer_data.npcs)
+	m.board_visual.create_npc_nodes(m.game_flow.npc_manager.npcs)
 
 	# 翻开玩家所在卡牌
 	var entry_card: Card = m.board.get_card(pr, pc)
@@ -632,6 +641,14 @@ func on_dark_exit_requested() -> void:
 		m.board = _saved_board
 		_saved_board = null
 		m.board_visual.rebuild_card_nodes()
+
+		# 恢复现实 NPC 数据 & 节点
+		m.game_flow.npc_manager.npcs.clear()
+		for npc_id: String in _saved_real_npcs:
+			m.game_flow.npc_manager.npcs[npc_id] = _saved_real_npcs[npc_id]
+		_saved_real_npcs = {}
+		if not m.game_flow.npc_manager.npcs.is_empty():
+			m.board_visual.create_npc_nodes(m.game_flow.npc_manager.npcs)
 
 		# UI 切回正常模式
 		m._resource_bar.set_dark_mode(false)

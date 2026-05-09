@@ -1018,15 +1018,17 @@ const NPC_OFFSET_X: float = 0.15  # Lua DarkWorld: wx + 0.15
 const NPC_BREATHE_SPEED: float = 2.0
 const NPC_BREATHE_AMP: float = 0.02
 
-func create_npc_nodes(npcs: Array) -> void:
+## npcs_dict: NPCManager.npcs (id → NPCManager.NPCData)
+func create_npc_nodes(npcs_dict: Dictionary) -> void:
 	destroy_npc_nodes()
-	for i in range(npcs.size()):
-		var npc: DarkWorld.DarkNPCData = npcs[i]
+	var i: int = 0
+	for npc in npcs_dict.values():
 		var tex: Texture2D = load(npc.tex_path)
 		if not tex:
+			i += 1
 			continue
 		var sprite: Sprite3D = Sprite3D.new()
-		sprite.name = "DarkNPC_%s" % npc.id
+		sprite.name = "NPC_%s" % npc.id
 		sprite.texture = tex
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.transparent = true
@@ -1035,13 +1037,15 @@ func create_npc_nodes(npcs: Array) -> void:
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 		sprite.alpha_scissor_threshold = 0.5
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
-		sprite.pixel_size = NPC_WORLD_SIZE / tex_max if tex_max > 0.0 else 0.001
+		var base_size: float = NPC_WORLD_SIZE * npc.sprite_scale
+		sprite.pixel_size = base_size / tex_max if tex_max > 0.0 else 0.001
 		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
 		world_pos.x += NPC_OFFSET_X
 		world_pos.y = NPC_BASE_Y
 		sprite.position = world_pos
 		add_child(sprite)
 		_npc_nodes[i] = { "node": sprite }
+		i += 1
 
 func destroy_npc_nodes() -> void:
 	for key in _npc_nodes:

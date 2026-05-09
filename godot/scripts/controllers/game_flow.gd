@@ -159,7 +159,7 @@ func _spawn_daily_npcs() -> void:
 
 	# 创建 NPC 3D 节点 (如有 NPC 被生成)
 	if not npc_manager.npcs.is_empty():
-		m.board_visual.create_npc_nodes(npc_manager)
+		m.board_visual.create_npc_nodes(npc_manager.npcs)
 
 ## 在棋盘上选取一个空闲格子 (避开家和已有 NPC)
 func _pick_free_tile() -> Vector2i:
