@@ -39,9 +39,11 @@ const LINE_H_MULT: float = 1.5
 const ADVANCE_BLINK_SPEED: float = 2.5
 
 # ---------------------------------------------------------------------------
-# 缓存
+# 缓存 + 选项交互状态
 # ---------------------------------------------------------------------------
 var _font: Font = null
+var _choice_rects: Array = []   ## 每个选项按钮的 Rect2 (用于命中检测)
+var _hovered_choice: int = -1   ## 当前 hover 的选项索引 (-1 = 无)
 
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
@@ -51,9 +53,41 @@ func _process(_dt: float) -> void:
 	if m == null or m._dialogue_system == null:
 		return
 	var ds: DialogueSystem = m._dialogue_system
+	# 有选项时拦截鼠标，否则透传
+	var has_choices: bool = ds.state == "waiting" and not ds.get_current_choices().is_empty()
+	mouse_filter = Control.MOUSE_FILTER_STOP if has_choices else Control.MOUSE_FILTER_IGNORE
+
+	# 更新 hover 状态
+	if has_choices:
+		var mp: Vector2 = get_local_mouse_position()
+		var new_hover: int = -1
+		for i in range(_choice_rects.size()):
+			if _choice_rects[i].has_point(mp):
+				new_hover = i
+				break
+		if new_hover != _hovered_choice:
+			_hovered_choice = new_hover
+			queue_redraw()
+
 	# 需要渲染时才 queue_redraw
 	if ds.is_active() or ds.overlay_alpha > 0.01:
 		queue_redraw()
+
+func _gui_input(event: InputEvent) -> void:
+	if m == null or m._dialogue_system == null:
+		return
+	var ds: DialogueSystem = m._dialogue_system
+	if ds.state != "waiting" or ds.get_current_choices().is_empty():
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var mp: Vector2 = get_local_mouse_position()
+		for i in range(_choice_rects.size()):
+			if _choice_rects[i].has_point(mp):
+				ds.select_choice(i)
+				_hovered_choice = -1
+				_choice_rects = []
+				get_viewport().set_input_as_handled()
+				return
 
 func _draw() -> void:
 	if m == null or m._dialogue_system == null:
@@ -130,19 +164,58 @@ func _draw() -> void:
 				lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_TEXT,
 				text_color)
 
-	# --- 闪烁三角 (等待点击) ---
+	# --- 选项按钮 / 闪烁三角 ---
 	if ds.state == "waiting":
-		var blink: float = (sin(m.game_time * ADVANCE_BLINK_SPEED * TAU) + 1.0) * 0.5
-		var tri_x: float = box_x + box_w - 90
-		var tri_y: float = box_y + box_h - 60
-		var tri_color: Color = Color(t.dialogue_indicator, ds.box_alpha * blink)
-		var tri_size: float = 18.0
-		var points: PackedVector2Array = PackedVector2Array([
-			Vector2(tri_x, tri_y),
-			Vector2(tri_x + tri_size * 2, tri_y),
-			Vector2(tri_x + tri_size, tri_y + tri_size),
-		])
-		draw_colored_polygon(points, tri_color)
+		var choices: Array = ds.get_current_choices()
+		if not choices.is_empty():
+			# 渲染选项按钮 (堆叠在对话框上方)
+			_choice_rects.clear()
+			_choice_rects.resize(choices.size())
+			const BTN_H: float = 72.0
+			const BTN_PAD_X: float = 18.0
+			const BTN_GAP: float = 12.0
+			const BTN_FONT_SIZE: int = 38
+			var btn_w: float = box_w
+			var btn_x: float = box_x
+			var btn_base_y: float = box_y - BTN_GAP  # 从对话框上沿向上堆叠
+
+			for i in range(choices.size() - 1, -1, -1):
+				var choice: Dictionary = choices[i]
+				var label: String = choice.get("label", "???")
+				var by: float = btn_base_y - BTN_H - (choices.size() - 1 - i) * (BTN_H + BTN_GAP)
+				var btn_rect: Rect2 = Rect2(btn_x, by, btn_w, BTN_H)
+				_choice_rects[i] = btn_rect
+
+				var is_hover: bool = (_hovered_choice == i)
+				var bg_color: Color
+				if is_hover:
+					bg_color = Color(t.choice_hover.r, t.choice_hover.g, t.choice_hover.b, ds.box_alpha)
+				else:
+					bg_color = Color(t.choice_bg.r, t.choice_bg.g, t.choice_bg.b, ds.box_alpha * 0.9)
+				draw_rect(btn_rect, bg_color, true)
+				var border_c: Color = Color(t.choice_border.r, t.choice_border.g, t.choice_border.b, ds.box_alpha * 0.8)
+				draw_rect(btn_rect, border_c, false, 3.0)
+
+				# 居中文字
+				var text_size: Vector2 = _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, BTN_FONT_SIZE)
+				var tx: float = btn_x + BTN_PAD_X
+				var ty: float = by + (BTN_H + text_size.y * 0.5) * 0.5
+				draw_string(_font, Vector2(tx, ty), label,
+					HORIZONTAL_ALIGNMENT_LEFT, btn_w - BTN_PAD_X * 2, BTN_FONT_SIZE,
+					Color(1.0, 1.0, 1.0, ds.box_alpha))
+		else:
+			# 无选项时显示闪烁三角
+			var blink: float = (sin(m.game_time * ADVANCE_BLINK_SPEED * TAU) + 1.0) * 0.5
+			var tri_x: float = box_x + box_w - 90
+			var tri_y: float = box_y + box_h - 60
+			var tri_color: Color = Color(t.dialogue_indicator, ds.box_alpha * blink)
+			var tri_size: float = 18.0
+			var points: PackedVector2Array = PackedVector2Array([
+				Vector2(tri_x, tri_y),
+				Vector2(tri_x + tri_size * 2, tri_y),
+				Vector2(tri_x + tri_size, tri_y + tri_size),
+			])
+			draw_colored_polygon(points, tri_color)
 
 	# --- 立绘 ---
 	var portrait: Texture2D = ds.get_portrait_texture()

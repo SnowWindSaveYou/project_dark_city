@@ -62,6 +62,12 @@ var dark_world_flow: RefCounted = null    # RefCounted — controllers/dark_worl
 var consumable_controller: RefCounted = null  # RefCounted — controllers/consumable_controller.gd
 
 # ---------------------------------------------------------------------------
+# 白夜跟随精灵
+# ---------------------------------------------------------------------------
+var _baiye: Baiye = null
+var _baiye_sprite: Sprite2D = null
+
+# ---------------------------------------------------------------------------
 # 对话系统
 # ---------------------------------------------------------------------------
 var _dialogue_system: DialogueSystem = null
@@ -160,6 +166,16 @@ func _ready() -> void:
 
 	# 初始棋盘
 	game_flow.generate_board()
+
+	# 白夜跟随精灵 (在 _ui_layer 创建后初始化)
+	_baiye = Baiye.new()
+	_baiye_sprite = Sprite2D.new()
+	_baiye_sprite.name = "BaiyeSprite"
+	_baiye_sprite.visible = false
+	_baiye_sprite.texture = _baiye.texture
+	_baiye_sprite.modulate = Color(1, 1, 1, 0)
+	_baiye_sprite.z_index = 5  # 位于 UI 下方, Token 上方
+	_ui_layer.add_child(_baiye_sprite)
 
 	# 标题画面
 	GameData.set_game_phase("title")
@@ -457,6 +473,24 @@ func _connect_signals() -> void:
 	if _debug_panel:
 		_debug_panel.debug_action.connect(_on_debug_action)
 
+	# NPC 交易信号 → 飞字反馈
+	if game_flow.npc_manager:
+		var npc_mgr: NPCManager = game_flow.npc_manager
+		npc_mgr.trade_executed.connect(func(banner_text: String) -> void:
+			if _vfx:
+				_vfx.action_banner(banner_text, GameTheme.safe, 2.0)
+			AudioManager.play_sfx("resource_gain")
+		)
+		npc_mgr.trade_failed.connect(func(reason: String) -> void:
+			var msg: String = "资源不足！" if reason == "insufficient" else "今天已经交易过了~"
+			if _vfx:
+				_vfx.action_banner(msg, GameTheme.danger, 1.8)
+		)
+		npc_mgr.action_executed.connect(func(_action: String, banner_text: String) -> void:
+			if _vfx:
+				_vfx.action_banner(banner_text, GameTheme.highlight, 2.0)
+		)
+
 	# 故事/晨间/里程碑事件对话 (game_flow 触发, 由 DialogueSystem 呈现)
 	game_flow.event_dialogue_requested.connect(_on_event_dialogue_requested)
 
@@ -522,11 +556,15 @@ func _on_debug_action(action_id: String) -> void:
 func _on_event_dialogue_requested(event: Dictionary, on_complete: Callable) -> void:
 	var dialogue: Array = event.get("dialogue", [])
 	var portrait_path: String = event.get("portrait", "")
+	print("[Main] _on_event_dialogue_requested: id=%s, lines=%d, dlg_state=%s, demo_state=%s" % [
+		event.get("id", "?"), dialogue.size(), _dialogue_system.state, GameData.demo_state])
 	if dialogue.is_empty() or _dialogue_system.state != "idle":
 		# 无台词 或 对话系统忙碌 → 直接回调, 避免链断裂
+		print("[Main] _on_event_dialogue_requested: SKIP (empty=%s, state=%s)" % [dialogue.is_empty(), _dialogue_system.state])
 		on_complete.call("")
 		return
 	_dialogue_system.start(dialogue, portrait_path, func() -> void:
+		print("[Main] event dialogue on_complete fired")
 		on_complete.call("")
 	)
 
@@ -629,6 +667,13 @@ func _process_click(pos: Vector2) -> void:
 			_bubble_dialogue.click_trigger()
 			return
 
+	# NPC 点击检测 (ready 状态下才响应, 避免移动途中误触)
+	if GameData.demo_state == "ready":
+		var npc_hit: Dictionary = board_visual.hit_test_npc(pos)
+		if not npc_hit.is_empty():
+			card_interaction.handle_npc_click(npc_hit["row"], npc_hit["col"])
+			return
+
 	# 棋盘点击检测
 	var grid_pos: Vector2i = board_visual.hit_test(pos)
 	if grid_pos == Vector2i.ZERO:
@@ -679,6 +724,9 @@ func _process(dt: float) -> void:
 	token.update(dt)
 	board_visual.update_token_visual()
 
+	# 白夜跟随精灵
+	_update_baiye(dt)
+
 	# 安全区光环上浮动画
 	board_visual.update_glow_rings(game_time)
 
@@ -724,6 +772,53 @@ func _process(dt: float) -> void:
 			"dark_active": dark_world.active,
 			"cards_revealed": GameData.cards_revealed,
 		})
+
+# ---------------------------------------------------------------------------
+# 白夜跟随精灵更新
+# ---------------------------------------------------------------------------
+
+func _update_baiye(dt: float) -> void:
+	if _baiye == null or _baiye_sprite == null or _camera_3d == null:
+		return
+
+	# 条件：游戏中 + Token 可见 + 白夜应该出现
+	var should_show: bool = GameData.game_phase == "playing" \
+		and _token_sprite.visible \
+		and _baiye.should_show()
+
+	if should_show:
+		# 获取 Token 的屏幕坐标
+		var token_screen: Vector2 = _camera_3d.unproject_position(_token_sprite.global_position)
+
+		if not _baiye.visible:
+			# 首次出现：定位到 Token 旁边并重置入场参数
+			_baiye.show(token_screen.x, token_screen.y)
+			_baiye_sprite.visible = true
+
+		# 更新跟随目标
+		_baiye.set_follow_target(token_screen.x, token_screen.y)
+		_baiye.update(dt)
+
+		# 入场动画：平滑过渡 alpha 和 scale
+		_baiye.alpha = move_toward(_baiye.alpha, Baiye.SPIRIT_ALPHA, 1.5 * dt)
+		_baiye.scale_x = move_toward(_baiye.scale_x, 1.0, 3.0 * dt)
+		_baiye.scale_y = move_toward(_baiye.scale_y, 1.0, 3.0 * dt)
+	else:
+		if _baiye.visible:
+			# 退场动画：渐出后隐藏
+			_baiye.alpha = move_toward(_baiye.alpha, 0.0, 2.0 * dt)
+			if _baiye.alpha <= 0.01:
+				_baiye.hide()
+				_baiye_sprite.visible = false
+
+	# 应用绘制数据到 Sprite2D
+	var draw_data: Dictionary = _baiye.get_draw_data(game_time)
+	if draw_data.get("visible", false):
+		_baiye_sprite.position = Vector2(draw_data["x"], draw_data["y"])
+		_baiye_sprite.modulate = Color(1, 1, 1, draw_data["alpha"])
+		_baiye_sprite.scale = Vector2(draw_data["scale_x"], draw_data["scale_y"])
+	else:
+		_baiye_sprite.modulate = Color(1, 1, 1, 0)
 
 # ---------------------------------------------------------------------------
 # 卡牌悬停高亮

@@ -144,8 +144,6 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 				_on_card_flipped(arrived_card, row, col)
 			)
 		else:
-			# Phase 5: NPC 同格对话 (到达已翻开格子时触发)
-			_try_npc_dialogue(row, col)
 			m.token.set_emotion("default")
 			GameData.set_demo_state("ready")
 			m._camera_button.show_button()
@@ -208,6 +206,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		# 裂隙检查
 		if card.has_rift:
 			_show_rift_confirm(row, col)
+			return
 		return
 
 	m._vfx.screen_shake(3.0, 0.15)
@@ -756,14 +755,21 @@ func _try_story_event(card: Card, card_type: String, _row: int, _col: int) -> bo
 		event.get("id", ""), card_type])
 	return true
 
-## NPC 同格对话: 到达已翻开格子时, 检查是否有 NPC 并触发对话
-func _try_npc_dialogue(row: int, col: int) -> void:
+## NPC 点击对话: 点击棋盘上的 NPC sprite 时触发
+func handle_npc_click(row: int, col: int) -> void:
 	var npc_mgr: NPCManager = m.game_flow.npc_manager
 	if npc_mgr == null:
 		return
 
 	var npc: NPCManager.NPCData = npc_mgr.get_npc_at(row, col)
 	if npc == null:
+		return
+
+	# 每日冷却检查: 已用过则展示提示后返回
+	if npc_mgr.is_used_today(npc.id):
+		print("[CardInteraction] NPC %s already used today, skipping." % npc.id)
+		if m._vfx:
+			m._vfx.action_banner("今天已经聊过啦~", GameTheme.text_secondary, 1.5)
 		return
 
 	# 获取随机对话组
@@ -784,15 +790,15 @@ func _try_npc_dialogue(row: int, col: int) -> void:
 			lines,
 			npc.tex_path,
 			func() -> void:
-				# 对话结束: 检查最后一行是否有 choice action
-				var last_line: Dictionary = lines[lines.size() - 1] if lines.size() > 0 else {}
-				var choices: Array = last_line.get("choices", [])
-
-				# 如果有选项, 对话系统已处理; 这里只需恢复状态
+				# 读取玩家选择的选项并执行 action
+				var selected: Dictionary = m._dialogue_system.get_selected_choice()
+				if not selected.is_empty() and selected.get("action", "none") != "none":
+					npc_mgr.execute_choice_action(npc.id, selected)
 				m.token.set_emotion("default")
 				GameData.set_demo_state("ready")
 				m._camera_button.show_button()
 		)
+
 
 # =========================================================================
 # Phase 5: BFS 自动寻路
@@ -902,7 +908,6 @@ func _walk_step(path: Array, step_idx: int) -> void:
 							GameData.modify_resource(reward[0], reward[1])
 							m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 								Color(0.4, 0.8, 0.5), 0.8)
-				_try_npc_dialogue(row, col)
 				m.token.set_emotion("default")
 				GameData.set_demo_state("ready")
 				m._camera_button.show_button()

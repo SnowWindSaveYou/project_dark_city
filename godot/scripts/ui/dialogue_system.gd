@@ -78,6 +78,8 @@ var _typewriter_accum: float = 0.0
 ## 当前行数据
 var _current_speaker: String = ""
 var _current_text: String = ""
+var _current_choices: Array = []  ## 当前行的选项列表 (可为空)
+var _selected_choice: Dictionary = {}  ## 玩家选择的选项 (on_complete 后可读)
 
 # ---------------------------------------------------------------------------
 # 公开 API
@@ -166,6 +168,8 @@ func reset() -> void:
 	_script = []
 	_script_index = 0
 	_on_complete = Callable()
+	_current_choices = []
+	_selected_choice = {}
 	overlay_alpha = 0.0
 	box_alpha = 0.0
 	portrait_alpha = 0.0
@@ -186,6 +190,24 @@ func get_display_text() -> String:
 func get_speaker() -> String:
 	return _current_speaker
 
+## 获取当前行选项列表 (空数组 = 无选项)
+func get_current_choices() -> Array:
+	return _current_choices
+
+## 获取玩家选择的选项 (对话结束后有效)
+func get_selected_choice() -> Dictionary:
+	return _selected_choice
+
+## 玩家选择了某个选项 (由 dialogue_overlay 调用)
+func select_choice(index: int) -> void:
+	if state != "waiting" or _current_choices.is_empty():
+		return
+	if index < 0 or index >= _current_choices.size():
+		return
+	_selected_choice = _current_choices[index]
+	_current_choices = []   # 清空, 让 _advance 正常推进
+	_advance()
+
 ## 获取立绘纹理
 func get_portrait_texture() -> Texture2D:
 	return _portrait_tex
@@ -200,6 +222,7 @@ func _load_line(index: int) -> void:
 	var line: Dictionary = _script[index]
 	_current_speaker = line.get("speaker", "")
 	_current_text = line.get("text", "")
+	_current_choices = line.get("choices", [])
 	_typewriter_total = _current_text.length()
 	_typewriter_pos = 0
 	_typewriter_accum = 0.0
@@ -213,6 +236,9 @@ func _advance() -> void:
 		return
 
 	if state == "waiting":
+		# 有选项时必须等玩家选择，不可直接推进
+		if not _current_choices.is_empty():
+			return
 		_script_index += 1
 		if _script_index < _script.size():
 			_load_line(_script_index)
@@ -227,6 +253,7 @@ func _advance() -> void:
 
 ## 退场动画完成后由 main.gd 调用
 func on_exit_complete() -> void:
+	print("[DialogueSystem] on_exit_complete: restoring demo_state='%s', has_cb=%s" % [_prev_demo_state, _on_complete.is_valid()])
 	state = "idle"
 	_script = []
 	_script_index = 0

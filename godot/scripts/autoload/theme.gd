@@ -143,6 +143,9 @@ var dialogue_nametag: Color = h("#598CBF")     # 名牌填充
 var dialogue_nametag_border: Color = h("#4073A6") # 名牌边框
 var dialogue_text: Color = h("#262626")        # 对话正文
 var dialogue_indicator: Color = h("#668CB3")   # 翻页三角
+var choice_bg: Color = h("#2A1F45")           # 选项按钮背景
+var choice_hover: Color = h("#5B38A0")        # 选项按钮悬停
+var choice_border: Color = h("#9B7ED8")       # 选项按钮边框
 
 # ---------------------------------------------------------------------------
 # 字号

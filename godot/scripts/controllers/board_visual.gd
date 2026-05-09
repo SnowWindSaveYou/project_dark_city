@@ -419,6 +419,12 @@ func update_token_visual() -> void:
 	var world_pos: Vector3 = get_card_world_pos(token.target_row, token.target_col)
 	world_pos.y = TOKEN_CENTER_Y
 
+	# 同格 NPC: Token 向左偏移 (SHARE_OFFSET 像素 → 世界单位 X)
+	var npc_mgr: NPCManager = m.game_flow.npc_manager if m.game_flow else null
+	if npc_mgr:
+		var share_px: float = npc_mgr.get_share_offset(token.target_row, token.target_col)
+		world_pos.x += share_px * TOKEN_PX_TO_WORLD
+
 	# 呼吸动画 (转换像素偏移为世界单位)
 	var breathe: Dictionary = token.get_breathe_offset(m.game_time)
 	world_pos.y += breathe["y"] * TOKEN_PX_TO_WORLD
@@ -1028,6 +1034,28 @@ func create_npc_nodes(npcs_dict: Dictionary) -> void:
 			push_warning("[BoardVisual] NPC '%s' 贴图加载失败: %s" % [npc.id, npc.tex_path])
 			i += 1
 			continue
+
+		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
+		world_pos.x += NPC_OFFSET_X
+		world_pos.y = NPC_BASE_Y
+
+		# --- 阴影 blob (扁平半透明椭球) ---
+		var shadow_mesh: MeshInstance3D = MeshInstance3D.new()
+		shadow_mesh.name = "NPCShadow_%s" % npc.id
+		var sphere: SphereMesh = SphereMesh.new()
+		sphere.radius = 0.10
+		sphere.height = 0.04
+		shadow_mesh.mesh = sphere
+		var shadow_mat: StandardMaterial3D = StandardMaterial3D.new()
+		shadow_mat.albedo_color = Color(0.0, 0.0, 0.0, 0.35)
+		shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		shadow_mesh.set_surface_override_material(0, shadow_mat)
+		shadow_mesh.position = Vector3(world_pos.x, 0.02, world_pos.z)  # 贴地面
+		shadow_mesh.scale = Vector3(1.0, 0.25, 1.0)  # 压扁成椭圆
+		add_child(shadow_mesh)
+
+		# --- NPC Sprite3D ---
 		var sprite: Sprite3D = Sprite3D.new()
 		sprite.name = "NPC_%s" % npc.id
 		sprite.texture = tex
@@ -1038,14 +1066,29 @@ func create_npc_nodes(npcs_dict: Dictionary) -> void:
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 		sprite.alpha_scissor_threshold = 0.5
 		var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
-		var base_size: float = NPC_WORLD_SIZE * npc.sprite_scale
+		var scale_val: float = npc.sprite_scale if npc.sprite_scale > 0.0 else 1.0
+		var base_size: float = NPC_WORLD_SIZE * scale_val
 		sprite.pixel_size = base_size / tex_max if tex_max > 0.0 else 0.001
-		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
-		world_pos.x += NPC_OFFSET_X
-		world_pos.y = NPC_BASE_Y
 		sprite.position = world_pos
+		# 弹出动画: 初始缩放为 0
+		sprite.scale = Vector3.ZERO
+		sprite.modulate = Color(1, 1, 1, 0)
 		add_child(sprite)
-		_npc_nodes[i] = { "node": sprite }
+
+		# 弹出 Tween (easeOutBack: scale 0→1, alpha 0→1, 延迟 0.3s)
+		var tw: Tween = create_tween()
+		tw.set_parallel(true)
+		tw.tween_interval(0.3)
+		tw.tween_property(sprite, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.3)
+		tw.tween_property(sprite, "modulate:a", 1.0, 0.3).set_delay(0.3)
+
+		_npc_nodes[i] = {
+			"node": sprite,
+			"shadow": shadow_mesh,
+			"row": npc.row + 1,
+			"col": npc.col + 1,
+			"npc_id": npc.id,
+		}
 		i += 1
 
 func destroy_npc_nodes() -> void:
@@ -1054,7 +1097,27 @@ func destroy_npc_nodes() -> void:
 		var node = data.get("node")
 		if is_instance_valid(node):
 			node.queue_free()
+		var shadow = data.get("shadow")
+		if is_instance_valid(shadow):
+			shadow.queue_free()
 	_npc_nodes.clear()
+
+## NPC 点击检测 — 返回 {row, col, npc_id}，未命中返回空 {}
+## click_pos: 屏幕坐标
+func hit_test_npc(click_pos: Vector2) -> Dictionary:
+	if not m._camera_3d or not m._camera_3d.current:
+		return {}
+	for key in _npc_nodes:
+		var data: Dictionary = _npc_nodes[key]
+		var node = data.get("node")
+		if not is_instance_valid(node) or not node.visible:
+			continue
+		# 将 NPC 3D 位置投影到屏幕，检测点击距离
+		var screen_pos: Vector2 = m._camera_3d.unproject_position(node.global_position)
+		# NPC sprite 屏幕半径约 40px（可根据实际调整）
+		if click_pos.distance_to(screen_pos) <= 48.0:
+			return { "row": data["row"], "col": data["col"], "npc_id": data["npc_id"] }
+	return {}
 
 func update_npc_visuals(game_time: float) -> void:
 	var breathe: float = 1.0 + sin(game_time * NPC_BREATHE_SPEED) * NPC_BREATHE_AMP
