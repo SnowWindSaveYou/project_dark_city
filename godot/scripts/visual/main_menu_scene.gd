@@ -93,37 +93,37 @@ func _build_ui() -> void:
 	#   副标题 ≈ 38% 高度
 	#   按钮区 ≈ 55~75% 高度（4个按钮 + 间距）
 
+	# 视口 1920×1080，以下尺寸单位均为像素
 	# 标题
 	_title_label = Label.new()
 	_title_label.text = "暗面都市"
-	_title_label.add_theme_font_size_override("font_size", 72)
+	_title_label.add_theme_font_size_override("font_size", 96)
 	_title_label.add_theme_color_override("font_color", GameTheme.accent)
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_place(_title_label, 0.5, 0.28, 400.0, 100.0)
+	_place(_title_label, 0.5, 0.30, 800.0, 130.0)
 	_title_label.modulate.a = 0.0
 	_title_label.scale = Vector2(0.7, 0.7)
-	_title_label.pivot_offset = Vector2(200.0, 50.0)
+	_title_label.pivot_offset = Vector2(400.0, 65.0)
 	add_child(_title_label)
 
 	# 副标题
 	_subtitle_label = Label.new()
 	_subtitle_label.text = "Dark Side City"
-	_subtitle_label.add_theme_font_size_override("font_size", 22)
+	_subtitle_label.add_theme_font_size_override("font_size", 30)
 	_subtitle_label.add_theme_color_override("font_color",
 		Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 			GameTheme.text_secondary.b, 0.8))
 	_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_place(_subtitle_label, 0.5, 0.38, 360.0, 40.0)
+	_place(_subtitle_label, 0.5, 0.42, 700.0, 50.0)
 	_subtitle_label.modulate.a = 0.0
 	add_child(_subtitle_label)
 
-	# 按钮容器（VBoxContainer 只负责堆叠，本身被精确定位）
-	# 4 个按钮高度: 56 + 48*3 = 200，间距 18*3 = 54 → 总高约 254
+	# 按钮容器：宽 480px，4个按钮高 72+60*3=252，间距 20*3=60 → 总高约 320
 	var btn_vbox := VBoxContainer.new()
-	btn_vbox.add_theme_constant_override("separation", 18)
-	_place(btn_vbox, 0.5, 0.63, 300.0, 260.0)
+	btn_vbox.add_theme_constant_override("separation", 20)
+	_place(btn_vbox, 0.5, 0.65, 480.0, 340.0)
 	btn_vbox.modulate.a = 0.0  # 动画开始前隐藏
 	add_child(btn_vbox)
 
@@ -169,12 +169,14 @@ func _build_ui() -> void:
 func _make_menu_button(text: String, color: Color, primary: bool) -> Button:
 	var btn := Button.new()
 	btn.text = text
-	btn.custom_minimum_size = Vector2(280, primary and 56 or 48)
+	# 视口 1920×1080：按钮宽度跟随容器（SIZE_EXPAND_FILL），高度固定
+	btn.custom_minimum_size = Vector2(460, primary and 72 or 60)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# 显式注入内置字体，确保无字体文件时文字仍可渲染
 	var fallback: Font = ThemeDB.fallback_font
 	if fallback:
 		btn.add_theme_font_override("font", fallback)
-	btn.add_theme_font_size_override("font_size", primary and 20 or 17)
+	btn.add_theme_font_size_override("font_size", primary and 26 or 22)
 	btn.add_theme_color_override("font_color", Color.WHITE)
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color", Color.WHITE)
