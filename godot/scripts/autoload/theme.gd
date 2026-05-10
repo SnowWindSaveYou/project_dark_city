@@ -3,6 +3,21 @@
 extends Node
 
 # ---------------------------------------------------------------------------
+# 初始化：设置全局默认主题，确保程序化 UI 控件能正常渲染文字
+# ---------------------------------------------------------------------------
+
+func _ready() -> void:
+	var default_theme := Theme.new()
+	var fallback: Font = ThemeDB.fallback_font
+	if fallback:
+		# 为所有控件类型注册内置字体，解决程序化创建时无字体渲染文字的问题
+		for ctrl_type in ["Button", "Label", "LineEdit", "RichTextLabel",
+				"OptionButton", "MenuButton", "CheckBox", "CheckButton",
+				"PopupMenu", "TabBar", "Tree", "ItemList", "SpinBox"]:
+			default_theme.set_font("font", ctrl_type, fallback)
+	ThemeDB.set_project_theme(default_theme)
+
+# ---------------------------------------------------------------------------
 # ThemeColor 辅助
 # ---------------------------------------------------------------------------
 

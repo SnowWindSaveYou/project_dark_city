@@ -150,8 +150,15 @@ func _make_menu_button(text: String, color: Color, primary: bool) -> Button:
 	var btn := Button.new()
 	btn.text = text
 	btn.custom_minimum_size = Vector2(280, primary and 56 or 48)
+	# 显式注入内置字体，确保无字体文件时文字仍可渲染
+	var fallback: Font = ThemeDB.fallback_font
+	if fallback:
+		btn.add_theme_font_override("font", fallback)
 	btn.add_theme_font_size_override("font_size", primary and 20 or 17)
 	btn.add_theme_color_override("font_color", Color.WHITE)
+	btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn.add_theme_color_override("font_pressed_color", Color.WHITE)
+	btn.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.4))
 
 	var alpha: float = primary and 0.92 or 0.75
 
