@@ -480,4 +480,6 @@ func restart_game() -> void:
 	m._hand_panel.show_panel()
 
 	GameData.set_game_phase("playing")
+	# 重置步数 (restart_game 不经过 _begin_new_day, 需要在此补调)
+	m.card_interaction.reset_daily_steps()
 	start_deal()

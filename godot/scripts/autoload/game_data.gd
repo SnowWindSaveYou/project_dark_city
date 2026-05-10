@@ -94,6 +94,9 @@ func reset() -> void:
 	monsters_slain = 0
 	photos_used = 0
 	inventory = {}
+	# 步数归零 (由 card_interaction.reset_daily_steps 在新一天开始时重新算出正确值)
+	steps_remaining = 0
+	steps_total = 0
 	# 重置剧情状态
 	if StoryManager:
 		StoryManager.reset()

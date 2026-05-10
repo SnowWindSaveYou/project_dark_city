@@ -37,6 +37,9 @@ var _dark_energy_flash: float = 0.0
 # --- Tween 引用 ---
 var _value_tweens: Dictionary = {}  # key -> Tween
 
+# --- 步数变化检测 (steps 不通过 resource_changed 信号传递，需轮询) ---
+var _last_steps_key: int = -1  # steps_remaining * 1000 + steps_total
+
 # ---------------------------------------------------------------------------
 # 常量 — 纸条布局 (与 Lua 版一致)
 # ---------------------------------------------------------------------------
@@ -186,6 +189,12 @@ func _process(delta: float) -> void:
 	# 暗面能量闪光
 	if _dark_energy_flash > 0:
 		_dark_energy_flash -= delta
+		needs_redraw = true
+
+	# 步数变化检测 (steps_remaining/steps_total 直接写入 GameData，不触发 resource_changed)
+	var steps_key: int = GameData.steps_remaining * 1000 + GameData.steps_total
+	if steps_key != _last_steps_key:
+		_last_steps_key = steps_key
 		needs_redraw = true
 
 	if needs_redraw:

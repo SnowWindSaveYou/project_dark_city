@@ -21,7 +21,7 @@
 		"qinxin": {
 			"name": "琴馨",
 			"tex_path": "res://assets/image/edited_怪物_面具使v3_20260426073034.png",
-			"sprite_scale": 0.7,
+			"sprite_scale": 1.0,
 			"dialogues": [
 				{
 					"lines": [

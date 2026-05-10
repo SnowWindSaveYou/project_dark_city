@@ -419,14 +419,13 @@ func update_token_visual() -> void:
 	var world_pos: Vector3 = get_card_world_pos(token.target_row, token.target_col)
 	world_pos.y = TOKEN_CENTER_Y
 
-	# 同格 NPC: Token 向左偏移 (世界单位固定偏移, 避免像素换算过小看不见)
-	# Lua SHARE_OFFSET=-18px; Lua px→world: -18 * 0.0013 ≈ -0.023m — 太小
-	# 改用世界单位偏移 -0.20m (约 31% 卡宽), 与 NPC_OFFSET_X 反向对称
+	# 同格 NPC: Token 向左偏移 (与 Lua SHARE_OFFSET=0.18 保持对称)
+	# Lua: NPC wx + 0.18, Token wx - 0.18
 	var npc_mgr: NPCManager = m.game_flow.npc_manager if m.game_flow else null
 	if npc_mgr:
 		var share_px: float = npc_mgr.get_share_offset(token.target_row, token.target_col)
 		if share_px != 0.0:
-			world_pos.x -= 0.20  # NPC 在右 (+0.15), Token 向左偏 (-0.20) 保持间距
+			world_pos.x -= 0.18  # Lua SHARE_OFFSET=0.18, 与 NPC_OFFSET_X 对称
 
 	# 呼吸动画 (转换像素偏移为世界单位)
 	var breathe: Dictionary = token.get_breathe_offset(m.game_time)
@@ -1017,15 +1016,16 @@ func animate_ghost_fade(ghost_index: int) -> void:
 # 暗面 NPC 3D 节点 (Sprite3D billboard, 匹配 Lua DarkWorld.createNPCNodes)
 # ---------------------------------------------------------------------------
 
-## NPC 渲染参数 (精确匹配 Lua DarkWorld, ×2 half-extent 修正)
-## Lua: bb.size=0.35 (half) → 实际 0.70m
-## Lua: nodeY=0.25, bb.offset.y=0.18, half-height=0.35 → 中心 Y=0.43, 底部 Y=0.08
-## Godot ×2: 全高=0.70, 底部 Y=0.08 → 中心 Y=0.08+0.35=0.43 ✓
-## Lua: bb.size=(0.35, 0.52) 其中 0.52 是 Y 半尺寸 → 实际全高=1.04m
-## Godot ×2: 全高=1.04, 底部 Y=0.08 → 中心 Y=0.08+0.52=0.60
-const NPC_BASE_Y: float = 0.60
-const NPC_WORLD_SIZE: float = 0.52 * BILLBOARD_HALF_EXTENT_FACTOR
-const NPC_OFFSET_X: float = 0.15  # Lua DarkWorld: wx + 0.15
+## NPC 渲染参数 (精确匹配 Lua NPCManager.lua)
+## Lua: SPRITE_3D_H=0.50 (半尺寸) → 全高=1.00m
+## Lua: node.Y=0.25, bb.position.y=SPRITE_3D_H/2=0.25 → billboard 中心 Y=0.50m
+## Godot Sprite3D: pixel_size=NPC_WORLD_SIZE/tex_max (tex_max=最长边像素数)
+##   全高 = pixel_size × tex_height = NPC_WORLD_SIZE × (tex_h/tex_max) ≤ 1.00m
+##   Sprite3D 中心就是位置坐标, 故 position.y = billboard 中心 Y = 0.50m
+## Lua: SHARE_OFFSET=0.18 → NPC 右移 0.18, Token 左移 0.18
+const NPC_BASE_Y: float = 0.50        # Lua: node(0.25) + bb.offset(0.25) = 0.50m
+const NPC_WORLD_SIZE: float = 1.00    # Lua: SPRITE_3D_H(0.50) × 2 = 1.00m
+const NPC_OFFSET_X: float = 0.18     # Lua SHARE_OFFSET=0.18
 const NPC_BREATHE_SPEED: float = 2.0
 const NPC_BREATHE_AMP: float = 0.02
 
@@ -1040,7 +1040,9 @@ func create_npc_nodes(npcs_dict: Dictionary) -> void:
 			i += 1
 			continue
 
-		var world_pos: Vector3 = m.board.grid_to_world(npc.row + 1, npc.col + 1)
+		# npc.row/npc.col 由 NPCManager.spawn_npc(tile.x, tile.y) 设置，
+		# _pick_free_tile 返回 1-based 坐标，不需要 +1
+		var world_pos: Vector3 = m.board.grid_to_world(npc.row, npc.col)
 		world_pos.x += NPC_OFFSET_X
 		world_pos.y = NPC_BASE_Y
 
@@ -1085,8 +1087,8 @@ func create_npc_nodes(npcs_dict: Dictionary) -> void:
 		var entry: Dictionary = {
 			"node": sprite,
 			"shadow": shadow_mesh,
-			"row": npc.row + 1,
-			"col": npc.col + 1,
+			"row": npc.row,
+			"col": npc.col,
 			"npc_id": npc.id,
 			"pop_done": false,
 		}
@@ -1123,7 +1125,7 @@ func hit_test_npc(click_pos: Vector2) -> Dictionary:
 			continue
 		# 将 NPC 3D 位置投影到屏幕，检测点击距离
 		var screen_pos: Vector2 = m._camera_3d.unproject_position(node.global_position)
-		# NPC 渲染高度 1.04m, 相机 ~204 px/m → 半径 ~106px, 使用 80px 宽松阈值
+		# NPC 渲染高度 1.00m, 相机 ~204 px/m → 半径 ~102px, 使用 80px 宽松阈值
 		if click_pos.distance_to(screen_pos) <= 80.0:
 			return { "row": data["row"], "col": data["col"], "npc_id": data["npc_id"] }
 	return {}
