@@ -42,7 +42,8 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build_ui()
 	_init_floating_cards()
-	_play_enter_anim()
+	# 延迟一帧再播放动画，确保节点树完全就绪
+	call_deferred("_play_enter_anim")
 	AudioManager.play_bgm("main")
 
 
@@ -103,7 +104,7 @@ func _build_ui() -> void:
 	# 按钮区
 	var btn_vbox := VBoxContainer.new()
 	btn_vbox.add_theme_constant_override("separation", 18)
-	btn_vbox.modulate.a = 0.0
+	btn_vbox.modulate.a = 0.0  # 动画开始前隐藏，_play_enter_anim 会淡入
 	center.add_child(btn_vbox)
 
 	_btn_start = _make_menu_button("▶  开始游戏", GameTheme.accent, true)
@@ -428,9 +429,17 @@ func _init_floating_cards() -> void:
 func _play_enter_anim() -> void:
 	# 找到 btn_vbox (center 的第4个子节点 index 3)
 	var center: VBoxContainer = _title_label.get_parent()
-	var btn_vbox: VBoxContainer = center.get_child(3)
+	if center == null or center.get_child_count() < 4:
+		# 节点结构异常，直接显示所有元素
+		_show_all_immediately()
+		return
 
-	# 标题
+	var btn_vbox: VBoxContainer = center.get_child(3)
+	if btn_vbox == null:
+		_show_all_immediately()
+		return
+
+	# 标题：先串行等0.3s，再并行做缩放+淡入
 	var t1 := create_tween()
 	t1.tween_interval(0.3)
 	t1.set_parallel(true)
@@ -445,12 +454,34 @@ func _play_enter_anim() -> void:
 	t2.tween_property(_subtitle_label, "modulate:a", 1.0, 0.5)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
-	# 按钮组
+	# 按钮组（保底：1.6s 后无论如何强制可见）
 	var t3 := create_tween()
 	t3.tween_interval(1.0)
 	t3.tween_property(btn_vbox, "modulate:a", 1.0, 0.5)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	t3.tween_callback(func(): _enter_done = true)
+	t3.tween_callback(func() -> void:
+		btn_vbox.modulate.a = 1.0  # 确保完全可见
+		_enter_done = true
+	)
+
+	# 超时保底：如果动画1.8秒后还没完成，强制显示
+	get_tree().create_timer(1.8).timeout.connect(func() -> void:
+		if not _enter_done:
+			_show_all_immediately()
+	)
+
+## 跳过动画，立即显示全部 UI（作为动画失败的保底）
+func _show_all_immediately() -> void:
+	if _title_label:
+		_title_label.modulate.a = 1.0
+		_title_label.scale = Vector2.ONE
+	if _subtitle_label:
+		_subtitle_label.modulate.a = 1.0
+	if _btn_start:
+		var center: VBoxContainer = _title_label.get_parent() if _title_label else null
+		if center and center.get_child_count() >= 4:
+			center.get_child(3).modulate.a = 1.0
+	_enter_done = true
 
 # ---------------------------------------------------------------------------
 # 更新
