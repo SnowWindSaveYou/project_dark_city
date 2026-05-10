@@ -54,6 +54,17 @@ func _ready() -> void:
 	AudioManager.play_bgm("main")
 
 
+## 辅助：直接用 anchor+offset 定位一个控件
+## cx/cy 为锚点中心 (0..1)，w/h 为像素尺寸
+func _place(node: Control, cx: float, cy: float, w: float, h: float) -> void:
+	node.anchor_left   = cx;  node.anchor_right  = cx
+	node.anchor_top    = cy;  node.anchor_bottom = cy
+	node.offset_left   = -w * 0.5
+	node.offset_right  =  w * 0.5
+	node.offset_top    = -h * 0.5
+	node.offset_bottom =  h * 0.5
+
+
 func _build_ui() -> void:
 	# ── 深色渐变背景 ──
 	var bg := ColorRect.new()
@@ -75,14 +86,12 @@ func _build_ui() -> void:
 	_glow_bg.draw.connect(_draw_glow)
 	add_child(_glow_bg)
 
-	# ── 中心内容区：全屏铺满 + 垂直居中对齐 ──
-	# 注意：不能用 set_anchors_preset(PRESET_CENTER)，那样 size=(0,0) 导致按钮无法点击
-	var center := VBoxContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.alignment = BoxContainer.ALIGNMENT_CENTER
-	center.add_theme_constant_override("separation", 0)
-	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	add_child(center)
+	# ─── 直接 anchor+offset 定位，不依赖容器 layout ───
+	# 屏幕水平中心 = 0.5，垂直位置用百分比锚点
+	# 典型 9:16 手机屏布局（720×1280）：
+	#   标题   ≈ 28% 高度
+	#   副标题 ≈ 38% 高度
+	#   按钮区 ≈ 55~75% 高度（4个按钮 + 间距）
 
 	# 标题
 	_title_label = Label.new()
@@ -90,11 +99,12 @@ func _build_ui() -> void:
 	_title_label.add_theme_font_size_override("font_size", 72)
 	_title_label.add_theme_color_override("font_color", GameTheme.accent)
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_place(_title_label, 0.5, 0.28, 400.0, 100.0)
 	_title_label.modulate.a = 0.0
 	_title_label.scale = Vector2(0.7, 0.7)
-	_title_label.pivot_offset = Vector2(200, 50)
-	center.add_child(_title_label)
+	_title_label.pivot_offset = Vector2(200.0, 50.0)
+	add_child(_title_label)
 
 	# 副标题
 	_subtitle_label = Label.new()
@@ -104,22 +114,18 @@ func _build_ui() -> void:
 		Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 			GameTheme.text_secondary.b, 0.8))
 	_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_subtitle_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_subtitle_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_place(_subtitle_label, 0.5, 0.38, 360.0, 40.0)
 	_subtitle_label.modulate.a = 0.0
-	center.add_child(_subtitle_label)
+	add_child(_subtitle_label)
 
-	# 间距
-	var sp := Control.new()
-	sp.custom_minimum_size = Vector2(0, 56)
-	sp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	center.add_child(sp)
-
-	# 按钮区
+	# 按钮容器（VBoxContainer 只负责堆叠，本身被精确定位）
+	# 4 个按钮高度: 56 + 48*3 = 200，间距 18*3 = 54 → 总高约 254
 	var btn_vbox := VBoxContainer.new()
 	btn_vbox.add_theme_constant_override("separation", 18)
-	btn_vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn_vbox.modulate.a = 0.0  # 动画开始前隐藏，_play_enter_anim 会淡入
-	center.add_child(btn_vbox)
+	_place(btn_vbox, 0.5, 0.63, 300.0, 260.0)
+	btn_vbox.modulate.a = 0.0  # 动画开始前隐藏
+	add_child(btn_vbox)
 
 	_btn_start = _make_menu_button("▶  开始游戏", GameTheme.accent, true)
 	_btn_start.pressed.connect(_on_start_pressed)
@@ -144,9 +150,9 @@ func _build_ui() -> void:
 	ver.add_theme_color_override("font_color",
 		Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 			GameTheme.text_secondary.b, 0.4))
-	ver.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	ver.offset_left = -100.0
-	ver.offset_top = -36.0
+	ver.offset_top  = -36.0
 	add_child(ver)
 
 	# ── 图鉴 overlay ──
@@ -448,50 +454,48 @@ func _init_floating_cards() -> void:
 # ---------------------------------------------------------------------------
 
 func _play_enter_anim() -> void:
-	# 找到 btn_vbox (center 的第4个子节点 index 3)
-	var center: VBoxContainer = _title_label.get_parent()
-	if center == null or center.get_child_count() < 4:
-		# 节点结构异常，直接显示所有元素
+	if _title_label == null or _subtitle_label == null or _btn_start == null:
 		_show_all_immediately()
 		return
 
-	var btn_vbox: VBoxContainer = center.get_child(3)
+	# btn_vbox 是 _btn_start 的父节点
+	var btn_vbox: VBoxContainer = _btn_start.get_parent() as VBoxContainer
 	if btn_vbox == null:
 		_show_all_immediately()
 		return
 
-	# 标题：先串行等0.3s，再并行做缩放+淡入
-	var t1 := create_tween()
+	# 标题淡入 + 放大（并行，0.3s 后开始）
+	var t1 := create_tween().set_parallel(true)
 	t1.tween_interval(0.3)
-	t1.set_parallel(true)
 	t1.tween_property(_title_label, "modulate:a", 1.0, 0.7)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK).set_delay(0.3)
 	t1.tween_property(_title_label, "scale", Vector2.ONE, 0.7)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK).set_delay(0.3)
 
-	# 副标题
+	# 副标题淡入（0.7s 后）
 	var t2 := create_tween()
 	t2.tween_interval(0.7)
 	t2.tween_property(_subtitle_label, "modulate:a", 1.0, 0.5)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
-	# 按钮组（保底：1.6s 后无论如何强制可见）
+	# 按钮组淡入（1.0s 后）
 	var t3 := create_tween()
 	t3.tween_interval(1.0)
 	t3.tween_property(btn_vbox, "modulate:a", 1.0, 0.5)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	t3.tween_callback(func() -> void:
-		btn_vbox.modulate.a = 1.0  # 确保完全可见
+		btn_vbox.modulate.a = 1.0
 		_enter_done = true
 	)
 
-	# 超时保底：如果动画1.8秒后还没完成，强制显示
+	# 超时保底：1.8s 后强制显示
 	get_tree().create_timer(1.8).timeout.connect(func() -> void:
 		if not _enter_done:
 			_show_all_immediately()
 	)
 
-## 跳过动画，立即显示全部 UI（作为动画失败的保底）
+
+## 跳过动画，立即显示全部 UI（动画失败时的保底）
 func _show_all_immediately() -> void:
 	if _title_label:
 		_title_label.modulate.a = 1.0
@@ -499,9 +503,9 @@ func _show_all_immediately() -> void:
 	if _subtitle_label:
 		_subtitle_label.modulate.a = 1.0
 	if _btn_start:
-		var center: VBoxContainer = _title_label.get_parent() if _title_label else null
-		if center and center.get_child_count() >= 4:
-			center.get_child(3).modulate.a = 1.0
+		var btn_vbox: VBoxContainer = _btn_start.get_parent() as VBoxContainer
+		if btn_vbox:
+			btn_vbox.modulate.a = 1.0
 	_enter_done = true
 
 # ---------------------------------------------------------------------------
