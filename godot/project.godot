@@ -12,7 +12,7 @@ config_version=5
 
 config/name="暗面都市"
 config/description="卡牌 Roguelike 棋盘游戏 · 都市恐怖悬疑"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/screens/main_menu.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [autoload]
@@ -25,6 +25,7 @@ StoryManager="*res://scripts/autoload/story_manager.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 MilestoneManager="*res://scripts/autoload/milestone_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
+SaveManager="*res://scripts/autoload/save_manager.gd"
 
 [display]
 

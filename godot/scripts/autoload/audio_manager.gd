@@ -7,8 +7,10 @@ extends Node
 ## - SFX key → 文件路径映射 (data/audio_config.json)
 ## - 音量独立控制 (BGM / SFX)
 ## - Combo 音调递增 (可选)
+## - 设置持久化 (user://audio_settings.cfg)
 
 # ─── 常量 ─────────────────────────────────────────────
+const SETTINGS_PATH: String = "user://audio_settings.cfg"
 const MAX_SFX_POOL: int = 12
 const BGM_FADE_TIME: float = 1.5
 const COMBO_PITCH_STEP: float = 0.06  # 每级 +6%
@@ -44,6 +46,7 @@ var sfx_map: Dictionary = {}
 # ─── 初始化 ───────────────────────────────────────────
 
 func _ready() -> void:
+	_load_settings()
 	_load_audio_config()
 	_setup_bgm_players()
 	_setup_sfx_pool()
@@ -75,18 +78,83 @@ func _load_audio_config() -> void:
 
 
 func _apply_default_mapping() -> void:
-	# 基于 Lua 版实际引用的 SFX key，映射到已有的 .ogg 文件
+	# 映射到 assets/audio/ 下的 LFS 音频（godot/assets/audio 是该目录的 symlink）
 	sfx_map = {
-		"day_transition": "res://assets/audio/sfx/day_transition_new.ogg",
-		"item_use": "res://assets/audio/sfx/item_use.ogg",
-		"item_use_coffee": "res://assets/audio/sfx/item_use_coffee.ogg",
-		"item_use_fail": "res://assets/audio/sfx/item_use_fail.ogg",
-		"item_use_map": "res://assets/audio/sfx/item_use_map.ogg",
-		"item_use_order": "res://assets/audio/sfx/item_use_order.ogg",
-		"item_use_sedative": "res://assets/audio/sfx/item_use_sedative.ogg",
+		# UI / 通用交互
+		"button_click":      "res://assets/audio/sfx/btn_click.ogg",
+		"popup_open":        "res://assets/audio/sfx/popup_open.ogg",
+		"popup_close":       "res://assets/audio/sfx/popup_close.ogg",
+		"banner_text":       "res://assets/audio/sfx/banner_text.ogg",
+		"notebook_open":     "res://assets/audio/sfx/notebook_open.ogg",
+		"notebook_close":    "res://assets/audio/sfx/notebook_close.ogg",
+		# 卡牌操作
+		"card_flip":         "res://assets/audio/sfx/card_flip.ogg",
+		"card_deal":         "res://assets/audio/sfx/card_deal.ogg",
+		"card_shake":        "res://assets/audio/sfx/card_shake.ogg",
+		"card_transform":    "res://assets/audio/sfx/card_transform.ogg",
+		# 相机系统
+		"camera_enter":      "res://assets/audio/sfx/camera_enter.ogg",
+		"camera_exit":       "res://assets/audio/sfx/camera_exit.ogg",
+		"camera_shutter":    "res://assets/audio/sfx/camera_shutter.ogg",
+		"viewfinder_hum":    "res://assets/audio/sfx/viewfinder_hum.ogg",
+		"film_empty":        "res://assets/audio/sfx/film_empty.ogg",
+		# 日夜/关卡流程
+		"day_transition":    "res://assets/audio/sfx/day_transition.ogg",
+		"layer_transition":  "res://assets/audio/sfx/layer_transition.ogg",
+		# 暗世界
+		"dark_world_enter":  "res://assets/audio/sfx/rift_enter.ogg",
+		"dark_world_exit":   "res://assets/audio/sfx/rift_exit.ogg",
+		"dark_ambient":      "res://assets/audio/sfx/dark_ambient.ogg",
+		"ghost_encounter":   "res://assets/audio/sfx/evt_monster.ogg",
+		"ghost_hit":         "res://assets/audio/sfx/ghost_hit.ogg",
+		"ghost_dispel":      "res://assets/audio/sfx/ghost_dispel.ogg",
+		"exorcise":          "res://assets/audio/sfx/exorcise.ogg",
+		# 事件
+		"story_event":       "res://assets/audio/sfx/banner_text.ogg",
+		"npc_talk":          "res://assets/audio/sfx/popup_open.ogg",
+		"evt_safe":          "res://assets/audio/sfx/evt_safe.ogg",
+		"evt_trap":          "res://assets/audio/sfx/evt_trap.ogg",
+		"evt_reward":        "res://assets/audio/sfx/evt_reward.ogg",
+		"evt_plot":          "res://assets/audio/sfx/evt_plot.ogg",
+		"evt_clue":          "res://assets/audio/sfx/evt_clue.ogg",
+		"evt_photo":         "res://assets/audio/sfx/evt_photo.ogg",
+		"evt_monster":       "res://assets/audio/sfx/evt_monster.ogg",
+		# 资源
+		"resource_gain":     "res://assets/audio/sfx/resource_gain.ogg",
+		"resource_lose":     "res://assets/audio/sfx/resource_lose.ogg",
+		"token_jump":        "res://assets/audio/sfx/token_jump.ogg",
+		"item_pickup":       "res://assets/audio/sfx/item_pickup.ogg",
+		# 道具使用
+		"item_use":          "res://assets/audio/sfx/item_use.ogg",
+		"item_use_coffee":   "res://assets/audio/sfx/item_use.ogg",
+		"item_use_map":      "res://assets/audio/sfx/item_use.ogg",
+		"item_use_order":    "res://assets/audio/sfx/item_use.ogg",
+		"item_use_sedative": "res://assets/audio/sfx/item_use.ogg",
+		"item_use_shield":   "res://assets/audio/sfx/item_use_shield.ogg",
+		"item_use_fail":     "res://assets/audio/sfx/item_use_fail.ogg",
+		# 商店
+		"shop_buy":          "res://assets/audio/sfx/shop_buy.ogg",
+		"shop_refresh":      "res://assets/audio/sfx/shop_refresh.ogg",
+		"shop_reject":       "res://assets/audio/sfx/shop_reject.ogg",
+		# 结局
+		"ending_reveal":     "res://assets/audio/sfx/defeat_sting.ogg",
+		"defeat_sting":      "res://assets/audio/sfx/defeat_sting.ogg",
+		"victory_sting":     "res://assets/audio/sfx/victory_sting.ogg",
+		# 特效
+		"screen_flash":      "res://assets/audio/sfx/screen_flash.ogg",
+		"screen_shake":      "res://assets/audio/sfx/screen_shake.ogg",
+		# 天气
+		"weather_rain":      "res://assets/audio/sfx/weather_rain.ogg",
+		"weather_thunder":   "res://assets/audio/sfx/weather_thunder.ogg",
+		"weather_wind":      "res://assets/audio/sfx/weather_wind.ogg",
 	}
 	bgm_map = {
-		"main": "res://assets/audio/music_1777730398385.ogg",
+		"main":       "res://assets/audio/bgm_day_light.ogg",
+		"day_light":  "res://assets/audio/bgm_day_light.ogg",
+		"day_dark":   "res://assets/audio/bgm_day_dark.ogg",
+		"dark_world": "res://assets/audio/bgm_dark_world.ogg",
+		"defeat":     "res://assets/audio/bgm_defeat.ogg",
+		"victory":    "res://assets/audio/bgm_victory.ogg",
 	}
 
 
@@ -157,11 +225,12 @@ func stop_bgm(fade: bool = true) -> void:
 	_current_bgm_key = ""
 
 
-## 设置 BGM 音量 (0.0 - 1.0)
+## 设置 BGM 音量 (0.0 - 1.0) 并持久化
 func set_bgm_volume(vol: float) -> void:
 	_bgm_volume = clampf(vol, 0.0, 1.0)
 	if _active_bgm != null and not _bgm_fading:
 		_active_bgm.volume_db = linear_to_db(_bgm_volume)
+	save_settings()
 
 
 # ─── SFX 接口 ─────────────────────────────────────────
@@ -195,9 +264,14 @@ func play_sfx(key_or_path: String, volume: float = -1.0, combo: bool = false) ->
 	player.play()
 
 
-## 设置 SFX 音量 (0.0 - 1.0)
+## 设置 SFX 音量 (0.0 - 1.0) 并持久化
 func set_sfx_volume(vol: float) -> void:
 	_sfx_volume = clampf(vol, 0.0, 1.0)
+	# 同步更新池中所有闲置播放器音量 (Godot 不像 Lua 需要手动批量同步)
+	for p: AudioStreamPlayer in _sfx_pool:
+		if not p.playing:
+			p.volume_db = linear_to_db(_sfx_volume)
+	save_settings()
 
 
 ## 重置 Combo
@@ -264,3 +338,33 @@ func _load_stream(path: String) -> AudioStream:
 	if not ResourceLoader.exists(path):
 		return null
 	return load(path) as AudioStream
+
+
+# ─── 设置持久化 ───────────────────────────────────────
+
+## 将 BGM/SFX 音量保存到 user://audio_settings.cfg
+func save_settings() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("audio", "bgm_volume", _bgm_volume)
+	cfg.set_value("audio", "sfx_volume", _sfx_volume)
+	cfg.save(SETTINGS_PATH)
+
+
+## 从 user://audio_settings.cfg 加载音量设置 (初始化时调用)
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	var err := cfg.load(SETTINGS_PATH)
+	if err != OK:
+		return  # 文件不存在则保持默认值
+	_bgm_volume = clampf(cfg.get_value("audio", "bgm_volume", _bgm_volume), 0.0, 1.0)
+	_sfx_volume = clampf(cfg.get_value("audio", "sfx_volume", _sfx_volume), 0.0, 1.0)
+
+
+## 获取当前 BGM 音量 (0.0 - 1.0)
+func get_bgm_volume() -> float:
+	return _bgm_volume
+
+
+## 获取当前 SFX 音量 (0.0 - 1.0)
+func get_sfx_volume() -> float:
+	return _sfx_volume

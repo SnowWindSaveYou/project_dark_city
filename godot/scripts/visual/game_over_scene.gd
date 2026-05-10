@@ -150,6 +150,10 @@ func show_result(is_victory: bool, stats: Dictionary = {}, ending: Dictionary = 
 	set_process_input(true)
 	_game_time = 0.0
 
+	# 解锁结局 & 更新最佳成绩
+	var ending_id: String = ending.get("id", "")
+	SaveManager.record_run(ending_id, stats)
+
 	# Phase 5: 通过 EndingSystem 获取结局专属展示数据
 	var display: Dictionary = {}
 	if not ending.is_empty():

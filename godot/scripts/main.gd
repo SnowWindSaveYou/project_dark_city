@@ -97,6 +97,7 @@ var _date_transition: Control = null
 var _dialogue_overlay: Control = null
 var _bubble_overlay: Control = null
 var _debug_panel: DebugPanel = null
+var _settings_overlay: Control = null
 
 # ---------------------------------------------------------------------------
 # 场景节点
@@ -320,6 +321,11 @@ func _setup_scene_tree() -> void:
 	# Title Screen (最顶层) — Scene 化
 	_title_screen = load("res://scenes/screens/title_screen.tscn").instantiate()
 	ui_layer.add_child(_title_screen)
+
+	# 设置 Overlay (覆盖在 title_screen 之上, 游戏内 ESC 呼出)
+	_settings_overlay = load("res://scenes/screens/settings.tscn").instantiate()
+	_settings_overlay.quit_requested.connect(func() -> void: get_tree().quit())
+	ui_layer.add_child(_settings_overlay)
 
 # ---------------------------------------------------------------------------
 # 3D 场景初始化 (Phase 0)
@@ -647,7 +653,11 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 func _handle_key(event: InputEventKey) -> void:
 	match event.keycode:
 		KEY_ESCAPE:
-			get_tree().quit()
+			# ESC: 若设置面板已打开则关闭，否则打开设置面板
+			if _settings_overlay and _settings_overlay.visible:
+				_settings_overlay.hide_settings()
+			elif _settings_overlay:
+				_settings_overlay.show_settings()
 		KEY_F4:
 			card_interaction.handle_inventory_exorcism()
 

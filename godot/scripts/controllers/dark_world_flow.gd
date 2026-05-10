@@ -81,6 +81,12 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		# 清理现实世界物品节点
 		m.board_visual.destroy_item_nodes()
 
+		# 保存现实 NPC 快照 (只在初次进入时保存, 换层不覆盖)
+		if _saved_real_npcs.is_empty():
+			_saved_real_npcs = m.game_flow.npc_manager.npcs.duplicate()
+		# 销毁现实 NPC 3D 节点 (避免它们在暗面中可见)
+		m.board_visual.destroy_npc_nodes()
+
 		# 生成暗面棋盘
 		_generate_dark_board()
 
@@ -130,14 +136,12 @@ func _generate_dark_board() -> void:
 				var key: String = "%d,%d" % [r, c]
 				layer_data.walkable[key] = walkable[r][c]
 
-		# 生成幽灵和 NPC (进入暗面前快照并清除现实 NPC，注入共享 manager)
-		_saved_real_npcs = m.game_flow.npc_manager.npcs.duplicate()
+		# 清除现实 NPC 数据，注入共享 manager 给暗面使用
 		m.game_flow.npc_manager.clear()
 		m.dark_world._npc_manager = m.game_flow.npc_manager
 		m.dark_world.generate_overlay_data(layer_idx)
 	else:
 		# 层已生成, 复用已有数据重建 Board (确保 npc_manager 注入)
-		_saved_real_npcs = m.game_flow.npc_manager.npcs.duplicate()
 		m.game_flow.npc_manager.clear()
 		m.dark_world._npc_manager = m.game_flow.npc_manager
 		m.dark_world.generate_npcs(layer_idx, m.game_flow.npc_manager)
