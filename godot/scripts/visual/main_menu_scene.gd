@@ -75,10 +75,13 @@ func _build_ui() -> void:
 	_glow_bg.draw.connect(_draw_glow)
 	add_child(_glow_bg)
 
-	# ── 中心内容区 ──
+	# ── 中心内容区：全屏铺满 + 垂直居中对齐 ──
+	# 注意：不能用 set_anchors_preset(PRESET_CENTER)，那样 size=(0,0) 导致按钮无法点击
 	var center := VBoxContainer.new()
-	center.set_anchors_preset(Control.PRESET_CENTER)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_theme_constant_override("separation", 0)
+	center.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(center)
 
 	# 标题
@@ -87,6 +90,7 @@ func _build_ui() -> void:
 	_title_label.add_theme_font_size_override("font_size", 72)
 	_title_label.add_theme_color_override("font_color", GameTheme.accent)
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_title_label.modulate.a = 0.0
 	_title_label.scale = Vector2(0.7, 0.7)
 	_title_label.pivot_offset = Vector2(200, 50)
@@ -100,17 +104,20 @@ func _build_ui() -> void:
 		Color(GameTheme.text_secondary.r, GameTheme.text_secondary.g,
 			GameTheme.text_secondary.b, 0.8))
 	_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_subtitle_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_subtitle_label.modulate.a = 0.0
 	center.add_child(_subtitle_label)
 
 	# 间距
 	var sp := Control.new()
 	sp.custom_minimum_size = Vector2(0, 56)
+	sp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	center.add_child(sp)
 
 	# 按钮区
 	var btn_vbox := VBoxContainer.new()
 	btn_vbox.add_theme_constant_override("separation", 18)
+	btn_vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn_vbox.modulate.a = 0.0  # 动画开始前隐藏，_play_enter_anim 会淡入
 	center.add_child(btn_vbox)
 
