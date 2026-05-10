@@ -7,15 +7,12 @@ extends Node
 # ---------------------------------------------------------------------------
 
 func _ready() -> void:
-	var default_theme := Theme.new()
+	# 将内置字体注册为 fallback_font，确保所有程序化控件都能渲染文字
+	# （不依赖版本差异较大的 set_project_theme API）
 	var fallback: Font = ThemeDB.fallback_font
 	if fallback:
-		# 为所有控件类型注册内置字体，解决程序化创建时无字体渲染文字的问题
-		for ctrl_type in ["Button", "Label", "LineEdit", "RichTextLabel",
-				"OptionButton", "MenuButton", "CheckBox", "CheckButton",
-				"PopupMenu", "TabBar", "Tree", "ItemList", "SpinBox"]:
-			default_theme.set_font("font", ctrl_type, fallback)
-	ThemeDB.set_project_theme(default_theme)
+		ThemeDB.fallback_font = fallback  # 显式确认已设置
+		ThemeDB.fallback_font_size = 16   # 设置合理的默认字号
 
 # ---------------------------------------------------------------------------
 # ThemeColor 辅助

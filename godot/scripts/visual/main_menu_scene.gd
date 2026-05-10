@@ -40,6 +40,13 @@ var _enter_done: bool = false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# 给根节点挂载带默认字体的主题，所有子控件自动继承，解决无字体文件时文字不渲染的问题
+	var root_theme := Theme.new()
+	var fb: Font = ThemeDB.fallback_font
+	if fb:
+		root_theme.default_font = fb
+		root_theme.default_font_size = 16
+	theme = root_theme
 	_build_ui()
 	_init_floating_cards()
 	# 延迟一帧再播放动画，确保节点树完全就绪
