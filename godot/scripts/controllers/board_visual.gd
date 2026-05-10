@@ -419,11 +419,14 @@ func update_token_visual() -> void:
 	var world_pos: Vector3 = get_card_world_pos(token.target_row, token.target_col)
 	world_pos.y = TOKEN_CENTER_Y
 
-	# 同格 NPC: Token 向左偏移 (SHARE_OFFSET 像素 → 世界单位 X)
+	# 同格 NPC: Token 向左偏移 (世界单位固定偏移, 避免像素换算过小看不见)
+	# Lua SHARE_OFFSET=-18px; Lua px→world: -18 * 0.0013 ≈ -0.023m — 太小
+	# 改用世界单位偏移 -0.20m (约 31% 卡宽), 与 NPC_OFFSET_X 反向对称
 	var npc_mgr: NPCManager = m.game_flow.npc_manager if m.game_flow else null
 	if npc_mgr:
 		var share_px: float = npc_mgr.get_share_offset(token.target_row, token.target_col)
-		world_pos.x += share_px * TOKEN_PX_TO_WORLD
+		if share_px != 0.0:
+			world_pos.x -= 0.20  # NPC 在右 (+0.15), Token 向左偏 (-0.20) 保持间距
 
 	# 呼吸动画 (转换像素偏移为世界单位)
 	var breathe: Dictionary = token.get_breathe_offset(m.game_time)
@@ -1018,8 +1021,10 @@ func animate_ghost_fade(ghost_index: int) -> void:
 ## Lua: bb.size=0.35 (half) → 实际 0.70m
 ## Lua: nodeY=0.25, bb.offset.y=0.18, half-height=0.35 → 中心 Y=0.43, 底部 Y=0.08
 ## Godot ×2: 全高=0.70, 底部 Y=0.08 → 中心 Y=0.08+0.35=0.43 ✓
-const NPC_BASE_Y: float = 0.43
-const NPC_WORLD_SIZE: float = 0.35 * BILLBOARD_HALF_EXTENT_FACTOR
+## Lua: bb.size=(0.35, 0.52) 其中 0.52 是 Y 半尺寸 → 实际全高=1.04m
+## Godot ×2: 全高=1.04, 底部 Y=0.08 → 中心 Y=0.08+0.52=0.60
+const NPC_BASE_Y: float = 0.60
+const NPC_WORLD_SIZE: float = 0.52 * BILLBOARD_HALF_EXTENT_FACTOR
 const NPC_OFFSET_X: float = 0.15  # Lua DarkWorld: wx + 0.15
 const NPC_BREATHE_SPEED: float = 2.0
 const NPC_BREATHE_AMP: float = 0.02
@@ -1076,19 +1081,22 @@ func create_npc_nodes(npcs_dict: Dictionary) -> void:
 		add_child(sprite)
 
 		# 弹出 Tween (easeOutBack: scale 0→1, alpha 0→1, 延迟 0.3s)
-		var tw: Tween = create_tween()
-		tw.set_parallel(true)
-		tw.tween_interval(0.3)
-		tw.tween_property(sprite, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.3)
-		tw.tween_property(sprite, "modulate:a", 1.0, 0.3).set_delay(0.3)
-
-		_npc_nodes[i] = {
+		# 注意: pop_done=false 期间, update_npc_visuals 不覆盖 scale
+		var entry: Dictionary = {
 			"node": sprite,
 			"shadow": shadow_mesh,
 			"row": npc.row + 1,
 			"col": npc.col + 1,
 			"npc_id": npc.id,
+			"pop_done": false,
 		}
+		_npc_nodes[i] = entry
+		var tw: Tween = create_tween()
+		tw.set_parallel(true)
+		tw.tween_interval(0.3)
+		tw.tween_property(sprite, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.3)
+		tw.tween_property(sprite, "modulate:a", 1.0, 0.3).set_delay(0.3)
+		tw.chain().tween_callback(func(): entry["pop_done"] = true)
 		i += 1
 
 func destroy_npc_nodes() -> void:
@@ -1105,7 +1113,8 @@ func destroy_npc_nodes() -> void:
 ## NPC 点击检测 — 返回 {row, col, npc_id}，未命中返回空 {}
 ## click_pos: 屏幕坐标
 func hit_test_npc(click_pos: Vector2) -> Dictionary:
-	if not m._camera_3d or not m._camera_3d.current:
+	# 移除 .current 检查: 相机激活时序不稳定，直接判断引用有效性即可
+	if not m._camera_3d:
 		return {}
 	for key in _npc_nodes:
 		var data: Dictionary = _npc_nodes[key]
@@ -1114,8 +1123,8 @@ func hit_test_npc(click_pos: Vector2) -> Dictionary:
 			continue
 		# 将 NPC 3D 位置投影到屏幕，检测点击距离
 		var screen_pos: Vector2 = m._camera_3d.unproject_position(node.global_position)
-		# NPC sprite 屏幕半径约 40px（可根据实际调整）
-		if click_pos.distance_to(screen_pos) <= 48.0:
+		# NPC 渲染高度 1.04m, 相机 ~204 px/m → 半径 ~106px, 使用 80px 宽松阈值
+		if click_pos.distance_to(screen_pos) <= 80.0:
 			return { "row": data["row"], "col": data["col"], "npc_id": data["npc_id"] }
 	return {}
 
@@ -1123,6 +1132,9 @@ func update_npc_visuals(game_time: float) -> void:
 	var breathe: float = 1.0 + sin(game_time * NPC_BREATHE_SPEED) * NPC_BREATHE_AMP
 	for key in _npc_nodes:
 		var data: Dictionary = _npc_nodes[key]
+		# 弹出 Tween 未完成时不覆盖 scale，避免打断弹出动画
+		if not data.get("pop_done", false):
+			continue
 		var node = data.get("node")
 		if is_instance_valid(node):
 			node.scale = Vector3(breathe, breathe, breathe)

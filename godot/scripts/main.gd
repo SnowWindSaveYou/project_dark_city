@@ -927,6 +927,11 @@ func _tween_dialogue_enter() -> void:
 	tw_cb.tween_callback(_dialogue_system.on_enter_complete).set_delay(0.55)
 
 func _tween_dialogue_exit() -> void:
+	# 退出时立即重置入场标志:
+	# on_exit_complete() 可能在 Tween 回调（_process 之前）中同步触发下一段对话，
+	# 导致下一段对话 state 已变为 "entering" 但 _dlg_enter_tweened 仍为 true，
+	# 使入场 Tween 永远不触发，对话卡死，发牌链断裂。
+	_dlg_enter_tweened = false
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(_dialogue_system, "overlay_alpha", 0.0, 0.25)
 	tw.tween_property(_dialogue_system, "box_offset_y", 60.0, 0.3) \
