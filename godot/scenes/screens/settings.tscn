@@ -8,3 +8,124 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource("1_settings")
+
+[node name="Overlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.65)
+
+[node name="AnchorCenter" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="AnchorCenter"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -210.0
+offset_right = 260.0
+offset_bottom = 210.0
+custom_minimum_size = Vector2(520, 420)
+
+[node name="VBox" type="VBoxContainer" parent="AnchorCenter/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TitleLabel" type="Label" parent="AnchorCenter/Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "\u2699 \u8bbe\u7f6e"
+horizontal_alignment = 1
+
+[node name="Separator" type="HSeparator" parent="AnchorCenter/Panel/VBox"]
+layout_mode = 2
+
+[node name="BgmRow" type="VBoxContainer" parent="AnchorCenter/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BgmLabelRow" type="HBoxContainer" parent="AnchorCenter/Panel/VBox/BgmRow"]
+layout_mode = 2
+
+[node name="BgmLabel" type="Label" parent="AnchorCenter/Panel/VBox/BgmRow/BgmLabelRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "\U0001f3b5  \u80cc\u666f\u97f3\u4e50"
+
+[node name="BgmValueLabel" type="Label" parent="AnchorCenter/Panel/VBox/BgmRow/BgmLabelRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(52, 0)
+theme_override_font_sizes/font_size = 18
+text = "80%"
+horizontal_alignment = 2
+
+[node name="BgmSlider" type="HSlider" parent="AnchorCenter/Panel/VBox/BgmRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(440, 28)
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.8
+
+[node name="SfxRow" type="VBoxContainer" parent="AnchorCenter/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SfxLabelRow" type="HBoxContainer" parent="AnchorCenter/Panel/VBox/SfxRow"]
+layout_mode = 2
+
+[node name="SfxLabel" type="Label" parent="AnchorCenter/Panel/VBox/SfxRow/SfxLabelRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "\U0001f50a  \u97f3\u6548"
+
+[node name="SfxValueLabel" type="Label" parent="AnchorCenter/Panel/VBox/SfxRow/SfxLabelRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(52, 0)
+theme_override_font_sizes/font_size = 18
+text = "80%"
+horizontal_alignment = 2
+
+[node name="SfxSlider" type="HSlider" parent="AnchorCenter/Panel/VBox/SfxRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(440, 28)
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.8
+
+[node name="Spacer" type="Control" parent="AnchorCenter/Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BtnRow" type="HBoxContainer" parent="AnchorCenter/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="BtnSpacer" type="Control" parent="AnchorCenter/Panel/VBox/BtnRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnQuit" type="Button" parent="AnchorCenter/Panel/VBox/BtnRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 44)
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "\u9000\u51fa\u6e38\u620f"
+
+[node name="BtnClose" type="Button" parent="AnchorCenter/Panel/VBox/BtnRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 44)
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "\u5173 \u95ed"
