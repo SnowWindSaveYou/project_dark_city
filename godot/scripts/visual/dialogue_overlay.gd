@@ -114,6 +114,16 @@ func _draw() -> void:
 
 	var t = GameTheme
 
+	# --- 立绘 (在对话框背景之前绘制, 使对话框覆盖立绘下半部分) ---
+	var portrait: Texture2D = ds.get_portrait_texture()
+	if portrait and ds.portrait_alpha > 0.01:
+		var ph: float = vp.y * PORTRAIT_H_RATIO * ds.portrait_scale
+		var pw: float = ph * (portrait.get_width() as float / portrait.get_height() as float)
+		var px: float = vp.x * PORTRAIT_MARGIN_LEFT
+		var py: float = vp.y - ph + ds.portrait_offset_y
+		var p_color: Color = Color(1, 1, 1, ds.portrait_alpha)
+		draw_texture_rect(portrait, Rect2(px, py, pw, ph), false, p_color)
+
 	# --- 对话框背景 (笔记本纸) ---
 	var paper_color: Color = Color(t.dialogue_paper, ds.box_alpha)
 	draw_rect(box_rect, paper_color, true)
@@ -216,16 +226,6 @@ func _draw() -> void:
 				Vector2(tri_x + tri_size, tri_y + tri_size),
 			])
 			draw_colored_polygon(points, tri_color)
-
-	# --- 立绘 ---
-	var portrait: Texture2D = ds.get_portrait_texture()
-	if portrait and ds.portrait_alpha > 0.01:
-		var ph: float = vp.y * PORTRAIT_H_RATIO * ds.portrait_scale
-		var pw: float = ph * (portrait.get_width() as float / portrait.get_height() as float)
-		var px: float = vp.x * PORTRAIT_MARGIN_LEFT
-		var py: float = vp.y - ph + ds.portrait_offset_y
-		var p_color: Color = Color(1, 1, 1, ds.portrait_alpha)
-		draw_texture_rect(portrait, Rect2(px, py, pw, ph), false, p_color)
 
 # ---------------------------------------------------------------------------
 # 自动换行

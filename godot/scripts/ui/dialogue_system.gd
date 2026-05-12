@@ -253,12 +253,15 @@ func _advance() -> void:
 
 ## 退场动画完成后由 main.gd 调用
 func on_exit_complete() -> void:
-	print("[DialogueSystem] on_exit_complete: restoring demo_state='%s', has_cb=%s" % [_prev_demo_state, _on_complete.is_valid()])
+	# 过渡态（flipping/dealing 等）不能直接恢复，否则游戏卡死，统一回退到 ready
+	const TRANSIT_STATES: Array = ["flipping", "dealing", "moving"]
+	var restore_state: String = _prev_demo_state if _prev_demo_state not in TRANSIT_STATES else "ready"
+	print("[DialogueSystem] on_exit_complete: restoring demo_state='%s' (prev='%s'), has_cb=%s" % [restore_state, _prev_demo_state, _on_complete.is_valid()])
 	state = "idle"
 	_script = []
 	_script_index = 0
 	_portrait_tex = null
-	GameData.set_demo_state(_prev_demo_state)  # 恢复对话前的状态
+	GameData.set_demo_state(restore_state)
 	if _on_complete.is_valid():
 		var cb: Callable = _on_complete
 		_on_complete = Callable()

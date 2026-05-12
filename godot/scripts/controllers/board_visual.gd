@@ -1257,6 +1257,7 @@ func animate_item_collect(item_index: int) -> void:
 var _mg_surround_nodes: Array = []   # 环绕玩家的 chibi Sprite3D
 var _mg_card_nodes: Array = []       # 卡牌上的 chibi Sprite3D
 var _mg_trail_nodes: Array = []      # 踪迹箭头 chibi Sprite3D
+var _rift_card_nodes: Array = []     # 裂隙入口卡牌上的 chibi Sprite3D
 
 ## 环绕布局 (精确匹配 Lua SURROUND_LAYOUT, size ×2 half-extent 修正)
 const MG_SURROUND_LAYOUT: Array = [
@@ -1269,6 +1270,10 @@ const MG_SURROUND_LAYOUT: Array = [
 ## 卡牌 chibi 参数 (Lua: size=0.28 half → 实际 0.56m)
 const MG_CARD_BASE_Y: float = 0.35
 const MG_CARD_SIZE: float = 0.28 * BILLBOARD_HALF_EXTENT_FACTOR
+## 裂隙 chibi 参数 (略大于怪物 chibi, 突出感)
+const RIFT_CARD_BASE_Y: float = 0.40
+const RIFT_CARD_SIZE: float = 0.32 * BILLBOARD_HALF_EXTENT_FACTOR
+const RIFT_TEX_PATH: String = "res://assets/image/rift_chibi.png"
 ## 踪迹箭头参数 (Lua: size=0.14 half → 实际 0.28m)
 const MG_TRAIL_BASE_Y: float = 0.25
 const MG_TRAIL_SIZE: float = 0.14 * BILLBOARD_HALF_EXTENT_FACTOR
@@ -1406,6 +1411,39 @@ func mg_clear_card_ghosts() -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	_mg_card_nodes.clear()
+
+# ---------------------------------------------------------------------------
+# 裂隙 chibi (翻开含裂隙的卡牌时显示在卡牌上)
+# ---------------------------------------------------------------------------
+
+## 在指定卡牌上显示裂隙 chibi (弹出动画 + 持续脉冲)
+func rift_show_on_card(row: int, col: int) -> void:
+	var world_pos: Vector3 = m.board.grid_to_world(row, col)
+	var phase: float = randf() * TAU
+	var data: Dictionary = _mg_create_sprite(RIFT_TEX_PATH,
+		world_pos.x, world_pos.z, RIFT_CARD_BASE_Y, RIFT_CARD_SIZE, phase)
+	if data.is_empty():
+		push_warning("[BoardVisual] rift_show_on_card: 裂隙贴图加载失败 " + RIFT_TEX_PATH)
+		return
+	_rift_card_nodes.append(data)
+	# 弹出动画: 略大于怪物 chibi, 加入轻微旋转感
+	var node: Sprite3D = data["node"]
+	var tw: Tween = m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "scale", Vector3(1.1, 1.1, 1.1), 0.4) \
+		.set_delay(0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(node, "modulate:a", 1.0, 0.25).set_delay(0.1)
+	# 弹出后轻微回弹到标准大小
+	tw.chain().tween_property(node, "scale", Vector3.ONE, 0.15) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+## 清除所有裂隙 chibi (不带动画, 用于重置棋盘)
+func rift_clear_all() -> void:
+	for data in _rift_card_nodes:
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_rift_card_nodes.clear()
 
 ## 驱魔: 卡牌 chibi 死亡动画 (抖动→膨胀→淡出→清除)
 ## on_burst: 膨胀开始时触发一次 (用于同步闪光/粒子)
@@ -1553,6 +1591,20 @@ func update_monster_ghost_visuals(game_time: float) -> void:
 			data["base_y"] + float_y,
 			data["anchor_z"])
 
+	# 裂隙 chibi: 较慢的脉冲浮动 (营造神秘感)
+	for data in _rift_card_nodes:
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * 1.8 + data["phase"]) * 0.025
+		# 加入轻微的色相脉冲 (紫色调明暗)
+		var pulse: float = 0.85 + sin(game_time * 2.2 + data["phase"] * 0.7) * 0.15
+		node.modulate = Color(pulse, pulse * 0.7, 1.0, node.modulate.a)
+		node.position = Vector3(
+			data["anchor_x"],
+			data["base_y"] + float_y,
+			data["anchor_z"])
+
 	# 踪迹箭头: sin 浮动 + 方向晃动
 	for data in _mg_trail_nodes:
 		var node = data.get("node")
@@ -1571,9 +1623,20 @@ func update_monster_ghost_visuals(game_time: float) -> void:
 # 棋盘叠层效果 (Phase 3 用 3D 节点替代 _draw)
 # ---------------------------------------------------------------------------
 
-## 暂时空实现: 裂隙标记等叠层效果
+## 叠层效果刷新: 根据当前棋盘状态重建裂隙 chibi
+## 在棋盘重新生成或状态恢复时调用
 func _update_overlays() -> void:
-	pass
+	# 清除旧的裂隙 chibi
+	rift_clear_all()
+	# 重建: 扫描所有已翻开且含裂隙的卡牌
+	if not m.board:
+		return
+	var grid: Array = m.board.grid
+	for r in grid.size():
+		for c in grid[r].size():
+			var card = grid[r][c]
+			if card and card.has_rift and card.is_revealed:
+				rift_show_on_card(r, c)
 
 # ---------------------------------------------------------------------------
 # 地标 / 安全区: 方形发光边框上浮特效 (匹配 Lua 版 Card.attachGlowRings)

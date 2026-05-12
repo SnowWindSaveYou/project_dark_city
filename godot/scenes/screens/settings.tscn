@@ -42,7 +42,7 @@ theme_override_constants/separation = 24
 [node name="TitleLabel" type="Label" parent="AnchorCenter/Panel/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "\u2699 \u8bbe\u7f6e"
+text = "设置"
 horizontal_alignment = 1
 
 [node name="Separator" type="HSeparator" parent="AnchorCenter/Panel/VBox"]
@@ -59,7 +59,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 18
-text = "\U0001f3b5  \u80cc\u666f\u97f3\u4e50"
+text = "背景音乐"
 
 [node name="BgmValueLabel" type="Label" parent="AnchorCenter/Panel/VBox/BgmRow/BgmLabelRow"]
 layout_mode = 2
@@ -87,7 +87,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 18
-text = "\U0001f50a  \u97f3\u6548"
+text = "音效"
 
 [node name="SfxValueLabel" type="Label" parent="AnchorCenter/Panel/VBox/SfxRow/SfxLabelRow"]
 layout_mode = 2
@@ -120,12 +120,10 @@ size_flags_horizontal = 3
 layout_mode = 2
 custom_minimum_size = Vector2(120, 44)
 theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "\u9000\u51fa\u6e38\u620f"
+text = "退出游戏"
 
 [node name="BtnClose" type="Button" parent="AnchorCenter/Panel/VBox/BtnRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(120, 44)
 theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "\u5173 \u95ed"
+text = "关闭"

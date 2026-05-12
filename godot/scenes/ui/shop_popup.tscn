@@ -34,7 +34,7 @@ mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="PanelAnchor"]
 layout_mode = 2
-custom_minimum_size = Vector2(310, 260)
+custom_minimum_size = Vector2(840, 560)
 mouse_filter = 1
 
 [node name="VBox" type="VBoxContainer" parent="PanelAnchor/Panel"]
@@ -83,7 +83,8 @@ layout_mode = 2
 
 [node name="CardsArea" type="Control" parent="PanelAnchor/Panel/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 340)
+size_flags_vertical = 3
 mouse_filter = 1
 
 [node name="ButtonRow" type="HBoxContainer" parent="PanelAnchor/Panel/VBox"]

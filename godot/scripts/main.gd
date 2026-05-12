@@ -506,6 +506,7 @@ func _connect_signals() -> void:
 
 func _on_title_start() -> void:
 	GameData.set_game_phase("playing")
+	card_interaction.reset_daily_steps()
 	game_flow.start_deal()
 
 func _on_shop_closed() -> void:

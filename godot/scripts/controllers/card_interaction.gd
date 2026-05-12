@@ -210,6 +210,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		m._camera_button.show_button()
 		# 裂隙检查
 		if card.has_rift:
+			m.board_visual.rift_show_on_card(row, col)
 			_show_rift_confirm(row, col)
 			return
 		return
@@ -294,6 +295,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 			GameData.set_demo_state("ready")
 			m._camera_button.show_button()
 			if card.has_rift:
+				m.board_visual.rift_show_on_card(row, col)
 				_show_rift_confirm(row, col)
 				return
 			m.game_flow.check_defeat()
@@ -309,6 +311,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 
 		# 裂隙检查
 		if card.has_rift:
+			m.board_visual.rift_show_on_card(row, col)
 			_show_rift_confirm(row, col)
 			return
 
@@ -358,6 +361,7 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 
 	# 裂隙检查
 	if card.has_rift:
+		m.board_visual.rift_show_on_card(row, col)
 		_show_rift_confirm(row, col)
 
 	m.game_flow.check_defeat()
@@ -452,6 +456,7 @@ func on_popup_dismissed(card: Card) -> void:
 
 	# 裂隙检查 (弹窗关闭后)
 	if card and card.has_rift:
+		m.board_visual.rift_show_on_card(card.row, card.col)
 		_show_rift_confirm(card.row, card.col)
 		return
 
