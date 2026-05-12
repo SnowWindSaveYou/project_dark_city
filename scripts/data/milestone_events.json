@@ -1,0 +1,140 @@
+{
+    "version": 1,
+    "events": [
+        {
+            "id": "ms_enter_dark_first",
+            "hookId": "enter_dark_world",
+            "priority": 10,
+            "onceFlag": "ms_entered_dark",
+            "condition": { "all": [
+                { "not_flag": "ms_entered_dark" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "裂隙之下，空气变得粘稠而冰冷。光线以一种不可能的角度弯曲着。" },
+                { "speaker": "白夜", "text": "……小心。这里的规则和现实不同。" },
+                { "speaker": "白夜", "text": "在暗面，时间和空间都会扭曲。不要相信你的眼睛看到的一切。" },
+                { "speaker": "旁白", "text": "一股说不清的压迫感从四面八方涌来，你握紧了手中的相机。" }
+            ]
+        },
+        {
+            "id": "ms_exit_dark_first",
+            "hookId": "exit_dark_world",
+            "priority": 10,
+            "onceFlag": "ms_exited_dark",
+            "condition": { "all": [
+                { "not_flag": "ms_exited_dark" },
+                { "flag": "ms_entered_dark" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "回到现实的瞬间，刺眼的日光让你下意识闭上了眼睛。" },
+                { "speaker": "白夜", "text": "……回来了。你还好吗？" },
+                { "speaker": "白夜", "text": "暗面的东西不会跟过来。至少……暂时不会。" }
+            ]
+        },
+        {
+            "id": "ms_open_shop_first",
+            "hookId": "open_shop",
+            "priority": 10,
+            "onceFlag": "ms_visited_shop",
+            "condition": { "all": [
+                { "not_flag": "ms_visited_shop" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "杂货铺的门铃发出沙哑的叮当声。柜台后面似乎没有人。" },
+                { "speaker": "旁白", "text": "货架上摆着一些奇怪的商品——它们都标着令人困惑的价格。" },
+                { "speaker": "白夜", "text": "这家店……从很久以前就在这里了。老板不太说话，但货物都是真的。" },
+                { "speaker": "白夜", "text": "有些东西在暗面也能派上用场。看看有没有需要的吧。" }
+            ]
+        },
+        {
+            "id": "ms_baiye_sleep_first",
+            "hookId": "baiye_sleep",
+            "priority": 10,
+            "onceFlag": "ms_baiye_slept",
+            "condition": { "all": [
+                { "not_flag": "ms_baiye_slept" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "白夜的身影开始变得透明，像是褪色的旧照片。" },
+                { "speaker": "白夜", "text": "……抱歉，我需要休息一下。力量消耗太大了。" },
+                { "speaker": "白夜", "text": "别担心，过几天我就会回来。在那之前……你自己小心。" },
+                { "speaker": "旁白", "text": "白夜的轮廓缓缓消散在空气中。你第一次感受到了真正的孤独。" }
+            ]
+        },
+        {
+            "id": "ms_baiye_return_first",
+            "hookId": "baiye_return",
+            "priority": 10,
+            "onceFlag": "ms_baiye_returned",
+            "condition": { "all": [
+                { "not_flag": "ms_baiye_returned" },
+                { "flag": "ms_baiye_slept" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "清晨的雾气中，一个熟悉的身影逐渐凝聚成形。" },
+                { "speaker": "白夜", "text": "……我回来了。" },
+                { "speaker": "白夜", "text": "这几天，你一个人辛苦了吧？" },
+                { "speaker": "旁白", "text": "白夜微微笑了笑。虽然表情和平时一样淡漠，但你能感觉到某种安心。" }
+            ]
+        },
+        {
+            "id": "ms_fragment_first",
+            "hookId": "fragment_collect",
+            "priority": 10,
+            "onceFlag": "ms_first_fragment",
+            "condition": { "all": [
+                { "not_flag": "ms_first_fragment" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "一段不属于你的记忆碎片涌入脑海。画面破碎而鲜明。" },
+                { "speaker": "白夜", "text": "这是……记忆碎片。" },
+                { "speaker": "白夜", "text": "收集足够多的碎片，也许就能拼凑出这座城市的真相。" },
+                { "speaker": "白夜", "text": "也包括……我的过去。" }
+            ]
+        },
+        {
+            "id": "ms_chapter_bonding",
+            "hookId": "chapter_enter",
+            "priority": 10,
+            "onceFlag": "ms_chapter_bonding",
+            "condition": { "all": [
+                { "not_flag": "ms_chapter_bonding" },
+                { "chapter": "bonding" }
+            ]},
+            "dialogue": [
+                { "speaker": "旁白", "text": "日子一天天过去。城市的面貌逐渐在你眼中变得清晰。" },
+                { "speaker": "旁白", "text": "而你与白夜之间的距离，也在不知不觉中缩短了。" },
+                { "speaker": "白夜", "text": "……你还在坚持啊。" },
+                { "speaker": "白夜", "text": "我以为你早就会放弃了。" }
+            ]
+        },
+        {
+            "id": "ms_resource_low_first",
+            "hookId": "resource_low",
+            "priority": 20,
+            "onceFlag": "ms_resource_warned",
+            "condition": { "all": [
+                { "not_flag": "ms_resource_warned" }
+            ]},
+            "dialogue": [
+                { "speaker": "白夜", "text": "……你的状态不太好。" },
+                { "speaker": "白夜", "text": "注意保存体力。在这座城市里，倒下就意味着一切结束。" },
+                { "speaker": "白夜", "text": "商店里有些东西也许能帮到你。还有，不要忘了使用手牌里的道具。" }
+            ]
+        },
+        {
+            "id": "ms_use_item_first",
+            "hookId": "use_item",
+            "priority": 10,
+            "onceFlag": "ms_used_item",
+            "condition": { "all": [
+                { "not_flag": "ms_used_item" }
+            ]},
+            "dialogue": [
+                { "speaker": "白夜", "text": "嗯，不错的判断。" },
+                { "speaker": "白夜", "text": "道具是有限的，但在关键时刻能救你一命。" },
+                { "speaker": "白夜", "text": "记得合理分配，别一次全用光了。" }
+            ]
+        }
+    ]
+}

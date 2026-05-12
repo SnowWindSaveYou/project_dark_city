@@ -53,12 +53,13 @@ local vg_ = nil
 local script_ = nil           -- 当前对话脚本 (array of lines)
 local scriptIndex_ = 0        -- 当前行索引
 local onComplete_ = nil       -- 对话结束回调
+local onChoiceSelected_ = nil -- 选择回调 (index, choiceData)
 
 -- 立绘
 local portraitTexPath_ = nil  -- 立绘纹理路径
 local portraitImage_ = -1     -- NanoVG 图片句柄
 
--- 状态机: "idle" → "entering" → "typing" → "waiting" → "exiting" → "idle"
+-- 状态机: "idle" → "entering" → "typing" → "waiting" → ["choosing"] → "exiting" → "idle"
 local state_ = "idle"
 
 -- 动画属性 (Tween 目标)
@@ -79,6 +80,11 @@ local typewriterAccum_ = 0     -- 时间累计
 -- 当前行数据
 local currentSpeaker_ = ""
 local currentText_ = ""
+
+-- 选择分支
+local currentChoices_ = nil    -- 当前行的 choices 数组, nil 表示无选择
+local choiceHoverIdx_ = 0      -- 鼠标悬停的选项索引 (1-based, 0=无)
+local choiceRects_ = {}        -- 选项点击区域 { {x,y,w,h}, ... }
 
 -- ---------------------------------------------------------------------------
 -- UTF-8 工具
@@ -130,6 +136,9 @@ local function loadLine(index)
     typewriterTotal_ = utf8Len(currentText_)
     typewriterPos_ = 0
     typewriterAccum_ = 0
+    currentChoices_ = line.choices   -- nil 则为普通对话行
+    choiceHoverIdx_ = 0
+    choiceRects_ = {}
     state_ = "typing"
     return true
 end
@@ -137,50 +146,66 @@ end
 -- ---------------------------------------------------------------------------
 -- 内部: 推进对话
 -- ---------------------------------------------------------------------------
+--- 退场动画 (抽取为复用)
+local function beginExit()
+    state_ = "exiting"
+    Tween.cancelTag("dialogue")
+
+    Tween.to(anim_, {
+        overlayAlpha = 0,
+        boxOffsetY = 60,
+        boxAlpha = 0,
+        portraitAlpha = 0,
+        portraitOffsetY = 20,
+    }, 0.3, {
+        easing = Tween.Easing.easeInCubic,
+        tag = "dialogue",
+        onComplete = function()
+            state_ = "idle"
+            script_ = nil
+            scriptIndex_ = 0
+            currentChoices_ = nil
+            if portraitImage_ >= 0 and vg_ then
+                nvgDeleteImage(vg_, portraitImage_)
+                portraitImage_ = -1
+            end
+            if onComplete_ then
+                local cb = onComplete_
+                onComplete_ = nil
+                cb()
+            end
+        end
+    })
+end
+
+--- 推进到下一行或退场
+local function advanceToNext()
+    scriptIndex_ = scriptIndex_ + 1
+    if scriptIndex_ <= #script_ then
+        loadLine(scriptIndex_)
+    else
+        beginExit()
+    end
+end
+
 local function advance()
     if state_ == "typing" then
         -- 打字中 → 跳过，直接显示全部
         typewriterPos_ = typewriterTotal_
-        state_ = "waiting"
+        -- 有选择分支则进入 choosing, 否则进入 waiting
+        if currentChoices_ and #currentChoices_ > 0 then
+            state_ = "choosing"
+        else
+            state_ = "waiting"
+        end
         return
     end
 
     if state_ == "waiting" then
-        -- 等待中 → 下一句或结束
-        scriptIndex_ = scriptIndex_ + 1
-        if scriptIndex_ <= #script_ then
-            loadLine(scriptIndex_)
-        else
-            -- 对话结束 → 退场动画
-            state_ = "exiting"
-            Tween.cancelTag("dialogue")
-
-            Tween.to(anim_, {
-                overlayAlpha = 0,
-                boxOffsetY = 60,
-                boxAlpha = 0,
-                portraitAlpha = 0,
-                portraitOffsetY = 20,
-            }, 0.3, {
-                easing = Tween.Easing.easeInCubic,
-                tag = "dialogue",
-                onComplete = function()
-                    state_ = "idle"
-                    script_ = nil
-                    scriptIndex_ = 0
-                    if portraitImage_ >= 0 and vg_ then
-                        nvgDeleteImage(vg_, portraitImage_)
-                        portraitImage_ = -1
-                    end
-                    if onComplete_ then
-                        local cb = onComplete_
-                        onComplete_ = nil
-                        cb()
-                    end
-                end
-            })
-        end
+        advanceToNext()
     end
+
+    -- choosing 状态不响应普通 advance, 只响应选项点击
 end
 
 -- ---------------------------------------------------------------------------
@@ -193,10 +218,11 @@ function M.init(vg)
 end
 
 --- 开始对话
----@param dialogueScript table 对话脚本
+---@param dialogueScript table 对话脚本 (每行可含 choices 字段)
 ---@param portraitTexPath string 立绘纹理路径
 ---@param onComplete function|nil 对话结束回调
-function M.start(dialogueScript, portraitTexPath, onComplete)
+---@param onChoiceSelected function|nil 选择回调 (choiceIndex, choiceData)
+function M.start(dialogueScript, portraitTexPath, onComplete, onChoiceSelected)
     if state_ ~= "idle" then return end
     if not dialogueScript or #dialogueScript == 0 then
         if onComplete then onComplete() end
@@ -206,6 +232,7 @@ function M.start(dialogueScript, portraitTexPath, onComplete)
     script_ = dialogueScript
     scriptIndex_ = 1
     onComplete_ = onComplete
+    onChoiceSelected_ = onChoiceSelected
     portraitTexPath_ = portraitTexPath
 
     -- 加载立绘为 NanoVG 图片
@@ -254,9 +281,28 @@ function M.isActive()
     return state_ ~= "idle"
 end
 
---- 点击处理 (推进对话)
+--- 点击处理 (推进对话 / 选择分支)
 function M.handleClick(lx, ly)
     if state_ == "idle" then return false end
+
+    -- choosing 状态: 检测选项点击
+    if state_ == "choosing" and currentChoices_ then
+        for i, rect in ipairs(choiceRects_) do
+            if lx >= rect.x and lx <= rect.x + rect.w
+               and ly >= rect.y and ly <= rect.y + rect.h then
+                -- 触发回调
+                if onChoiceSelected_ then
+                    onChoiceSelected_(i, currentChoices_[i])
+                end
+                -- 选择后推进到下一行
+                currentChoices_ = nil
+                advanceToNext()
+                return true
+            end
+        end
+        return true  -- 吞掉点击, 但没有命中选项
+    end
+
     advance()
     return true
 end
@@ -264,6 +310,7 @@ end
 --- 按键处理
 function M.handleKey(key)
     if state_ == "idle" then return false end
+    if state_ == "choosing" then return true end  -- 选择时不响应键盘跳过
     if key == KEY_RETURN or key == KEY_SPACE then
         advance()
         return true
@@ -282,7 +329,11 @@ function M.update(dt)
     end
 
     if typewriterPos_ >= typewriterTotal_ then
-        state_ = "waiting"
+        if currentChoices_ and #currentChoices_ > 0 then
+            state_ = "choosing"
+        else
+            state_ = "waiting"
+        end
     end
 end
 
@@ -293,6 +344,10 @@ function M.reset()
     script_ = nil
     scriptIndex_ = 0
     onComplete_ = nil
+    onChoiceSelected_ = nil
+    currentChoices_ = nil
+    choiceHoverIdx_ = 0
+    choiceRects_ = {}
     anim_.overlayAlpha = 0
     anim_.boxAlpha = 0
     anim_.portraitAlpha = 0
@@ -456,7 +511,79 @@ function M.draw(vg, w, h, gameTime)
         nvgText(vg, boxX + boxW / 2, boxY + boxH - 12, "▼")
     end
 
+    -- ===== 7. 选择分支按钮 =====
+    if state_ == "choosing" and currentChoices_ then
+        local choiceBtnH = 30
+        local choiceGap = 8
+        local choiceW = boxW * 0.75
+        local totalH = #currentChoices_ * choiceBtnH + (#currentChoices_ - 1) * choiceGap
+        -- 选项区域在对话框上方
+        local startY = boxY - totalH - 12
+        local startX = boxX + (boxW - choiceW) / 2
+
+        choiceRects_ = {}
+        for i, choice in ipairs(currentChoices_) do
+            local cy = startY + (i - 1) * (choiceBtnH + choiceGap)
+            choiceRects_[i] = { x = startX, y = cy, w = choiceW, h = choiceBtnH }
+
+            local isHover = (choiceHoverIdx_ == i)
+
+            -- 按钮阴影
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, startX + 1, cy + 2, choiceW, choiceBtnH, 6)
+            nvgFillColor(vg, nvgRGBA(0, 0, 0, 30))
+            nvgFill(vg)
+
+            -- 按钮背景 (笔记本纸色, hover 加深)
+            local bgAlpha = isHover and 255 or 230
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, startX, cy, choiceW, choiceBtnH, 6)
+            nvgFillColor(vg, nvgRGBA(paper.r, paper.g, paper.b, bgAlpha))
+            nvgFill(vg)
+
+            -- 边框
+            local bdrAlpha = isHover and 220 or 120
+            local accent = tc.accent or { r = 100, g = 140, b = 200 }
+            if isHover then
+                nvgStrokeColor(vg, nvgRGBA(accent.r, accent.g, accent.b, bdrAlpha))
+            else
+                nvgStrokeColor(vg, nvgRGBA(border.r, border.g, border.b, bdrAlpha))
+            end
+            nvgStrokeWidth(vg, isHover and 1.5 or 1.0)
+            nvgStroke(vg)
+
+            -- 文字
+            local label = choice.label or ("选项 " .. i)
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 14)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            local txtCol = tc.textPrimary or { r = 35, g = 45, b = 60 }
+            if isHover then
+                nvgFillColor(vg, nvgRGBA(accent.r, accent.g, accent.b, 255))
+            else
+                nvgFillColor(vg, nvgRGBA(txtCol.r, txtCol.g, txtCol.b, 220))
+            end
+            nvgText(vg, startX + choiceW / 2, cy + choiceBtnH / 2, label)
+        end
+    end
+
     nvgRestore(vg)
+end
+
+--- 更新选项悬停状态 (外部每帧调用)
+function M.updateChoiceHover(lx, ly)
+    if state_ ~= "choosing" then
+        choiceHoverIdx_ = 0
+        return
+    end
+    choiceHoverIdx_ = 0
+    for i, rect in ipairs(choiceRects_) do
+        if lx >= rect.x and lx <= rect.x + rect.w
+           and ly >= rect.y and ly <= rect.y + rect.h then
+            choiceHoverIdx_ = i
+            return
+        end
+    end
 end
 
 return M

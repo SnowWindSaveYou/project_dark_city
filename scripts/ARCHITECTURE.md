@@ -10,7 +10,11 @@
 scripts/
 ├── main.lua            # 入口，事件注册，状态机，渲染主循环
 ├── Theme.lua           # 统一色彩/字号/间距，卡牌类型视觉映射
-├── Card.lua            # 卡牌数据 + NanoVG 渲染 + 翻牌/发牌/抖动/变形动画
+├── EventPool.lua       # 事件数据池 (唯一数据源: 地点/事件类型/文案模板/效果/暗面映射)
+├── Card.lua            # 卡牌结构 + 3D 节点管理 + 翻牌/发牌/抖动/变形动画
+├── CardTextures.lua    # 卡牌纹理生成 (NanoVG → Texture2D)
+├── CardManager.lua     # 卡牌生命周期管理 (日程/重发/传闻)
+├── CardInteraction.lua # 卡牌交互逻辑 (翻牌结算/资源变更/事件触发)
 ├── Board.lua           # 5x5 棋盘，螺旋发牌，碰撞检测
 ├── Token.lua           # 玩家棋子 (chibi)，弧形跳跃移动
 ├── ResourceBar.lua     # 底部资源 HUD (San/Order/Film/Money)
@@ -181,7 +185,53 @@ Theme.cardTypeColor("monster")  -- → Theme.current.danger
 
 ---
 
-## 4. Card.lua — 卡牌
+## 4. EventPool.lua — 事件数据池 (唯一数据源)
+
+所有事件相关的静态数据集中于此，其他模块通过 `EventPool.XXX` 直接引用，**禁止别名或拷贝**。
+
+### 数据表
+
+| 常量 | 说明 |
+|------|------|
+| `LOCATION_INFO` | 地点 → {icon, label, color} 映射 |
+| `REGULAR_LOCATIONS` / `LANDMARK_LOCATIONS` | 普通/地标地点列表 |
+| `EVENT_TYPES` / `ALL_TYPES` | 事件类型列表 |
+| `DARKSIDE_INFO` | 暗面地点 → {icon, label, darkColor} 映射 |
+| `TEMPLATES` | 事件类型 → {{title, desc}, ...} 文案模板 |
+| `CARD_EFFECTS` | 事件类型 → {resource → delta} 效果映射 |
+| `TRAP_SUBTYPE_INFO` | 陷阱子类型 → {icon, label} |
+| `TRAP_SUBTYPE_TEMPLATES` | 陷阱子类型 → {{title, desc}, ...} |
+| `TRAP_SUBTYPE_EFFECTS` | 陷阱子类型 → {resource → delta} |
+| `BLOCKING_EVENTS` | 阻塞性事件类型集合 |
+| `CONVERSION_CONFIG` | 怪物→安全点转化配置 |
+| `SCHEDULE_TEMPLATES` | 日程安排文案模板 |
+| `RUMOR_SAFE_TEXTS` / `RUMOR_DANGER_TEXTS` | 传闻文案 |
+
+### 查询 API
+
+```lua
+EventPool.getRandomText(cardType) → {title, desc}         -- 随机事件文案
+EventPool.getRandomTrapText(subtype) → {title, desc}       -- 随机陷阱子类型文案
+EventPool.getDarksideInfo(location) → {icon, label, ...}   -- 暗面地点信息
+EventPool.getMonsterEffects(inspiration) → table           -- 怪物效果 (动态伤害)
+EventPool.isBlockingEvent(cardType) → bool                 -- 是否阻塞性事件
+```
+
+### 消费者
+
+| 模块 | 引用的数据 |
+|------|-----------|
+| Board.lua | LANDMARK_LOCATIONS, REGULAR_LOCATIONS |
+| CardTextures.lua | LOCATION_INFO, getDarksideInfo |
+| CardManager.lua | LOCATION_INFO, LANDMARK_LOCATIONS, SCHEDULE_TEMPLATES, RUMOR_*_TEXTS |
+| CardInteraction.lua | LOCATION_INFO, CONVERSION_CONFIG, CARD_EFFECTS, TRAP_SUBTYPE_*, isBlockingEvent, getMonsterEffects |
+| EventPopup.lua | TEMPLATES, CARD_EFFECTS, TRAP_SUBTYPE_*, LOCATION_INFO, getDarksideInfo, getMonsterEffects |
+
+---
+
+## 5. Card.lua — 卡牌结构与动画
+
+**纯结构+动画模块**，不包含事件数据（数据在 EventPool.lua）。
 
 ### 数据
 
@@ -194,33 +244,39 @@ local card = Card.new("monster", row, col)  -- 创建
 ### 常量
 
 `Card.WIDTH=64` `Card.HEIGHT=90` `Card.RADIUS=8`
-`Card.ALL_TYPES = {"safe","landmark","shop","monster","trap","reward","plot","clue"}`
+`Card.CARD_W=0.64` `Card.CARD_H=0.90` `Card.CARD_THICKNESS=0.015`
+
+### 3D 节点 API
+
+```lua
+Card.createNode(card, parentNode, CardTextures)  -- 创建 3D 节点 (CustomGeometry)
+Card.syncNode(card)              -- 每帧同步 Lua 属性 → Node Transform
+Card.updateTexture(card, CardTextures)  -- 切换卡牌纹理
+Card.destroyNode(card)           -- 销毁 3D 节点
+Card.attachGlowRings(card, glowTex)  -- 添加光环
+Card.showSafeGlow(card) / Card.hideSafeGlow(card)  -- 控制光环
+```
 
 ### 动画 API
 
 ```lua
-Card.flip(card, onComplete)          -- 翻牌 (scaleX 挤压 + bounceY 弹跳 + 光晕)
+Card.flip(card, onComplete, CardTextures)  -- 翻牌 (弹跳 + flipAngle 翻转)
+Card.flipBack(card, onComplete, CardTextures) -- 翻回背面
 Card.shake(card)                      -- 拒绝抖动 (阻尼正弦)
 Card.dealTo(card, x, y, delay)       -- 发牌飞入
 Card.undeal(card, deckX, deckY, delay, onComplete)  -- 收回牌堆
-Card.transformTo(card, newType, onComplete)  -- 变形 (收缩+抖动→类型切换→弹出+光晕)
+Card.transformTo(card, newType, onComplete, CardTextures)  -- 变形
 ```
 
-### 渲染
+### hitTest
 
 ```lua
-Card.draw(vg, card, gameTime)         -- 自动根据 faceUp 绘制正/反面
-Card.hitTest(card, px, py) → bool     -- 点击检测
+Card.hitTest(card, px, py) → bool     -- 点击检测 (3D 模式用世界坐标)
 ```
-
-### hover 机制
-
-- `card.hoverT` 由 main.lua 的 `updateHover()` 每帧手动 lerp 驱动
-- Card.draw 内部读取 hoverT 产生: 上浮(-4px) + 放大(8%) + 金色边框 + 外发光
 
 ---
 
-## 5. Board.lua — 棋盘
+## 6. Board.lua — 棋盘
 
 ```lua
 local board = Board.new()
@@ -239,7 +295,7 @@ Board.spiralOrder() → {{row,col},...}    -- 螺旋遍历序列
 
 ---
 
-## 6. Token.lua — 玩家棋子
+## 7. Token.lua — 玩家棋子
 
 ```lua
 local token = Token.new()
@@ -255,7 +311,7 @@ Token.draw(vg, token, gameTime)          -- 渲染 chibi 棋子
 
 ---
 
-## 7. ResourceBar.lua — 资源 HUD
+## 8. ResourceBar.lua — 资源 HUD
 
 ```lua
 ResourceBar.init()                -- 初始化 4 种资源
@@ -270,7 +326,7 @@ ResourceBar.draw(vg, logicalW, logicalH)  -- 渲染底部面板
 
 ---
 
-## 8. EventPopup.lua — 事件弹窗
+## 9. EventPopup.lua — 事件弹窗
 
 ```lua
 EventPopup.show(cardType, cx, cy, onDismiss)  -- 弹出 (cx/cy 为逻辑坐标)
@@ -281,11 +337,11 @@ EventPopup.updateHover(lx, ly, dt)             -- 按钮 hover (每帧)
 EventPopup.draw(vg, logicalW, logicalH, gameTime) -- 渲染 (遮罩 + 面板 + 内容)
 ```
 
-弹窗内自带文案模板 (`EventPopup.templates`) 和资源效果映射 (`EventPopup.cardEffects`)。
+文案模板和资源效果从 `EventPool` 读取（`EventPool.TEMPLATES`、`EventPool.CARD_EFFECTS` 等）。
 
 ---
 
-## 9. ShopPopup.lua — 商店弹窗（卡牌式）
+## 10. ShopPopup.lua — 商店弹窗（卡牌式）
 
 shop 卡牌翻开后弹出专用商店界面。三张横排卡牌，点击即买，可花钱刷新。
 
@@ -386,7 +442,7 @@ Tags: `"shoppopup"` `"shoppopup_card"` `"shoppopup_flash"`
 
 ---
 
-## 10. CameraButton.lua — 悬浮相机按钮 + 取景器
+## 11. CameraButton.lua — 悬浮相机按钮 + 取景器
 
 右下角悬浮按钮，点击进入相机模式，提供取景器叠加层 UI。
 
@@ -440,7 +496,7 @@ CameraButton.recalcLayout(logicalW, logicalH)  -- 重算按钮位置
 
 ---
 
-## 11. 卡牌类型
+## 12. 卡牌类型
 
 | type | 图标 | 色系 | 说明 |
 |------|------|------|------|
@@ -457,7 +513,7 @@ CameraButton.recalcLayout(logicalW, logicalH)  -- 重算按钮位置
 
 ---
 
-## 12. TitleScreen.lua — 标题画面
+## 13. TitleScreen.lua — 标题画面
 
 开场标题/开始画面，氛围感入场动画 + 点击/按键开始。
 
@@ -490,7 +546,7 @@ Tag: `"titlescreen"`
 
 ---
 
-## 13. GameOver.lua — 结算画面
+## 14. GameOver.lua — 结算画面
 
 游戏结算（胜利/失败），展示统计数据 + 重新开始按钮。
 
@@ -531,7 +587,7 @@ Tag: `"gameover"`
 
 ---
 
-## 14. DarkWorld.lua — 暗面世界
+## 15. DarkWorld.lua — 暗面世界
 
 通过裂隙卡进入的平行维度，3 层 5×5 迷宫，能量制移动，幽灵 AI 追逐。
 
@@ -613,7 +669,7 @@ Tags: `"darkworld"` `"darkghost"` `"darkmove"` `"darknpc"` `"darkcard"`
 
 ---
 
-## 15. main.lua — 状态机
+## 16. main.lua — 状态机
 
 ### 双层状态
 

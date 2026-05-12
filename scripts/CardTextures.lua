@@ -3,8 +3,9 @@
 -- 将 NanoVG 矢量绘制的卡面烘焙为 Texture2D，供 3D 卡牌模型使用
 -- ============================================================================
 
-local Card  = require "Card"
-local Theme = require "Theme"
+local Card      = require "Card"
+local EventPool = require "EventPool"
+local Theme     = require "Theme"
 
 local M = {}
 
@@ -107,7 +108,7 @@ local function renderLocation(tex, locKey)
     nvgFill(vg)
 
     -- 地点信息
-    local locInfo = Card.LOCATION_INFO[locKey]
+    local locInfo = EventPool.LOCATION_INFO[locKey]
     if not locInfo then
         locInfo = { icon = "❓", label = "未知" }
     end
@@ -159,11 +160,11 @@ local function renderEvent(tex, locKey, eventType)
     -- 获取显示内容
     local displayIcon, displayLabel
     if eventType == "landmark" or eventType == "home" or eventType == "shop" then
-        local locInfo = Card.LOCATION_INFO[locKey]
+        local locInfo = EventPool.LOCATION_INFO[locKey]
         displayIcon  = locInfo and locInfo.icon or info.icon
         displayLabel = locInfo and locInfo.label or info.label
     else
-        local darkInfo = Card.getDarksideInfo(locKey, eventType)
+        local darkInfo = EventPool.getDarksideInfo(locKey, eventType)
         displayIcon  = darkInfo and darkInfo.icon or info.icon
         displayLabel = darkInfo and darkInfo.label or info.label
     end

@@ -1,11 +1,24 @@
 -- ============================================================================
 -- NPCManager.lua - NPC 管理模块
 -- 3D BillboardSet chibi 精灵，同格偏移，点击交互
+-- 支持: 多组随机对话、对话选项回调、每日NPC生成
 -- ============================================================================
 
 local Tween = require "lib.Tween"
 
 local M = {}
+
+---@class NPCTypeConfig
+---@field name string
+---@field texPath string
+---@field dialogues table
+---@field onChoice? fun(npc: table, choiceIdx: integer)
+---@field spriteScale? number  -- 精灵缩放(默认1.0), 猫等小生物用0.5
+
+-- NPC 对话脚本注册表 (id → 配置)
+-- 由外部通过 registerNPCType 注册, spawnNPC 时按 id 查找
+---@type table<string, NPCTypeConfig>
+local npcTypes_ = {}
 
 -- ---------------------------------------------------------------------------
 -- 常量
@@ -43,10 +56,62 @@ local parentNode_ = nil
 ---@field worldZ number
 
 local npcs_ = {}  -- id → NPCData
+local dailyUsed_ = {}  -- id → true: 当天已使用过功能性交互
 
 -- Board 引用 (由 main 注入)
 local boardRef_ = nil
 local BoardModule_ = nil
+
+-- ---------------------------------------------------------------------------
+-- NPC 类型注册 API
+-- ---------------------------------------------------------------------------
+
+--- 注册 NPC 类型 (对话脚本、功能回调等)
+---@param id string NPC 唯一标识
+---@param config table { name, texPath, dialogues, onChoice }
+---  dialogues: table[] — 多组对话脚本, 每次交互随机选一组
+---    每组对话是 dialogue 数组, 最后一条可含 choices 选项
+---  onChoice: function(choiceIndex, choiceData, npcData) — 选项选择回调
+function M.registerNPCType(id, config)
+    npcTypes_[id] = config
+end
+
+--- 获取 NPC 的随机对话脚本
+---@param npc NPCData
+---@return table dialogue 对话脚本
+function M.getRandomDialogue(npc)
+    -- 优先使用注册表中的多组对话
+    local typeConfig = npcTypes_[npc.id]
+    if typeConfig and typeConfig.dialogues and #typeConfig.dialogues > 0 then
+        local pool = typeConfig.dialogues
+        local idx = math.random(1, #pool)
+        return pool[idx]
+    end
+    -- 降级到旧的单一 dialogueScript
+    return npc.dialogueScript
+end
+
+--- 获取 NPC 类型的选项回调
+---@param npcId string
+---@return function|nil
+function M.getChoiceHandler(npcId)
+    local typeConfig = npcTypes_[npcId]
+    if typeConfig then return typeConfig.onChoice end
+    return nil
+end
+
+--- 标记 NPC 当天已使用功能性交互
+---@param npcId string
+function M.markUsedToday(npcId)
+    dailyUsed_[npcId] = true
+end
+
+--- 查询 NPC 当天是否已使用功能性交互
+---@param npcId string
+---@return boolean
+function M.isUsedToday(npcId)
+    return dailyUsed_[npcId] == true
+end
 
 -- ---------------------------------------------------------------------------
 -- 公开 API
@@ -121,6 +186,10 @@ function M.spawnNPC(id, name, row, col, texPath, dialogueScript)
     shadowMat:SetShaderParameter("MatMetallic", Variant(0.0))
     shadowModel:SetMaterial(shadowMat)
 
+    -- 从注册表获取类型缩放
+    local typeConfig = npcTypes_[id]
+    local spriteScale = (typeConfig and typeConfig.spriteScale) or 1.0
+
     ---@type NPCData
     local npc = {
         id = id,
@@ -136,6 +205,7 @@ function M.spawnNPC(id, name, row, col, texPath, dialogueScript)
         shadowNode = shadowNode,
         alpha = 0,
         scale = 0,
+        spriteScale = spriteScale,
         breathePhase = math.random() * 6.28,
         worldX = wx + SHARE_OFFSET,
         worldZ = wz,
@@ -165,7 +235,7 @@ function M.removeNPC(id)
     npcs_[id] = nil
 end
 
---- 清除全部 NPC
+--- 清除全部 NPC (每日重置时调用)
 function M.clear()
     for id, npc in pairs(npcs_) do
         Tween.cancelTarget(npc)
@@ -173,6 +243,7 @@ function M.clear()
         if npc.node3d then npc.node3d:Remove() end
     end
     npcs_ = {}
+    dailyUsed_ = {}
 end
 
 --- 查询指定格子的 NPC
@@ -220,12 +291,13 @@ function M.update(dt, gameTime)
         local breatheY = math.sin(gameTime * 2.2 + npc.breathePhase) * 0.008
         local breatheScale = 1.0 + math.sin(gameTime * 2.2 + npc.breathePhase) * 0.015
 
-        -- 节点位置 (含偏移)
-        npc.node3d:SetPosition(Vector3(npc.worldX, 0.25 + breatheY, npc.worldZ))
-
-        -- Billboard 尺寸
-        local s = npc.scale * breatheScale
+        -- Billboard 尺寸 (含类型缩放)
+        local ss = npc.spriteScale or 1.0
+        local s = npc.scale * breatheScale * ss
         local actualH = SPRITE_3D_H * s
+
+        -- 节点位置: 0.25 与 Token 一致 (45°视角避免被前排遮挡)
+        npc.node3d:SetPosition(Vector3(npc.worldX, 0.25 + breatheY, npc.worldZ))
         bb.position = Vector3(0, actualH / 2, 0)
         bb.size = Vector2(SPRITE_3D_W * s, actualH)
         bb.color = Color(1, 1, 1, npc.alpha)

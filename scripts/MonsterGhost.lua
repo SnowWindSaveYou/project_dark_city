@@ -471,4 +471,38 @@ function M.getMonsterTexture(location)
     return MONSTER_CHIBI[location] or DEFAULT_MONSTER
 end
 
+-- ---------------------------------------------------------------------------
+-- 裂隙 Chibi: 翻开裂隙卡后在卡牌上方显示空间裂隙
+-- ---------------------------------------------------------------------------
+local RIFT_CHIBI_TEX = "image/空间裂隙_chibi_v3_20260507053214.png"
+
+--- 在卡牌上方显示裂隙 chibi (复用 cardGhosts_ 机制)
+---@param card table 卡牌数据
+function M.showRiftOnCard(card)
+    if not parentNode_ then
+        print("[MonsterGhost] showRiftOnCard: parentNode_ is nil!")
+        return
+    end
+    if not card then
+        print("[MonsterGhost] showRiftOnCard: card is nil!")
+        return
+    end
+
+    local gx = card.x or 0
+    local gz = card.y or 0
+
+    print(string.format("[MonsterGhost] showRiftOnCard: pos=(%.2f, %.2f)", gx, gz))
+
+    local ghost = createGhostBillboard(RIFT_CHIBI_TEX, gx, gz, 0.35, 0.32, math.random() * 3.0)
+    ghost.lifetime = -1  -- 不自动消失 (跟随弹窗关闭时清除)
+    cardGhosts_[#cardGhosts_ + 1] = ghost
+
+    -- 从卡面弹出
+    Tween.to(ghost, { scale = 1.0, alpha = 1.0 }, 0.35, {
+        easing = Tween.Easing.easeOutBack,
+        delay = 0.1,
+        tag = "rift_ghost_pop",
+    })
+end
+
 return M

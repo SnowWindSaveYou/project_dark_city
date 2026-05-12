@@ -3,46 +3,17 @@
 -- 负责生成、状态追踪、完成检测、日结算
 -- ============================================================================
 
-local Card = require "Card"
 local ResourceBar = require "ResourceBar"
+local EventPool   = require "EventPool"
 
 local M = {}
 
 -- ---------------------------------------------------------------------------
--- 日程卡模板 (根据地点生成描述)
+-- 事件数据引用（来自 EventPool 单一数据源）
 -- ---------------------------------------------------------------------------
-local SCHEDULE_TEMPLATES = {
-    -- 普通地点 (可作为日程目标)
-    company     = { verb = "去公司上班",     reward = { "money", 10 } },
-    school      = { verb = "去学校上课",     reward = { "money",  8 } },
-    park        = { verb = "去公园散步",     reward = { "san",    1 } },
-    alley       = { verb = "穿过小巷",       reward = { "money",  8 } },
-    station     = { verb = "去车站接人",     reward = { "money",  6 } },
-    hospital    = { verb = "去医院看病",     reward = { "san",    1 } },
-    library     = { verb = "去图书馆学习",   reward = { "order",  1 } },
-    bank        = { verb = "去银行办事",     reward = { "money", 12 } },
-    -- 商店地点
-    convenience = { verb = "去便利店购物",   reward = { "money",  5 } },
-    -- 地标地点 (也可作为日程目标，且走到地标区域是安全的)
-    church      = { verb = "去教堂祈祷",     reward = { "san",    1 } },
-    police      = { verb = "去警察局报案",   reward = { "order",  1 } },
-    shrine      = { verb = "去神社参拜",     reward = { "san",    1 } },
-}
-
--- ---------------------------------------------------------------------------
--- 传闻模板
--- ---------------------------------------------------------------------------
-local RUMOR_SAFE_TEXTS = {
-    "今天%s很平静",
-    "%s附近没有异常",
-    "听说%s今天很安全",
-}
-
-local RUMOR_DANGER_TEXTS = {
-    "%s有脏东西",
-    "别去%s，有危险",
-    "听说%s闹鬼了",
-}
+local SCHEDULE_TEMPLATES = EventPool.SCHEDULE_TEMPLATES
+local RUMOR_SAFE_TEXTS   = EventPool.RUMOR_SAFE_TEXTS
+local RUMOR_DANGER_TEXTS = EventPool.RUMOR_DANGER_TEXTS
 
 -- ---------------------------------------------------------------------------
 -- 状态
@@ -91,7 +62,7 @@ end
 
 --- 创建一张日程卡
 local function createSchedule(location)
-    local locInfo = Card.LOCATION_INFO[location]
+    local locInfo = EventPool.LOCATION_INFO[location]
     local template = SCHEDULE_TEMPLATES[location]
     if not locInfo or not template then return nil end
 
@@ -106,7 +77,7 @@ end
 
 --- 创建一张传闻卡
 local function createRumor(location, isSafe)
-    local locInfo = Card.LOCATION_INFO[location]
+    local locInfo = EventPool.LOCATION_INFO[location]
     if not locInfo then return nil end
 
     local templates = isSafe and RUMOR_SAFE_TEXTS or RUMOR_DANGER_TEXTS
@@ -128,7 +99,7 @@ end
 function M.preSelectLocations()
     -- 收集可用的日程地点 (排除地标和商店, 它们有专用格子)
     local excludeSet = { convenience = true }
-    for _, lmLoc in ipairs(Card.LANDMARK_LOCATIONS) do
+    for _, lmLoc in ipairs(EventPool.LANDMARK_LOCATIONS) do
         excludeSet[lmLoc] = true
     end
 
@@ -314,9 +285,11 @@ function M.settleDay()
             }
             print("[CardManager] Deferred to tomorrow: " .. sched.label)
         else
-            -- 未完成且未推迟: 扣秩序值
-            effects[#effects + 1] = { "order", -3 }
-            print("[CardManager] Penalty: order -3 for " .. sched.label)
+            -- 未完成且未推迟: 三维各扣 1
+            effects[#effects + 1] = { "san", -1 }
+            effects[#effects + 1] = { "health", -1 }
+            effects[#effects + 1] = { "inspiration", -1 }
+            print("[CardManager] Penalty: san/health/inspiration -1 for " .. sched.label)
         end
     end
 

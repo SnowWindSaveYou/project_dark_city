@@ -6,6 +6,7 @@
 
 local Card = require "Card"
 local Theme = require "Theme"
+local EventPool = require "EventPool"
 
 local M = {}
 
@@ -94,27 +95,9 @@ local function randomPositions(count, exclude)
 end
 
 -- ---------------------------------------------------------------------------
--- 陷阱子类型权重 (生成时随机分配)
+-- 陷阱子类型 → 委托给 EventPool
 -- ---------------------------------------------------------------------------
-local TRAP_SUBTYPE_WEIGHTS = {
-    { "sanity",   30 },  -- 阴气侵蚀: san -1
-    { "money",    30 },  -- 财物散失: money -10
-    { "film",     20 },  -- 灵雾曝光: film -1
-    { "teleport", 20 },  -- 空间错位: 随机传送到未翻开格子
-}
-
---- 根据权重随机选取陷阱子类型
-function M.randomTrapSubtype()
-    local total = 0
-    for _, w in ipairs(TRAP_SUBTYPE_WEIGHTS) do total = total + w[2] end
-    local roll = math.random(1, total)
-    local acc = 0
-    for _, w in ipairs(TRAP_SUBTYPE_WEIGHTS) do
-        acc = acc + w[2]
-        if roll <= acc then return w[1] end
-    end
-    return "sanity"
-end
+M.randomTrapSubtype = EventPool.randomTrapSubtype
 
 -- ---------------------------------------------------------------------------
 -- 暗面世界地图生成
@@ -409,10 +392,18 @@ function M.generateDarkCards(board, layerData, darkLocations, darkConfig)
 end
 
 -- ---------------------------------------------------------------------------
--- 生成卡牌 (地点 + 事件双层系统) — 逻辑不变
+-- 地点专属事件权重偏移 → 由 EventPool 管理
+-- ---------------------------------------------------------------------------
+local LOCATION_WEIGHT_OFFSET = EventPool.LOCATION_WEIGHT_OFFSET
+
+-- ---------------------------------------------------------------------------
+-- 生成卡牌 (地点 + 事件双层系统)
 -- ---------------------------------------------------------------------------
 
-function M.generateCards(board, requiredLocations)
+--- @param board BoardData
+--- @param requiredLocations string[]|nil 日程必选地点
+--- @param opts table|nil { dayCount = number } 可选参数
+function M.generateCards(board, requiredLocations, opts)
     -- 先销毁旧的 3D 节点
     M.destroyAllNodes(board)
 
@@ -451,7 +442,7 @@ function M.generateCards(board, requiredLocations)
 
     -- 地标和商店地点集合 (不应出现在普通格子中)
     local specialLocSet = { home = true, convenience = true }
-    for _, lmLoc in ipairs(Card.LANDMARK_LOCATIONS) do
+    for _, lmLoc in ipairs(EventPool.LANDMARK_LOCATIONS) do
         specialLocSet[lmLoc] = true
     end
 
@@ -465,9 +456,20 @@ function M.generateCards(board, requiredLocations)
         end
     end
 
+    -- #8: 日程必选地点稀缺性限制
+    -- Day 5+ 最多出现 1 次 (含日程保证的); 其余天最多 2 次
+    local dayCount = opts and opts.dayCount or 1
+    local scheduleMaxRepeat = (dayCount >= 5) and 1 or 2
+    local requiredSet = {}
+    if requiredLocations then
+        for _, loc in ipairs(requiredLocations) do
+            requiredSet[loc] = (requiredSet[loc] or 0) + 1
+        end
+    end
+
     -- 回填: 从 REGULAR_LOCATIONS 中选择未使用的地点, 避免重复
     local fillCandidates = {}
-    for _, loc in ipairs(Card.REGULAR_LOCATIONS) do
+    for _, loc in ipairs(EventPool.REGULAR_LOCATIONS) do
         if not usedInPool[loc] then
             fillCandidates[#fillCandidates + 1] = loc
         end
@@ -478,17 +480,51 @@ function M.generateCards(board, requiredLocations)
     end
     local fillIdx = 1
 
+    -- 地点出现计数 (含 requiredLocations 已放入的)
+    local locCount = {}
+    for _, loc in ipairs(locationPool) do
+        locCount[loc] = (locCount[loc] or 0) + 1
+    end
+
     -- 优先用不重复的地点, 用完后允许重复 (棋盘格子可能多于地点种类)
     while #locationPool < normalSlots do
         if fillIdx <= #fillCandidates then
-            locationPool[#locationPool + 1] = fillCandidates[fillIdx]
+            local loc = fillCandidates[fillIdx]
             fillIdx = fillIdx + 1
+            -- #8: 日程必选地点受重复上限约束
+            if requiredSet[loc] then
+                local cur = locCount[loc] or 0
+                if cur >= scheduleMaxRepeat then
+                    goto skipFill  -- 超出上限, 跳过
+                end
+            end
+            locationPool[#locationPool + 1] = loc
+            locCount[loc] = (locCount[loc] or 0) + 1
         else
             -- 已无不重复地点可用, 从全部 REGULAR_LOCATIONS 随机补
-            locationPool[#locationPool + 1] = Card.REGULAR_LOCATIONS[
-                math.random(1, #Card.REGULAR_LOCATIONS)
-            ]
+            local loc = EventPool.REGULAR_LOCATIONS[math.random(1, #EventPool.REGULAR_LOCATIONS)]
+            -- 同样受日程地点稀缺性约束
+            if requiredSet[loc] then
+                local cur = locCount[loc] or 0
+                if cur >= scheduleMaxRepeat then
+                    -- 尝试找一个不受限的地点
+                    local found = false
+                    for _ = 1, #EventPool.REGULAR_LOCATIONS do
+                        loc = EventPool.REGULAR_LOCATIONS[math.random(1, #EventPool.REGULAR_LOCATIONS)]
+                        if not requiredSet[loc] or (locCount[loc] or 0) < scheduleMaxRepeat then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        -- 实在找不到, 放行 (极端情况安全阀)
+                    end
+                end
+            end
+            locationPool[#locationPool + 1] = loc
+            locCount[loc] = (locCount[loc] or 0) + 1
         end
+        ::skipFill::
     end
     for i = #locationPool, 2, -1 do
         local j = math.random(1, i)
@@ -496,27 +532,8 @@ function M.generateCards(board, requiredLocations)
     end
     local locIdx = 1
 
-    -- 5. 事件池
-    local eventWeights = {
-        { "safe",   30 },
-        { "monster", 20 },
-        { "trap",   15 },
-        { "reward", 15 },
-        { "plot",   10 },
-        { "clue",   10 },
-    }
-
-    local function randomEvent()
-        local total = 0
-        for _, w in ipairs(eventWeights) do total = total + w[2] end
-        local roll = math.random(1, total)
-        local acc = 0
-        for _, w in ipairs(eventWeights) do
-            acc = acc + w[2]
-            if roll <= acc then return w[1] end
-        end
-        return "safe"
-    end
+    -- 5. 事件池 → 委托给 EventPool.randomEvent
+    local randomEvent = EventPool.randomEvent
 
     -- 6. 填充棋盘
     local specialMap = {}
@@ -532,7 +549,7 @@ function M.generateCards(board, requiredLocations)
     end
 
     local landmarkLocations = {}
-    for i, loc in ipairs(Card.LANDMARK_LOCATIONS) do
+    for i, loc in ipairs(EventPool.LANDMARK_LOCATIONS) do
         landmarkLocations[i] = loc
     end
     for i = #landmarkLocations, 2, -1 do
@@ -560,13 +577,13 @@ function M.generateCards(board, requiredLocations)
                 location = "convenience"
             elseif special == "rift" then
                 -- 裂隙伪装成普通事件卡, 用 hasRift 标记
-                cardType = randomEvent()
                 location = locationPool[locIdx]
                 locIdx = locIdx + 1
+                cardType = randomEvent(location)
             else
-                cardType = randomEvent()
                 location = locationPool[locIdx]
                 locIdx = locIdx + 1
+                cardType = randomEvent(location)
             end
 
             local card = Card.new(cardType, row, col, location)

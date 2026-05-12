@@ -9,6 +9,7 @@ local Theme = require "Theme"
 local CardManager = require "CardManager"
 local ShopPopup   = require "ShopPopup"
 local ItemIcons   = require "ItemIcons"
+local AudioManager = require "AudioManager"
 
 local M = {}
 
@@ -304,6 +305,7 @@ function M.handleClick(lx, ly, logicalW, logicalH)
                     -- 普通消耗品：直接使用
                     local ok = ShopPopup.useConsumable(entry.key)
                     if ok then
+                        AudioManager.playItemUse(entry.key)
                         local VFX = require "lib.VFX"
                         local t = Theme.current
                         VFX.spawnBanner(entry.info.icon .. " 使用了" .. entry.info.label,

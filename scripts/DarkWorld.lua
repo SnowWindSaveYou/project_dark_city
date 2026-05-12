@@ -4,12 +4,14 @@
 -- 不再管理3D节点 — 所有卡牌由 Board.lua 统一管理
 -- ============================================================================
 
-local Tween   = require "lib.Tween"
-local VFX     = require "lib.VFX"
-local Theme   = require "Theme"
-local Card    = require "Card"
-local Board   = require "Board"
-local Token   = require "Token"
+local Tween       = require "lib.Tween"
+local VFX         = require "lib.VFX"
+local Theme       = require "Theme"
+local Card        = require "Card"
+local Board       = require "Board"
+local Token       = require "Token"
+local ResourceBar = require "ResourceBar"
+local StoryManager = require "StoryManager"
 
 local M = {}
 
@@ -23,11 +25,11 @@ local GHOST_SAN    = -2      -- 幽灵碰撞扣除理智
 local GHOST_COUNT  = { 2, 3, 2 } -- 各层幽灵数量
 local GHOST_CHASE_DIST = 2   -- 曼哈顿距离 ≤ 此值时 100% 追逐玩家
 
--- 层级配置
+-- 层级配置 (灵感阈值解锁)
 local LAYER_CONFIG = {
-    { name = "表层·暗巷", unlockDay = 2, unlockFragments = 0 },
-    { name = "中层·暗市", unlockDay = 4, unlockFragments = 0 },
-    { name = "深层·暗渊", unlockDay = 6, unlockFragments = 1 },
+    { name = "表层·暗巷", unlockInspiration = 15 },
+    { name = "中层·暗市", unlockInspiration = 25 },
+    { name = "深层·暗渊", unlockInspiration = 45 },
 }
 
 -- 暗面世界地点名称池 (按层级)
@@ -111,6 +113,15 @@ local GHOST_TEXTURES = {
     "image/小幽灵_瞌睡v2_20260426073910.png",
 }
 
+-- 暗面碎片掉落配置: 收集 clue 卡时按条件掉落碎片
+local DARK_FRAG_DROPS = {
+    { minFrags = 0, layerMin = 1, fragId = "frag_02", flag = "dark_frag_02" },
+    { minFrags = 2, layerMin = 2, fragId = "frag_06", flag = "dark_frag_06" },
+    { minFrags = 5, layerMin = 2, fragId = "frag_07", flag = "dark_frag_07" },
+    { minFrags = 7, layerMin = 3, fragId = "frag_08", flag = "dark_frag_08" },
+    { minFrags = 8, layerMin = 3, fragId = "frag_09", flag = "dark_frag_09" },
+}
+
 -- ---------------------------------------------------------------------------
 -- 内部状态
 -- ---------------------------------------------------------------------------
@@ -157,6 +168,9 @@ local energyFlash_ = 0
 
 ---@type string 暗面世界子状态
 local darkState_ = "idle"  -- "idle" | "ready" | "moving" | "popup" | "transition"
+
+-- 共享游戏状态引用 (由 DarkWorldFlow.init 注入)
+local G_ = nil
 
 -- 相机引用
 local camera_ = nil
@@ -570,6 +584,12 @@ end
 -- 公开 API
 -- ---------------------------------------------------------------------------
 
+--- 注入共享游戏状态 (由 DarkWorldFlow.init 调用)
+---@param gameState table 共享 G 表
+function M.setGameState(gameState)
+    G_ = gameState
+end
+
 --- 初始化暗面世界模块
 function M.init(vg)
     vg_ = vg
@@ -595,14 +615,14 @@ function M.reset()
     Tween.cancelTag("darktransition")
 end
 
-function M.canEnter(dayCount)
-    return dayCount >= LAYER_CONFIG[1].unlockDay
+function M.canEnter()
+    return ResourceBar.get("inspiration") >= LAYER_CONFIG[1].unlockInspiration
 end
 
-function M.isLayerUnlocked(layerIdx, dayCount, fragments)
+function M.isLayerUnlocked(layerIdx)
     local cfg = LAYER_CONFIG[layerIdx]
     if not cfg then return false end
-    return dayCount >= cfg.unlockDay and (fragments or 0) >= cfg.unlockFragments
+    return ResourceBar.get("inspiration") >= cfg.unlockInspiration
 end
 
 function M.isActive()
@@ -668,9 +688,9 @@ function M.enter(dayCount, riftRow, riftCol, scene, camera, cardTextures, pw, ph
         currentLayer_ = 1
     end
 
-    -- 解锁层级
+    -- 解锁层级 (基于灵感值)
     for i = 1, 3 do
-        if M.isLayerUnlocked(i, dayCount, 0) then
+        if M.isLayerUnlocked(i) then
             layers_[i].unlocked = true
         end
     end
@@ -682,10 +702,13 @@ function M.enter(dayCount, riftRow, riftCol, scene, camera, cardTextures, pw, ph
         -- 幽灵和NPC在 Board 生成后由 main.lua 调用 generateOverlayData
     end
 
-    layer.energy = MAX_ENERGY
+    -- 能量 = 当前理智值
+    local sanNow = ResourceBar.get("san")
+    layer.energy    = sanNow
+    layer.maxEnergy = sanNow   -- 记录初始能量上限 (供 HUD 能量条使用)
     darkState_ = "transition"
 
-    print("[DarkWorld] Enter requested, layer=" .. currentLayer_)
+    print("[DarkWorld] Enter requested, layer=" .. currentLayer_ .. ", energy=" .. sanNow)
 end
 
 --- 在 Board 生成卡牌后，生成幽灵和NPC数据
@@ -746,10 +769,9 @@ end
 
 --- 层间移动 — 返回目标层信息 (由 main.lua 驱动收发牌)
 ---@param targetLayer number
----@param dayCount number
 ---@return boolean success
 ---@return string|nil layerName
-function M.beginChangeLayer(targetLayer, dayCount)
+function M.beginChangeLayer(targetLayer)
     if targetLayer < 1 or targetLayer > 3 then return false end
     if not layers_[targetLayer].unlocked then
         VFX.spawnBanner("该层尚未解锁", 180, 80, 80, 18, 0.8)
@@ -760,7 +782,10 @@ function M.beginChangeLayer(targetLayer, dayCount)
     currentLayer_ = targetLayer
 
     local layer = layers_[currentLayer_]
-    layer.energy = MAX_ENERGY
+    -- 能量 = 当前理智值
+    local sanNow = ResourceBar.get("san")
+    layer.energy    = sanNow
+    layer.maxEnergy = sanNow
 
     return true, LAYER_CONFIG[targetLayer].name
 end
@@ -813,7 +838,7 @@ function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem
     energyFlash_ = 0.5
     -- 同步到 ResourceBar 暗面能量条
     if resourceBar and resourceBar.updateDarkEnergy then
-        resourceBar.updateDarkEnergy(layer.energy, MAX_ENERGY)
+        resourceBar.updateDarkEnergy(layer.energy, layer.maxEnergy or layer.energy)
         resourceBar.flashDarkEnergy()
     end
 
@@ -859,6 +884,32 @@ function M.requestExit()
     end
 end
 
+--- 尝试从 clue 卡掉落暗面碎片 (按 DARK_FRAG_DROPS 配置)
+---@return boolean dropped 是否成功掉落碎片
+local function tryDarkFragmentDrop()
+    if not G_ or not G_.storyMgr then return false end
+    local sm = G_.storyMgr
+    local curFrags = StoryManager.getFragmentCount(sm)
+
+    for _, drop in ipairs(DARK_FRAG_DROPS) do
+        if curFrags >= drop.minFrags
+            and currentLayer_ >= drop.layerMin
+            and not StoryManager.hasFlag(sm, drop.flag) then
+            -- 掉落碎片
+            StoryManager.setFlag(sm, drop.flag)
+            StoryManager.addFragment(sm, drop.fragId)
+            local newCount = StoryManager.getFragmentCount(sm)
+            local tc = Theme.current
+            VFX.spawnBanner("🧩 获得记忆碎片! (" .. newCount .. "/10)",
+                tc.darkGlow.r or 180, tc.darkGlow.g or 130, tc.darkGlow.b or 255, 18, 1.2)
+            VFX.spawnBurst(physW_ / 2, physH_ / 2, 12, 200, 160, 255)
+            print("[DarkWorld] Fragment dropped: " .. drop.fragId .. " (total=" .. newCount .. ")")
+            return true
+        end
+    end
+    return false
+end
+
 --- 处理踩上卡牌的效果
 function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, shopPopup, dayCount)
     local layer = layers_[currentLayer_]
@@ -884,7 +935,7 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
         VFX.spawnBanner("🏪 " .. card.darkName, tc.info.r, tc.info.g, tc.info.b, 18, 0.8)
         shopPopup.show(0, 0, function()
             darkState_ = "ready"
-        end)
+        end, { dark = true })
         darkState_ = "popup"
 
     elseif darkType == "intel" then
@@ -903,6 +954,68 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
         VFX.spawnBanner("🚧 " .. card.darkName .. " - 已通过", tc.warning.r, tc.warning.g, tc.warning.b, 16, 0.8)
 
     elseif darkType == "clue" and not card.darkCollected then
+        -- 精英怪遭遇拦截: 白夜跟随 + 碎片>=4 + 未击败过
+        local sm = G_ and G_.storyMgr
+        if sm and G_.baiyeFollowDark
+            and StoryManager.getFragmentCount(sm) >= 4
+            and not StoryManager.hasFlag(sm, "elite_defeated") then
+            -- 精英守卫事件 (使用 DialogueSystem 选择)
+            darkState_ = "popup"
+            local eliteDialogue = {
+                { speaker = "旁白", text = "黑暗中响起低沉的咆哮——一个精英守卫挡住了去路！" },
+                { speaker = "白夜", text = "……我感觉到了它在守护的东西。让我来！",
+                  choices = {
+                      { label = "让白夜变身", choiceId = "transform" },
+                      { label = "撤退", choiceId = "retreat" },
+                  },
+                },
+            }
+            local retreatChosen = false
+            dialogueSystem.start(eliteDialogue, "image/白夜_chibi_20260506003802.png",
+                function()
+                    -- onComplete: 对话关闭后
+                    if retreatChosen then
+                        M.requestExit()
+                    else
+                        darkState_ = "ready"
+                    end
+                end,
+                function(choiceIndex, choiceData)
+                    -- onChoiceSelected
+                    if choiceData.choiceId == "transform" then
+                        -- 变身: 消耗全部 power, 触发 sleep 3天, 获得碎片 frag_05
+                        StoryManager.setFlag(sm, "elite_defeated")
+                        local oldPower = sm.baiye_power
+                        sm.baiye_power = 0
+                        sm.baiye_sleep = 3
+                        StoryManager.addFragment(sm, "frag_05")
+                        local newCount = StoryManager.getFragmentCount(sm)
+                        -- 收集当前 clue 卡
+                        card.darkCollected = true
+                        layer.collected[key] = true
+                        card.darkType = "normal"
+                        card.darkName = "空走廊"
+                        card.darkIcon = "🌑"
+                        card.darkLabel = "暗巷"
+                        if CardTextures_ then
+                            Card.updateTexture(card, CardTextures_)
+                        end
+                        VFX.triggerShake(8, 0.5, 15)
+                        VFX.flashScreen(200, 160, 255, 0.4, 200)
+                        VFX.spawnBanner("⚡ 白夜变身！消耗力量" .. oldPower .. "，获得碎片 (" .. newCount .. "/10)",
+                            200, 160, 255, 16, 1.5)
+                        VFX.spawnBurst(physW_ / 2, physH_ / 2, 15, 200, 160, 255)
+                        print("[DarkWorld] Elite defeated: power consumed=" .. oldPower
+                            .. ", sleep=3, frag_05 collected (total=" .. newCount .. ")")
+                    elseif choiceData.choiceId == "retreat" then
+                        retreatChosen = true
+                    end
+                end
+            )
+            return
+        end
+
+        -- 正常收集线索
         card.darkCollected = true
         layer.collected[key] = true
         local tc = Theme.current
@@ -916,15 +1029,39 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
         if CardTextures_ then
             Card.updateTexture(card, CardTextures_)
         end
+        -- 尝试碎片掉落
+        tryDarkFragmentDrop()
 
     elseif darkType == "item" and not card.darkCollected then
         card.darkCollected = true
         layer.collected[key] = true
-        local rewards = { {"san", 10}, {"money", 20}, {"film", 1} }
+        -- 加权奖励池: 常规资源(各2份) + 灵感(2份) + 上限提升(各1份,稀有)
+        local rewards = {
+            { res = "san",         amt = 5,  label = "🧠理智+5" },
+            { res = "san",         amt = 5,  label = "🧠理智+5" },
+            { res = "money",       amt = 15, label = "💰金币+15" },
+            { res = "money",       amt = 15, label = "💰金币+15" },
+            { res = "film",        amt = 1,  label = "🎞️胶卷+1" },
+            { res = "film",        amt = 1,  label = "🎞️胶卷+1" },
+            { res = "inspiration", amt = 3,  label = "💡灵感+3" },
+            { res = "inspiration", amt = 3,  label = "💡灵感+3" },
+            { res = "sanMax",      amt = 2,  label = "🧠理智上限+2" },
+            { res = "healthMax",   amt = 2,  label = "❤️健康上限+2" },
+        }
         local pick = rewards[math.random(#rewards)]
-        resourceBar.change(pick[1], pick[2])
+        -- 处理效果
+        if pick.res == "sanMax" or pick.res == "healthMax" then
+            local baseKey = (pick.res == "sanMax") and "san" or "health"
+            local oldMax = resourceBar.getMax(baseKey)
+            resourceBar.setMax(baseKey, oldMax + pick.amt)
+            resourceBar.change(baseKey, pick.amt)
+        else
+            resourceBar.change(pick.res, pick.amt)
+        end
         local tc = Theme.current
-        VFX.spawnBanner("📦 获得道具! " .. pick[1] .. "+" .. pick[2],
+        local isRare = pick.res == "sanMax" or pick.res == "healthMax"
+        local bannerIcon = isRare and "✨" or "📦"
+        VFX.spawnBanner(bannerIcon .. " " .. pick.label,
             tc.highlight.r, tc.highlight.g, tc.highlight.b, 18, 1.0)
         card.darkType = "normal"
         card.darkName = "空走廊"
@@ -957,7 +1094,7 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
             targetLayer = 2
         end
 
-        if targetLayer and M.isLayerUnlocked(targetLayer, dayCount, 0) then
+        if targetLayer and M.isLayerUnlocked(targetLayer) then
             -- 请求层间移动 (由 main.lua 驱动)
             if M.changeLayerCallback then
                 M.changeLayerCallback(targetLayer, dayCount)
@@ -968,8 +1105,56 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
 
     elseif darkType == "abyss_core" then
         local tc = Theme.current
-        VFX.spawnBanner("💀 你来到了最深处……", tc.danger.r, tc.danger.g, tc.danger.b, 20, 1.5)
-        VFX.triggerShake(4, 0.6, 10)
+        local sm = G_ and G_.storyMgr
+        -- Boss 遭遇: 白夜跟随 + 碎片>=9 + 未击败过
+        if sm and G_.baiyeFollowDark
+            and StoryManager.getFragmentCount(sm) >= 9
+            and not StoryManager.hasFlag(sm, "boss_defeated") then
+            darkState_ = "popup"
+            local bossDialogue = {
+                { speaker = "旁白", text = "深渊核心散发着令人窒息的压迫感。一个巨大的存在注视着你。" },
+                { speaker = "???", text = "……你终于来了。带着那个叛徒。" },
+                { speaker = "白夜", text = "这次，我不会再逃了。",
+                  choices = {
+                      { label = "正面迎战", choiceId = "fight" },
+                      { label = "先撤退", choiceId = "retreat" },
+                  },
+                },
+            }
+            local retreatChosen = false
+            dialogueSystem.start(bossDialogue, "image/白夜_chibi_20260506003802.png",
+                function()
+                    -- onComplete: 对话关闭后
+                    if retreatChosen then
+                        M.requestExit()
+                    else
+                        darkState_ = "ready"
+                    end
+                end,
+                function(choiceIndex, choiceData)
+                    -- onChoiceSelected
+                    if choiceData.choiceId == "fight" then
+                        -- 迎战: 理智-3, 获得最终碎片 frag_10, 设置 memory_complete
+                        StoryManager.setFlag(sm, "boss_defeated")
+                        resourceBar.change("san", -3)
+                        StoryManager.addFragment(sm, "frag_10")
+                        StoryManager.setFlag(sm, "memory_complete")
+                        local newCount = StoryManager.getFragmentCount(sm)
+                        VFX.triggerShake(12, 0.8, 20)
+                        VFX.flashScreen(255, 200, 100, 0.5, 250)
+                        VFX.spawnBanner("🌟 记忆觉醒！获得最终碎片 (" .. newCount .. "/10)",
+                            255, 220, 130, 18, 2.0)
+                        VFX.spawnBurst(physW_ / 2, physH_ / 2, 20, 255, 220, 130)
+                        print("[DarkWorld] Boss defeated: san-3, frag_10 collected, memory_complete set (total=" .. newCount .. ")")
+                    elseif choiceData.choiceId == "retreat" then
+                        retreatChosen = true
+                    end
+                end
+            )
+        else
+            VFX.spawnBanner("💀 你来到了最深处……", tc.danger.r, tc.danger.g, tc.danger.b, 20, 1.5)
+            VFX.triggerShake(4, 0.6, 10)
+        end
     end
 end
 

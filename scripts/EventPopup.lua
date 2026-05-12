@@ -5,134 +5,22 @@
 -- 退场: 缩放收回(easeInBack) + 淡出
 -- ============================================================================
 
-local Tween = require "lib.Tween"
-local Theme = require "Theme"
-local Card  = require "Card"
+local Tween       = require "lib.Tween"
+local Theme       = require "Theme"
+local ResourceBar = require "ResourceBar"
+local EventPool   = require "EventPool"
 
 local M = {}
 
--- ---------------------------------------------------------------------------
--- 事件文案模板（每种卡牌类型多条，随机选取增加变化感）
--- ---------------------------------------------------------------------------
-
-M.templates = {
-    safe = {
-        { title = "安全屋",   desc = "一间整洁的公寓，窗帘紧闭。你短暂休整，理智稍有恢复。" },
-        { title = "便利店",   desc = "24小时亮着灯的便利店，店员面无表情。热咖啡让你安心不少。" },
-        { title = "公园长椅", desc = "街边公园空无一人。你坐下来深呼吸，周围暂时没有异常。" },
-    },
-    landmark = {
-        { title = "地标建筑", desc = "这座建筑是这片区域的标志。周围的街道以它为中心延伸。" },
-        { title = "钟塔广场", desc = "古老的钟塔矗立在十字路口。指针停在了一个不存在的时刻。" },
-    },
-    shop = {
-        { title = "黑市商人", desc = "\"需要什么？\" 戴兜帽的人低声问道。交易总是伴随代价。" },
-        { title = "旧货铺",   desc = "货架上摆满了不知来源的物品。有些东西看起来不属于这个世界。" },
-        { title = "自动售货机", desc = "孤零零的售货机发出嗡嗡声。投币口旁刻着你看不懂的符号。" },
-    },
-    monster = {
-        { title = "阴影蠕动", desc = "墙壁上的影子扭曲变形，朝你涌来。你的理智在动摇……" },
-        { title = "回声追踪", desc = "身后传来与你步伐完全同步的脚步声。你不敢回头。" },
-        { title = "镜中来客", desc = "橱窗玻璃里映出的不是你的倒影。它在微笑。" },
-    },
-    trap = {
-        { title = "地面塌陷", desc = "脚下的地面突然下沉！你勉强抓住边缘，但秩序感正在崩溃。" },
-        { title = "迷雾弥漫", desc = "浓雾从巷子里涌出，方向感瞬间消失。你开始怀疑自己是否还在原地。" },
-        { title = "时间错乱", desc = "手表指针疯狂旋转。你感觉刚刚过了一秒，但街上的人都不见了。" },
-    },
-    reward = {
-        { title = "隐藏宝箱", desc = "墙缝里藏着一个锡盒，里面是现金和一卷未曝光的胶卷。" },
-        { title = "神秘馈赠", desc = "邮箱里有一个写着你名字的包裹。里面的东西意外地有用。" },
-        { title = "失物招领", desc = "桌上放着一叠钞票和记录着什么的胶片。似乎有人特意留给你。" },
-    },
-    plot = {
-        { title = "字条",     desc = "折叠的纸条上写着：\"不要相信第三面墙。\" 秩序正在恢复。" },
-        { title = "电话响了", desc = "废弃电话亭的话筒在震动。你接起来，听到了很久以前的声音。" },
-        { title = "旧报纸",   desc = "报纸头版刊登着一则不可能的新闻——日期是明天。" },
-    },
-    clue = {
-        { title = "涂鸦暗号", desc = "墙上的涂鸦里藏着符号。你举起相机，胶卷自动记录了一切。" },
-        { title = "监控残影", desc = "碎裂的屏幕闪过一帧画面——那是一张你从未去过的地方的照片。" },
-        { title = "录音磁带", desc = "老旧的录音机里残留着一段对话，说的是一个你似乎忘记的名字。" },
-    },
-    photo = {
-        { title = "留影", desc = "相片上定格的画面取代了原本的恐惧。这里现在安全了。" },
-        { title = "净化", desc = "曝光的胶片封印了阴影。被拍下的事物不再具有威胁。" },
-    },
-    rift = {
-        { title = "时空裂隙", desc = "地面出现一道蜿蜒的裂缝，透出幽蓝色的微光。你感到另一个世界在呼唤。" },
-        { title = "维度缝隙", desc = "空气中浮现扭曲的纹路，仿佛现实被撕开了一道口子。裂隙另一端的景象若隐若现。" },
-        { title = "异界入口", desc = "脚下的地砖突然龟裂，缝隙中涌出暗紫色的雾气。这是通往暗面世界的通道。" },
-    },
-}
-
--- ---------------------------------------------------------------------------
--- 资源变化映射（与 main.lua 保持一致）
--- ---------------------------------------------------------------------------
-
-M.cardEffects = {
-    safe     = { { "san", 1 } },
-    landmark = {},
-    shop     = {},
-    monster  = { { "san", -2 }, { "order", -1 } },
-    trap     = {},  -- 旧通用 trap 已废弃; 由 trapSubtypeEffects 替代
-    reward   = { { "money", 15 }, { "film", 1 } },
-    plot     = { { "order", 1 } },
-    clue     = { { "film", 1 } },
-    photo    = {},  -- 相片：安全格，无资源效果
-    rift     = {},  -- 裂隙：无资源效果，触发暗面世界入口
-}
-
--- ---------------------------------------------------------------------------
--- 陷阱子类型: 效果 / 文案 / 图标
--- ---------------------------------------------------------------------------
-
---- 子类型→资源变化
-M.trapSubtypeEffects = {
-    sanity   = { { "san",   -1 } },   -- 阴气侵蚀
-    money    = { { "money", -10 } },   -- 财物散失
-    film     = { { "film",  -1 } },    -- 灵雾曝光
-    teleport = {},                      -- 空间错位 (无资源伤害)
-}
-
---- 子类型→文案 (覆盖通用 M.templates.trap)
-M.trapSubtypeTemplates = {
-    sanity = {
-        { title = "阴气侵蚀", desc = "一股寒意从地面渗入脚底，直冲脑门。周围的空气变得凝重，理智在无声中消磨。" },
-        { title = "低语缠绕", desc = "耳边响起断断续续的低语，内容听不清楚。你的思维开始变得混乱。" },
-        { title = "幻象涌动", desc = "视野边缘浮现模糊的影像，分不清是真实还是幻觉。你努力保持清醒。" },
-    },
-    money = {
-        { title = "财物散失", desc = "口袋突然变轻了——零钱从破洞滑落，怎么也捡不回来。" },
-        { title = "无形窃取", desc = "一转眼，钱包里的钞票少了几张。你确信没有人靠近过。" },
-        { title = "诅咒流失", desc = "硬币在手中变得灼热，你不得不松手。它们落地后消失不见。" },
-    },
-    film = {
-        { title = "灵雾曝光", desc = "一团幽蓝色的雾气突然涌来，相机发出咔嗒声——胶卷被意外曝光了。" },
-        { title = "闪光干扰", desc = "空气中闪过一道强光，相机自动触发了快门。一卷珍贵的胶卷报废了。" },
-        { title = "异光侵蚀", desc = "从墙缝渗出的异样光芒照射到你的相机上，胶卷上留下了无法冲洗的痕迹。" },
-    },
-    teleport = {
-        { title = "空间错位", desc = "脚下的地面突然扭曲，你的身体被一股力量拉扯到了别处！" },
-        { title = "维度跳跃", desc = "眨眼之间，周围的景色全变了。你不知道自己被传送到了哪里。" },
-        { title = "瞬间位移", desc = "一阵眩晕过后，你发现自己站在一个完全不同的地方。" },
-    },
-}
-
---- 子类型→图标/名称 (Toast 中覆盖默认 trap 图标)
-M.trapSubtypeInfo = {
-    sanity   = { icon = "👁️",  label = "阴气侵蚀" },
-    money    = { icon = "💸", label = "财物散失" },
-    film     = { icon = "📷", label = "灵雾曝光" },
-    teleport = { icon = "🌀", label = "空间错位" },
-}
-
 -- 资源中文名 / 图标
 local resourceMeta = {
-    san   = { icon = "🧠", label = "理智" },
-    order = { icon = "⚖️",  label = "秩序" },
-    film  = { icon = "🎞️",  label = "胶卷" },
-    money = { icon = "💰", label = "钱币" },
+    san         = { icon = "🧠", label = "理智" },
+    health      = { icon = "❤️",  label = "健康" },
+    inspiration = { icon = "✨", label = "灵感" },
+    film        = { icon = "🎞️",  label = "胶卷" },
+    dailyFilm   = { icon = "🎞️",  label = "每日胶卷" },
+    permFilm    = { icon = "🎞️",  label = "长期胶卷" },
+    money       = { icon = "💰", label = "钱币" },
 }
 
 -- ---------------------------------------------------------------------------
@@ -202,14 +90,14 @@ local BTN_R     = 8
 ---@param location string|nil 地点类型，用于显示暗面世界名称
 function M.show(cardType, cx, cy, onDismiss, location)
     -- 随机选取文案
-    local pool = M.templates[cardType]
+    local pool = EventPool.TEMPLATES[cardType]
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
     end
     local tmpl = pool[math.random(1, #pool)]
 
     -- 暗面世界标题：优先使用地点+事件类型对应的暗面名称
-    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = darkInfo and darkInfo.label or tmpl.title
 
     state.active = true
@@ -217,7 +105,9 @@ function M.show(cardType, cx, cy, onDismiss, location)
     state.cardType = cardType
     state.title = displayTitle
     state.desc = tmpl.desc
-    state.effects = M.cardEffects[cardType] or {}
+    state.effects = (cardType == "monster")
+        and EventPool.getMonsterEffects(ResourceBar.get("inspiration"))
+        or (EventPool.CARD_EFFECTS[cardType] or {})
     state.cx = cx
     state.cy = cy
     state.onDismiss = onDismiss
@@ -286,14 +176,14 @@ end
 ---@param location string|nil 地点类型
 function M.showPhoto(cardType, cx, cy, onDismiss, location)
     -- 随机选取文案
-    local pool = M.templates[cardType]
+    local pool = EventPool.TEMPLATES[cardType]
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
     end
     local tmpl = pool[math.random(1, #pool)]
 
     -- 暗面世界标题
-    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = darkInfo and darkInfo.label or tmpl.title
 
     state.active = true
@@ -862,7 +752,7 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
         nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT)
 
         -- 地点图标和名称
-        local locInfo = state.photoLocation and Card.LOCATION_INFO[state.photoLocation]
+        local locInfo = state.photoLocation and EventPool.LOCATION_INFO[state.photoLocation]
         local locLabel = locInfo and (locInfo.icon .. " " .. locInfo.label) or ""
 
         nvgFontFace(vg, "sans")
@@ -919,21 +809,6 @@ end
 -- Toast 子系统 (非阻塞卡牌通知)
 -- ===========================================================================
 
--- 哪些事件使用阻塞模态弹窗 (其余走 toast)
-local BLOCKING_EVENTS = {
-    shop = true,
-    -- 未来: 带有选择的 plot 事件
-}
-
---- 判断事件类型是否需要阻塞模态
----@param cardType string
----@param hasChoices boolean|nil  未来: 剧情选择
----@return boolean
-function M.isBlockingEvent(cardType, hasChoices)
-    if BLOCKING_EVENTS[cardType] then return true end
-    if cardType == "plot" and hasChoices then return true end
-    return false
-end
 
 -- ---------------------------------------------------------------------------
 -- Toast 常量
@@ -967,10 +842,10 @@ local toastNextId = 1
 function M.toast(cardType, appliedEffects, shieldUsed, location, trapSubtype)
     -- 随机文案: 陷阱子类型使用专属文案池
     local pool
-    if cardType == "trap" and trapSubtype and M.trapSubtypeTemplates[trapSubtype] then
-        pool = M.trapSubtypeTemplates[trapSubtype]
+    if cardType == "trap" and trapSubtype and EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype] then
+        pool = EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype]
     else
-        pool = M.templates[cardType]
+        pool = EventPool.TEMPLATES[cardType]
     end
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
@@ -978,7 +853,7 @@ function M.toast(cardType, appliedEffects, shieldUsed, location, trapSubtype)
     local tmpl = pool[math.random(1, #pool)]
 
     -- 暗面世界标题
-    local darkInfo = location and Card.getDarksideInfo(location, cardType) or nil
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = darkInfo and darkInfo.label or tmpl.title
 
     local id = toastNextId
@@ -1182,8 +1057,8 @@ function M.drawToasts(vg, logicalW, logicalH, gameTime)
         local info = Theme.cardTypeInfo(t.cardType)
         -- 陷阱子类型: 使用专属图标
         local displayIcon = (info and info.icon or "❓")
-        if t.cardType == "trap" and t.trapSubtype and M.trapSubtypeInfo[t.trapSubtype] then
-            displayIcon = M.trapSubtypeInfo[t.trapSubtype].icon
+        if t.cardType == "trap" and t.trapSubtype and EventPool.TRAP_SUBTYPE_INFO[t.trapSubtype] then
+            displayIcon = EventPool.TRAP_SUBTYPE_INFO[t.trapSubtype].icon
         end
         nvgFontFace(vg, "sans")
 
@@ -1338,6 +1213,14 @@ local riftState = {
     cx = 0, cy = 0,
     onConfirm = nil,       -- 点击"进入"
     onCancel  = nil,       -- 点击"留下"
+    -- 可配置文案 (nil 时使用默认裂隙文案)
+    icon = nil,
+    title = nil,
+    desc1 = nil,
+    desc2 = nil,
+    btnConfirmLabel = nil,
+    btnCancelLabel  = nil,
+    accentColor = nil,     -- { r, g, b }
     -- 动画
     overlayAlpha = 0,
     popupScale   = 0,
@@ -1357,18 +1240,27 @@ local RIFT_BTN_W   = 100
 local RIFT_BTN_H   = 30
 local RIFT_BTN_GAP = 12
 
---- 显示裂隙确认弹窗
+--- 显示双选确认弹窗 (裂隙 / 转换事件等通用)
 ---@param cx number 弹窗中心 X
 ---@param cy number 弹窗中心 Y
----@param onConfirm function 进入暗面回调
----@param onCancel function|nil 留在原地回调
-function M.showRiftConfirm(cx, cy, onConfirm, onCancel)
+---@param onConfirm function 确认回调
+---@param onCancel function|nil 取消回调
+---@param opts table|nil 可选文案 { icon, title, desc1, desc2, btnConfirm, btnCancel, accent }
+function M.showRiftConfirm(cx, cy, onConfirm, onCancel, opts)
     riftState.active = true
     riftState.phase = "enter"
     riftState.cx = cx
     riftState.cy = cy
     riftState.onConfirm = onConfirm
     riftState.onCancel  = onCancel
+    -- 可配置文案
+    riftState.icon           = opts and opts.icon or nil
+    riftState.title          = opts and opts.title or nil
+    riftState.desc1          = opts and opts.desc1 or nil
+    riftState.desc2          = opts and opts.desc2 or nil
+    riftState.btnConfirmLabel = opts and opts.btnConfirm or nil
+    riftState.btnCancelLabel  = opts and opts.btnCancel or nil
+    riftState.accentColor    = opts and opts.accent or nil
 
     riftState.overlayAlpha = 0
     riftState.popupScale   = 0.3
@@ -1521,12 +1413,15 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
     nvgStrokeWidth(vg, 1.2)
     nvgStroke(vg)
 
+    -- 主题色 (可配置或默认 darkAccent)
+    local accent = riftState.accentColor or t.darkAccent
+
     -- 顶部色条
     nvgSave(vg)
     nvgScissor(vg, -hw, -hh, RIFT_POPUP_W, 4)
     nvgBeginPath(vg)
     nvgRoundedRect(vg, -hw, -hh, RIFT_POPUP_W, RIFT_POPUP_H, POPUP_R)
-    nvgFillColor(vg, Theme.rgba(t.darkAccent))
+    nvgFillColor(vg, Theme.rgba(accent))
     nvgFill(vg)
     nvgRestore(vg)
 
@@ -1538,8 +1433,8 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontFace(vg, "sans")
         nvgFontSize(vg, 36)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgba(t.darkAccent))
-        nvgText(vg, 0, 0, "🌀", nil)
+        nvgFillColor(vg, Theme.rgba(accent))
+        nvgText(vg, 0, 0, riftState.icon or "🌀", nil)
         nvgRestore(vg)
     end
 
@@ -1552,7 +1447,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 16)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgba(t.textPrimary))
-        nvgText(vg, 0, 0, "发现空间裂隙", nil)
+        nvgText(vg, 0, 0, riftState.title or "发现空间裂隙", nil)
         nvgRestore(vg)
     end
 
@@ -1565,8 +1460,8 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 12)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
-        nvgText(vg, 0, 0, "此处出现通往暗面世界的裂隙", nil)
-        nvgText(vg, 0, 16, "是否要进入？", nil)
+        nvgText(vg, 0, 0, riftState.desc1 or "此处出现通往暗面世界的裂隙", nil)
+        nvgText(vg, 0, 16, riftState.desc2 or "是否要进入？", nil)
         nvgRestore(vg)
     end
 
@@ -1586,7 +1481,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         local h = riftState.btnEnterHover
         local sc = 1.0 + h * 0.05
         nvgScale(vg, sc, sc)
-        local da = t.darkAccent
+        local da = accent
         local br = math.floor(da.r + (255 - da.r) * h * 0.15)
         local bg = math.floor(da.g + (255 - da.g) * h * 0.15)
         local bb = math.floor(da.b + (255 - da.b) * h * 0.15)
@@ -1598,7 +1493,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 13)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
-        nvgText(vg, 0, 0, "进入暗面", nil)
+        nvgText(vg, 0, 0, riftState.btnConfirmLabel or "进入暗面", nil)
         nvgRestore(vg)
     end
 
@@ -1624,7 +1519,7 @@ function M.drawRiftConfirm(vg, logicalW, logicalH)
         nvgFontSize(vg, 13)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
-        nvgText(vg, 0, 0, "留在原地", nil)
+        nvgText(vg, 0, 0, riftState.btnCancelLabel or "留在原地", nil)
         nvgRestore(vg)
     end
 
