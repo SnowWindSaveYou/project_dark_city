@@ -38,6 +38,12 @@ local PORTRAIT_MARGIN_LEFT = 0.05 -- 立绘左边缘占屏幕宽度比例
 -- 继续提示
 local ADVANCE_BLINK_SPEED = 2.5  -- "▼" 闪烁频率
 
+-- 跳过按钮
+local SKIP_BTN_W          = 54
+local SKIP_BTN_H          = 22
+local SKIP_BTN_MARGIN_R   = 10   -- 距对话框右边距
+local SKIP_BTN_MARGIN_B   = 10   -- 距对话框底部
+
 -- 字体
 local FONT_SIZE_TEXT       = 16
 local FONT_SIZE_NAME       = 14
@@ -85,6 +91,10 @@ local currentText_ = ""
 local currentChoices_ = nil    -- 当前行的 choices 数组, nil 表示无选择
 local choiceHoverIdx_ = 0      -- 鼠标悬停的选项索引 (1-based, 0=无)
 local choiceRects_ = {}        -- 选项点击区域 { {x,y,w,h}, ... }
+
+-- 跳过按钮
+local skipBtnRect_ = nil       -- 跳过按钮点击区域 {x,y,w,h}
+local skipBtnHover_ = false    -- 鼠标是否悬停在跳过按钮上
 
 -- ---------------------------------------------------------------------------
 -- UTF-8 工具
@@ -281,9 +291,18 @@ function M.isActive()
     return state_ ~= "idle"
 end
 
---- 点击处理 (推进对话 / 选择分支)
+--- 点击处理 (推进对话 / 选择分支 / 跳过)
 function M.handleClick(lx, ly)
     if state_ == "idle" then return false end
+
+    -- 跳过按钮 (choosing 状态下隐藏，不响应)
+    if state_ ~= "choosing" and skipBtnRect_ then
+        local r = skipBtnRect_
+        if lx >= r.x and lx <= r.x + r.w and ly >= r.y and ly <= r.y + r.h then
+            beginExit()
+            return true
+        end
+    end
 
     -- choosing 状态: 检测选项点击
     if state_ == "choosing" and currentChoices_ then
@@ -348,6 +367,8 @@ function M.reset()
     currentChoices_ = nil
     choiceHoverIdx_ = 0
     choiceRects_ = {}
+    skipBtnRect_ = nil
+    skipBtnHover_ = false
     anim_.overlayAlpha = 0
     anim_.boxAlpha = 0
     anim_.portraitAlpha = 0
@@ -511,7 +532,44 @@ function M.draw(vg, w, h, gameTime)
         nvgText(vg, boxX + boxW / 2, boxY + boxH - 12, "▼")
     end
 
-    -- ===== 7. 选择分支按钮 =====
+    -- ===== 7. 跳过按钮 (非 choosing 状态显示) =====
+    if state_ ~= "choosing" and state_ ~= "entering" then
+        local sbX = boxX + boxW - SKIP_BTN_W - SKIP_BTN_MARGIN_R
+        local sbY = boxY + boxH - SKIP_BTN_H - SKIP_BTN_MARGIN_B
+        skipBtnRect_ = { x = sbX, y = sbY, w = SKIP_BTN_W, h = SKIP_BTN_H }
+
+        -- 按钮阴影
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, sbX + 1, sbY + 1, SKIP_BTN_W, SKIP_BTN_H, 4)
+        nvgFillColor(vg, nvgRGBA(0, 0, 0, 20))
+        nvgFill(vg)
+
+        -- 按钮背景 (笔记本纸色，hover 时略微加深)
+        local sbBgAlpha = skipBtnHover_ and 220 or 180
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, sbX, sbY, SKIP_BTN_W, SKIP_BTN_H, 4)
+        nvgFillColor(vg, nvgRGBA(paper.r - 8, paper.g - 6, paper.b - 4, sbBgAlpha))
+        nvgFill(vg)
+
+        -- 按钮边框 (铅笔灰)
+        local sbBdrAlpha = skipBtnHover_ and 160 or 90
+        nvgStrokeColor(vg, nvgRGBA(border.r, border.g, border.b, sbBdrAlpha))
+        nvgStrokeWidth(vg, 1.0)
+        nvgStroke(vg)
+
+        -- 按钮文字 "跳过 »"
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        local sbTxtAlpha = skipBtnHover_ and 180 or 110
+        local txtCol = tc.textSecondary or { r = 100, g = 120, b = 140 }
+        nvgFillColor(vg, nvgRGBA(txtCol.r, txtCol.g, txtCol.b, sbTxtAlpha))
+        nvgText(vg, sbX + SKIP_BTN_W / 2, sbY + SKIP_BTN_H / 2, "跳过 »")
+    else
+        skipBtnRect_ = nil
+    end
+
+    -- ===== 8. 选择分支按钮 =====
     if state_ == "choosing" and currentChoices_ then
         local choiceBtnH = 30
         local choiceGap = 8
@@ -572,6 +630,14 @@ end
 
 --- 更新选项悬停状态 (外部每帧调用)
 function M.updateChoiceHover(lx, ly)
+    -- 跳过按钮悬停 (choosing 状态下不显示)
+    if state_ ~= "choosing" and skipBtnRect_ then
+        local r = skipBtnRect_
+        skipBtnHover_ = (lx >= r.x and lx <= r.x + r.w and ly >= r.y and ly <= r.y + r.h)
+    else
+        skipBtnHover_ = false
+    end
+
     if state_ ~= "choosing" then
         choiceHoverIdx_ = 0
         return

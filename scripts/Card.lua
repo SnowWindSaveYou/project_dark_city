@@ -54,6 +54,7 @@ M.ICON_QUAD = 0.18       -- 侦查/揭示图标边长 (米)
 function M.new(cardType, row, col, location)
     return {
         type = cardType or "safe",
+        originalType = cardType or "safe",  -- 原始事件类型 (type 可被运行时改写为 "safe")
         location = location or "company",
         row = row or 1,
         col = col or 1,
@@ -168,12 +169,12 @@ function M.attachGlowRings(card, glowTex)
         local gg = rn:CreateComponent("CustomGeometry")
         gg:SetNumGeometries(1)
         gg:BeginGeometry(0, TRIANGLE_LIST)
-        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
-        gg:DefineVertex(Vector3(-halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 1))
-        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
-        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
-        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
-        gg:DefineVertex(Vector3( halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 0))
+        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 1))
+        gg:DefineVertex(Vector3(-halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 0))
+        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 0))
+        gg:DefineVertex(Vector3(-halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(0, 1))
+        gg:DefineVertex(Vector3( halfW, 0,  halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 0))
+        gg:DefineVertex(Vector3( halfW, 0, -halfH)); gg:DefineNormal(nUp); gg:DefineTexCoord(Vector2(1, 1))
         gg:Commit()
 
         local ringMat = Material:new()
@@ -213,37 +214,38 @@ function M.createNode(card, parentNode, CardTextures)
     geom:SetNumGeometries(1)
     geom:BeginGeometry(0, TRIANGLE_LIST)
 
-    -- UV 映射 (NanoVG render-target 的 V 轴翻转):
-    -- NanoVG (0,0)=左上 → 屏幕左上 → 世界 (-X, +Z) → UV(0,1)
-    -- NanoVG (1,0)=右上 → 屏幕右上 → 世界 (+X, +Z) → UV(1,1)
-    -- NanoVG (0,1)=左下 → 屏幕左下 → 世界 (-X, -Z) → UV(0,0)
-    -- NanoVG (1,1)=右下 → 屏幕右下 → 世界 (+X, -Z) → UV(1,0)
+    -- UV 映射 (PNG 标准约定: V=0=图像顶部, V=1=图像底部):
+    -- 图像左上 → 世界 (-X, +Z) → UV(0,0)
+    -- 图像右上 → 世界 (+X, +Z) → UV(1,0)
+    -- 图像左下 → 世界 (-X, -Z) → UV(0,1)
+    -- 图像右下 → 世界 (+X, -Z) → UV(1,1)
+    -- NanoVG render-target 在绘制时用 nvgTranslate+nvgScale 翻转 Y，保持一致
 
-    -- 三角形 1: 左后 → 左前 → 右前
-    geom:DefineVertex(Vector3(-halfW, 0, -halfH))  -- 左下(屏幕) = 左前(世界-Z)
-    geom:DefineNormal(normal)
-    geom:DefineTexCoord(Vector2(0, 0))
-
-    geom:DefineVertex(Vector3(-halfW, 0, halfH))   -- 左上(屏幕) = 左后(世界+Z)
+    -- 三角形 1: 左前 → 左后 → 右后
+    geom:DefineVertex(Vector3(-halfW, 0, -halfH))  -- 左下(屏幕/图像底部)
     geom:DefineNormal(normal)
     geom:DefineTexCoord(Vector2(0, 1))
 
-    geom:DefineVertex(Vector3(halfW, 0, halfH))    -- 右上(屏幕) = 右后(世界+Z)
-    geom:DefineNormal(normal)
-    geom:DefineTexCoord(Vector2(1, 1))
-
-    -- 三角形 2: 左前 → 右后 → 右前
-    geom:DefineVertex(Vector3(-halfW, 0, -halfH))  -- 左下(屏幕)
+    geom:DefineVertex(Vector3(-halfW, 0, halfH))   -- 左上(屏幕/图像顶部)
     geom:DefineNormal(normal)
     geom:DefineTexCoord(Vector2(0, 0))
 
-    geom:DefineVertex(Vector3(halfW, 0, halfH))    -- 右上(屏幕)
-    geom:DefineNormal(normal)
-    geom:DefineTexCoord(Vector2(1, 1))
-
-    geom:DefineVertex(Vector3(halfW, 0, -halfH))   -- 右下(屏幕)
+    geom:DefineVertex(Vector3(halfW, 0, halfH))    -- 右上(屏幕/图像顶部)
     geom:DefineNormal(normal)
     geom:DefineTexCoord(Vector2(1, 0))
+
+    -- 三角形 2: 左前 → 右后 → 右前
+    geom:DefineVertex(Vector3(-halfW, 0, -halfH))  -- 左下(屏幕/图像底部)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(0, 1))
+
+    geom:DefineVertex(Vector3(halfW, 0, halfH))    -- 右上(屏幕/图像顶部)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(1, 0))
+
+    geom:DefineVertex(Vector3(halfW, 0, -halfH))   -- 右下(屏幕/图像底部)
+    geom:DefineNormal(normal)
+    geom:DefineTexCoord(Vector2(1, 1))
 
     geom:Commit()
 
@@ -274,6 +276,33 @@ function M.createNode(card, parentNode, CardTextures)
     card.model3d = geom
     card.material3d = mat
 
+    -- overlay 子节点：卡框 + 卡名叠加层（透明背景，浮于卡面上方）
+    -- 仅 PNG 卡牌有 overlay；NanoVG fallback 卡牌不需要（卡框已内嵌）
+    do
+        local ov = node:CreateChild("card_overlay")
+        ov:SetPosition(Vector3(0, 0.001, 0))  -- 微浮，避免 z-fighting
+        local ovGeom = ov:CreateComponent("CustomGeometry")
+        ovGeom:SetNumGeometries(1)
+        ovGeom:BeginGeometry(0, TRIANGLE_LIST)
+        -- UV 与主体一致（PNG 约定）
+        ovGeom:DefineVertex(Vector3(-halfW, 0, -halfH)); ovGeom:DefineNormal(normal); ovGeom:DefineTexCoord(Vector2(0, 1))
+        ovGeom:DefineVertex(Vector3(-halfW, 0,  halfH)); ovGeom:DefineNormal(normal); ovGeom:DefineTexCoord(Vector2(0, 0))
+        ovGeom:DefineVertex(Vector3( halfW, 0,  halfH)); ovGeom:DefineNormal(normal); ovGeom:DefineTexCoord(Vector2(1, 0))
+        ovGeom:DefineVertex(Vector3(-halfW, 0, -halfH)); ovGeom:DefineNormal(normal); ovGeom:DefineTexCoord(Vector2(0, 1))
+        ovGeom:DefineVertex(Vector3( halfW, 0,  halfH)); ovGeom:DefineNormal(normal); ovGeom:DefineTexCoord(Vector2(1, 0))
+        ovGeom:DefineVertex(Vector3( halfW, 0, -halfH)); ovGeom:DefineNormal(normal); ovGeom:DefineTexCoord(Vector2(1, 1))
+        ovGeom:Commit()
+        local ovMat = Material:new()
+        ovMat:SetTechnique(0, techDiffAlpha)
+        ovMat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
+        ovMat.renderOrder = 128  -- 与主体同级，依靠 Y+0.001 偏移防 z-fighting
+        ovGeom:SetMaterial(ovMat)
+        ov:SetEnabled(false)  -- 初始隐藏，updateTexture 时按需显示
+        card.overlayNode = ov
+        card.overlayMat  = ovMat
+        card.overlayGeom = ovGeom
+    end
+
     -- 侦查/揭示 图标子节点 (右上角 = +X, +Z 卡面顶部)
     local margin = M.ICON_QUAD * 0.55
     local iconX = halfW - margin                            -- 右侧
@@ -298,6 +327,9 @@ function M.createNode(card, parentNode, CardTextures)
             M.attachGlowRings(card, glowTex)
         end
     end
+
+    -- 初始化 overlay（必须在节点建立后立即调用，否则 overlayNode 永远保持 disabled）
+    M.updateTexture(card, CardTextures)
 end
 
 -- ---------------------------------------------------------------------------
@@ -338,6 +370,11 @@ function M.syncNode(card)
             card.material3d:SetTechnique(0, techDiff)
         end
         card.material3d:SetShaderParameter("MatDiffColor",
+            Variant(Color(1, 1, 1, card.alpha)))
+    end
+    -- overlay alpha 同步（始终用透明 technique，alpha 跟随主体）
+    if card.overlayMat and card.overlayNode and card.overlayNode:IsEnabled() then
+        card.overlayMat:SetShaderParameter("MatDiffColor",
             Variant(Color(1, 1, 1, card.alpha)))
     end
 
@@ -419,15 +456,35 @@ function M.updateTexture(card, CardTextures)
     if not card.material3d then return end
 
     local tex
+    local overlay = nil
     if card.isDark then
-        -- 暗面卡牌: 全明牌, 始终使用暗面纹理
+        -- 暗面卡牌: 全明牌, 始终使用暗面纹理（NanoVG 绘制，无 overlay）
         tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
     elseif card.faceUp then
-        tex = CardTextures.getEventTexture(card.location, card.type)
+        -- 使用 originalType 查图: card.type 可能被运行时改为 "safe" (地标光环/灵感不足)
+        -- 但插画应显示原始事件类型的地点专属图
+        local imgType = card.originalType or card.type
+        tex = CardTextures.getEventTexture(card.location, imgType)
+        if CardTextures.getEventOverlay then
+            overlay = CardTextures.getEventOverlay(card.location, imgType)
+        end
     else
         tex = CardTextures.getLocationTexture(card.location)
+        if CardTextures.getLocationOverlay then
+            overlay = CardTextures.getLocationOverlay(card.location)
+        end
     end
     card.material3d:SetTexture(TU_DIFFUSE, tex)
+
+    -- 更新 overlay 层
+    if card.overlayNode then
+        if overlay and overlay ~= false then
+            card.overlayMat:SetTexture(TU_DIFFUSE, overlay)
+            card.overlayNode:SetEnabled(true)
+        else
+            card.overlayNode:SetEnabled(false)
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------

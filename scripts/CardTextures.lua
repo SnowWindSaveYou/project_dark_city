@@ -1,11 +1,13 @@
 -- ============================================================================
 -- CardTextures.lua - NanoVG 渲染到纹理 (卡牌贴图生成器)
 -- 将 NanoVG 矢量绘制的卡面烘焙为 Texture2D，供 3D 卡牌模型使用
+-- 优先使用 PNG 插画，fallback 到 NanoVG 程序化绘制
 -- ============================================================================
 
-local Card      = require "Card"
-local EventPool = require "EventPool"
-local Theme     = require "Theme"
+local Card         = require "Card"
+local EventPool    = require "EventPool"
+local Theme        = require "Theme"
+local CardImageMap = require "CardImageMap"
 
 local M = {}
 
@@ -94,6 +96,9 @@ local function renderLocation(tex, locKey)
 
     nvgSetRenderTarget(vg, tex)
     nvgBeginFrame(vg, w, h, 1.0)
+    -- 翻转 Y 轴：render-target 存储约定与新 UV (V=0=顶部) 对齐
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
 
     -- 清透明
     nvgBeginPath(vg)
@@ -171,6 +176,9 @@ local function renderEvent(tex, locKey, eventType)
 
     nvgSetRenderTarget(vg, tex)
     nvgBeginFrame(vg, w, h, 1.0)
+    -- 翻转 Y 轴：与新 UV 约定对齐
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
 
     -- 清透明
     nvgBeginPath(vg)
@@ -223,6 +231,8 @@ local function renderBack(tex)
     local t = Theme.current
     nvgSetRenderTarget(vg, tex)
     nvgBeginFrame(vg, w, h, 1.0)
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
 
     -- 清透明
     nvgBeginPath(vg)
@@ -259,11 +269,19 @@ local function renderBack(tex)
     nvgFillColor(vg, Theme.rgbaA(t.cardBackAlt or t.cardBorder, 120))
     nvgFill(vg)
 
-    -- 边框
+    -- 白色外卡框
+    local borderW = 6
     nvgBeginPath(vg)
-    nvgRect(vg, 0, 0, w, h)
-    nvgStrokeColor(vg, Theme.rgbaA(t.cardBorder, 180))
-    nvgStrokeWidth(vg, 6)
+    nvgRect(vg, borderW / 2, borderW / 2, w - borderW, h - borderW)
+    nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 230))
+    nvgStrokeWidth(vg, borderW)
+    nvgStroke(vg)
+
+    -- 内圈细边框（层次感）
+    nvgBeginPath(vg)
+    nvgRect(vg, borderW + 4, borderW + 4, w - (borderW + 4) * 2, h - (borderW + 4) * 2)
+    nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 80))
+    nvgStrokeWidth(vg, 1.5)
     nvgStroke(vg)
 
     nvgEndFrame(vg)
@@ -283,6 +301,8 @@ local function renderDarkCard(tex, darkType, darkName)
 
     nvgSetRenderTarget(vg, tex)
     nvgBeginFrame(vg, w, h, 1.0)
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
 
     -- 清透明
     nvgBeginPath(vg)
@@ -338,28 +358,187 @@ end
 -- 公共 API: 纹理获取 (带懒渲染)
 -- ---------------------------------------------------------------------------
 
---- 获取地点面纹理 (未翻开时)
+-- overlay 缓存（PNG 卡框+卡名叠加层，透明背景）
+local locationOverlayCache = {}  -- locKey → Texture2D
+local eventOverlayCache    = {}  -- "locKey_eventType" → Texture2D
+
+--- 直接用 ResourceCache 加载 PNG 纹理（在引擎 WASM 环境中可靠）
+--- 返回 Texture2D 或 nil
+local function loadPNGTexture(imgFile)
+    if not imgFile then return nil end
+    local path = "image/" .. imgFile
+    local tex = cache:GetResource("Texture2D", path)
+    if tex then
+        return tex
+    end
+    print("[CardTextures] WARN: PNG not found: " .. path)
+    return nil
+end
+
+--- 渲染 overlay（透明背景 + 三层矩形边框 + 底部标签）
+--- 叠加在 PNG 图片上方，不遮挡图片内容
+--- @param labelText  string  底部卡名
+--- @param borderColor table  { r, g, b } 边框颜色
+local function renderOverlay(labelText, borderColor)
+    local vg = texVg
+    local w, h = TEX_W, TEX_H
+
+    local tex = Texture2D:new()
+    tex:SetNumLevels(1)
+    tex:SetSize(w, h, Graphics:GetRGBAFormat(), TEXTURE_RENDERTARGET)
+    tex:SetFilterMode(FILTER_BILINEAR)
+
+    nvgSetRenderTarget(vg, tex)
+    nvgBeginFrame(vg, w, h, 1.0)
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
+
+    local bc = borderColor or { r = 180, g = 160, b = 120 }
+    local BW = 9   -- 主边框宽度（加粗）
+
+    -- ── 1. 全透明底（不遮挡 PNG）────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, h)
+    nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
+    nvgFill(vg)
+
+    -- ── 2. 底部标签渐变遮罩 ──────────────────────────────────────────────
+    local labelH = 56
+    local labelY = h - labelH
+    local gradPaint = nvgLinearGradient(vg, 0, labelY - 28, 0, h,
+        nvgRGBA(0, 0, 0, 0), nvgRGBA(0, 0, 0, 200))
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, labelY - 28, w, labelH + 28)
+    nvgFillPaint(vg, gradPaint)
+    nvgFill(vg)
+
+    -- ── 3. 卡名文字（阴影 + 主体）──────────────────────────────────────
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 34)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, nvgRGBA(0, 0, 0, 130))
+    nvgText(vg, w / 2 + 1, h - labelH / 2 + 3, labelText, nil)
+    nvgFillColor(vg, nvgRGBA(255, 255, 255, 245))
+    nvgText(vg, w / 2, h - labelH / 2 + 2, labelText, nil)
+
+    -- ── 4. 三层矩形边框 ─────────────────────────────────────────────────
+    -- 层①：外侧深影（立体感）
+    nvgBeginPath(vg)
+    nvgRect(vg, 1, 1, w - 2, h - 2)
+    nvgStrokeColor(vg, nvgRGBA(0, 0, 0, 100))
+    nvgStrokeWidth(vg, 5)
+    nvgStroke(vg)
+
+    -- 层②：主色边框（加粗）
+    nvgBeginPath(vg)
+    nvgRect(vg, BW / 2, BW / 2, w - BW, h - BW)
+    nvgStrokeColor(vg, nvgRGBA(bc.r, bc.g, bc.b, 240))
+    nvgStrokeWidth(vg, BW)
+    nvgStroke(vg)
+
+    -- 层③：内侧白色高光（浮雕感）
+    nvgBeginPath(vg)
+    nvgRect(vg, BW + 3, BW + 3, w - (BW + 3) * 2, h - (BW + 3) * 2)
+    nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 75))
+    nvgStrokeWidth(vg, 1.5)
+    nvgStroke(vg)
+
+    nvgEndFrame(vg)
+    nvgSetRenderTarget(vg, nil)
+
+    return tex
+end
+
+--- 获取地点面 PNG 纹理（主体，无叠加层）
+--- 返回 Texture2D 或 nil（nil 表示无 PNG，应使用 NanoVG fallback）
 function M.getLocationTexture(locKey)
-    if locationTexCache[locKey] then
+    if locationTexCache[locKey] ~= nil then
         return locationTexCache[locKey]
     end
-    -- 立即创建并渲染
-    local tex = createRenderTexture()
-    renderLocation(tex, locKey)
+    local imgFile = CardImageMap.getLocationImage(locKey)
+    local tex = loadPNGTexture(imgFile)
+    if tex then
+        print("[CardTextures] PNG location loaded: " .. locKey)
+    else
+        -- fallback: NanoVG 程序化绘制
+        tex = createRenderTexture()
+        renderLocation(tex, locKey)
+        print("[CardTextures] Fallback NanoVG for location: " .. locKey)
+    end
     locationTexCache[locKey] = tex
     return tex
 end
 
---- 获取事件面纹理 (翻开后)
+--- 获取地点面 overlay 纹理（卡框+卡名，透明背景）
+--- 只在有 PNG 时才生成 overlay；NanoVG fallback 时返回 nil（已内嵌卡框）
+function M.getLocationOverlay(locKey)
+    if locationOverlayCache[locKey] ~= nil then
+        return locationOverlayCache[locKey]
+    end
+    local imgFile = CardImageMap.getLocationImage(locKey)
+    if not imgFile then
+        locationOverlayCache[locKey] = false  -- 标记为"无 overlay"
+        return nil
+    end
+    local locInfo = EventPool.LOCATION_INFO[locKey]
+    local label = locInfo and locInfo.label or locKey
+    local bc = { r = 255, g = 255, b = 255 }  -- 地点卡边框固定为白色
+    local overlay = renderOverlay(label, bc)
+    locationOverlayCache[locKey] = overlay
+    return overlay
+end
+
+-- home/landmark/shop 类型：事件面无专属图时，复用地点面图片
+local REUSE_LOC_IMAGE_TYPES = { home = true, landmark = true, shop = true }
+
+--- 获取事件面 PNG 纹理（主体，无叠加层）
 function M.getEventTexture(locKey, eventType)
     local cacheKey = locKey .. "_" .. eventType
-    if eventTexCache[cacheKey] then
+    if eventTexCache[cacheKey] ~= nil then
         return eventTexCache[cacheKey]
     end
-    local tex = createRenderTexture()
-    renderEvent(tex, locKey, eventType)
+    local imgFile = CardImageMap.getEventImage(locKey, eventType)
+    -- home/landmark/shop 无专属事件图时，复用地点面图片
+    if not imgFile and REUSE_LOC_IMAGE_TYPES[eventType] then
+        imgFile = CardImageMap.getLocationImage(locKey)
+    end
+    local tex = loadPNGTexture(imgFile)
+    if tex then
+        print("[CardTextures] PNG event loaded: " .. locKey .. "/" .. eventType)
+    else
+        tex = createRenderTexture()
+        renderEvent(tex, locKey, eventType)
+        print("[CardTextures] Fallback NanoVG for event: " .. locKey .. "/" .. eventType)
+    end
     eventTexCache[cacheKey] = tex
     return tex
+end
+
+--- 获取事件面 overlay 纹理（卡框+卡名，透明背景）
+function M.getEventOverlay(locKey, eventType)
+    local cacheKey = locKey .. "_" .. eventType
+    if eventOverlayCache[cacheKey] ~= nil then
+        return eventOverlayCache[cacheKey]
+    end
+    local imgFile = CardImageMap.getEventImage(locKey, eventType)
+    -- home/landmark/shop 无专属事件图时，复用地点面图片（同样需要 overlay）
+    if not imgFile and REUSE_LOC_IMAGE_TYPES[eventType] then
+        imgFile = CardImageMap.getLocationImage(locKey)
+    end
+    if not imgFile then
+        eventOverlayCache[cacheKey] = false
+        return nil
+    end
+    local darkInfo = EventPool.getDarksideInfo(locKey, eventType)
+    local typeInfo = Theme.cardTypeInfo(eventType)
+    -- home/landmark 用地点名作为 label
+    local locInfo = EventPool.LOCATION_INFO[locKey]
+    local label = (locInfo and (eventType == "home" or eventType == "landmark" or eventType == "shop") and locInfo.label)
+        or (darkInfo and darkInfo.label) or (typeInfo and typeInfo.label) or eventType
+    local tc = Theme.cardTypeColor(eventType)
+    local overlay = renderOverlay(label, tc)
+    eventOverlayCache[cacheKey] = overlay
+    return overlay
 end
 
 --- 获取牌背纹理 (牌堆显示)
@@ -420,6 +599,8 @@ end
 function M.clearCache()
     locationTexCache = {}
     eventTexCache = {}
+    locationOverlayCache = {}
+    eventOverlayCache = {}
     darkCardTexCache = {}
     darkWallTex = nil
     -- backTex / icon / glow 纹理保留，不会变
@@ -445,6 +626,8 @@ function M.getSafeGlowTexture()
 
     nvgSetRenderTarget(texVg, safeGlowTex)
     nvgBeginFrame(texVg, w, h, 1.0)
+    nvgTranslate(texVg, 0, h)
+    nvgScale(texVg, 1, -1)
 
     -- 清透明
     nvgBeginPath(texVg)
@@ -501,6 +684,8 @@ function M.getLandmarkGlowTexture()
 
     nvgSetRenderTarget(texVg, landmarkGlowTex)
     nvgBeginFrame(texVg, w, h, 1.0)
+    nvgTranslate(texVg, 0, h)
+    nvgScale(texVg, 1, -1)
 
     -- 清透明
     nvgBeginPath(texVg)
