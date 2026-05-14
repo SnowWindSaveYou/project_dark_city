@@ -30,6 +30,7 @@ local EndingSystem        = require "EndingSystem"
 local MilestoneManager    = require "MilestoneManager"
 local MonsterGhost        = require "MonsterGhost"
 local StoryEventManager   = require "StoryEventManager"
+local Weather             = require "Weather"
 
 local M = {}
 
@@ -82,6 +83,11 @@ function M.startDeal()
     Board.dealAll(G.board, function()
         G.demoState = "ready"
         print("[GameFlow] Deal complete, Day " .. G.dayCount)
+
+        -- 天气环境音 (每日发牌完成后根据天气播放)
+        local dayWeather = Weather.getWeather(G.dayCount)
+        AudioManager.playAmbient(Weather.getAmbientKey(dayWeather))
+        print("[GameFlow] Weather: " .. Weather.getName(dayWeather))
 
         local homeRow = G.board.homeRow
         local homeCol = G.board.homeCol

@@ -11,20 +11,20 @@ local M = {}
 -- key: locKey → 图片文件名 (位于 image/ 目录下)
 -- ---------------------------------------------------------------------------
 M.LOCATION_IMAGES = {
-    home        = "loc_home_20260512095319.png",
-    convenience = "loc_convenience_20260512095325.png",
-    church      = "loc_church_20260512095412.png",
-    police      = "loc_police_20260512095310.png",
-    company     = "loc_company_20260512095329.png",
-    school      = "loc_school_v7_20260512101431.png",
-    park        = "loc_park_20260512095413.png",
-    alley       = "loc_alley_v2_20260512095715.png",
-    station     = "loc_station_v2_20260512101849.png",
-    hospital    = "loc_hospital_20260512095329.png",
+    home        = "loc_home_v2_20260514080830.png",
+    convenience = "loc_convenience_v2_20260514120100.png",
+    church      = "loc_church_v2_20260514080708.png",
+    police      = "loc_police_v3_20260514094153.png",
+    company     = "loc_company_20260514064210.png",
+    school      = "loc_school_v2_20260514075526.png",
+    park        = "loc_park_v7_20260514123205.png",
+    alley       = "loc_alley_v3_20260514062422.png",
+    station     = "loc_station_20260514064028.png",
+    hospital    = "loc_hospital_v2_20260514054038.png",
     library     = "card_library_location_v6_20260512094701.png",
-    bank        = "loc_bank_20260512095452.png",
-    cemetery    = "loc_cemetery_v4_20260512100726.png",
-    gym         = "loc_gym_20260512095455.png",
+    bank        = "loc_bank_v4_20260514115241.png",
+    cemetery    = "loc_cemetery_20260514064421.png",
+    gym         = "loc_gym_v2_20260514075948.png",
 }
 
 -- ---------------------------------------------------------------------------

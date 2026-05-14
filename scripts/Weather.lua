@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Weather.lua - 天气系统模块
--- 确定性天气生成 + 极简矢量天气图标绘制
+-- 确定性天气生成 + 极简矢量天气图标绘制 + NanoVG 粒子特效
 -- 可被 DateTransition 和其他游戏模块复用
 -- ============================================================================
 
@@ -19,12 +19,25 @@ M.STORMY        = "stormy"         -- 雷暴
 M.ALL_TYPES = { M.SUNNY, M.PARTLY_CLOUDY, M.CLOUDY, M.RAINY, M.STORMY }
 
 -- ---------------------------------------------------------------------------
+-- 剧情固定天气 (优先级最高, 覆盖哈希结果)
+-- 依据 morning_events.lua / milestone_events.lua 中的环境描述确定
+-- ---------------------------------------------------------------------------
+
+M.STORY_WEATHER = {
+    [2] = M.STORMY,  -- "入夜后暴雨倾盆，闪电劈开天际" (morning_day2)
+}
+
+-- ---------------------------------------------------------------------------
 -- 确定性天气生成 (基于 dayCount 的哈希)
 -- ---------------------------------------------------------------------------
 
 ---@param dayCount integer 游戏天数 (可以是负数/0, 对应游戏开始前的日期)
 ---@return string weatherType
 function M.getWeather(dayCount)
+    -- 剧情固定天气优先
+    if M.STORY_WEATHER[dayCount] then
+        return M.STORY_WEATHER[dayCount]
+    end
     -- 简单的确定性哈希, 同一天总是返回相同天气
     local hash = ((dayCount * 2654435761) % 2147483647) % 100
     if hash < 30 then
@@ -175,6 +188,178 @@ function M.drawIcon(vg, cx, cy, r, weatherType, alpha, isHighlight)
         nvgStrokeWidth(vg, 1.5)
         nvgStroke(vg)
     end
+end
+
+-- ============================================================================
+-- 天气粒子特效 (FX) — NanoVG 绘制
+-- ============================================================================
+
+local MAX_RAIN  = 80
+local MAX_STORM = 120
+
+local fx_ = {
+    particles    = {},   -- 活跃粒子列表
+    thunderTimer = 0,    -- 距下次雷声的剩余时间 (秒)
+    lightFlash   = 0,    -- 闪电白色叠加层强度 (0~1)
+    lastType     = nil,  -- 上一帧天气类型, 用于检测变化
+}
+
+-- 随机生成一个雨滴粒子
+local function makeRainDrop(weatherType, w, h, fromTop)
+    local isStorm = weatherType == M.STORMY
+    return {
+        x     = math.random() * (w + 200) - 100,
+        y     = fromTop and (-math.random() * 40) or (math.random() * h),
+        vx    = isStorm and (-75 - math.random() * 95) or (-15 - math.random() * 28),
+        vy    = isStorm and (360 + math.random() * 190) or (245 + math.random() * 125),
+        len   = isStorm and (10 + math.random() * 11) or (6  + math.random() * 7),
+        alpha = isStorm and (135 + math.random() * 85) or (90 + math.random() * 80),
+        lw    = isStorm and (1.0 + math.random() * 0.6) or (0.7 + math.random() * 0.4),
+    }
+end
+
+--- 初始化天气特效系统 (在 Start() 中调用一次)
+function M.initFX()
+    fx_.particles    = {}
+    fx_.thunderTimer = 6 + math.random() * 12
+    fx_.lightFlash   = 0
+    fx_.lastType     = nil
+end
+
+--- 每帧更新粒子 (在 HandleUpdate 中调用)
+---@param dt number
+---@param weatherType string|nil  当前天气; nil 表示不显示粒子
+---@param w number  逻辑宽
+---@param h number  逻辑高
+---@param audioMgr table|nil  AudioManager 引用 (雷声用)
+function M.updateFX(dt, weatherType, w, h, audioMgr)
+    local isRain = weatherType == M.RAINY or weatherType == M.STORMY
+
+    -- 非降水天气: 清空粒子
+    if not isRain then
+        if #fx_.particles > 0 then fx_.particles = {} end
+        fx_.lightFlash = 0
+        fx_.lastType   = weatherType
+        return
+    end
+
+    local targetCount = (weatherType == M.STORMY) and MAX_STORM or MAX_RAIN
+
+    -- 天气类型发生变化: 清空重建
+    if fx_.lastType ~= weatherType then
+        fx_.particles    = {}
+        fx_.thunderTimer = 6 + math.random() * 12
+    end
+    fx_.lastType = weatherType
+
+    -- 填充粒子池 (首批散布在屏幕上, 后续从顶部补入)
+    local scattered = #fx_.particles >= math.floor(targetCount * 0.45)
+    while #fx_.particles < targetCount do
+        fx_.particles[#fx_.particles + 1] = makeRainDrop(weatherType, w, h, scattered)
+        scattered = true
+    end
+
+    -- 更新位置
+    local i = 1
+    while i <= #fx_.particles do
+        local p = fx_.particles[i]
+        p.x = p.x + p.vx * dt
+        p.y = p.y + p.vy * dt
+        -- 出界 → 从顶部重置
+        if p.y > h + 60 or p.x < -180 then
+            fx_.particles[i] = makeRainDrop(weatherType, w, h, true)
+        end
+        i = i + 1
+    end
+
+    -- 雷暴专属: 随机闪电 + 雷声
+    if weatherType == M.STORMY then
+        fx_.thunderTimer = fx_.thunderTimer - dt
+        if fx_.thunderTimer <= 0 then
+            fx_.thunderTimer = 10 + math.random() * 18
+            fx_.lightFlash   = 0.9
+            if audioMgr then audioMgr.playSFX("weather_thunder") end
+        end
+    end
+
+    -- 闪电衰减
+    if fx_.lightFlash > 0 then
+        fx_.lightFlash = math.max(0, fx_.lightFlash - dt * 5)
+    end
+end
+
+--- 绘制天气粒子 (在 NanoVGRender 中调用, 位于 HUD 层之前)
+---@param vg any
+---@param w number 逻辑宽
+---@param h number 逻辑高
+---@param weatherType string
+---@param globalAlpha number 整体透明度 0~1
+function M.drawFX(vg, w, h, weatherType, globalAlpha)
+    globalAlpha = globalAlpha or 1.0
+    if globalAlpha <= 0 or #fx_.particles == 0 then return end
+
+    local isStorm = weatherType == M.STORMY
+
+    -- 闪电白色叠加层
+    if isStorm and fx_.lightFlash > 0 then
+        local flashA = math.floor(fx_.lightFlash * 52 * globalAlpha)
+        if flashA > 0 then
+            nvgBeginPath(vg)
+            nvgRect(vg, 0, 0, w, h)
+            nvgFillColor(vg, nvgRGBA(215, 228, 255, flashA))
+            nvgFill(vg)
+        end
+    end
+
+    -- 雨天: 顶部细薄雾气渐变
+    local fogA = math.floor((isStorm and 40 or 20) * globalAlpha)
+    if fogA > 0 then
+        local fog = nvgLinearGradient(vg, 0, 0, 0, h * 0.25,
+            nvgRGBA(160, 190, 220, fogA), nvgRGBA(160, 190, 220, 0))
+        nvgBeginPath(vg)
+        nvgRect(vg, 0, 0, w, h * 0.25)
+        nvgFillPaint(vg, fog)
+        nvgFill(vg)
+    end
+
+    -- 雨滴线段
+    local baseR = isStorm and 150 or 170
+    local baseG = isStorm and 182 or 208
+    local baseB = isStorm and 225 or 252
+
+    for _, p in ipairs(fx_.particles) do
+        local a = math.floor(p.alpha * globalAlpha)
+        if a > 0 then
+            local spd = math.sqrt(p.vx * p.vx + p.vy * p.vy)
+            if spd > 0.01 then
+                local nx = p.vx / spd
+                local ny = p.vy / spd
+                nvgBeginPath(vg)
+                nvgMoveTo(vg, p.x, p.y)
+                nvgLineTo(vg, p.x + nx * p.len, p.y + ny * p.len)
+                nvgStrokeColor(vg, nvgRGBA(baseR, baseG, baseB, a))
+                nvgStrokeWidth(vg, p.lw)
+                nvgStroke(vg)
+            end
+        end
+    end
+end
+
+--- 获取当前天气对应的环境音 key (传给 AudioManager.playAmbient)
+---@param weatherType string
+---@return string|nil
+function M.getAmbientKey(weatherType)
+    if weatherType == M.STORMY then return "wind" end
+    if weatherType == M.RAINY  then return "rain" end
+    return nil
+end
+
+--- 重置特效状态 (游戏重启时调用)
+function M.resetFX()
+    fx_.particles    = {}
+    fx_.lightFlash   = 0
+    fx_.thunderTimer = 6 + math.random() * 12
+    fx_.lastType     = nil
 end
 
 return M

@@ -37,6 +37,7 @@ local DarkWorldFlow    = require "DarkWorldFlow"
 local StoryManager     = require "StoryManager"
 local StoryEventManager = require "StoryEventManager"
 local DebugPanel       = require "DebugPanel"
+local Weather          = require "Weather"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -495,6 +496,7 @@ function Start()
             cameraPanX_ = 0
             cameraPanZ_ = 0
             DarkWorldFlow.resetSavedState()
+            Weather.resetFX()
             -- 同步 main local 引用
             board = G.board
             token = G.token
@@ -585,6 +587,9 @@ function Start()
             end
         end
     end)
+
+    -- 天气粒子特效系统
+    Weather.initFX()
 
     -- 日期转场
     DateTransition.init(vg)
@@ -968,6 +973,13 @@ function HandleUpdate(eventType, eventData)
     DialogueSystem.update(dt)
     DarkWorld.update(dt, gameTime)
 
+    -- 天气粒子更新 (游戏进行中且非暗面世界)
+    if G.gamePhase == "playing" and not DarkWorld.isActive() and not TitleScreen.isActive() then
+        Weather.updateFX(dt, Weather.getWeather(G.dayCount), logicalW, logicalH, AudioManager)
+    else
+        Weather.updateFX(dt, nil, logicalW, logicalH, nil)
+    end
+
     -- 气泡对话更新
     if playerBubble then
         local isIdle = not token.isMoving and G.demoState == "ready"
@@ -1045,6 +1057,16 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 暗面世界 HUD 叠加层 ===
     DarkWorld.draw(vg, logicalW, logicalH, gameTime)
+
+    -- === 天气粒子 (位于3D场景之上、HUD之下) ===
+    if G.gamePhase == "playing" and not DarkWorld.isActive() and not TitleScreen.isActive() then
+        local curWeather = Weather.getWeather(G.dayCount)
+        local wAlpha = 0.65
+        if EventPopup.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then
+            wAlpha = 0.30
+        end
+        Weather.drawFX(vg, logicalW, logicalH, curWeather, wAlpha)
+    end
 
     -- === 相机模式取景器叠加层 ===
     CameraButton.drawOverlay(vg, logicalW, logicalH, gameTime)
