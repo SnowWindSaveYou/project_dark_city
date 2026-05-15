@@ -2,29 +2,23 @@
 
 [ext_resource type="Script" path="res://scripts/ui/schedule_item_row.gd" id="1_script"]
 
-## ScheduleItemRow - 单条日程行（节点版）
-## HBoxContainer: [CheckBox(Control,_draw)] [IconLabel] [TextLabel(expand)] [RewardLabel]
-
 [node name="ScheduleItemRow" type="HBoxContainer"]
 custom_minimum_size = Vector2(0, 26)
 mouse_filter = 1
 script = ExtResource("1_script")
 
-## 勾选框：小 Control，用 _draw() 绘制方框和勾（尺寸固定 11×11，无节点替代）
 [node name="CheckArea" type="Control" parent="."]
 layout_mode = 2
 custom_minimum_size = Vector2(15, 26)
 size_flags_vertical = 4
 mouse_filter = 2
 
-## 地点图标 Emoji
 [node name="IconLabel" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 4
 text = "📍"
 
-## 日程名称（弹性填满剩余宽度）
 [node name="TextLabel" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -33,7 +27,6 @@ text = "前往某处"
 clip_contents = true
 text_overrun_behavior = 3
 
-## 奖励文字（右对齐）
 [node name="RewardLabel" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 0

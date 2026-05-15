@@ -2,23 +2,17 @@
 
 [ext_resource type="Script" path="res://scripts/ui/consumable_item_btn.gd" id="1_script"]
 
-## ConsumableItemBtn - 道具格子按钮（节点版）
-## VBoxContainer: [ItemBtn(Button内含TextureRect+EmojiLabel)] [NameLabel]
-## 数量角标通过 ItemBtn 子节点 BadgeLabel 实现
-
 [node name="ConsumableItemBtn" type="VBoxContainer"]
 custom_minimum_size = Vector2(40, 58)
 mouse_filter = 1
 script = ExtResource("1_script")
 
-## 图标按钮（方形，内含图标）
 [node name="ItemBtn" type="Button" parent="."]
 layout_mode = 2
 custom_minimum_size = Vector2(40, 40)
 size_flags_horizontal = 4
 flat = false
 
-## 贴图图标（有 iconKey 时显示）
 [node name="IconTexture" type="TextureRect" parent="ItemBtn"]
 layout_mode = 1
 anchors_preset = 15
@@ -29,7 +23,6 @@ grow_vertical = 2
 stretch_mode = 5
 mouse_filter = 2
 
-## Emoji 图标（无贴图时 fallback）
 [node name="EmojiLabel" type="Label" parent="ItemBtn"]
 layout_mode = 1
 anchors_preset = 15
@@ -42,7 +35,6 @@ vertical_alignment = 1
 text = "🧪"
 mouse_filter = 2
 
-## 数量角标（右上角，count > 1 时显示）
 [node name="BadgeLabel" type="Label" parent="ItemBtn"]
 layout_mode = 0
 offset_left = 28.0
@@ -53,7 +45,6 @@ horizontal_alignment = 1
 text = "2"
 visible = false
 
-## 道具名称（底部小字）
 [node name="NameLabel" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 4

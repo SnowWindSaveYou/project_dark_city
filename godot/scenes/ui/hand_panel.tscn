@@ -2,37 +2,6 @@
 
 [ext_resource type="Script" path="res://scripts/ui/hand_panel.gd" id="1_script"]
 
-## HandPanel - 左侧滑入笔记本
-## 整体布局（从外到内）：
-##   HandPanel (Control, 全屏, PASS) — 只用于接收鼠标事件
-##   └─ NotebookRoot (Control) — 动画驱动 position.x + rotation，pivot_offset=(200,0)
-##       ├─ NotebookBg (Panel) — 米黄纸张背景（圆角通过 StyleBoxFlat）
-##       ├─ SpineRect (ColorRect) — 牛皮书脊
-##       ├─ RuledLines (Control) — 只用 _draw() 绘制横线（无对应节点）
-##       ├─ PageHeader (HBoxContainer) — 页眉行：标题 + 收起按钮
-##       │   ├─ TabTitle (Label)
-##       │   └─ CollapseBtn (Button, flat)
-##       ├─ SchedulePage (Control)
-##       │   ├─ ScheduleScroll (ScrollContainer)
-##       │   │   └─ ScheduleVBox (VBoxContainer) ← 动态添加 ScheduleItemRow
-##       │   ├─ FooterArea (Control) — _draw() 绘制结束今天/待完成 footer
-##       │   └─ RumorNote (Control) — rotation=1.8°，包含便签内容
-##       │       ├─ NoteBg (Panel, StyleBoxFlat)
-##       │       ├─ TapeRect (ColorRect, 胶带)
-##       │       ├─ NoteVBox (VBoxContainer)
-##       │       │   ├─ NoteIcon (Label, 图标)
-##       │       │   ├─ NoteSafe (Label, 安全/危险)
-##       │       │   └─ NoteText (Label, 内容)
-##       │       └─ NotePageLabel (Label, 页码)
-##       ├─ ItemsPage (GridContainer) ← 动态添加 ConsumableItemBtn
-##       ├─ CluePage (VBoxContainer)
-##       │   ├─ ClueIcon (Label)
-##       │   └─ ClueText (Label)
-##       └─ TabsContainer (Control) — 3 个便签贴 Button（右边缘伸出）
-##           ├─ Tab1Btn (Button)
-##           ├─ Tab2Btn (Button)
-##           └─ Tab3Btn (Button)
-
 [node name="HandPanel" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -43,9 +12,6 @@ grow_vertical = 2
 mouse_filter = 1
 script = ExtResource("1_script")
 
-## NotebookRoot: 宽=PANEL_W=200, 高由代码在 _ready 中根据屏幕尺寸设置
-## position.x 从 -(200+40+50)=-290 动画到 6 (展开) 或 -(200-6)=-194 (折叠)
-## pivot_offset = Vector2(200, 0) 使旋转轴在右上角
 [node name="NotebookRoot" type="Control" parent="."]
 layout_mode = 0
 offset_right = 200.0
@@ -53,7 +19,6 @@ offset_bottom = 320.0
 pivot_offset = Vector2(200, 0)
 mouse_filter = 2
 
-## 纸张背景（米黄，圆角，StyleBoxFlat 由代码设置）
 [node name="NotebookBg" type="Panel" parent="NotebookRoot"]
 layout_mode = 1
 anchors_preset = 15
@@ -63,14 +28,12 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-## 书脊（牛皮色矩形，宽 SPINE_W=14）
 [node name="SpineRect" type="ColorRect" parent="NotebookRoot"]
 layout_mode = 0
 offset_right = 14.0
 offset_bottom = 320.0
 mouse_filter = 2
 
-## 横线层（只绘制水平横线，用轻量 _draw()）
 [node name="RuledLines" type="Control" parent="NotebookRoot"]
 layout_mode = 1
 anchors_preset = 15
@@ -80,7 +43,6 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-## 页眉行：标题居中 + 右侧收起按钮
 [node name="PageHeader" type="HBoxContainer" parent="NotebookRoot"]
 layout_mode = 0
 offset_left = 14.0
@@ -97,7 +59,6 @@ mouse_filter = 2
 layout_mode = 2
 size_flags_horizontal = 0
 text = "日程"
-label_settings = null
 
 [node name="HeaderSpacer2" type="Control" parent="NotebookRoot/PageHeader"]
 layout_mode = 2
@@ -111,7 +72,6 @@ flat = true
 text = "‹"
 visible = false
 
-## 日程页（根容器，含滚动列表 + footer + 传闻便签）
 [node name="SchedulePage" type="Control" parent="NotebookRoot"]
 layout_mode = 0
 offset_left = 14.0
@@ -132,15 +92,13 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-## Footer 区域（_draw 绘制"结束今天"或"还有N项"文字和分隔线）
 [node name="FooterArea" type="Control" parent="NotebookRoot/SchedulePage"]
 layout_mode = 0
 offset_top = 200.0
 offset_right = 186.0
-offset_bottom = 230.0
+offset_bottom = 226.0
 mouse_filter = 1
 
-## 传闻便签（旋转 1.8°，位置由代码在 _ready/_update 中设置）
 [node name="RumorNote" type="Control" parent="NotebookRoot/SchedulePage"]
 layout_mode = 0
 offset_right = 84.0
@@ -202,7 +160,6 @@ horizontal_alignment = 1
 text = ""
 visible = false
 
-## 道具页（GridContainer，ICONS_PER_ROW=3列）
 [node name="ItemsPage" type="GridContainer" parent="NotebookRoot"]
 layout_mode = 0
 offset_left = 14.0
@@ -213,7 +170,6 @@ columns = 3
 visible = false
 mouse_filter = 2
 
-## 线索页
 [node name="CluePage" type="VBoxContainer" parent="NotebookRoot"]
 layout_mode = 0
 offset_left = 14.0
@@ -234,7 +190,6 @@ layout_mode = 2
 horizontal_alignment = 1
 text = "线索系统开发中…"
 
-## 便签贴容器（x = PANEL_W - TAB_OVERLAP = 190，y 由代码计算）
 [node name="TabsContainer" type="Control" parent="NotebookRoot"]
 layout_mode = 0
 offset_left = 190.0
