@@ -1,6 +1,6 @@
 ## HandPanel - 手账本面板 (底部 UI)
-## 对应原版 HandPanel.lua
-## 显示日程、传闻便签(翻页+堆叠)、道具工具条(纹理图标)、"结束这一天"按钮
+## 混合架构：场景节点处理结构/交互，_draw() 处理装饰性绘制
+## 对应原版 HandPanel.lua，使用 Godot scene 形式实现
 extends Control
 
 # ---------------------------------------------------------------------------
@@ -8,11 +8,24 @@ extends Control
 # ---------------------------------------------------------------------------
 signal end_day_pressed
 signal schedule_toggled(index: int)
-signal use_exorcism_pressed  # 驱魔香特殊回调
-signal open_clue_log         # 打开线索日志
+signal use_exorcism_pressed
+signal open_clue_log
 
 # ---------------------------------------------------------------------------
-# 常量 — 笔记本布局 (与 Lua 版一致)
+# 场景节点引用
+# ---------------------------------------------------------------------------
+@onready var notebook: Control = $Notebook
+@onready var tab_bar: HBoxContainer = $Notebook/TabBar
+@onready var tab1_btn: Button = $Notebook/TabBar/Tab1Btn
+@onready var tab2_btn: Button = $Notebook/TabBar/Tab2Btn
+@onready var clue_btn: Button = $Notebook/TabBar/ClueBtn
+@onready var schedule_page: ScrollContainer = $Notebook/SchedulePage
+@onready var schedule_vbox: VBoxContainer = $Notebook/SchedulePage/ScheduleVBox
+@onready var items_page: Control = $Notebook/ItemsPage
+@onready var toolbar_hbox: HBoxContainer = $Notebook/ItemsPage/ToolbarHBox
+
+# ---------------------------------------------------------------------------
+# 常量 — 笔记本布局
 # ---------------------------------------------------------------------------
 const SPINE_W: int = 30
 const TAB_H: int = 84
@@ -23,26 +36,21 @@ const MARGIN_X: int = 60
 const MAX_W: int = 1020
 const PAGE_PAD: int = 36
 const CORNER_R: float = 12.0
-const OVERFLOW: int = 72  # 底部溢出屏幕量
+const OVERFLOW: int = 72
 
-# 日程条目
 const ITEM_H: int = 84
 const CHECK_SIZE: int = 36
 
-# 传闻便签
 const NOTE_W: int = 234
 const NOTE_H: int = 132
 
-# 道具工具栏
 const TOOLBAR_H: int = 96
 const TOOLBAR_ICON: int = 72
 const TOOLBAR_GAP: int = 18
 
-# 结束今天按钮
 const BTN_H: int = 78
 const BTN_MARGIN: int = 18
 
-# 折叠时露出高度
 const COLLAPSED_H: float = 108.0
 
 # ---------------------------------------------------------------------------
@@ -54,13 +62,12 @@ var _panel_y: float = 0.0
 var _alpha: float = 0.0
 var _visible_state: bool = false
 var _card_manager: CardManager = null
-var _consumable_controller = null  # 消耗品控制器引用
-var _hover_index: int = 0  # 日程 hover (1-based)
+var _consumable_controller = null
 var _hover_end_day: bool = false
-var _hover_toolbar: String = "" # 工具栏 hover 的 item key
-var _hover_clue_btn: bool = false  # 线索按钮 hover
-var _rumor_page: int = 1  # 传闻翻页 (1-based, 循环)
-var _was_can_advance: bool = false  # 上帧是否可进入下一天（过渡检测）
+var _hover_clue_btn: bool = false
+var _rumor_page: int = 1
+var _was_can_advance: bool = false
+var _active_tab: int = 1  # 1=日程, 2=道具
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -70,30 +77,165 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel_y = _get_viewport_h() + 60
 
-## 只在实际面板区域内拦截鼠标事件, 其余透传到 _unhandled_input
-func _has_point(point: Vector2) -> bool:
-	if not _visible_state or _alpha < 0.1:
-		return false
-	return _get_panel_rect().has_point(point)
+	# 连接 Tab 按钮
+	tab1_btn.pressed.connect(_on_tab1_pressed)
+	tab2_btn.pressed.connect(_on_tab2_pressed)
+	clue_btn.pressed.connect(_on_clue_btn_pressed)
+
+	# 初始隐藏
+	notebook.visible = false
+
+	# Tab 样式初始化
+	_update_tab_style()
 
 func setup(cm: CardManager, cc) -> void:
 	_card_manager = cm
 	_consumable_controller = cc
 
 # ---------------------------------------------------------------------------
+# Tab 切换
+# ---------------------------------------------------------------------------
+func _on_tab1_pressed() -> void:
+	_active_tab = 1
+	_update_tab_style()
+	schedule_page.visible = true
+	items_page.visible = false
+	queue_redraw()
+
+func _on_tab2_pressed() -> void:
+	_active_tab = 2
+	_update_tab_style()
+	schedule_page.visible = false
+	items_page.visible = true
+	_refresh_toolbar()
+	queue_redraw()
+
+func _on_clue_btn_pressed() -> void:
+	open_clue_log.emit()
+
+func _update_tab_style() -> void:
+	# Tab1
+	var c1: Color = GameTheme.text_primary if _active_tab == 1 else Color(GameTheme.text_secondary, 0.55)
+	tab1_btn.add_theme_color_override("font_color", c1)
+	# Tab2
+	var c2: Color = GameTheme.text_primary if _active_tab == 2 else Color(GameTheme.text_secondary, 0.55)
+	tab2_btn.add_theme_color_override("font_color", c2)
+
+func _update_clue_btn_label() -> void:
+	var clue_count: int = StoryManager.get_clue_count() if StoryManager else 0
+	clue_btn.text = "🔍 %d" % clue_count
+	var clue_color: Color = Color(0.45, 0.65, 0.45, 0.86) if clue_count > 0 \
+		else Color(GameTheme.text_secondary, 0.5)
+	clue_btn.add_theme_color_override("font_color", clue_color)
+
+# ---------------------------------------------------------------------------
+# 日程列表刷新
+# ---------------------------------------------------------------------------
+func _refresh_schedule_list() -> void:
+	# 清除旧行
+	for child in schedule_vbox.get_children():
+		child.queue_free()
+
+	if not _card_manager:
+		return
+
+	var pr: Rect2 = _get_panel_rect()
+	var reward_right_x: float = pr.size.x - PAGE_PAD - NOTE_W - 24 - SPINE_W
+
+	for i in range(_card_manager.schedules.size()):
+		var s: Dictionary = _card_manager.schedules[i]
+		var row: ScheduleItemRow = ScheduleItemRow.new()
+		schedule_vbox.add_child(row)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.set_data(i, s, reward_right_x)
+		row.row_clicked.connect(_on_schedule_row_clicked)
+
+## 刷新单行（状态变化后调用）
+func refresh_schedule_row(idx: int) -> void:
+	if not _card_manager or idx < 0 or idx >= _card_manager.schedules.size():
+		return
+	var rows: Array = schedule_vbox.get_children()
+	if idx < rows.size():
+		var row: ScheduleItemRow = rows[idx] as ScheduleItemRow
+		if row:
+			var pr: Rect2 = _get_panel_rect()
+			var reward_right_x: float = pr.size.x - PAGE_PAD - NOTE_W - 24 - SPINE_W
+			row.set_data(idx, _card_manager.schedules[idx], reward_right_x)
+
+func _on_schedule_row_clicked(idx: int) -> void:
+	schedule_toggled.emit(idx)
+
+# ---------------------------------------------------------------------------
+# 道具工具栏刷新
+# ---------------------------------------------------------------------------
+func _refresh_toolbar() -> void:
+	for child in toolbar_hbox.get_children():
+		child.queue_free()
+
+	if not _consumable_controller:
+		return
+
+	var entries: Array = _consumable_controller.get_consumable_entries()
+	for entry in entries:
+		var btn: ConsumableItemBtn = ConsumableItemBtn.new()
+		toolbar_hbox.add_child(btn)
+
+		# 间距
+		if toolbar_hbox.get_child_count() > 1:
+			btn.custom_minimum_size.x = TOOLBAR_ICON
+		else:
+			btn.custom_minimum_size.x = TOOLBAR_ICON
+
+		var tooltip: String = _consumable_controller.get_consumable_tooltip(entry["key"])
+		btn.set_entry(entry, tooltip)
+		btn.item_used.connect(_on_consumable_item_used)
+
+func _on_consumable_item_used(key: String) -> void:
+	if key == "exorcism":
+		use_exorcism_pressed.emit()
+	else:
+		if _consumable_controller.use_consumable(key):
+			_refresh_toolbar()
+			queue_redraw()
+
+# ---------------------------------------------------------------------------
+# Notebook 节点定位（跟随 _panel_y 动画）
+# ---------------------------------------------------------------------------
+func _update_notebook_position() -> void:
+	if not is_instance_valid(notebook):
+		return
+	var pr: Rect2 = _get_panel_rect()
+	notebook.position = Vector2(pr.position.x, _panel_y)
+	notebook.size = Vector2(pr.size.x, _get_full_h())
+	notebook.visible = _visible_state and _alpha > 0.01
+	notebook.modulate.a = _alpha
+
+	# Tab 按钮位置由 TabBar 节点自动布局，只需调整内容页 offset
+	var content_offset_y: float = TAB_H
+	var content_h: float = _get_full_h() - TAB_H - BTN_H - BTN_MARGIN * 2
+	if _consumable_controller and not _consumable_controller.get_consumable_entries().is_empty():
+		content_h -= TOOLBAR_H
+
+	schedule_page.position = Vector2(SPINE_W, content_offset_y)
+	schedule_page.size = Vector2(pr.size.x - SPINE_W, content_h)
+
+	items_page.position = Vector2(SPINE_W, content_offset_y)
+	items_page.size = Vector2(pr.size.x - SPINE_W, content_h)
+
+	# Toolbar 居中
+	toolbar_hbox.position = Vector2(
+		(items_page.size.x - toolbar_hbox.size.x) / 2.0,
+		(content_h - TOOLBAR_ICON) / 2.0
+	)
+
+# ---------------------------------------------------------------------------
 # 布局辅助
 # ---------------------------------------------------------------------------
-
 func _get_viewport_h() -> float:
 	return get_viewport_rect().size.y
 
 func _get_viewport_w() -> float:
 	return get_viewport_rect().size.x
-
-func _get_toolbar_h() -> float:
-	if GameData.inventory.is_empty():
-		return 0.0
-	return TOOLBAR_H
 
 func _get_body_h() -> float:
 	var count: int = _card_manager.schedules.size() if _card_manager else 3
@@ -103,6 +245,13 @@ func _get_body_h() -> float:
 	var toolbar: float = _get_toolbar_h()
 	var btn_space: float = (BTN_H + BTN_MARGIN * 2) if toolbar > 0 else 0
 	return base + toolbar + btn_space
+
+func _get_toolbar_h() -> float:
+	if not _consumable_controller:
+		return 0.0
+	if _consumable_controller.get_consumable_entries().is_empty():
+		return 0.0
+	return TOOLBAR_H
 
 func _get_full_h() -> float:
 	return TAB_H + _get_body_h()
@@ -120,42 +269,33 @@ func _get_panel_rect() -> Rect2:
 	var px: float = (vw - pw) / 2.0
 	return Rect2(px, _panel_y, pw, _get_full_h())
 
-func _get_end_day_btn_rect(px: float, py: float, pw: float) -> Rect2:
-	var btn_w: float = pw - SPINE_W - PAGE_PAD * 2
-	var btn_x: float = px + SPINE_W + PAGE_PAD
-	var btn_y: float = py + TAB_H + _get_body_h() - OVERFLOW - BTN_H - BTN_MARGIN
-	return Rect2(btn_x, btn_y, btn_w, BTN_H)
-
-func _get_toolbar_y(py: float) -> float:
-	var btn_rect: Rect2 = _get_end_day_btn_rect(0, py, 200)
-	return btn_rect.position.y - _get_toolbar_h()
-
-func _get_toolbar_item_rect(px: float, py: float, pw: float,
-		idx: int, total: int) -> Rect2:
-	var toolbar_y: float = _get_toolbar_y(py)
-	var content_w: float = pw - SPINE_W - PAGE_PAD * 2
-	var total_item_w: int = total * TOOLBAR_ICON + (total - 1) * TOOLBAR_GAP
-	var start_x: float = px + SPINE_W + PAGE_PAD + (content_w - total_item_w) / 2.0
-	var ix: float = start_x + idx * (TOOLBAR_ICON + TOOLBAR_GAP)
-	var iy: float = toolbar_y + (TOOLBAR_H - TOOLBAR_ICON) / 2.0
-	return Rect2(ix, iy, TOOLBAR_ICON, TOOLBAR_ICON)
-
-## 线索按钮区域 (Tab 栏中央偏右)
-func _get_clue_btn_rect(px: float, py: float, pw: float) -> Rect2:
-	var btn_w: float = 150.0
-	var center_x: float = px + pw / 2.0
-	return Rect2(center_x - btn_w / 2.0, py, btn_w, TAB_H)
+# ---------------------------------------------------------------------------
+# 步数/日程 判断
+# ---------------------------------------------------------------------------
+func _can_advance() -> bool:
+	if not _card_manager:
+		return false
+	var steps_exhausted: bool = GameData.steps_total > 0 and GameData.steps_remaining <= 0
+	if steps_exhausted:
+		return true
+	for s: Dictionary in _card_manager.schedules:
+		if s.get("status", "") == "pending":
+			return false
+	return _card_manager.schedules.size() > 0
 
 # ---------------------------------------------------------------------------
 # 显示 / 隐藏 API
 # ---------------------------------------------------------------------------
-
 func show_panel(showcase: bool = false) -> void:
 	if _visible_state:
 		return
 	_visible_state = true
 	_alpha = 0.0
 	_panel_y = _get_viewport_h() + 60
+	_refresh_schedule_list()
+	_update_clue_btn_label()
+	_update_tab_style()
+	notebook.visible = true
 
 	if showcase:
 		_expanded = true
@@ -194,6 +334,7 @@ func hide_panel() -> void:
 	tw.tween_callback(func():
 		_visible_state = false
 		_expanded = false
+		notebook.visible = false
 	)
 
 func toggle_expand() -> void:
@@ -223,7 +364,7 @@ func is_expanded() -> bool:
 	return _visible_state and _expanded
 
 # ---------------------------------------------------------------------------
-# 输入
+# 输入 — Tab 栏点击（场景节点处理点击，这里处理 Tab 栏空白区域和页脚点击）
 # ---------------------------------------------------------------------------
 func _gui_input(event: InputEvent) -> void:
 	if not _visible_state or _alpha < 0.1:
@@ -238,24 +379,17 @@ func _gui_input(event: InputEvent) -> void:
 	var ly: float = mb.position.y
 	var pr: Rect2 = _get_panel_rect()
 	var px: float = pr.position.x
-	var py: float = pr.position.y
+	var py: float = _panel_y
 	var pw: float = pr.size.x
-	var vw: float = _get_viewport_w()
 
 	# 不在面板内
 	if lx < px or lx > px + pw or ly < py or ly > py + _get_full_h():
 		return
 
-	# Tab 栏
+	# Tab 栏空白区域 → toggle
 	if ly < py + TAB_H:
 		if _showcasing:
 			_finish_showcase()
-			accept_event()
-			return
-		# 线索按钮 (中央区域)
-		var clue_rect: Rect2 = _get_clue_btn_rect(px, py, pw)
-		if clue_rect.has_point(Vector2(lx, ly)):
-			open_clue_log.emit()
 			accept_event()
 			return
 		toggle_expand()
@@ -266,47 +400,21 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 		return
 
-	# 道具工具栏
-	var consumable_keys: Array = _get_consumable_entries()
-	if consumable_keys.size() > 0:
-		for idx in range(consumable_keys.size()):
-			var ir: Rect2 = _get_toolbar_item_rect(px, py, pw, idx, consumable_keys.size())
-			if ir.has_point(Vector2(lx, ly)):
-				var entry: Dictionary = consumable_keys[idx]
-				if entry["key"] == "exorcism":
-					use_exorcism_pressed.emit()
-				else:
-					_use_consumable(entry["key"])
-				accept_event()
-				return
+	# "结束今天" 页脚点击
+	var footer_y: float = _get_footer_y(py, pw)
+	if lx >= px + SPINE_W + PAGE_PAD and lx <= px + pw - PAGE_PAD \
+			and ly >= footer_y and ly <= footer_y + BTN_H:
+		if _can_advance():
+			end_day_pressed.emit()
+		accept_event()
+		return
 
-	# "结束今天"页脚区域点击
-	if _card_manager:
-		var max_v: int = _card_manager.schedules.size()
-		var c_y: float = py + TAB_H + 12
-		var n_y: float = py + _get_full_h() - NOTE_H - 21
-		var raw_fy: float = c_y + max_v * ITEM_H + 21
-		var footer_y2: float = minf(raw_fy, n_y - 45)
-		var footer_x2: float = px + SPINE_W + PAGE_PAD
-		var footer_w2: float = pw - SPINE_W - PAGE_PAD * 2
-		if lx >= footer_x2 and lx <= footer_x2 + footer_w2 \
-				and ly >= footer_y2 and ly <= footer_y2 + 30:
-			if _can_advance():
-				end_day_pressed.emit()
-			accept_event()
-			return
-
-	# 传闻便签点击 → 翻页
+	# 传闻便签翻页
 	if _card_manager and _card_manager.rumors.size() > 1:
-		var sched_count: int = _card_manager.schedules.size()
-		var sched_h: int = BASE_BODY_H
-		if sched_count > 3:
-			sched_h = BASE_BODY_H + (sched_count - 3) * ITEM_H
 		var note_x: float = px + pw - NOTE_W - PAGE_PAD + 2
-		var note_base_y: float = py + TAB_H + (sched_h - NOTE_H) / 2.0
-		var hit_pad: float = 12.0
-		if lx >= note_x - hit_pad and lx <= note_x + NOTE_W + hit_pad \
-				and ly >= note_base_y - hit_pad and ly <= note_base_y + NOTE_H + hit_pad + 30:
+		var note_y: float = py + TAB_H + (_get_sched_area_h() - NOTE_H) / 2.0
+		if lx >= note_x - 12 and lx <= note_x + NOTE_W + 12 \
+				and ly >= note_y - 12 and ly <= note_y + NOTE_H + 42:
 			_rumor_page += 1
 			if _rumor_page > _card_manager.rumors.size():
 				_rumor_page = 1
@@ -314,23 +422,11 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 			return
 
-	# 日程条目点击 — 只发信号，由 main.gd 调用 toggle_defer (避免双重调用)
-	if _card_manager:
-		var content_x: float = px + SPINE_W + PAGE_PAD
-		var content_y: float = py + TAB_H + 12
-		for i in range(_card_manager.schedules.size()):
-			var item_y: float = content_y + i * ITEM_H
-			if ly >= item_y and ly <= item_y + ITEM_H and lx >= content_x and lx <= px + pw - PAGE_PAD:
-				schedule_toggled.emit(i)
-				accept_event()
-				return
-
-	accept_event()  # 面板内消费事件
+	accept_event()
 
 func _input(event: InputEvent) -> void:
 	if not _visible_state or _alpha < 0.1:
 		return
-	# Hover 跟踪
 	if event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
 		_update_hover(mm.position.x, mm.position.y)
@@ -339,119 +435,79 @@ func _input(event: InputEvent) -> void:
 # Hover
 # ---------------------------------------------------------------------------
 func _update_hover(lx: float, ly: float) -> void:
-	_hover_index = 0
 	_hover_end_day = false
-	_hover_toolbar = ""
 	_hover_clue_btn = false
-
-	# 线索按钮 hover (折叠/展开均可触发)
-	var pr2: Rect2 = _get_panel_rect()
-	var clue_rect: Rect2 = _get_clue_btn_rect(pr2.position.x, pr2.position.y, pr2.size.x)
-	if clue_rect.has_point(Vector2(lx, ly)):
-		_hover_clue_btn = true
 
 	if not _expanded or _showcasing:
 		return
 
 	var pr: Rect2 = _get_panel_rect()
 	var px: float = pr.position.x
-	var py: float = pr.position.y
+	var py: float = _panel_y
 	var pw: float = pr.size.x
 
-	# 结束今天页脚区域
-	if _card_manager:
-		var max_vh: int = _card_manager.schedules.size()
-		var c_yh: float = py + TAB_H + 12
-		var n_yh: float = py + _get_full_h() - NOTE_H - 21
-		var raw_fyh: float = c_yh + max_vh * ITEM_H + 21
-		var footer_yh: float = minf(raw_fyh, n_yh - 45)
-		var footer_xh: float = px + SPINE_W + PAGE_PAD
-		var footer_wh: float = pw - SPINE_W - PAGE_PAD * 2
-		if lx >= footer_xh and lx <= footer_xh + footer_wh \
-				and ly >= footer_yh and ly <= footer_yh + 30:
-			_hover_end_day = true
-
-	# 工具栏
-	var consumables: Array = _get_consumable_entries()
-	for idx in range(consumables.size()):
-		var ir: Rect2 = _get_toolbar_item_rect(px, py, pw, idx, consumables.size())
-		if ir.has_point(Vector2(lx, ly)):
-			_hover_toolbar = consumables[idx]["key"]
-			break
-
-	# 日程条目
-	if _card_manager:
-		var content_x: float = px + SPINE_W + PAGE_PAD
-		var content_y: float = py + TAB_H + 12
-		for i in range(_card_manager.schedules.size()):
-			var item_y: float = content_y + i * ITEM_H
-			if ly >= item_y and ly <= item_y + ITEM_H and lx >= content_x and lx <= px + pw - PAGE_PAD:
-				var s: Dictionary = _card_manager.schedules[i]
-				if s["status"] in ["pending", "deferred"]:
-					_hover_index = i + 1  # 1-based
-				break
+	var footer_y: float = _get_footer_y(py, pw)
+	if lx >= px + SPINE_W + PAGE_PAD and lx <= px + pw - PAGE_PAD \
+			and ly >= footer_y and ly <= footer_y + BTN_H:
+		_hover_end_day = true
 
 # ---------------------------------------------------------------------------
-# 消耗品辅助
+# 布局辅助（页脚位置计算）
 # ---------------------------------------------------------------------------
+func _get_sched_area_h() -> int:
+	var count: int = _card_manager.schedules.size() if _card_manager else 3
+	var base: int = BASE_BODY_H
+	if count > 3:
+		base = BASE_BODY_H + (count - 3) * ITEM_H
+	return base
 
-func _get_consumable_entries() -> Array:
-	return _consumable_controller.get_consumable_entries()
-
-func _use_consumable(key: String) -> void:
-	if _consumable_controller.use_consumable(key):
-		queue_redraw()
-
-# ---------------------------------------------------------------------------
-# 辅助：判断是否可进入下一天（所有日程完成 OR 步数耗尽）
-# ---------------------------------------------------------------------------
-func _can_advance() -> bool:
-	if not _card_manager:
-		return false
-	# 步数耗尽
-	var steps_exhausted: bool = GameData.steps_total > 0 and GameData.steps_remaining <= 0
-	if steps_exhausted:
-		return true
-	# 所有日程均非 pending
-	for s: Dictionary in _card_manager.schedules:
-		if s.get("status", "") == "pending":
-			return false
-	return _card_manager.schedules.size() > 0
+func _get_footer_y(py: float, _pw: float) -> float:
+	var body_bottom: float = py + _get_full_h() - OVERFLOW
+	return body_bottom - BTN_H - BTN_MARGIN
 
 # ---------------------------------------------------------------------------
 # 更新
 # ---------------------------------------------------------------------------
 func _process(_delta: float) -> void:
-	if _visible_state and _alpha > 0.01:
-		queue_redraw()
-
-	# 自动展开：检测「可进入下一天」的首次触发
 	if _visible_state:
+		_update_notebook_position()
+		queue_redraw()
+		# 每帧刷新行状态（schedule_data 是字典引用，内容可能被外部改变）
+		_sync_schedule_rows()
+
+		# 自动展开检测
 		var now_can: bool = _can_advance()
 		if now_can and not _was_can_advance:
 			if not _expanded:
 				expand()
+			_update_tab_style()
+			_update_clue_btn_label()
 		_was_can_advance = now_can
 
+## 同步所有行的绘制（数据已是引用，只需触发 queue_redraw）
+func _sync_schedule_rows() -> void:
+	if not is_instance_valid(schedule_vbox):
+		return
+	var rows: Array = schedule_vbox.get_children()
+	for row in rows:
+		if row is ScheduleItemRow:
+			row.queue_redraw()
+
 # ---------------------------------------------------------------------------
-# 渲染
+# 渲染 — 纯装饰元素（书脊、横线、Tab底色、传闻便签、页脚、阴影）
 # ---------------------------------------------------------------------------
 func _draw() -> void:
 	if not _visible_state or _alpha < 0.05:
 		return
 
-	var vw: float = _get_viewport_w()
-	var vh: float = _get_viewport_h()
 	var t = GameTheme
 	var font: Font = ThemeDB.fallback_font
-
 	var pr: Rect2 = _get_panel_rect()
 	var px: float = pr.position.x
-	var py: float = pr.position.y
+	var py: float = _panel_y
 	var pw: float = pr.size.x
-	var ph: float = pr.size.y
+	var ph: float = _get_full_h()
 
-	# 全局 modulate alpha
 	modulate.a = _alpha
 
 	# === 纸张阴影 ===
@@ -465,39 +521,33 @@ func _draw() -> void:
 
 	# === 左侧书脊 ===
 	draw_rect(Rect2(px, py, SPINE_W, ph), t.notebook_spine)
-	# 书脊高光线
 	draw_line(Vector2(px + SPINE_W - 4.5, py + 6),
 		Vector2(px + SPINE_W - 4.5, py + ph - 6),
 		Color(t.notebook_spine_h, 0.47), 3.0)
-	# 书脊缝线装饰
 	var stitch_y: float = py + 42.0
 	while stitch_y < py + ph - 30:
-		draw_line(Vector2(px + 9, stitch_y),
-			Vector2(px + 9, stitch_y + 18),
+		draw_line(Vector2(px + 9, stitch_y), Vector2(px + 9, stitch_y + 18),
 			Color(t.notebook_spine_h, 0.27), 3.6)
 		stitch_y += 48.0
 
 	# === 横线 ===
 	_draw_lines(px, py, pw, ph, t)
 
-	# === Tab 栏 ===
-	_draw_tab_bar(px, py, pw, font, t)
+	# === Tab 底色 ===
+	draw_rect(Rect2(px + SPINE_W, py, pw - SPINE_W, TAB_H), Color(t.notebook_tab, 0.7))
+	draw_line(Vector2(px + SPINE_W + 18, py + TAB_H - 1.5),
+		Vector2(px + pw - 18, py + TAB_H - 1.5),
+		Color(t.notebook_border, 0.39), 2.4)
 
 	if not _expanded and not _showcasing:
 		modulate.a = 1.0
 		return
 
-	# === 日程条目 ===
-	_draw_schedule_items(px, py, pw, font, t)
-
 	# === 传闻便签 ===
 	_draw_rumor_note(px, py, pw, font, t)
 
-	# === 道具工具栏 ===
-	_draw_toolbar(px, py, pw, font, t)
-
-	# === 结束今天按钮 ===
-	_draw_end_day_btn(px, py, pw, font, t)
+	# === 页脚（结束今天）===
+	_draw_footer(px, py, pw, font, t)
 
 	modulate.a = 1.0
 
@@ -513,153 +563,13 @@ func _draw_lines(px: float, py: float, pw: float, ph: float, t) -> void:
 			Color(t.notebook_line, 0.27), 1.5)
 		y += LINE_SPACING
 
-	# 红色左边距竖线
 	var margin_x: float = px + SPINE_W + PAGE_PAD + CHECK_SIZE + 24
 	draw_line(Vector2(margin_x, py + TAB_H + 6),
 		Vector2(margin_x, py + ph - 12),
 		Color(0.82, 0.47, 0.47, 0.18), 2.4)
 
 # ---------------------------------------------------------------------------
-# Tab 栏
-# ---------------------------------------------------------------------------
-func _draw_tab_bar(px: float, py: float, pw: float, font: Font, t) -> void:
-	# Tab 底色
-	draw_rect(Rect2(px + SPINE_W, py, pw - SPINE_W, TAB_H),
-		Color(t.notebook_tab, 0.7))
-
-	# 底部分隔线
-	draw_line(Vector2(px + SPINE_W + 18, py + TAB_H - 1.5),
-		Vector2(px + pw - 18, py + TAB_H - 1.5),
-		Color(t.notebook_border, 0.39), 2.4)
-
-	var tab_cy: float = py + TAB_H / 2.0 + 12
-
-	# 左: 日程
-	var progress: Array = _card_manager.get_progress() if _card_manager else [0, 0]
-	var sched_label: String = "📋 日程 %d/%d" % [progress[0], progress[1]]
-	draw_string(font, Vector2(px + SPINE_W + 42, tab_cy), sched_label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(t.text_primary, 0.78))
-
-	# 右: 传闻
-	var rumor_count: int = _card_manager.rumors.size() if _card_manager else 0
-	var rumor_label: String
-	if rumor_count > 1:
-		var page: int = clampi(_rumor_page, 1, rumor_count)
-		rumor_label = "传闻 %d/%d 📰" % [page, rumor_count]
-	else:
-		rumor_label = "传闻 %d 📰" % rumor_count
-	var rumor_w: float = font.get_string_size(rumor_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-	draw_string(font, Vector2(px + pw - rumor_w - 30, tab_cy), rumor_label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(t.text_primary, 0.78))
-
-	# 中间: 线索入口按钮
-	var clue_count: int = StoryManager.get_clue_count() if StoryManager else 0
-	var clue_label: String = "🔍 %d" % clue_count
-	var clue_alpha: float = 0.86 if _hover_clue_btn else 0.55
-	var clue_color: Color = Color(0.45, 0.65, 0.45, clue_alpha) if clue_count > 0 \
-		else Color(t.text_primary, clue_alpha * 0.7)
-	var clue_lw: float = font.get_string_size(clue_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 33).x
-	var clue_cx: float = px + pw / 2.0
-	draw_string(font, Vector2(clue_cx - clue_lw / 2.0, tab_cy), clue_label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 33, clue_color)
-	# hover 下划线
-	if _hover_clue_btn:
-		draw_line(Vector2(clue_cx - clue_lw / 2.0, tab_cy + 6),
-			Vector2(clue_cx + clue_lw / 2.0, tab_cy + 6),
-			Color(clue_color, 0.47), 2.4)
-
-# ---------------------------------------------------------------------------
-# 日程条目
-# ---------------------------------------------------------------------------
-func _draw_schedule_items(px: float, py: float, pw: float, font: Font, t) -> void:
-	if not _card_manager:
-		return
-	var content_x: float = px + SPINE_W + PAGE_PAD
-	var content_y: float = py + TAB_H + 12
-	var reward_right_x: float = px + pw - PAGE_PAD - NOTE_W - 24
-
-	for i in range(_card_manager.schedules.size()):
-		var s: Dictionary = _card_manager.schedules[i]
-		var item_y: float = content_y + i * ITEM_H
-		var center_y: float = item_y + ITEM_H / 2.0
-		var is_hovered: bool = (_hover_index == i + 1 and s["status"] in ["pending", "deferred"])
-
-		# hover 高亮
-		if is_hovered:
-			draw_rect(Rect2(content_x - 6, item_y + 6,
-				pw - SPINE_W - PAGE_PAD * 2 + 12, ITEM_H - 12),
-				Color(GameTheme.info, 0.07))
-
-		# 勾选框
-		var check_x: float = content_x
-		var check_y: float = center_y - CHECK_SIZE / 2.0
-		var status: String = s["status"]
-
-		if status == "completed":
-			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.completed, 0.71))
-			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.completed, 0.86), false, 3.0)
-			# 勾号 ✓
-			draw_string(font, Vector2(check_x + 3, center_y + 15), "✓",
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color.WHITE)
-		elif status == "deferred":
-			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.deferred, 0.47), false, 3.0)
-			draw_string(font, Vector2(check_x + 3, center_y + 12), "↗",
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(t.deferred, 0.63))
-		else:
-			draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-				Color(t.notebook_border, 0.55), false, 3.0)
-
-		# 地点图标
-		var text_start_x: float = content_x + CHECK_SIZE + 30
-		var icon_str: String = s.get("icon", "📋")
-		draw_string(font, Vector2(text_start_x, center_y + 15), icon_str,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 42, t.text_primary)
-		var icon_w: float = font.get_string_size(icon_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 42).x
-
-		# 日程描述
-		var verb: String = s.get("verb", "")
-		var verb_color: Color
-		if status == "completed":
-			verb_color = Color(t.text_secondary, 0.55)
-		elif status == "deferred":
-			verb = verb + " (明天)"
-			verb_color = Color(t.deferred, 0.63)
-		else:
-			verb_color = Color(t.text_primary, 0.86)
-		draw_string(font, Vector2(text_start_x + icon_w + 12, center_y + 15), verb,
-			HORIZONTAL_ALIGNMENT_LEFT, pw - 360, 36, verb_color)
-
-		# 删除线 (已完成)
-		if status == "completed":
-			var verb_w: float = font.get_string_size(verb, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-			var line_x1: float = text_start_x + icon_w + 9
-			draw_line(Vector2(line_x1, center_y),
-				Vector2(line_x1 + verb_w + 6, center_y),
-				Color(t.text_secondary, 0.39), 2.4)
-
-		# 奖励标记
-		if status != "deferred":
-			var reward: Array = s.get("reward", [])
-			if reward.size() >= 2:
-				var res_icon: String = GameData.RESOURCE_ICONS.get(reward[0], "?")
-				var reward_text: String = res_icon + "+" + str(reward[1])
-				var rw: float = font.get_string_size(reward_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
-				draw_string(font, Vector2(reward_right_x - rw, center_y + 12), reward_text,
-					HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.55))
-
-		# hover 提示
-		if is_hovered:
-			var tip: String = "点击取消" if status == "deferred" else "点击推迟"
-			var tip_color: Color = Color(t.deferred, 0.63) if status == "deferred" \
-				else Color(t.schedule, 0.63)
-			draw_string(font, Vector2(reward_right_x - 180, center_y + 12), tip,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 27, tip_color)
-
-# ---------------------------------------------------------------------------
-# 传闻便签 (翻页 + 堆叠)
+# 传闻便签
 # ---------------------------------------------------------------------------
 func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 	if not _card_manager or _card_manager.rumors.size() == 0:
@@ -668,92 +578,65 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 	var rumors: Array = _card_manager.rumors
 	var total: int = rumors.size()
 
-	# 保证 _rumor_page 在有效范围
 	if _rumor_page > total:
 		_rumor_page = 1
 	if _rumor_page < 1:
 		_rumor_page = total
 
-	# 日程区高度 (不含工具栏)
-	var sched_count: int = _card_manager.schedules.size()
-	var sched_h: int = BASE_BODY_H
-	if sched_count > 3:
-		sched_h = BASE_BODY_H + (sched_count - 3) * ITEM_H
-
-	# 便签基准位置
+	var sched_h: int = _get_sched_area_h()
 	var note_x: float = px + pw - NOTE_W - PAGE_PAD + 2
 	var note_base_y: float = py + TAB_H + (sched_h - NOTE_H) / 2.0
 
-	# --- 底层堆叠便签 (暗示还有更多传闻) ---
+	# --- 底层堆叠 ---
 	if total > 1:
 		var max_layer: int = mini(total - 1, 2)
 		for layer in range(max_layer, 0, -1):
 			var peek_idx: int = ((_rumor_page - 1 + layer) % total)
 			var peek_rumor: Dictionary = rumors[peek_idx]
-
 			var stack_off: float = layer * 12.0
-			var rot_deg: bool = (1.5 + layer * 1.8) * (-1.0 if (peek_idx % 2 == 0) else 1.0)
+			var rot_d: float = (1.5 + layer * 1.8) * (-1.0 if (peek_idx % 2 == 0) else 1.0)
 			var layer_alpha: float = (0.4 - (layer - 1) * 0.12) * _alpha
-
-			var cx: float = note_x + NOTE_W / 2.0 + stack_off
-			var cy: float = note_base_y + NOTE_H / 2.0 + stack_off
-
-			# 用 transform 做旋转
-			var xf: Transform2D = Transform2D()
-			xf = xf.translated(-Vector2(cx, cy))
-			xf = xf.rotated(deg_to_rad(rot_deg))
-			xf = xf.translated(Vector2(cx, cy))
-			draw_set_transform_matrix(xf)
-
+			var cx2: float = note_x + NOTE_W / 2.0 + stack_off
+			var cy2: float = note_base_y + NOTE_H / 2.0 + stack_off
+			var xf2: Transform2D = Transform2D()
+			xf2 = xf2.translated(-Vector2(cx2, cy2))
+			xf2 = xf2.rotated(deg_to_rad(rot_d))
+			xf2 = xf2.translated(Vector2(cx2, cy2))
+			draw_set_transform_matrix(xf2)
 			var bg_col: Color
 			if peek_rumor.get("is_safe", false):
-				bg_col = Color(0.855, 0.925, 0.855, 0.82 * layer_alpha / _alpha)
+				bg_col = Color(0.855, 0.925, 0.855, 0.82 * layer_alpha / maxf(_alpha, 0.01))
 			else:
-				bg_col = Color(0.941, 0.878, 0.824, 0.82 * layer_alpha / _alpha)
+				bg_col = Color(0.941, 0.878, 0.824, 0.82 * layer_alpha / maxf(_alpha, 0.01))
 			draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H), bg_col)
 			draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H),
-				Color(0.706, 0.647, 0.549, 0.2 * layer_alpha / _alpha), false, 1.8)
-
+				Color(0.706, 0.647, 0.549, 0.2 * layer_alpha / maxf(_alpha, 0.01)), false, 1.8)
 			draw_set_transform_matrix(Transform2D.IDENTITY)
 
-	# --- 顶层: 当前页传闻 ---
+	# --- 顶层 ---
 	var rumor: Dictionary = rumors[_rumor_page - 1]
 	var rot_deg: float = 2.0
 	var cx: float = note_x + NOTE_W / 2.0
 	var cy: float = note_base_y + NOTE_H / 2.0
-
 	var xf: Transform2D = Transform2D()
 	xf = xf.translated(-Vector2(cx, cy))
 	xf = xf.rotated(deg_to_rad(rot_deg))
 	xf = xf.translated(Vector2(cx, cy))
 	draw_set_transform_matrix(xf)
 
-	# 阴影
 	draw_rect(Rect2(note_x + 6, note_base_y + 6, NOTE_W, NOTE_H),
 		Color(0.31, 0.235, 0.157, 0.1))
-
-	# 底色
-	var note_color: Color
-	if rumor.get("is_safe", false):
-		note_color = Color(0.894, 0.949, 0.894, 0.94)
-	else:
-		note_color = Color(0.973, 0.91, 0.855, 0.94)
+	var note_color: Color = Color(0.894, 0.949, 0.894, 0.94) if rumor.get("is_safe", false) \
+		else Color(0.973, 0.91, 0.855, 0.94)
 	draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H), note_color)
-
-	# 边框
 	draw_rect(Rect2(note_x, note_base_y, NOTE_W, NOTE_H),
 		Color(0.706, 0.647, 0.549, 0.27), false, 2.4)
+	draw_rect(Rect2(cx - 48, note_base_y - 9, 96, 21), Color(0.824, 0.804, 0.745, 0.31))
 
-	# 胶带
-	draw_rect(Rect2(cx - 48, note_base_y - 9, 96, 21),
-		Color(0.824, 0.804, 0.745, 0.31))
-
-	# 图标
 	var icon_str: String = rumor.get("icon", "📋")
 	draw_string(font, Vector2(cx - 18, note_base_y + 48), icon_str,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 45, t.text_primary)
 
-	# 安全/危险
 	var safe_text: String
 	var safe_color: Color
 	if rumor.get("is_safe", false):
@@ -766,13 +649,11 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 	draw_string(font, Vector2(cx - safe_w / 2.0, note_base_y + 90), safe_text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 30, safe_color)
 
-	# 传闻文字
 	var rumor_text: String = rumor.get("text", "")
 	var text_w: float = font.get_string_size(rumor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
 	draw_string(font, Vector2(cx - text_w / 2.0, note_base_y + 126), rumor_text,
 		HORIZONTAL_ALIGNMENT_LEFT, NOTE_W - 12, 21, Color(t.text_secondary, 0.71))
 
-	# 多条时: 翻页指示器
 	if total > 1:
 		var page_text: String = "▶ %d/%d" % [_rumor_page, total]
 		var pw2: float = font.get_string_size(page_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
@@ -782,102 +663,12 @@ func _draw_rumor_note(px: float, py: float, pw: float, font: Font, t) -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 # ---------------------------------------------------------------------------
-# 道具工具栏 (纹理图标)
+# 页脚："结束今天" 琥珀线 / 灰色提示
 # ---------------------------------------------------------------------------
-func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
-	var consumables: Array = _get_consumable_entries()
-	if consumables.is_empty():
-		return
-
-	var toolbar_y: float = _get_toolbar_y(py)
-
-	# 虚线分隔
-	var dash_x: float = px + SPINE_W + PAGE_PAD
-	var dash_end: float = px + pw - PAGE_PAD
-	var dash_y: float = toolbar_y + 6
-	var dx: float = dash_x
-	while dx < dash_end:
-		draw_line(Vector2(dx, dash_y),
-			Vector2(minf(dx + 9, dash_end), dash_y),
-			Color(t.notebook_border, 0.24), 1.5)
-		dx += 21
-
-	# "🎒 道具" 小标签
-	draw_string(font, Vector2(dash_x, dash_y + 30), "🎒 道具",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(t.text_secondary, 0.47))
-
-	# 图标列表
-	var total: int = consumables.size()
-	for idx in range(total):
-		var entry: Dictionary = consumables[idx]
-		var ir: Rect2 = _get_toolbar_item_rect(px, py, pw, idx, total)
-		var icon_cx: float = ir.position.x + ir.size.x / 2.0
-		var icon_cy: float = ir.position.y + ir.size.y / 2.0
-		var is_hovered: bool = (_hover_toolbar == entry["key"])
-
-		# hover 底色
-		if is_hovered:
-			draw_rect(Rect2(ir.position.x - 6, ir.position.y - 6,
-				ir.size.x + 12, ir.size.y + 12),
-				Color(GameTheme.info, 0.12))
-
-		# 图标背景圆
-		var bg_alpha: float = 0.2 if is_hovered else 0.12
-		draw_circle(Vector2(icon_cx, icon_cy), ir.size.x / 2.0,
-			Color(t.notebook_border, bg_alpha))
-
-		# 纹理图标 (优先) or emoji fallback
-		var icon_key: String = entry["key"]
-		var tex: Texture2D = ItemIcons.get_texture(icon_key)
-		if tex:
-			var tex_size: float = ir.size.x - 4
-			var tex_rect: Rect2 = Rect2(icon_cx - tex_size / 2, icon_cy - tex_size / 2,
-				tex_size, tex_size)
-			draw_texture_rect(tex, tex_rect, false)
-		else:
-			var info: Dictionary = entry["info"]
-			var icon_str: String = info.get("icon", "?")
-			draw_string(font, Vector2(icon_cx - 21, icon_cy + 15), icon_str,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 42, t.text_primary)
-
-		# 数量角标
-		var count: int = entry["count"]
-		if count > 1:
-			var badge_pos: Vector2 = Vector2(ir.position.x + ir.size.x - 3, ir.position.y + 6)
-			draw_circle(badge_pos, 15.0, Color(t.info, 0.78))
-			draw_string(font, Vector2(badge_pos.x - 9, badge_pos.y + 9), str(count),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.WHITE)
-
-		# hover 提示气泡
-		if is_hovered:
-			var tip: String = _consumable_controller.get_consumable_tooltip(icon_key)
-			var tip_w: float = font.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
-			var tip_x: float = icon_cx
-			var tip_y: float = ir.position.y - 12
-			var pad_x: float = 18.0
-			var pad_y: float = 9.0
-			var bx: float = tip_x - tip_w / 2 - pad_x
-			var by: float = tip_y - 27 - pad_y
-			var bw: float = tip_w + pad_x * 2
-			var bh: float = 30 + pad_y * 2
-			# 阴影
-			draw_rect(Rect2(bx + 3, by + 3, bw, bh), Color(t.notebook_border, 0.16))
-			# 填充
-			draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_paper, 0.96))
-			# 边框
-			draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_border, 0.47), false, 1.5)
-			# 文字
-			draw_string(font, Vector2(bx + pad_x, by + bh - pad_y), tip,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 27, t.text_primary)
-
-# ---------------------------------------------------------------------------
-# "结束今天" 页脚（琥珀线 + 呼吸动效 / 灰色待完成提示）
-# ---------------------------------------------------------------------------
-func _draw_end_day_btn(px: float, py: float, pw: float, font: Font, t) -> void:
+func _draw_footer(px: float, py: float, pw: float, font: Font, _t) -> void:
 	if not _card_manager:
 		return
 
-	# 计算 pending 数量
 	var pending_count: int = 0
 	for s: Dictionary in _card_manager.schedules:
 		if s.get("status", "") == "pending":
@@ -886,41 +677,31 @@ func _draw_end_day_btn(px: float, py: float, pw: float, font: Font, t) -> void:
 	var steps_exhausted: bool = GameData.steps_total > 0 and GameData.steps_remaining <= 0
 	var can_adv: bool = pending_count == 0 or steps_exhausted
 
-	# footer 定位：紧贴最后一条日程下方
-	var max_visible: int = _card_manager.schedules.size()
-	var content_y: float = py + TAB_H + 12
-	var note_y: float = py + _get_full_h() - NOTE_H - 21
-	var raw_footer_y: float = content_y + max_visible * ITEM_H + 21
-	var footer_y: float = minf(raw_footer_y, note_y - 45)
+	var footer_y: float = _get_footer_y(py, pw)
 	var footer_x: float = px + SPINE_W + PAGE_PAD
 	var footer_w: float = pw - SPINE_W - PAGE_PAD * 2
-
 	var t_now: float = Time.get_ticks_msec() / 1000.0
 
 	if can_adv:
-		# 琥珀分隔线（内缩 8px）
 		var pulse: float = 0.72 + 0.28 * sin(t_now * 2.6)
 		var line_alpha: float = 0.78 if _hover_end_day else (0.35 * pulse + 0.16)
-		draw_line(
-			Vector2(footer_x + 8, footer_y),
+		draw_line(Vector2(footer_x + 8, footer_y),
 			Vector2(footer_x + footer_w - 8, footer_y),
 			Color(0.824, 0.627, 0.235, line_alpha), 1.5)
 
-		# "结束今天 →" 呼吸文字
 		var arrow_nudge: float = 3.0 if _hover_end_day else (1.5 * sin(t_now * 2.0))
 		var text_alpha: float = 1.0 if _hover_end_day else (0.67 * pulse + 0.22)
 		var text: String = "结束今天 →"
 		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 		draw_string(font,
-			Vector2(footer_x + footer_w / 2.0 - tw / 2.0 + arrow_nudge, footer_y + 18),
+			Vector2(footer_x + footer_w / 2.0 - tw / 2.0 + arrow_nudge, footer_y + 36),
 			text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30,
 			Color(0.824, 0.627, 0.235, text_alpha))
 	else:
-		# 未完成：极低调灰色小字
 		var hint: String = "还有 %d 项待完成" % pending_count
 		var hw: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
 		draw_string(font,
-			Vector2(footer_x + footer_w / 2.0 - hw / 2.0, footer_y + 18),
+			Vector2(footer_x + footer_w / 2.0 - hw / 2.0, footer_y + 36),
 			hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 24,
 			Color(0.627, 0.580, 0.510, 0.24))
 
@@ -932,9 +713,17 @@ func reset() -> void:
 	_expanded = false
 	_showcasing = false
 	_alpha = 0.0
-	_hover_index = 0
 	_hover_end_day = false
-	_hover_toolbar = ""
 	_hover_clue_btn = false
 	_rumor_page = 1
 	_was_can_advance = false
+	_active_tab = 1
+	if is_instance_valid(notebook):
+		notebook.visible = false
+	# 清除动态子节点
+	if is_instance_valid(schedule_vbox):
+		for child in schedule_vbox.get_children():
+			child.queue_free()
+	if is_instance_valid(toolbar_hbox):
+		for child in toolbar_hbox.get_children():
+			child.queue_free()
