@@ -9,6 +9,7 @@ extends Control
 signal end_day_pressed
 signal schedule_toggled(index: int)
 signal use_exorcism_pressed
+signal use_map_pressed
 signal open_clue_log
 
 # ---------------------------------------------------------------------------
@@ -774,6 +775,8 @@ func _on_item_used(key: String) -> void:
 	# exorcism 还额外发出信号供外部处理怪物驱除效果
 	if key == "exorcism":
 		use_exorcism_pressed.emit()
+	elif key == "map":
+		use_map_pressed.emit()
 	# 所有道具通过 ConsumableController 统一处理
 	if _consumable_controller != null:
 		_consumable_controller.use_consumable(key)

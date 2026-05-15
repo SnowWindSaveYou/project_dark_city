@@ -486,6 +486,8 @@ func _connect_signals() -> void:
 		_hand_panel.refresh())
 	_hand_panel.use_exorcism_pressed.connect(
 		func(): card_interaction.handle_inventory_exorcism())
+	_hand_panel.use_map_pressed.connect(
+		func(): game_flow.reveal_random_card())
 	_hand_panel.open_clue_log.connect(func(): _clue_log.open())
 
 	# 相机按钮

@@ -116,10 +116,22 @@ func set_entry(entry: Dictionary) -> void:
 	var info: Dictionary = entry.get("info", {})
 	var count: int = entry.get("count", 1)
 
-	# 图标（data 字段是 "icon"，值为 emoji 字符串，无 icon_key）
-	_icon_texture.visible = false
-	_emoji_label.visible  = true
-	_emoji_label.text = info.get("icon", "🧪")
+	# 图标：优先用 image_path 图片，失败则 fallback 到 emoji
+	var image_path: String = info.get("image_path", "")
+	if image_path != "" and ResourceLoader.exists(image_path):
+		var tex: Texture2D = load(image_path)
+		if tex:
+			_icon_texture.texture = tex
+			_icon_texture.visible = true
+			_emoji_label.visible  = false
+		else:
+			_icon_texture.visible = false
+			_emoji_label.visible  = true
+			_emoji_label.text = info.get("icon", "🧪")
+	else:
+		_icon_texture.visible = false
+		_emoji_label.visible  = true
+		_emoji_label.text = info.get("icon", "🧪")
 
 	# 数量角标
 	if count > 1:

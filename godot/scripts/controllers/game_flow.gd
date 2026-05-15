@@ -419,10 +419,15 @@ func try_collect_item(row: int, col: int) -> Dictionary:
 	AudioManager.play_sfx(sfx_key)
 
 	# 应用效果
+	# 有 inventoryKey 的道具 (coffee/shield/exorcism) → 放入背包
+	# 无 inventoryKey 的 (film/mapReveal) → 直接应用资源/效果
 	match item_key:
 		"coffee":
-			GameData.modify_resource("san", 2)
-			m._vfx.action_banner("%s +2 SAN" % item_icon, Color(0.5, 0.8, 0.4), 0.7)
+			GameData.add_item("coffee")
+			m._vfx.action_banner("%s 获得咖啡" % item_icon, Color(0.5, 0.8, 0.4), 0.7)
+		"sedative":
+			GameData.add_item("sedative")
+			m._vfx.action_banner("%s 获得镇定剂" % item_icon, Color(0.5, 0.8, 0.4), 0.7)
 		"film":
 			GameData.modify_resource("film", 1)
 			m._vfx.action_banner("%s +1 胶卷" % item_icon, Color(0.5, 0.7, 0.9), 0.7)
@@ -432,9 +437,9 @@ func try_collect_item(row: int, col: int) -> Dictionary:
 		"exorcism":
 			GameData.add_item("exorcism")
 			m._vfx.action_banner("%s 获得驱魔香" % item_icon, Color(0.7, 0.5, 0.8), 0.7)
-		"mapReveal":
-			_reveal_random_card()
-			m._vfx.action_banner("%s 地图碎片: 揭示一张卡" % item_icon, Color(0.6, 0.8, 0.6), 0.7)
+		"map":
+			GameData.add_item("map")
+			m._vfx.action_banner("%s 获得地图碎片" % item_icon, Color(0.6, 0.8, 0.6), 0.7)
 
 	# 收集粒子
 	var center: Vector2 = m.board_visual.get_card_center(row, col)
@@ -442,8 +447,8 @@ func try_collect_item(row: int, col: int) -> Dictionary:
 
 	return result
 
-## 地图碎片: 揭示一张随机未翻开的卡牌
-func _reveal_random_card() -> void:
+## 地图碎片: 揭示一张随机未翻开的卡牌 (由 HandPanel use_map_pressed 触发)
+func reveal_random_card() -> void:
 	var unflipped: Array = m.board.get_unflipped_cards()
 	if unflipped.is_empty():
 		return

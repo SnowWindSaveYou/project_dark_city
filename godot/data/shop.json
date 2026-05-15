@@ -8,7 +8,7 @@
 			"type": "consumable",
 			"effect": { "san": 2 },
 			"desc": "热腾腾的咖啡，恢复些许理智",
-			"image_path": ""
+			"image_path": "res://assets/image/道具_咖啡v2_20260426153856.png"
 		},
 		"film": {
 			"name": "胶卷补充",
@@ -17,34 +17,34 @@
 			"type": "consumable",
 			"effect": { "film": 1 },
 			"desc": "额外的胶卷，多一次拍摄机会",
-			"image_path": ""
+			"image_path": "res://assets/image/道具_胶卷v2_20260426153757.png"
 		},
 		"shield": {
 			"name": "护身符",
-			"icon": "🛡️",
+			"icon": "🧿",
 			"price": 15,
 			"type": "persistent",
 			"effect": {},
 			"desc": "神秘的护身符，或许能保护你",
-			"image_path": ""
+			"image_path": "res://assets/image/道具_护身符v2_20260426153859.png"
 		},
 		"exorcism": {
-			"name": "退魔香",
-			"icon": "🔮",
+			"name": "驱魔香",
+			"icon": "🪔",
 			"price": 12,
 			"type": "consumable",
 			"effect": {},
 			"desc": "燃烧时能驱散附近的邪气",
-			"image_path": ""
+			"image_path": "res://assets/image/道具_驱魔香v2_20260426153756.png"
 		},
 		"map": {
-			"name": "都市地图",
+			"name": "地图碎片",
 			"icon": "🗺️",
 			"price": 10,
 			"type": "consumable",
 			"effect": {},
-			"desc": "标注了一些安全路线的地图",
-			"image_path": ""
+			"desc": "揭示1张卡牌类型",
+			"image_path": "res://assets/image/道具_地图碎片v2_20260426153808.png"
 		},
 		"sedative": {
 			"name": "镇定剂",
@@ -53,10 +53,10 @@
 			"type": "consumable",
 			"effect": { "san": 3 },
 			"desc": "强效镇定剂，大幅恢复理智",
-			"image_path": ""
+			"image_path": "res://assets/image/道具_镇定剂v2_20260426155757.png"
 		}
 	},
-	"consumable_order": ["shield", "exorcism", "coffee", "sedative"],
+	"consumable_order": ["shield", "exorcism", "coffee", "sedative", "map"],
 	"variants": [
 		{ "name": "午夜便利店", "greeting": "深夜好，有什么需要的吗？" },
 		{ "name": "黄昏杂货铺", "greeting": "嘿，看看有什么中意的？" },

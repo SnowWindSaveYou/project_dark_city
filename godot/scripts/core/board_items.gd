@@ -9,11 +9,11 @@ extends RefCounted
 # 道具池定义 (key, 权重, 拾取效果描述)
 # ---------------------------------------------------------------------------
 const ITEM_POOL: Array = [
-	{ "key": "coffee",    "weight": 25, "label": "咖啡",     "icon": "☕" },
-	{ "key": "film",      "weight": 20, "label": "胶卷",     "icon": "🎞️" },
-	{ "key": "shield",    "weight": 15, "label": "护身符",   "icon": "🧿" },
-	{ "key": "exorcism",  "weight": 15, "label": "驱魔香",   "icon": "🪔" },
-	{ "key": "mapReveal", "weight": 25, "label": "地图碎片", "icon": "🗺️" },
+	{ "key": "coffee",   "weight": 25, "label": "咖啡",     "icon": "☕" },
+	{ "key": "film",     "weight": 20, "label": "胶卷",     "icon": "🎞️" },
+	{ "key": "shield",   "weight": 15, "label": "护身符",   "icon": "🧿" },
+	{ "key": "exorcism", "weight": 15, "label": "驱魔香",   "icon": "🪔" },
+	{ "key": "map",      "weight": 25, "label": "地图碎片", "icon": "🗺️" },
 ]
 
 # 道具图标绘制参数 (2D overlay 保留兼容)
@@ -30,11 +30,11 @@ const FLOAT_SPEED_3D: float = 2.2
 
 # 道具贴图路径映射
 const ICON_TEXTURES: Dictionary = {
-	"coffee":    "res://assets/image/道具_咖啡v2_20260426153856.png",
-	"film":      "res://assets/image/道具_胶卷v2_20260426153757.png",
-	"shield":    "res://assets/image/道具_护身符v2_20260426153859.png",
-	"exorcism":  "res://assets/image/道具_驱魔香v2_20260426153756.png",
-	"mapReveal": "res://assets/image/道具_地图碎片v2_20260426153808.png",
+	"coffee":   "res://assets/image/道具_咖啡v2_20260426153856.png",
+	"film":     "res://assets/image/道具_胶卷v2_20260426153757.png",
+	"shield":   "res://assets/image/道具_护身符v2_20260426153859.png",
+	"exorcism": "res://assets/image/道具_驱魔香v2_20260426153756.png",
+	"map":      "res://assets/image/道具_地图碎片v2_20260426153808.png",
 }
 
 # ---------------------------------------------------------------------------
