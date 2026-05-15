@@ -148,22 +148,22 @@ mouse_filter = 2
 
 [node name="TapeRect" type="ColorRect" parent="NotebookRoot/SchedulePage/RumorNote"]
 layout_mode = 0
-offset_left = 28.0
-offset_top = -3.0
-offset_right = 56.0
-offset_bottom = 3.0
+offset_left = 84.0
+offset_top = -9.0
+offset_right = 168.0
+offset_bottom = 9.0
 mouse_filter = 2
 
 [node name="NoteVBox" type="VBoxContainer" parent="NotebookRoot/SchedulePage/RumorNote"]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = 12
+anchor_top = 0.0
 anchor_right = 1.0
-anchor_bottom = 1.0
+anchor_bottom = 0.0
 grow_horizontal = 2
-grow_vertical = 2
-offset_top = 4.0
-offset_bottom = -4.0
-alignment = 1
+offset_top = 12.0
+offset_right = 0.0
+offset_bottom = 126.0
 mouse_filter = 2
 
 [node name="NoteIcon" type="Label" parent="NotebookRoot/SchedulePage/RumorNote/NoteVBox"]
@@ -184,9 +184,9 @@ autowrap_mode = 3
 
 [node name="NotePageLabel" type="Label" parent="NotebookRoot/SchedulePage/RumorNote"]
 layout_mode = 0
-offset_top = 46.0
-offset_right = 84.0
-offset_bottom = 58.0
+offset_top = 138.0
+offset_right = 252.0
+offset_bottom = 162.0
 horizontal_alignment = 1
 text = ""
 visible = false

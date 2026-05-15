@@ -184,9 +184,33 @@ func _spawn_daily_npcs() -> void:
 		var tile: Vector2i = _pick_free_tile()
 		npc_manager.spawn_npc("cat", tile.x, tile.y)
 
+	# 地点专属 NPC: 出现在对应地点格子上，引导玩家主动寻找
+	# hospital → 护士 (健康→理智), park → 老人 (理智→健康), gym → 教练 (理智→健康)
+	var location_npcs: Dictionary = {
+		"hospital": "hospital_npc",
+		"park":     "park_npc",
+		"gym":      "gym_npc",
+	}
+	for loc in location_npcs:
+		var tile: Vector2i = _find_location_tile(loc)
+		if tile != Vector2i(-1, -1):
+			npc_manager.spawn_npc(location_npcs[loc], tile.x, tile.y)
+
 	# 创建 NPC 3D 节点 (如有 NPC 被生成)
 	if not npc_manager.npcs.is_empty():
 		m.board_visual.create_npc_nodes(npc_manager.npcs)
+
+## 在棋盘上查找指定 location 的第一个格子
+## 返回 Vector2i(-1, -1) 表示未找到
+func _find_location_tile(location: String) -> Vector2i:
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card != null and card.location == location:
+				# 跳过已有 NPC 占用的格子
+				if npc_manager.get_npc_at(r, c) == null:
+					return Vector2i(r, c)
+	return Vector2i(-1, -1)
 
 ## 在棋盘上选取一个空闲格子 (避开家和已有 NPC)
 func _pick_free_tile() -> Vector2i:

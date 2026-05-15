@@ -300,59 +300,29 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 						else:
 							m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
 
-		# Toast 通知
-		var toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card_type) \
-			.set_effects(effects) \
-			.set_shield_used(shield_used) \
-			.set_location(card.location)
-		m._event_popup.show_toast(toast)
+		# 非阻断事件: 弹窗展示（等待玩家点击"知道了"再继续）
+		GameData.set_demo_state("popup")
+		m._camera_button.hide_button()
+		m._event_popup.show_event_data(card_type, effects, shield_used, card.location, card.trap_subtype)
+		await m._event_popup.popup_closed
 
-		# 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready (匹配 Lua 0.6s pauseDummy)
-		if card_type == "monster":
-			await m.get_tree().create_timer(0.6).timeout
-			if card.has_rift:
-				m.board_visual.rift_show_on_card(row, col)
-				_show_rift_confirm(row, col)
-				return
-			# 中段事件: 日程完成时触发
-			if arrived_location_for_mid != "" and not _try_mid_day_event(arrived_location_for_mid):
-				GameData.set_demo_state("ready")
-				m._camera_button.show_button()
-				m.game_flow.check_defeat()
-			elif arrived_location_for_mid == "":
-				GameData.set_demo_state("ready")
-				m._camera_button.show_button()
-				m.game_flow.check_defeat()
-			# else: _try_mid_day_event 返回 true, 对话完成回调里负责恢复 ready
+		# 弹窗关闭后恢复状态
+		m.token.set_emotion("default")
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
+
+		# 裂隙检查
+		if card.has_rift:
+			m.board_visual.rift_show_on_card(row, col)
+			_show_rift_confirm(row, col)
 			return
 
-		# Phase 5: 兑换事件 (safe 牌 + 特定 location, 30% 概率)
-		if card_type == "safe" and card.location != "" and _try_conversion_event(card.location):
-			# 兑换弹窗已显示, 状态由回调管理
-			return
-
-		# 中段事件: 日程完成时触发 (非阻断非 monster 路径)
+		# 中段事件: 日程完成时触发
 		if arrived_location_for_mid != "" and not _try_mid_day_event(arrived_location_for_mid):
-			GameData.set_demo_state("ready")
-			m._camera_button.show_button()
-			if card.has_rift:
-				m.board_visual.rift_show_on_card(row, col)
-				_show_rift_confirm(row, col)
-				return
 			m.game_flow.check_defeat()
-		elif arrived_location_for_mid != "":
-			# _try_mid_day_event 返回 true, 对话完成回调里负责恢复 ready
-			# 裂隙检查需提前处理 (中段对话后不会再走裂隙逻辑, 可接受)
-			pass
-		else:
-			GameData.set_demo_state("ready")
-			m._camera_button.show_button()
-			# 裂隙检查
-			if card.has_rift:
-				m.board_visual.rift_show_on_card(row, col)
-				_show_rift_confirm(row, col)
-				return
+		elif arrived_location_for_mid == "":
 			m.game_flow.check_defeat()
+		# else: _try_mid_day_event 返回 true, 对话完成回调里负责恢复 ready
 
 # ---------------------------------------------------------------------------
 # 陷阱处理 (Toast 非阻塞)
@@ -372,26 +342,21 @@ func _handle_trap(card: Card, row: int, col: int) -> void:
 		for key in effects:
 			GameData.modify_resource(key, effects[key])
 
-		# 特殊: 传送陷阱 — 异步等待传送+翻面完成
+		# 特殊: 传送陷阱 — 先弹窗告知再传送
 		if card.trap_subtype == "teleport":
-			# Toast 先显示
-			var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
-				.set_effects(card.get_effects()) \
-				.set_shield_used(shield_used) \
-				.set_location(card.location) \
-				.set_trap_subtype(card.trap_subtype)
-			m._event_popup.show_toast(trap_toast)
+			GameData.set_demo_state("popup")
+			m._camera_button.hide_button()
+			m._event_popup.show_event_data(card.type, card.get_effects(), shield_used, card.location, card.trap_subtype)
+			await m._event_popup.popup_closed
 			# 传送流程（内部会设置 ready 状态）
 			await _teleport_to_random()
 			return
 
-	# Toast 通知
-	var trap_toast: EventPopupScene.ToastData = EventPopupScene.ToastData.new(card.type) \
-		.set_effects(card.get_effects()) \
-		.set_shield_used(shield_used) \
-		.set_location(card.location) \
-		.set_trap_subtype(card.trap_subtype)
-	m._event_popup.show_toast(trap_toast)
+	# 陷阱弹窗（等待玩家点击"知道了"）
+	GameData.set_demo_state("popup")
+	m._camera_button.hide_button()
+	m._event_popup.show_event_data(card.type, card.get_effects(), shield_used, card.location, card.trap_subtype)
+	await m._event_popup.popup_closed
 
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
@@ -1004,83 +969,4 @@ func _walk_step(path: Array, step_idx: int) -> void:
 	)
 
 # =========================================================================
-# Phase 5: 兑换事件 (hospital/park/gym)
-# =========================================================================
 
-## 兑换配置: location → {icon, title, desc, cost_res, cost_amt, gain_res, gain_amt, accent}
-const CONVERSION_CONFIG: Dictionary = {
-	"hospital": {
-		"icon": "🏥", "title": "医院 · 心理诊疗",
-		"desc": "消耗 2 健康 → 恢复 2 理智?",
-		"cost_res": "health", "cost_amt": 2,
-		"gain_res": "san", "gain_amt": 2,
-		"accent": Color(0.39, 0.71, 0.86),
-	},
-	"park": {
-		"icon": "🌳", "title": "公园 · 散步疗愈",
-		"desc": "消耗 2 理智 → 恢复 2 健康?",
-		"cost_res": "san", "cost_amt": 2,
-		"gain_res": "health", "gain_amt": 2,
-		"accent": Color(0.39, 0.75, 0.51),
-	},
-	"gym": {
-		"icon": "🏋️", "title": "健身房 · 体能训练",
-		"desc": "消耗 2 理智 → 恢复 2 健康?",
-		"cost_res": "san", "cost_amt": 2,
-		"gain_res": "health", "gain_amt": 2,
-		"accent": Color(0.86, 0.63, 0.31),
-	},
-}
-
-## 尝试触发兑换事件 (safe 牌着陆时, 30% 概率)
-## 返回 true 表示弹出了兑换确认; false 表示未触发
-func _try_conversion_event(location: String) -> bool:
-	if not CONVERSION_CONFIG.has(location):
-		return false
-
-	# 30% 概率门
-	if randf() > 0.30:
-		return false
-
-	var cfg: Dictionary = CONVERSION_CONFIG[location]
-
-	# 资源不足检查
-	if GameData.get_resource(cfg["cost_res"]) < cfg["cost_amt"]:
-		return false
-
-	print("[CardInteraction] Conversion event triggered at %s" % location)
-
-	# 显示确认弹窗 (通过 event_popup 委托给 rift_popup)
-	GameData.set_demo_state("popup")
-	m._camera_button.hide_button()
-
-	var popup: RiftPopup = m._event_popup.show_custom_confirm(
-		cfg["icon"], cfg["title"], cfg["desc"], "接受", "拒绝", cfg["accent"])
-	if popup == null:
-		GameData.set_demo_state("ready")
-		m._camera_button.show_button()
-		return false
-
-	# 一次性信号连接: 确认
-	var on_confirm: Callable
-	var on_cancel: Callable
-	on_confirm = func():
-		popup.rift_cancelled.disconnect(on_cancel)
-		GameData.modify_resource(cfg["cost_res"], -cfg["cost_amt"])
-		GameData.modify_resource(cfg["gain_res"], cfg["gain_amt"])
-		m._vfx.action_banner("%s %s +%d" % [cfg["icon"], cfg["gain_res"], cfg["gain_amt"]],
-			cfg["accent"], 0.8)
-		m.token.set_emotion("happy")
-		GameData.set_demo_state("ready")
-		m._camera_button.show_button()
-
-	on_cancel = func():
-		popup.rift_confirmed.disconnect(on_confirm)
-		m.token.set_emotion("default")
-		GameData.set_demo_state("ready")
-		m._camera_button.show_button()
-
-	popup.rift_confirmed.connect(on_confirm, CONNECT_ONE_SHOT)
-	popup.rift_cancelled.connect(on_cancel, CONNECT_ONE_SHOT)
-
-	return true

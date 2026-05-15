@@ -83,11 +83,14 @@ static func is_blocking_event(card_type: String, _has_choices: bool = false) -> 
 @onready var _panel: PanelContainer = $PanelAnchor/Panel
 @onready var _vbox: VBoxContainer = $PanelAnchor/Panel/VBox
 @onready var _color_bar: ColorRect = $PanelAnchor/Panel/VBox/ColorBar
-@onready var _icon_label: Label = $PanelAnchor/Panel/VBox/IconLabel
-@onready var _title_label: Label = $PanelAnchor/Panel/VBox/TitleLabel
-@onready var _desc_label: Label = $PanelAnchor/Panel/VBox/DescLabel
-@onready var _effects_row: HBoxContainer = $PanelAnchor/Panel/VBox/EffectsRow
-@onready var _hint_label: Label = $PanelAnchor/Panel/VBox/HintLabel
+@onready var _content_hbox: HBoxContainer = $PanelAnchor/Panel/VBox/ContentHBox
+@onready var _event_image: TextureRect = $PanelAnchor/Panel/VBox/ContentHBox/EventImage
+@onready var _image_spacer: Control = $PanelAnchor/Panel/VBox/ContentHBox/ImageSpacer
+@onready var _icon_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/IconLabel
+@onready var _title_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/TitleLabel
+@onready var _desc_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/DescLabel
+@onready var _effects_row: HBoxContainer = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/EffectsRow
+@onready var _hint_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/HintLabel
 @onready var _toast_container: VBoxContainer = $ToastContainer
 
 # ---------------------------------------------------------------------------
@@ -192,7 +195,53 @@ func _notification(what: int) -> void:
 # 模态弹窗 API
 # ===========================================================================
 
-## 打开事件弹窗 (常规模态)
+## 打开事件弹窗 — 非阻断事件路径（新签名）
+## card_type:    事件类型，如 "monster"/"trap"/"safe" 等
+## effects:      已结算的效果 Dictionary（弹窗前已 apply，此处仅展示）
+## shield_used:  是否护盾减伤
+## location:     地点 key，用于选取地点专属文案和图片
+## trap_subtype: 陷阱子类型 key（仅 trap 事件有意义）
+func show_event_data(
+		card_type: String,
+		effects: Dictionary,
+		shield_used: bool,
+		location: String = "",
+		trap_subtype: String = "") -> void:
+	_active = true
+	_phase = "enter"
+	visible = true
+	_overlay.visible = true
+	$PanelAnchor.visible = true
+
+	# --- 文案 ---
+	var tmpl: Dictionary = CardConfig.pick_event_template(card_type, location, trap_subtype)
+	var type_color: Color = GameTheme.card_type_color(card_type)
+	var darkside: Dictionary = Locations.get_dark_display(location)
+	var dark_info: Dictionary = darkside.get(card_type, {})
+
+	_color_bar.color = Color(type_color.r, type_color.g, type_color.b, 0.8)
+	_icon_label.text = dark_info.get("icon", GameTheme.card_type_info(card_type).get("icon", "❓"))
+	_title_label.text = tmpl.get("title", dark_info.get("label", "未知事件"))
+	_title_label.add_theme_color_override("font_color", type_color)
+	_desc_label.text = tmpl.get("desc", "")
+	_hint_label.text = "知道了"
+
+	# --- 护盾提示 ---
+	if shield_used:
+		_desc_label.text += "\n\n🛡️ 护盾抵消了部分伤害。"
+
+	# --- 事件插画 ---
+	_load_event_image(location, card_type)
+
+	# --- 效果徽章 ---
+	_populate_effects(effects)
+
+	# --- 面板尺寸 ---
+	_on_resized()
+
+	_run_enter_animation()
+
+## 打开事件弹窗 (旧签名，供 shop 等阻断型事件使用)
 func show_event(card: Card) -> void:
 	_card = card
 	_active = true
@@ -213,12 +262,38 @@ func show_event(card: Card) -> void:
 	_desc_label.text = _cached_desc
 	_hint_label.text = "点击关闭"
 
+	# 无插画（shop 使用图标，不显示竖版插画）
+	_event_image.visible = false
+	_image_spacer.visible = false
+
 	# 填充效果徽章
 	_populate_effects(card.get_effects())
 
 	# 自适应面板大小
 	_on_resized()
 
+	_run_enter_animation()
+
+# ---------------------------------------------------------------------------
+# 内部：加载事件插画
+# ---------------------------------------------------------------------------
+func _load_event_image(location: String, event_type: String) -> void:
+	var tex: Texture2D = CardImageMap.get_event_texture(location, event_type)
+	if tex != null:
+		_event_image.texture = tex
+		_event_image.visible = true
+		_image_spacer.visible = true
+		# 有图时缩小面板最小宽度（图片固定 300px，右侧文字区域跟随缩小）
+		_panel.custom_minimum_size = Vector2(960, 660)
+	else:
+		_event_image.visible = false
+		_image_spacer.visible = false
+		_panel.custom_minimum_size = Vector2(840, 660)
+
+# ---------------------------------------------------------------------------
+# 内部：入场动画（抽取公共逻辑）
+# ---------------------------------------------------------------------------
+func _run_enter_animation() -> void:
 	# 初始动画状态
 	_overlay.color.a = 0.0
 	_panel.scale = Vector2(0.3, 0.3)
@@ -230,7 +305,6 @@ func show_event(card: Card) -> void:
 	_effects_row.modulate.a = 0.0
 	_hint_label.modulate.a = 0.0
 
-	# 入场动画
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(_overlay, "color:a", 0.45, 0.35)
@@ -333,7 +407,7 @@ func show_toast(data: ToastData) -> void:
 	var location: String = data.location
 
 	# 文案处理
-	var tmpl: Dictionary = _pick_template(card_type, trap_subtype)
+	var tmpl: Dictionary = _pick_template(card_type, trap_subtype, location)
 
 	# 标题
 	var display_title: String = data.title
@@ -459,15 +533,6 @@ func _handle_popup_click() -> void:
 # 工具方法
 # ===========================================================================
 
-func _pick_template(card_type: String, trap_subtype: String = "") -> Dictionary:
-	# 陷阱子类型使用专属文案池
-	if card_type == "trap" and trap_subtype != "":
-		var sub: Dictionary = EventPool.get_trap_subtype(trap_subtype)
-		var sub_texts: Array = sub.get("texts", [])
-		if sub_texts.size() > 0:
-			var text: String = sub_texts[randi() % sub_texts.size()]
-			return { "title": sub.get("label", "陷阱"), "desc": text }
-
-	var texts: Array = CardConfig.event_texts.get(card_type, ["发生了一些事情..."])
-	var type_info: Dictionary = GameTheme.card_type_info(card_type)
-	return { "title": type_info.get("label", "未知"), "desc": texts[randi() % texts.size()] }
+## 已废弃：由 CardConfig.pick_event_template() 统一替代，保留签名防止外部残留调用
+func _pick_template(card_type: String, trap_subtype: String = "", location: String = "") -> Dictionary:
+	return CardConfig.pick_event_template(card_type, location, trap_subtype)

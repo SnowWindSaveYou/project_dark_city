@@ -24,11 +24,14 @@ const PHOTO_BOTTOM: int = 120
 @onready var _photo_anchor: CenterContainer = $PhotoAnchor
 @onready var _photo_frame: PanelContainer = $PhotoAnchor/PhotoFrame
 @onready var _image_area: PanelContainer = $PhotoAnchor/PhotoFrame/VBox/ImageArea
+@onready var _event_texture: TextureRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageContent/EventTexture
 @onready var _icon_label: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageContent/IconLabel
 @onready var _title_label: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageContent/TitleLabel
 @onready var _desc_label: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageContent/DescLabel
 @onready var _location_label: Label = $PhotoAnchor/PhotoFrame/VBox/BottomStrip/LocationLabel
 @onready var _scout_label: Label = $PhotoAnchor/PhotoFrame/VBox/BottomStrip/ScoutLabel
+@onready var _baiiye_row: HBoxContainer = $PhotoAnchor/PhotoFrame/VBox/BaiyeRow
+@onready var _baiiye_label: Label = $PhotoAnchor/PhotoFrame/VBox/BaiyeRow/BaiyeLabel
 @onready var _tape_decor: ColorRect = $PhotoAnchor/TapeDecor
 @onready var _hint_label: Label = $HintLabel
 
@@ -80,6 +83,8 @@ func _ready() -> void:
 	_location_label.add_theme_color_override("font_color", Color(0.314, 0.294, 0.255, 0.78))
 	_scout_label.add_theme_font_size_override("font_size", 30)
 	_scout_label.add_theme_color_override("font_color", Color(0.588, 0.549, 0.490, 0.63))
+	_baiiye_label.add_theme_font_size_override("font_size", 28)
+	_baiiye_label.add_theme_color_override("font_color", Color(0.502, 0.459, 0.647, 0.82))
 	_hint_label.add_theme_font_size_override("font_size", 30)
 	_hint_label.add_theme_color_override("font_color", Color(0.706, 0.667, 0.608, 0.7))
 
@@ -98,14 +103,35 @@ func show_photo(card: Card) -> void:
 	# 填充内容
 	var darkside: Dictionary = card.get_darkside_info()
 	var type_color: Color = GameTheme.card_type_color(card.type)
-	var cached_desc: String = card.get_event_text()
+
+	# 文案：使用新的 pick_event_template（支持地点专属 + baiiye）
+	var tmpl: Dictionary = CardConfig.pick_event_template(card.type, card.location, card.trap_subtype)
 
 	_icon_label.text = darkside.get("icon", "❓")
 	_icon_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
-	_title_label.text = darkside.get("label", "")
+	_title_label.text = tmpl.get("title", darkside.get("label", "未知事件"))
 	_title_label.add_theme_color_override("font_color",
 		Color(type_color.r, type_color.g, type_color.b, 0.9))
-	_desc_label.text = cached_desc
+	_desc_label.text = tmpl.get("desc", "")
+
+	# 事件插画（优先地点专属图，fallback 通用图）
+	var tex: Texture2D = CardImageMap.get_event_texture(card.location, card.type)
+	if tex != null:
+		_event_texture.texture = tex
+		_event_texture.visible = true
+		_icon_label.visible = false  # 有插画时隐藏大 emoji，避免内容重叠
+	else:
+		_event_texture.visible = false
+		_icon_label.visible = true
+
+	# 白夜台词彩蛋
+	var baiiye_text: String = tmpl.get("baiiye", "")
+	if baiiye_text != "":
+		_baiiye_label.text = baiiye_text
+		_baiiye_row.visible = true
+		_baiiye_row.modulate.a = 0.0
+	else:
+		_baiiye_row.visible = false
 
 	# 事件类型氛围色叠加到照片区域
 	var image_style: StyleBoxFlat = _image_area.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
@@ -134,6 +160,7 @@ func show_photo(card: Card) -> void:
 	_tape_decor.modulate.a = 0.0
 
 	# 入场动画
+	var has_image: bool = tex != null
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(_overlay, "color:a", 0.5, 0.3)
@@ -145,12 +172,18 @@ func show_photo(card: Card) -> void:
 	tw.tween_property(_tape_decor, "modulate:a", 1.0, 0.3).set_delay(0.1)
 
 	var base: float = 0.08
-	tw.tween_property(_icon_label, "modulate:a", 1.0, 0.25).set_delay(base) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	# 无插画时才淡入 icon emoji；有插画时 icon 已隐藏，跳过
+	if not has_image:
+		tw.tween_property(_icon_label, "modulate:a", 1.0, 0.25).set_delay(base) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(_title_label, "modulate:a", 1.0, 0.25).set_delay(base + 0.06) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(_desc_label, "modulate:a", 1.0, 0.25).set_delay(base + 0.12) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	# baiiye 台词最后淡入（彩蛋感）
+	if baiiye_text != "":
+		tw.tween_property(_baiiye_row, "modulate:a", 0.85, 0.3).set_delay(base + 0.22) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(_hint_label, "modulate:a", 0.7, 0.25).set_delay(base + 0.18) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.chain().tween_callback(func(): _phase = "idle")
@@ -166,11 +199,14 @@ func dismiss() -> void:
 	tw.tween_property(_photo_frame, "scale", Vector2(0.5, 0.5), 0.22) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(_photo_frame, "modulate:a", 0.0, 0.22)
-	tw.tween_property(_icon_label, "modulate:a", 0.0, 0.15)
+	if _icon_label.visible:
+		tw.tween_property(_icon_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_title_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_desc_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_hint_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_tape_decor, "modulate:a", 0.0, 0.15)
+	if _baiiye_row.visible:
+		tw.tween_property(_baiiye_row, "modulate:a", 0.0, 0.12)
 	tw.chain().tween_callback(func():
 		_active = false
 		_phase = "none"

@@ -203,7 +203,9 @@ func set_data(key: String, value: Variant) -> void:
 # ─── 输入处理 ─────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_F1:
+		if event.keycode == KEY_1:
 			toggle()
 			get_viewport().set_input_as_handled()

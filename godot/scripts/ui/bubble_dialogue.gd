@@ -319,3 +319,94 @@ func on_show_complete() -> void:
 func on_hide_complete() -> void:
 	state = "hidden"
 	cooldown_timer = COOLDOWN
+
+# ---------------------------------------------------------------------------
+# NPC 专属台词池 & 工厂
+# ---------------------------------------------------------------------------
+
+## NPC 台词: npc_id → Array[String]
+const NPC_LINES: Dictionary = {
+	"hospital_npc": [
+		"这里的走廊灯坏了好久了……",
+		"最近来的病人越来越奇怪。",
+		"……你最近睡得还好吗？",
+		"消毒水用完了，这周也没人补货。",
+		"有人总是在三楼走廊徘徊……应该只是探视者吧。",
+		"今天又少了一张病历……说不清楚去哪了。",
+	],
+	"park_npc": [
+		"这棵树我从小看到大了。",
+		"最近公园里的鸟少了许多……",
+		"年轻人，走慢一点也好。",
+		"这雾……以前没有这么厚的。",
+		"秋千那边，昨晚有小孩在笑……不知道是谁家的。",
+		"老骨头了，动一动才暖和。",
+	],
+	"gym_npc": [
+		"动起来，脑子才会清醒。",
+		"最近来练的人越来越少了。",
+		"身体是本钱，别等垮了才后悔。",
+		"……那个深夜的哨声，你听到了吗？",
+		"器械昨晚自己响了，我以为有人进来了。",
+		"今天的训练量还差得远，继续。",
+	],
+	"qinxin": [
+		"……你也感觉到了吗？",
+		"这台相机有时候会自己发热。",
+		"不要盯着那些影子看太久。",
+		"闪光灯的电池……还剩多少？",
+	],
+	"fangdong": [
+		"最近街上的人少了……大家都躲着出门。",
+		"房租的事不着急，你先顾好自己。",
+		"门锁好了吗？记得锁好。",
+		"有什么动静直接来敲我的门。",
+	],
+	"cat": [
+		"喵～",
+		"……喵。",
+		"（尾巴轻轻摇了一下。）",
+		"（橘猫眯着眼睛打了个哈欠。）",
+	],
+}
+
+## 创建一个 NPC 专用的 BubbleDialogue 实例
+## npc_id: NPC 的 id 字符串
+static func create_for_npc(npc_id: String) -> BubbleDialogue:
+	var bd: BubbleDialogue = BubbleDialogue.new()
+	bd._npc_id = npc_id
+	# NPC 静止触发比主角略慢，间隔更长
+	bd._is_npc = true
+	return bd
+
+# NPC 实例标记
+var _npc_id: String = ""
+var _is_npc: bool = false
+
+## NPC 台词选取 (覆盖默认的 _pick_line)
+func _pick_npc_line() -> String:
+	var lines: Array = NPC_LINES.get(_npc_id, [])
+	if lines.is_empty():
+		return "……"
+	return lines[randi_range(0, lines.size() - 1)]
+
+## NPC 专用 update (无地点/事件上下文，静止即触发)
+func update_npc(dt: float) -> void:
+	if cooldown_timer > 0:
+		cooldown_timer -= dt
+
+	if state == "visible":
+		timer += dt
+		if timer >= DISPLAY_DURATION:
+			hide()
+
+	# NPC 使用更长的静止触发间隔 (6s)
+	idle_accum += dt
+	if idle_accum >= 6.0 and state == "hidden" and cooldown_timer <= 0:
+		text = _pick_npc_line()
+		timer = 0.0
+		state = "showing"
+		bubble_alpha = 0.0
+		bubble_scale = 0.3
+		offset_y = 8.0
+		idle_accum = 0.0

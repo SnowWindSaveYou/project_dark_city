@@ -238,8 +238,8 @@ func _setup_scene_tree() -> void:
 	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_token_shadow.material_override = shadow_mat
-	# 初始缩放: ×2 修正后 TOKEN_WORLD_W≈0.67m (shadow_w=0.67*1.1, shadow_z=0.67*0.5)
-	_token_shadow.scale = Vector3(0.737, 0.001, 0.335)
+	# 初始缩放: ×2 修正后 TOKEN_WORLD_W≈0.67m，缩小至约60%避免阴影过大
+	_token_shadow.scale = Vector3(0.44, 0.001, 0.20)
 	add_child(_token_shadow)
 
 	# === UI CanvasLayer (layer=10, 位于最顶层) ===
@@ -330,8 +330,9 @@ func _setup_scene_tree() -> void:
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
-	# DebugPanel (开发调试面板, F1 切换)
-	_debug_panel = DebugPanel.create(ui_layer)
+	# DebugPanel (开发调试面板, 按 1 切换; 打包 release 时不创建)
+	if OS.is_debug_build():
+		_debug_panel = DebugPanel.create(ui_layer)
 
 	# Title Screen (最顶层) — Scene 化
 	_title_screen = load("res://scenes/screens/title_screen.tscn").instantiate()
@@ -554,22 +555,28 @@ func _on_debug_action(action_id: String) -> void:
 		"enter_dark":
 			if GameData.demo_state == "ready":
 				dark_world_flow.enter_dark_world(token.target_row, token.target_col)
-		"insp_10":
+		"ins_10":
 			GameData.modify_resource("inspiration", 10)
-		"insp_50":
+		"ins_50":
 			GameData.modify_resource("inspiration", 50)
 		"trust_up":
 			GameData.modify_resource("trust", 1)
 		"trust_down":
 			GameData.modify_resource("trust", -1)
 		"power_up":
-			GameData.modify_resource("power", 1)
+			StoryManager.modify_baiye_power(1)
 		"power_max":
-			GameData.set_resource("power", 10)
+			StoryManager.baiye_power = 5
 		"clear_sleep":
 			GameData.set_resource("sleep_days", 0)
-		"frag_1":
-			StoryManager.collect_fragment("memory_01")
+		"add_frag":
+			# 收集第一个尚未获得的碎片（与 Lua 版逻辑一致）
+			var all_frags: Array = StoryManager.get_all_fragments()
+			for frag_info in all_frags:
+				if not frag_info.get("collected", false):
+					StoryManager.collect_fragment(frag_info["id"])
+					print("[Debug] add_frag: collected %s" % frag_info["id"])
+					break
 		"frag_4":
 			for i in range(1, 5):
 				StoryManager.collect_fragment("memory_%02d" % i)

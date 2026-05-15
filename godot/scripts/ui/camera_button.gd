@@ -46,11 +46,28 @@ var _btn_center: Vector2 = Vector2.ZERO
 var _film_texture: Texture2D = null
 var _film_tex_loaded: bool = false
 
+# 暗角
+var _vignette_rect: ColorRect = null
+var _vignette_material: ShaderMaterial = null
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_setup_vignette()
+
+func _setup_vignette() -> void:
+	var shader: Shader = load("res://shaders/vignette.gdshader")
+	_vignette_material = ShaderMaterial.new()
+	_vignette_material.shader = shader
+
+	_vignette_rect = ColorRect.new()
+	_vignette_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vignette_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette_rect.material = _vignette_material
+	_vignette_rect.visible = false
+	add_child(_vignette_rect)
 
 ## 只在相机按钮圆形区域内拦截鼠标事件, 其余区域透传到 _unhandled_input
 func _has_point(point: Vector2) -> bool:
@@ -138,6 +155,16 @@ func _process(delta: float) -> void:
 		if _scan_line_y > area_h:
 			_scan_line_y = 0.0
 		_rec_blink_timer += delta
+
+	# 更新暗角
+	if _vignette_rect != null:
+		var show: bool = _viewfinder_alpha > 0.01
+		_vignette_rect.visible = show
+		if show:
+			var t = GameTheme
+			_vignette_material.set_shader_parameter("tint_color",
+				Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, 1.0))
+			_vignette_material.set_shader_parameter("overall_alpha", _viewfinder_alpha)
 
 	queue_redraw()
 
@@ -283,14 +310,6 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 	# 取景器区域
 	var area_top: float = 240.0
 	var area_bottom: float = vp.y - 42.0
-
-	# 四角暗角
-	var vignette: Color = Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, alpha * 0.2)
-	var corner_size: float = vp.x * 0.15
-	draw_rect(Rect2(0, 0, corner_size, corner_size), vignette)
-	draw_rect(Rect2(vp.x - corner_size, 0, corner_size, corner_size), vignette)
-	draw_rect(Rect2(0, vp.y - corner_size, corner_size, corner_size), vignette)
-	draw_rect(Rect2(vp.x - corner_size, vp.y - corner_size, corner_size, corner_size), vignette)
 
 	# 四角 L 形标记
 	var bm: float = BRACKET_MARGIN - 18.0

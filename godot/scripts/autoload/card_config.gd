@@ -29,6 +29,7 @@ var card_effects: Dictionary = {}
 var event_texts: Dictionary = {}
 var trap_subtype_info: Dictionary = {}
 var trap_subtype_texts: Dictionary = {}  # 兼容旧代码 { subtype: [text, ...] }
+var _trap_subtype_obj_texts: Dictionary = {}  # 新格式 { subtype: [{title, desc, baiiye}, ...] }
 var darkside_info: Dictionary = {}  # 兼容旧代码 { loc: { type: {icon, label, image_path} } }
 var dark_texts: Dictionary = {}  # 暗面事件文本 { type: {icon, label, texts: []} }
 var _event_locations: Dictionary = {}  # per-location overrides
@@ -102,12 +103,27 @@ func _load_events() -> void:
 	card_effects      = defaults.get("effects", {})
 	event_texts       = defaults.get("texts", {})
 	trap_subtype_info = defaults.get("trap_subtypes", {})
-	# 填充 trap_subtype_texts 兼容层 (供 card.gd / event_popup_scene.gd 使用)
+
+	# 加载新格式陷阱子类型文本 {title, desc[, baiiye]} 对象数组
+	_trap_subtype_obj_texts.clear()
+	var sub_texts_raw: Dictionary = defaults.get("trap_subtype_texts", {})
+	for sub_name in sub_texts_raw:
+		_trap_subtype_obj_texts[sub_name] = sub_texts_raw[sub_name]
+
+	# 填充旧格式兼容层 trap_subtype_texts (仅保留 desc 字符串，供旧代码使用)
 	trap_subtype_texts.clear()
+	for sub_name in _trap_subtype_obj_texts:
+		var obj_arr: Array = _trap_subtype_obj_texts[sub_name]
+		var str_arr: Array = []
+		for entry in obj_arr:
+			str_arr.append((entry as Dictionary).get("desc", ""))
+		trap_subtype_texts[sub_name] = str_arr
+	# 也兼容旧 trap_subtypes 格式（event_pool.json 里的）
 	for sub_name in trap_subtype_info:
 		var sub: Dictionary = trap_subtype_info[sub_name]
-		if sub.has("texts"):
+		if sub.has("texts") and not trap_subtype_texts.has(sub_name):
 			trap_subtype_texts[sub_name] = sub["texts"]
+
 	_event_locations  = data.get("locations", {})
 
 	# 构建 darkside_info 兼容层 (供 card.gd / event_popup_scene.gd 使用)
@@ -223,12 +239,60 @@ func get_event_effect(event_type: String, location: String = "") -> Dictionary:
 	return card_effects.get(event_type, {})
 
 ## 获取事件文本列表 — 优先取地点覆盖，否则取 default
+## 返回值为 Array of {title, desc[, baiiye]} 对象（新格式）或 String（旧格式 fallback）
 func get_event_texts(event_type: String, location: String = "") -> Array:
 	if not location.is_empty() and _event_locations.has(location):
 		var loc: Dictionary = _event_locations[location]
-		if loc.has("texts") and loc["texts"].has(event_type):
-			return loc["texts"][event_type]
+		if loc.has(event_type):
+			return loc[event_type]
 	return event_texts.get(event_type, [])
+
+## 随机选取一条事件文本模板 — 返回 {title, desc[, baiiye]}
+## 优先级: trap_subtype_texts > 地点专属 > 通用 texts
+## @param card_type    事件类型（"trap"/"safe"/"monster" 等）
+## @param location     地点 key，可为空
+## @param trap_subtype 陷阱子类型 key，可为空
+func pick_event_template(card_type: String, location: String = "", trap_subtype: String = "") -> Dictionary:
+	# 1) 陷阱子类型有专属模板时优先使用
+	if card_type == "trap" and not trap_subtype.is_empty():
+		var sub_texts: Array = _trap_subtype_obj_texts.get(trap_subtype, [])
+		if not sub_texts.is_empty():
+			var entry: Dictionary = sub_texts[randi() % sub_texts.size()]
+			return {
+				"title": entry.get("title", "陷阱"),
+				"desc":  entry.get("desc", ""),
+				"baiiye": entry.get("baiiye", ""),
+			}
+
+	# 2) 地点专属
+	if not location.is_empty() and _event_locations.has(location):
+		var loc_texts: Array = (_event_locations[location] as Dictionary).get(card_type, [])
+		if not loc_texts.is_empty():
+			var entry: Dictionary = loc_texts[randi() % loc_texts.size()]
+			return {
+				"title":  entry.get("title", ""),
+				"desc":   entry.get("desc", ""),
+				"baiiye": entry.get("baiiye", ""),
+			}
+
+	# 3) 通用 texts
+	var default_texts: Array = event_texts.get(card_type, [])
+	if not default_texts.is_empty():
+		var entry = default_texts[randi() % default_texts.size()]
+		# 兼容旧格式（纯字符串）
+		if entry is String:
+			var type_info: Dictionary = GameTheme.card_type_info(card_type)
+			return { "title": type_info.get("label", "未知"), "desc": entry, "baiiye": "" }
+		if entry is Dictionary:
+			return {
+				"title":  entry.get("title", ""),
+				"desc":   entry.get("desc", ""),
+				"baiiye": entry.get("baiiye", ""),
+			}
+
+	# 4) 终极 fallback
+	var type_info: Dictionary = GameTheme.card_type_info(card_type)
+	return { "title": type_info.get("label", "未知"), "desc": "发生了一些事情...", "baiiye": "" }
 
 ## 获取暗面地点显示信息（用于 darkside_info 兼容）
 ## 返回 { "icon": String, "label": String, "image_path": String } 或空 Dictionary

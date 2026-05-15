@@ -130,6 +130,10 @@ func _ready() -> void:
 	# 连接 FooterArea 鼠标点击
 	_footer_area.gui_input.connect(_on_footer_input)
 
+	# 传闻便签点击翻页
+	_rumor_note.mouse_filter = Control.MOUSE_FILTER_STOP
+	_rumor_note.gui_input.connect(_on_rumor_note_input)
+
 	# RuledLines：注入 _draw 函数
 	_ruled_lines.draw.connect(_draw_ruled_lines)
 
@@ -184,12 +188,16 @@ func _apply_styles() -> void:
 	_collapse_btn.add_theme_font_size_override("font_size", 42)
 	_collapse_btn.add_theme_color_override("font_color", t.text_secondary)
 
-	# NoteVBox 各 Label 字号
-	_note_icon.add_theme_font_size_override("font_size", 42)
+	# NoteVBox 各 Label 字号及颜色
+	_note_icon.add_theme_font_size_override("font_size", 48)
 	_note_safe.add_theme_font_size_override("font_size", 27)
 	_note_text.add_theme_font_size_override("font_size", 24)
+	_note_text.add_theme_color_override("font_color", Color(t.text_secondary, 170.0 / 255.0))
 	_note_page_label.add_theme_font_size_override("font_size", 21)
 	_note_page_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.55))
+	# NoteVBox 条目间距（对应 Lua 各行中心间距约 39px）
+	var note_vbox: VBoxContainer = _note_icon.get_parent() as VBoxContainer
+	note_vbox.add_theme_constant_override("separation", 6)
 
 	# 线索空状态标签样式
 	_clue_empty_label.add_theme_font_size_override("font_size", 33)
@@ -800,6 +808,15 @@ func _on_footer_input(event: InputEvent) -> void:
 				end_day_pressed.emit()
 				if _on_advance_day.is_valid():
 					_on_advance_day.call()
+
+# ---------------------------------------------------------------------------
+# 传闻便签点击输入
+# ---------------------------------------------------------------------------
+func _on_rumor_note_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			next_rumor()
 
 # ---------------------------------------------------------------------------
 # 传闻翻页（外部可调用）

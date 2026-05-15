@@ -108,6 +108,137 @@
 			]
 		},
 
+		"hospital_npc": {
+			"name": "护士",
+			"tex_path": "res://assets/image/npc_护士_chibi_20260515134041.png",
+			"sprite_scale": 0.85,
+			"daily_cooldown": true,
+			"dialogues": [
+				{
+					"lines": [
+						{ "speaker": "护士", "text": "你看起来有些疲惫。最近睡得好吗？" },
+						{ "speaker": "护士", "text": "这附近很多人都说脑子不清醒……也许真的该放慢节奏。" },
+						{
+							"speaker": "护士",
+							"text": "我这儿有些镇静的药，能帮你恢复精神。当然，得消耗点体力。",
+							"choices": [
+								{ "label": "接受诊疗（2 健康 → 3 理智）", "action": "trade", "cost": ["health", 2], "gain": ["san", 3] },
+								{ "label": "我还撑得住", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "护士", "text": "又来了？身体还没好彻底就别乱跑。" },
+						{
+							"speaker": "护士",
+							"text": "要继续治疗的话，得付出些代价。",
+							"choices": [
+								{ "label": "接受治疗（2 健康 → 2 理智）", "action": "trade", "cost": ["health", 2], "gain": ["san", 2] },
+								{ "label": "改天再说", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "护士", "text": "……你眼神里有什么东西。" },
+						{ "speaker": "护士", "text": "不是普通的焦虑。是见过什么了吧。" },
+						{ "speaker": "护士", "text": "先坐着，喝杯水。" }
+					]
+				}
+			]
+		},
+
+		"park_npc": {
+			"name": "老人",
+			"tex_path": "res://assets/image/npc_公园老人_chibi_20260515134039.png",
+			"sprite_scale": 0.9,
+			"daily_cooldown": true,
+			"dialogues": [
+				{
+					"lines": [
+						{ "speaker": "老人", "text": "年轻人，你看起来心事重重啊。" },
+						{ "speaker": "老人", "text": "我每天在这儿坐坐，什么都想开了。" },
+						{
+							"speaker": "老人",
+							"text": "陪我走一圈？走走路，人会轻松许多。",
+							"choices": [
+								{ "label": "一起散步（2 理智 → 3 健康）", "action": "trade", "cost": ["san", 2], "gain": ["health", 3] },
+								{ "label": "我有些事要做", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "老人", "text": "公园里的花今天开得好。" },
+						{ "speaker": "老人", "text": "你知道吗，这片地以前是荒地，后来大家一起种的。" },
+						{
+							"speaker": "老人",
+							"text": "坐一会儿？",
+							"choices": [
+								{ "label": "陪老人坐坐（2 理智 → 2 健康）", "action": "trade", "cost": ["san", 2], "gain": ["health", 2] },
+								{ "label": "不了，谢谢", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "老人", "text": "那些雾……我年轻的时候也见过。" },
+						{ "speaker": "老人", "text": "后来就想开了。有些东西，看着它就好，别追。" },
+						{ "speaker": "老人", "text": "你啊，多出来走走，别老闷着。" }
+					]
+				}
+			]
+		},
+
+		"gym_npc": {
+			"name": "教练",
+			"tex_path": "res://assets/image/npc_健身教练_chibi_20260515134037.png",
+			"sprite_scale": 0.95,
+			"daily_cooldown": true,
+			"dialogues": [
+				{
+					"lines": [
+						{ "speaker": "教练", "text": "嘿，你来得正好。" },
+						{ "speaker": "教练", "text": "脑子太乱的时候就来练练，出出汗，什么都清醒了。" },
+						{
+							"speaker": "教练",
+							"text": "来一组？消耗不少，但保证让你感觉好一点。",
+							"choices": [
+								{ "label": "跟着练（2 理智 → 3 健康）", "action": "trade", "cost": ["san", 2], "gain": ["health", 3] },
+								{ "label": "今天算了", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "教练", "text": "状态不对劲啊。" },
+						{ "speaker": "教练", "text": "练点东西，把那些乱七八糟的念头逼出去。" },
+						{
+							"speaker": "教练",
+							"text": "少量训练就好。",
+							"choices": [
+								{ "label": "简单训练（2 理智 → 2 健康）", "action": "trade", "cost": ["san", 2], "gain": ["health", 2] },
+								{ "label": "下次吧", "action": "none" }
+							]
+						}
+					]
+				},
+				{
+					"lines": [
+						{ "speaker": "教练", "text": "最近来的人少了，说外面不安全。" },
+						{ "speaker": "教练", "text": "……我觉得待在室内更不安全。" },
+						{ "speaker": "教练", "text": "有空就来，门一直开着。" }
+					]
+				}
+			]
+		},
+
 		"cat": {
 			"name": "猫",
 			"tex_path": "res://assets/image/怪物_双尾猫妖v3_20260426071805.png",
