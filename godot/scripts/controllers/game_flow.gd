@@ -193,8 +193,12 @@ func _spawn_daily_npcs() -> void:
 	}
 	for loc in location_npcs:
 		var tile: Vector2i = _find_location_tile(loc)
+		print("[NPC] _find_location_tile(%s) → %s" % [loc, tile])
 		if tile != Vector2i(-1, -1):
 			npc_manager.spawn_npc(location_npcs[loc], tile.x, tile.y)
+			print("[NPC] spawned %s at (%d,%d)" % [location_npcs[loc], tile.x, tile.y])
+		else:
+			print("[NPC] 今天棋盘上没有 %s 地点" % loc)
 
 	# 创建 NPC 3D 节点 (如有 NPC 被生成)
 	if not npc_manager.npcs.is_empty():
@@ -203,13 +207,17 @@ func _spawn_daily_npcs() -> void:
 ## 在棋盘上查找指定 location 的第一个格子
 ## 返回 Vector2i(-1, -1) 表示未找到
 func _find_location_tile(location: String) -> Vector2i:
+	var found_but_occupied: bool = false
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card: Card = m.board.get_card(r, c)
 			if card != null and card.location == location:
-				# 跳过已有 NPC 占用的格子
 				if npc_manager.get_npc_at(r, c) == null:
 					return Vector2i(r, c)
+				else:
+					found_but_occupied = true
+	if found_but_occupied:
+		print("[NPC]   %s 格存在但已被其他NPC占用" % location)
 	return Vector2i(-1, -1)
 
 ## 在棋盘上选取一个空闲格子 (避开家和已有 NPC)

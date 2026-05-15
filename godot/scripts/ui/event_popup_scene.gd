@@ -1,5 +1,5 @@
-## EventPopupScene - 模态事件弹窗 (Scene 化)
-## 替代原 EventPopup 中的模态弹窗 + Toast 功能
+## EventPopupScene - 笔记本+拍立得风格事件弹窗 (Scene 化)
+## 布局对齐 Lua 版: 笔记本底板 + 左侧倾斜拍立得卡 + 右侧文字区
 ## 裂隙确认已拆分为 RiftPopup，相片预览已拆分为 PhotoPopup
 class_name EventPopupScene
 extends Control
@@ -72,25 +72,37 @@ signal toast_dismissed(card_type: String)
 const TOAST_MAX: int = 3
 const TOAST_ITEM_SCENE: String = "res://scenes/ui/components/toast_item.tscn"
 
-## 阻塞判定 — 委托 EventPool.is_blocking_type()
+# 笔记本尺寸（对应 Lua 版 NB_W/NB_H 的缩放值，1px Lua ≈ 4px Godot @1080p）
+const NB_W: int = 900
+const NB_H: int = 540
+
+# 拍立得卡内图区尺寸
+const POL_IMG_W: int = 190
+const POL_IMG_H: int = 267
+
+## 阻塞判定
 static func is_blocking_event(card_type: String, _has_choices: bool = false) -> bool:
 	return EventPool.is_blocking_type(card_type)
 
 # ---------------------------------------------------------------------------
-# 节点引用
+# 节点引用（对应新 tscn 结构）
 # ---------------------------------------------------------------------------
 @onready var _overlay: ColorRect = $Overlay
-@onready var _panel: PanelContainer = $PanelAnchor/Panel
-@onready var _vbox: VBoxContainer = $PanelAnchor/Panel/VBox
-@onready var _color_bar: ColorRect = $PanelAnchor/Panel/VBox/ColorBar
-@onready var _content_hbox: HBoxContainer = $PanelAnchor/Panel/VBox/ContentHBox
-@onready var _event_image: TextureRect = $PanelAnchor/Panel/VBox/ContentHBox/EventImage
-@onready var _image_spacer: Control = $PanelAnchor/Panel/VBox/ContentHBox/ImageSpacer
-@onready var _icon_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/IconLabel
-@onready var _title_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/TitleLabel
-@onready var _desc_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/DescLabel
-@onready var _effects_row: HBoxContainer = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/EffectsRow
-@onready var _hint_label: Label = $PanelAnchor/Panel/VBox/ContentHBox/RightVBox/HintLabel
+@onready var _notebook: PanelContainer = $PanelAnchor/Notebook
+@onready var _notebook_decor: Control = $PanelAnchor/Notebook/NotebookDecor
+@onready var _polaroid_area: Control = $PanelAnchor/Notebook/HBox/PolaroidArea
+@onready var _polaroid_card: PanelContainer = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard
+@onready var _event_texture: TextureRect = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/EventTexture
+@onready var _card_bottom: HBoxContainer = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom
+@onready var _type_label: Label = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/TypeLabel
+@onready var _location_label: Label = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/LocationLabel
+@onready var _right_vbox: VBoxContainer = $PanelAnchor/Notebook/HBox/RightVBox
+@onready var _title_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/TitleLabel
+@onready var _effects_row: HBoxContainer = $PanelAnchor/Notebook/HBox/RightVBox/EffectsRow
+@onready var _desc_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/DescLabel
+@onready var _baiiye_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/BaiyeLabel
+@onready var _confirm_button: PanelContainer = $PanelAnchor/Notebook/HBox/RightVBox/ConfirmButton
+@onready var _confirm_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/ConfirmButton/ConfirmLabel
 @onready var _toast_container: VBoxContainer = $ToastContainer
 
 # ---------------------------------------------------------------------------
@@ -99,7 +111,7 @@ static func is_blocking_event(card_type: String, _has_choices: bool = false) -> 
 var _active: bool = false
 var _card: Card = null
 var _phase: String = "none"  # "enter" | "idle" | "exit"
-var _cached_desc: String = ""
+var _photo_rotation_deg: float = 0.0
 
 # ---------------------------------------------------------------------------
 # 预加载
@@ -113,62 +125,86 @@ func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# 模态弹窗初始隐藏（仅 show_event 时显示）
 	_overlay.visible = false
 	$PanelAnchor.visible = false
 
-	# 预加载 Toast 场景
 	_toast_item_packed = load(TOAST_ITEM_SCENE)
+
+	# 笔记本稿纸装饰（红色边距竖线 + 蓝色横线）
+	_notebook_decor.draw.connect(_draw_notebook_decor)
+	_notebook.resized.connect(func(): _notebook_decor.queue_redraw())
 
 	var t = GameTheme
 
-	# 面板样式
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = Color(t.card_face.r, t.card_face.g, t.card_face.b, 0.95)
-	panel_style.border_color = Color(t.card_border.r, t.card_border.g, t.card_border.b, 0.6)
-	panel_style.set_border_width_all(6)
-	panel_style.set_corner_radius_all(42)
-	panel_style.set_content_margin_all(0)
-	_panel.add_theme_stylebox_override("panel", panel_style)
+	# 笔记本底板样式（奶白色纸质感）
+	var nb_style: StyleBoxFlat = StyleBoxFlat.new()
+	nb_style.bg_color = Color(0.980, 0.965, 0.933, 0.98)
+	nb_style.border_color = Color(0.769, 0.722, 0.643, 0.70)
+	nb_style.set_border_width_all(3)
+	nb_style.set_corner_radius_all(18)
+	nb_style.content_margin_left = 0
+	nb_style.content_margin_right = 36
+	nb_style.content_margin_top = 0
+	nb_style.content_margin_bottom = 0
+	_notebook.add_theme_stylebox_override("panel", nb_style)
+	_notebook.custom_minimum_size = Vector2(NB_W, NB_H)
 
-	# 面板尺寸 — 依赖 viewport
-	_panel.custom_minimum_size = Vector2(840, 660)
+	# 拍立得卡样式（奶白色相纸）
+	var pol_style: StyleBoxFlat = StyleBoxFlat.new()
+	pol_style.bg_color = Color(0.992, 0.988, 0.965, 1.0)
+	pol_style.border_color = Color(0.824, 0.784, 0.725, 0.55)
+	pol_style.set_border_width_all(2)
+	pol_style.set_corner_radius_all(6)
+	pol_style.content_margin_left = 12
+	pol_style.content_margin_right = 12
+	pol_style.content_margin_top = 12
+	pol_style.content_margin_bottom = 0
+	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
 
-	# 字号和颜色
-	_icon_label.add_theme_font_size_override("font_size", 126)
-	_icon_label.add_theme_color_override("font_color", t.text_primary)
+	# 右侧文字区内边距
+	_right_vbox.add_theme_constant_override("separation", 16)
+	var hbox: HBoxContainer = $PanelAnchor/Notebook/HBox
+	hbox.add_theme_constant_override("separation", 0)
 
-	_title_label.add_theme_font_size_override("font_size", 54)
+	# 标题字号
+	_title_label.add_theme_font_size_override("font_size", 52)
+	_title_label.add_theme_color_override("font_color", Color(0.18, 0.18, 0.22, 0.92))
 
-	_desc_label.add_theme_font_size_override("font_size", 36)
-	_desc_label.add_theme_color_override("font_color", t.text_secondary)
+	# 描述字号
+	_desc_label.add_theme_font_size_override("font_size", 34)
+	_desc_label.add_theme_color_override("font_color", Color(0.38, 0.38, 0.44, 0.78))
 
-	_hint_label.add_theme_font_size_override("font_size", 36)
-	_hint_label.add_theme_color_override("font_color",
-		Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.6))
+	# 白夜台词
+	_baiiye_label.add_theme_font_size_override("font_size", 30)
+	_baiiye_label.add_theme_color_override("font_color", Color(0.502, 0.459, 0.647, 0.72))
+
+	# 拍立得底部标签字号
+	_type_label.add_theme_font_size_override("font_size", 30)
+	_location_label.add_theme_font_size_override("font_size", 30)
+
+	# 确认按钮样式（绿色胶囊）
+	_style_confirm_button(false)
+	_confirm_label.add_theme_font_size_override("font_size", 40)
+	_confirm_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.96))
 
 # ---------------------------------------------------------------------------
-# 关联组件引用 (由 main.gd 在实例化后注入)
+# 关联组件引用
 # ---------------------------------------------------------------------------
-var _rift_popup: Control = null   # RiftPopup 实例
-var _photo_popup: Control = null  # PhotoPopup 实例
+var _rift_popup: Control = null
+var _photo_popup: Control = null
 
-## 设置关联组件 (在 main._setup_scene_tree() 中调用)
 func bind_sub_popups(rift: Control, photo: Control) -> void:
 	_rift_popup = rift
 	_photo_popup = photo
 
 # ---------------------------------------------------------------------------
-# 委托方法 (保持控制器代码兼容)
+# 委托方法
 # ---------------------------------------------------------------------------
 
-## 委托给 RiftPopup
 func show_rift_confirm(cx: float = 0.0, cy: float = 0.0) -> void:
 	if _rift_popup:
 		_rift_popup.show_rift_confirm(cx, cy)
 
-## 委托给 RiftPopup: 自定义确认弹窗 (兑换事件等)
-## 返回 RiftPopup 实例供调用方连接信号, null 表示不可用
 func show_custom_confirm(icon: String, title: String, desc: String,
 		btn_yes: String, btn_no: String, accent: Color) -> RiftPopup:
 	if _rift_popup:
@@ -176,31 +212,15 @@ func show_custom_confirm(icon: String, title: String, desc: String,
 		return _rift_popup as RiftPopup
 	return null
 
-## 委托给 PhotoPopup
 func show_photo(card: Card) -> void:
 	if _photo_popup:
 		_photo_popup.show_photo(card)
-
-## 自适应面板大小
-func _on_resized() -> void:
-	if _panel:
-		var vp: Vector2 = get_viewport_rect().size
-		_panel.custom_minimum_size = Vector2(minf(vp.x * 0.7, 1344), minf(vp.y * 0.45, 864))
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED:
-		_on_resized()
 
 # ===========================================================================
 # 模态弹窗 API
 # ===========================================================================
 
-## 打开事件弹窗 — 非阻断事件路径（新签名）
-## card_type:    事件类型，如 "monster"/"trap"/"safe" 等
-## effects:      已结算的效果 Dictionary（弹窗前已 apply，此处仅展示）
-## shield_used:  是否护盾减伤
-## location:     地点 key，用于选取地点专属文案和图片
-## trap_subtype: 陷阱子类型 key（仅 trap 事件有意义）
+## 非阻断事件弹窗（新路径）：笔记本+拍立得布局
 func show_event_data(
 		card_type: String,
 		effects: Dictionary,
@@ -213,66 +233,98 @@ func show_event_data(
 	_overlay.visible = true
 	$PanelAnchor.visible = true
 
-	# --- 文案 ---
+	_photo_rotation_deg = randf_range(-5.0, 5.0)
+
 	var tmpl: Dictionary = CardConfig.pick_event_template(card_type, location, trap_subtype)
 	var type_color: Color = GameTheme.card_type_color(card_type)
-	var darkside: Dictionary = Locations.get_dark_display(location)
-	var dark_info: Dictionary = darkside.get(card_type, {})
+	var type_info: Dictionary = GameTheme.card_type_info(card_type)
+	var dark_display: Dictionary = Locations.get_dark_display(location)
+	var dark_info: Dictionary = dark_display.get(card_type, {})
 
-	_color_bar.color = Color(type_color.r, type_color.g, type_color.b, 0.8)
-	_icon_label.text = dark_info.get("icon", GameTheme.card_type_info(card_type).get("icon", "❓"))
-	_title_label.text = tmpl.get("title", dark_info.get("label", "未知事件"))
-	_title_label.add_theme_color_override("font_color", type_color)
-	_desc_label.text = tmpl.get("desc", "")
-	_hint_label.text = "知道了"
-
-	# --- 护盾提示 ---
-	if shield_used:
-		_desc_label.text += "\n\n🛡️ 护盾抵消了部分伤害。"
-
-	# --- 事件插画 ---
+	# --- 拍立得内容 ---
 	_load_event_image(location, card_type)
 
-	# --- 效果徽章 ---
-	_populate_effects(effects)
+	# 拍立得底部：事件类型 + 地点
+	var type_icon: String = type_info.get("icon", "✨")
+	var type_name: String = dark_info.get("label", type_info.get("label", card_type))
+	_type_label.text = type_icon + " " + type_name
+	_type_label.add_theme_color_override("font_color",
+		Color(type_color.r, type_color.g, type_color.b, 0.82))
 
-	# --- 面板尺寸 ---
-	_on_resized()
+	var loc_info: Dictionary = CardConfig.location_info.get(location, {})
+	var loc_text: String = loc_info.get("icon", "") + " " + loc_info.get("label", "")
+	_location_label.text = loc_text.strip_edges()
+	_location_label.add_theme_color_override("font_color", Color(0.314, 0.294, 0.255, 0.72))
+	_location_label.visible = not loc_text.strip_edges().is_empty()
+	($PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
 
-	_run_enter_animation()
+	# 设置拍立得旋转
+	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
 
-## 打开事件弹窗 (旧签名，供 shop 等阻断型事件使用)
+	# --- 右侧文字区 ---
+	_title_label.text = tmpl.get("title", dark_info.get("label", "未知事件"))
+	_title_label.add_theme_color_override("font_color",
+		Color(type_color.r, type_color.g, type_color.b, 0.90))
+
+	_populate_effects(effects, shield_used)
+
+	_desc_label.text = tmpl.get("desc", "")
+
+	# 白夜台词
+	var baiiye_text: String = tmpl.get("baiiye", "")
+	if baiiye_text != "":
+		_baiiye_label.text = "— " + baiiye_text
+		_baiiye_label.visible = true
+		_baiiye_label.modulate.a = 0.0
+	else:
+		_baiiye_label.visible = false
+
+	_confirm_label.text = "知道了"
+	_style_confirm_button(false)
+
+	_run_enter_animation(baiiye_text != "")
+
+## 旧签名（供 shop 等阻断型事件使用）
 func show_event(card: Card) -> void:
 	_card = card
 	_active = true
 	_phase = "enter"
-	_cached_desc = card.get_event_text()
 	visible = true
 	_overlay.visible = true
 	$PanelAnchor.visible = true
 
-	# 填充内容
-	var darkside: Dictionary = card.get_darkside_info()
+	_photo_rotation_deg = randf_range(-4.0, 4.0)
+
 	var type_color: Color = GameTheme.card_type_color(card.type)
+	var type_info: Dictionary = GameTheme.card_type_info(card.type)
+	var darkside: Dictionary = card.get_darkside_info()
 
-	_color_bar.color = Color(type_color.r, type_color.g, type_color.b, 0.8)
-	_icon_label.text = darkside.get("icon", "❓")
+	# 拍立得：shop 无插画，显示 emoji 占位
+	_event_texture.texture = null
+	_event_texture.visible = false
+	# 底部类型+地点
+	_type_label.text = type_info.get("icon", "❓") + " " + darkside.get("label", card.type)
+	_type_label.add_theme_color_override("font_color",
+		Color(type_color.r, type_color.g, type_color.b, 0.82))
+	var loc_info: Dictionary = CardConfig.location_info.get(card.location, {})
+	var loc_text: String = loc_info.get("icon", "") + " " + loc_info.get("label", "")
+	_location_label.text = loc_text.strip_edges()
+	_location_label.visible = not loc_text.strip_edges().is_empty()
+	($PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
+
+	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
+
+	# 右侧
 	_title_label.text = darkside.get("label", "未知事件")
-	_title_label.add_theme_color_override("font_color", type_color)
-	_desc_label.text = _cached_desc
-	_hint_label.text = "点击关闭"
+	_title_label.add_theme_color_override("font_color",
+		Color(type_color.r, type_color.g, type_color.b, 0.90))
+	_populate_effects(card.get_effects(), false)
+	_desc_label.text = card.get_event_text()
+	_baiiye_label.visible = false
+	_confirm_label.text = "点击关闭"
+	_style_confirm_button(false)
 
-	# 无插画（shop 使用图标，不显示竖版插画）
-	_event_image.visible = false
-	_image_spacer.visible = false
-
-	# 填充效果徽章
-	_populate_effects(card.get_effects())
-
-	# 自适应面板大小
-	_on_resized()
-
-	_run_enter_animation()
+	_run_enter_animation(false)
 
 # ---------------------------------------------------------------------------
 # 内部：加载事件插画
@@ -280,50 +332,60 @@ func show_event(card: Card) -> void:
 func _load_event_image(location: String, event_type: String) -> void:
 	var tex: Texture2D = CardImageMap.get_event_texture(location, event_type)
 	if tex != null:
-		_event_image.texture = tex
-		_event_image.visible = true
-		_image_spacer.visible = true
-		# 有图时缩小面板最小宽度（图片固定 300px，右侧文字区域跟随缩小）
-		_panel.custom_minimum_size = Vector2(960, 660)
+		_event_texture.texture = tex
+		_event_texture.visible = true
 	else:
-		_event_image.visible = false
-		_image_spacer.visible = false
-		_panel.custom_minimum_size = Vector2(840, 660)
+		_event_texture.texture = null
+		_event_texture.visible = false
 
 # ---------------------------------------------------------------------------
-# 内部：入场动画（抽取公共逻辑）
+# 内部：确认按钮样式
 # ---------------------------------------------------------------------------
-func _run_enter_animation() -> void:
-	# 初始动画状态
+func _style_confirm_button(hovered: bool) -> void:
+	var btn_style: StyleBoxFlat = StyleBoxFlat.new()
+	var base_g: float = 0.706 if not hovered else 0.78
+	btn_style.bg_color = Color(0.278, base_g, 0.510, 0.92)
+	btn_style.set_corner_radius_all(24)
+	btn_style.content_margin_left = 24
+	btn_style.content_margin_right = 24
+	btn_style.content_margin_top = 14
+	btn_style.content_margin_bottom = 14
+	_confirm_button.add_theme_stylebox_override("panel", btn_style)
+
+# ---------------------------------------------------------------------------
+# 内部：入场动画
+# ---------------------------------------------------------------------------
+func _run_enter_animation(has_baiiye: bool) -> void:
 	_overlay.color.a = 0.0
-	_panel.scale = Vector2(0.3, 0.3)
-	_panel.pivot_offset = _panel.size / 2.0
-	_panel.modulate.a = 0.0
-	_icon_label.modulate.a = 0.0
+	_notebook.scale = Vector2(0.3, 0.3)
+	_notebook.pivot_offset = _notebook.size / 2.0
+	_notebook.modulate.a = 0.0
+	_polaroid_card.modulate.a = 0.0
 	_title_label.modulate.a = 0.0
-	_desc_label.modulate.a = 0.0
 	_effects_row.modulate.a = 0.0
-	_hint_label.modulate.a = 0.0
+	_desc_label.modulate.a = 0.0
+	_confirm_button.modulate.a = 0.0
 
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(_overlay, "color:a", 0.45, 0.35)
-	tw.tween_property(_panel, "scale", Vector2.ONE, 0.35) \
+	tw.tween_property(_notebook, "scale", Vector2.ONE, 0.35) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(_panel, "modulate:a", 1.0, 0.35)
+	tw.tween_property(_notebook, "modulate:a", 1.0, 0.35)
 
-	# 内容逐行错时入场
-	var base: float = 0.12
-	var stagger: float = 0.08
-	tw.tween_property(_icon_label, "modulate:a", 1.0, 0.3).set_delay(base) \
+	var base: float = 0.10
+	tw.tween_property(_polaroid_card, "modulate:a", 1.0, 0.28).set_delay(base) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(_title_label, "modulate:a", 1.0, 0.3).set_delay(base + stagger) \
+	tw.tween_property(_title_label, "modulate:a", 1.0, 0.26).set_delay(base + 0.06) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(_desc_label, "modulate:a", 1.0, 0.3).set_delay(base + stagger * 2) \
+	tw.tween_property(_effects_row, "modulate:a", 1.0, 0.24).set_delay(base + 0.13) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_effects_row, "modulate:a", 1.0, 0.25).set_delay(base + stagger * 3) \
+	tw.tween_property(_desc_label, "modulate:a", 1.0, 0.24).set_delay(base + 0.20) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_hint_label, "modulate:a", 0.6, 0.3).set_delay(base + stagger * 4) \
+	if has_baiiye:
+		tw.tween_property(_baiiye_label, "modulate:a", 0.72, 0.28).set_delay(base + 0.30) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(_confirm_button, "modulate:a", 1.0, 0.26).set_delay(base + 0.28) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.chain().tween_callback(func(): _phase = "idle")
 
@@ -335,14 +397,16 @@ func dismiss() -> void:
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(_overlay, "color:a", 0.0, 0.22)
-	tw.tween_property(_panel, "scale", Vector2(0.5, 0.5), 0.22) \
+	tw.tween_property(_notebook, "scale", Vector2(0.5, 0.5), 0.22) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(_panel, "modulate:a", 0.0, 0.22)
-	tw.tween_property(_icon_label, "modulate:a", 0.0, 0.15)
+	tw.tween_property(_notebook, "modulate:a", 0.0, 0.22)
+	tw.tween_property(_polaroid_card, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_title_label, "modulate:a", 0.0, 0.15)
-	tw.tween_property(_desc_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_effects_row, "modulate:a", 0.0, 0.15)
-	tw.tween_property(_hint_label, "modulate:a", 0.0, 0.15)
+	tw.tween_property(_desc_label, "modulate:a", 0.0, 0.15)
+	tw.tween_property(_confirm_button, "modulate:a", 0.0, 0.15)
+	if _baiiye_label.visible:
+		tw.tween_property(_baiiye_label, "modulate:a", 0.0, 0.12)
 	tw.chain().tween_callback(_on_dismiss_complete)
 
 func _on_dismiss_complete() -> void:
@@ -358,13 +422,16 @@ func is_active() -> bool:
 	return _active
 
 # ===========================================================================
-# 效果徽章
+# 效果徽章（Lua 版风格：绿/红胶囊，icon + 数值）
 # ===========================================================================
 
-func _populate_effects(effects: Dictionary) -> void:
-	# 清空旧内容
+func _populate_effects(effects: Dictionary, shield_used: bool) -> void:
 	for child in _effects_row.get_children():
 		child.queue_free()
+
+	if shield_used:
+		_add_effect_badge("🛡️ 护盾", Color(0.278, 0.706, 0.510), 0)
+		return
 
 	if effects.is_empty():
 		return
@@ -374,42 +441,40 @@ func _populate_effects(effects: Dictionary) -> void:
 		var delta_val: int = effects[key]
 		var res_icon: String = GameData.RESOURCE_ICONS.get(key, "?")
 		var prefix: String = "+" if delta_val > 0 else ""
-		var badge_text: String = res_icon + " " + prefix + str(delta_val)
-
-		var badge: PanelContainer = PanelContainer.new()
-		var badge_style: StyleBoxFlat = StyleBoxFlat.new()
 		var bg_c: Color = t.safe if delta_val > 0 else t.danger
-		badge_style.bg_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.14)
-		badge_style.border_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.31)
-		badge_style.set_border_width_all(1)
-		badge_style.set_corner_radius_all(12)
-		badge_style.content_margin_left = 18
-		badge_style.content_margin_right = 18
-		badge_style.content_margin_top = 6
-		badge_style.content_margin_bottom = 6
-		badge.add_theme_stylebox_override("panel", badge_style)
+		_add_effect_badge(res_icon + " " + prefix + str(delta_val), bg_c, delta_val)
 
-		var lbl: Label = Label.new()
-		lbl.text = badge_text
-		lbl.add_theme_font_size_override("font_size", 42)
-		lbl.add_theme_color_override("font_color", bg_c)
-		badge.add_child(lbl)
-		_effects_row.add_child(badge)
+func _add_effect_badge(text: String, color: Color, _delta: int) -> void:
+	var badge: PanelContainer = PanelContainer.new()
+	var badge_style: StyleBoxFlat = StyleBoxFlat.new()
+	badge_style.bg_color = Color(color.r, color.g, color.b, 0.14)
+	badge_style.border_color = Color(color.r, color.g, color.b, 0.35)
+	badge_style.set_border_width_all(2)
+	badge_style.set_corner_radius_all(20)
+	badge_style.content_margin_left = 22
+	badge_style.content_margin_right = 22
+	badge_style.content_margin_top = 8
+	badge_style.content_margin_bottom = 8
+	badge.add_theme_stylebox_override("panel", badge_style)
+
+	var lbl: Label = Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 40)
+	lbl.add_theme_color_override("font_color", color)
+	badge.add_child(lbl)
+	_effects_row.add_child(badge)
 
 # ===========================================================================
 # Toast API
 # ===========================================================================
 
-## 推送一条 Toast 通知
 func show_toast(data: ToastData) -> void:
 	var card_type: String = data.card_type
 	var trap_subtype: String = data.trap_subtype
 	var location: String = data.location
 
-	# 文案处理
 	var tmpl: Dictionary = _pick_template(card_type, trap_subtype, location)
 
-	# 标题
 	var display_title: String = data.title
 	if display_title == "":
 		display_title = tmpl["title"]
@@ -419,7 +484,6 @@ func show_toast(data: ToastData) -> void:
 			if dark_info.has("label"):
 				display_title = dark_info["label"]
 
-	# 图标
 	var display_icon: String = data.icon
 	if display_icon == "":
 		display_icon = GameTheme.card_type_info(card_type).get("icon", "❓")
@@ -428,7 +492,6 @@ func show_toast(data: ToastData) -> void:
 			if sub_info.has("icon"):
 				display_icon = sub_info["icon"]
 
-	# 描述
 	var display_desc: String = data.desc
 	if display_desc == "":
 		display_desc = tmpl["desc"]
@@ -444,19 +507,12 @@ func show_toast(data: ToastData) -> void:
 	}
 	_show_toast_internal(toast_dict)
 
-## 内部方法：实例化 ToastItem 场景
 func _show_toast_internal(data: Dictionary) -> void:
 	visible = true
-
-	# 实例化 ToastItem
 	var toast_node: ToastItem = _toast_item_packed.instantiate() as ToastItem
 	_toast_container.add_child(toast_node)
 	toast_node.setup(data)
-
-	# 连接 dismissed 信号
 	toast_node.dismissed.connect(_on_toast_dismissed)
-
-	# 限制最大数量
 	_enforce_toast_limit()
 
 func _enforce_toast_limit() -> void:
@@ -465,18 +521,14 @@ func _enforce_toast_limit() -> void:
 	for child in children:
 		if child is ToastItem:
 			visible_count += 1
-
 	if visible_count > TOAST_MAX:
-		# 移除最旧的
 		for child in children:
 			if child is ToastItem:
-				var ti: ToastItem = child as ToastItem
-				ti.start_exit()
+				(child as ToastItem).start_exit()
 				break
 
 func _on_toast_dismissed(card_type: String) -> void:
 	toast_dismissed.emit(card_type)
-	# 检查是否还需要保持可见
 	if not _active and not _has_active_toasts():
 		visible = false
 
@@ -505,16 +557,6 @@ func is_any_active() -> bool:
 # 输入处理
 # ===========================================================================
 
-## 选择性命中检测
-func _has_point(point: Vector2) -> bool:
-	# 模态弹窗：全屏拦截
-	if _active:
-		return true
-	# Toast：仅拦截 toast 容器区域
-	if _has_active_toasts():
-		return _toast_container.get_global_rect().has_point(point)
-	return false
-
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
@@ -526,13 +568,62 @@ func _gui_input(event: InputEvent) -> void:
 
 func _handle_popup_click() -> void:
 	if _phase == "enter":
-		return  # 入场中不处理
+		return
+	# hover 效果：按钮点击时短暂高亮
+	_style_confirm_button(true)
 	dismiss()
 
 # ===========================================================================
 # 工具方法
 # ===========================================================================
 
-## 已废弃：由 CardConfig.pick_event_template() 统一替代，保留签名防止外部残留调用
 func _pick_template(card_type: String, trap_subtype: String = "", location: String = "") -> Dictionary:
 	return CardConfig.pick_event_template(card_type, location, trap_subtype)
+
+# ---------------------------------------------------------------------------
+# 笔记本稿纸装饰绘制（红色边距竖线 + 蓝色横线，对齐 Lua 版 drawPhoto）
+# ---------------------------------------------------------------------------
+func _draw_notebook_decor() -> void:
+	var t: Node = get_node("/root/GameTheme")
+	var sz: Vector2 = _notebook_decor.size
+	if sz.x < 10.0 or sz.y < 10.0:
+		return
+
+	# 红色边距竖线位置：PolaroidArea 右边缘（约 240px）+ 小量偏移
+	# 与拍立得区域右边齐，充当分隔线
+	var pol_w: float = _polaroid_area.size.x if _polaroid_area else 240.0
+	var red_x: float = pol_w + 6.0
+
+	# 红色竖线
+	_notebook_decor.draw_line(
+		Vector2(red_x, 10.0),
+		Vector2(red_x, sz.y - 10.0),
+		Color(0.784, 0.333, 0.333, 0.38),
+		2.0
+	)
+
+	# 蓝色横线（稿纸风格，仅在文字区右侧绘制）
+	var line_x0: float = red_x + 10.0
+	var line_x1: float = sz.x - 20.0
+	var line_spacing: float = 54.0
+	var ly: float = line_spacing * 1.1
+	while ly < sz.y - 14.0:
+		_notebook_decor.draw_line(
+			Vector2(line_x0, ly),
+			Vector2(line_x1, ly),
+			Color(t.notebook_line, 0.20),
+			1.5
+		)
+		ly += line_spacing
+
+func _on_resized() -> void:
+	if _notebook:
+		var vp: Vector2 = get_viewport_rect().size
+		_notebook.custom_minimum_size = Vector2(
+			minf(vp.x * 0.72, 1080),
+			minf(vp.y * 0.52, 600)
+		)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_on_resized()

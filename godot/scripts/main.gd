@@ -76,6 +76,9 @@ var _dlg_enter_tweened: bool = false
 var _dlg_exit_tweened: bool = false
 var _bubble_show_tweened: bool = false
 var _bubble_hide_tweened: bool = false
+var _npc_bubbles: Dictionary = {}          # npc_id → BubbleDialogue
+var _npc_bubble_show_tweened: Dictionary = {}  # npc_id → bool
+var _npc_bubble_hide_tweened: Dictionary = {}  # npc_id → bool
 
 # ---------------------------------------------------------------------------
 # UI 节点引用
@@ -164,6 +167,7 @@ func _ready() -> void:
 	# 对话系统
 	_dialogue_system = DialogueSystem.new()
 	_bubble_dialogue = BubbleDialogue.new()
+	set_meta("_npc_bubbles", _npc_bubbles)  # 供 bubble_overlay 读取
 
 	# 场景树 → 控制器 → 信号
 	_setup_scene_tree()
@@ -1035,3 +1039,49 @@ func _update_bubble_tweens(dt: float) -> void:
 		"hidden":
 			_bubble_show_tweened = false
 			_bubble_hide_tweened = false
+
+	# --- NPC 气泡 ---
+	# 1. 同步: 与当前存活的 npc_manager.npcs 对齐（懒创建/懒删除）
+	if game_flow and game_flow.npc_manager:
+		var live_ids: Array = game_flow.npc_manager.npcs.keys()
+		# 新增
+		for npc_id in live_ids:
+			if not _npc_bubbles.has(npc_id):
+				_npc_bubbles[npc_id] = BubbleDialogue.create_for_npc(npc_id)
+				_npc_bubble_show_tweened[npc_id] = false
+				_npc_bubble_hide_tweened[npc_id] = false
+		# 移除已消失的 NPC
+		for npc_id in _npc_bubbles.keys():
+			if not live_ids.has(npc_id):
+				_npc_bubbles.erase(npc_id)
+				_npc_bubble_show_tweened.erase(npc_id)
+				_npc_bubble_hide_tweened.erase(npc_id)
+
+	# 2. 更新每个 NPC 气泡的状态机 + tween
+	for npc_id in _npc_bubbles:
+		var bd: BubbleDialogue = _npc_bubbles[npc_id]
+		bd.update_npc(dt)
+
+		match bd.state:
+			"showing":
+				if not _npc_bubble_show_tweened.get(npc_id, false):
+					_npc_bubble_show_tweened[npc_id] = true
+					_npc_bubble_hide_tweened[npc_id] = false
+					var tw: Tween = create_tween().set_parallel(true)
+					tw.tween_property(bd, "bubble_alpha", 1.0, 0.2)
+					tw.tween_property(bd, "bubble_scale", 1.0, 0.25) \
+						.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+					tw.tween_property(bd, "offset_y", 0.0, 0.2)
+					var tw_cb: Tween = create_tween()
+					tw_cb.tween_callback(bd.on_show_complete).set_delay(0.3)
+			"hiding":
+				if not _npc_bubble_hide_tweened.get(npc_id, false):
+					_npc_bubble_hide_tweened[npc_id] = true
+					var tw: Tween = create_tween().set_parallel(true)
+					tw.tween_property(bd, "bubble_alpha", 0.0, 0.15)
+					tw.tween_property(bd, "bubble_scale", 0.5, 0.15)
+					var tw_cb: Tween = create_tween()
+					tw_cb.tween_callback(bd.on_hide_complete).set_delay(0.2)
+			"hidden":
+				_npc_bubble_show_tweened[npc_id] = false
+				_npc_bubble_hide_tweened[npc_id] = false
