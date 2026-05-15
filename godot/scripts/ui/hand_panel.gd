@@ -95,6 +95,10 @@ var _tween: Tween = null
 var _on_use_exorcism: Callable
 var _on_advance_day: Callable
 
+# 外部引用
+var _card_manager = null
+var _consumable_controller = null
+
 # ---------------------------------------------------------------------------
 # _ready：初始化样式 + 布局
 # ---------------------------------------------------------------------------
@@ -370,7 +374,7 @@ var _footer_pulse_time: float = 0.0   # 每帧由 _process 累加
 func _draw_footer() -> void:
 	if not _visible_state or not _expanded: return
 
-	var schedules: Array = GameData.get_schedules() if _has_game_data() else []
+	var schedules: Array = _card_manager.schedules if _has_game_data() else []
 	var has_pending: bool = false
 	var pending_count: int = 0
 	for s: Dictionary in schedules:
@@ -421,9 +425,10 @@ func _draw_footer() -> void:
 # 公开 API
 # ---------------------------------------------------------------------------
 
-## 设置 CardManager 和 CardController 引用
+## 设置 CardManager 和 ConsumableController 引用
 func setup(cm, cc) -> void:
-	pass  # Godot 版从 GameData autoload 读取，无需外部注入
+	_card_manager = cm
+	_consumable_controller = cc
 
 func set_use_exorcism_callback(fn: Callable) -> void:
 	_on_use_exorcism = fn
@@ -528,7 +533,7 @@ func _process(delta: float) -> void:
 
 	# 检测"可进入下一天"状态变化 → 自动展开到日程 tab
 	if _has_game_data():
-		var schedules: Array = GameData.get_schedules()
+		var schedules: Array = _card_manager.schedules
 		var has_pending: bool = false
 		for s: Dictionary in schedules:
 			if s.get("status", "") == "pending":
@@ -591,7 +596,7 @@ func _refresh_schedules() -> void:
 		child.queue_free()
 
 	if not _has_game_data(): return
-	var schedules: Array = GameData.get_schedules()
+	var schedules: Array = _card_manager.schedules
 
 	for i in range(schedules.size()):
 		var sched: Dictionary = schedules[i]
@@ -602,7 +607,7 @@ func _refresh_schedules() -> void:
 
 func _refresh_rumors() -> void:
 	if not _has_game_data(): return
-	var rumors: Array = GameData.get_rumors() if GameData.has_method("get_rumors") else []
+	var rumors: Array = _card_manager.rumors
 
 	if rumors.is_empty():
 		_rumor_note.visible = false
@@ -646,7 +651,7 @@ func _refresh_items() -> void:
 		child.queue_free()
 
 	if not _has_game_data(): return
-	var consumables: Array = GameData.get_consumables() if GameData.has_method("get_consumables") else []
+	var consumables: Array = _consumable_controller.get_consumable_entries() if _consumable_controller != null else []
 
 	for entry: Dictionary in consumables:
 		var btn: Node = preload("res://scenes/ui/components/consumable_item_btn.tscn").instantiate()
@@ -670,7 +675,7 @@ func _on_footer_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			if not _has_game_data(): return
-			var schedules: Array = GameData.get_schedules()
+			var schedules: Array = _card_manager.schedules
 			var has_pending: bool = false
 			for s: Dictionary in schedules:
 				if s.get("status", "") == "pending":
@@ -689,7 +694,7 @@ func _on_footer_input(event: InputEvent) -> void:
 # ---------------------------------------------------------------------------
 func next_rumor() -> void:
 	if not _has_game_data(): return
-	var rumors: Array = GameData.get_rumors() if GameData.has_method("get_rumors") else []
+	var rumors: Array = _card_manager.rumors
 	if rumors.size() > 1:
 		_rumor_page = (_rumor_page % rumors.size()) + 1
 		_refresh_rumors()
@@ -698,7 +703,7 @@ func next_rumor() -> void:
 # 辅助
 # ---------------------------------------------------------------------------
 func _has_game_data() -> bool:
-	return has_node("/root/GameData")
+	return has_node("/root/GameData") and _card_manager != null
 
 func _on_resize() -> void:
 	_update_notebook_size()
