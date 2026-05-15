@@ -137,7 +137,7 @@ func rebuild_card_nodes() -> void:
 			png_sprite.rotation_degrees = Vector3(-90, 180, 0)
 			png_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			png_sprite.transparent = true
-			png_sprite.alpha_cut_mode = SpriteBase3D.ALPHA_CUT_DISABLED
+			png_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 			png_sprite.no_depth_test = false
 			card_node.add_child(png_sprite)
 
@@ -149,7 +149,7 @@ func rebuild_card_nodes() -> void:
 			overlay_sprite.rotation_degrees = Vector3(-90, 180, 0)
 			overlay_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			overlay_sprite.transparent = true
-			overlay_sprite.alpha_cut_mode = SpriteBase3D.ALPHA_CUT_DISABLED
+			overlay_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 			overlay_sprite.no_depth_test = false
 			card_node.add_child(overlay_sprite)
 

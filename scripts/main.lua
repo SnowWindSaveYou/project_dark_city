@@ -16,7 +16,6 @@ local CardTextures = require "CardTextures"
 local ResourceBar = require "ResourceBar"
 local EventPopup  = require "EventPopup"
 local CameraButton = require "CameraButton"
-local TitleScreen = require "TitleScreen"
 local GameOver    = require "GameOver"
 local ShopPopup    = require "ShopPopup"
 local CardManager      = require "CardManager"
@@ -105,6 +104,13 @@ local G = {
     checkDefeat    = nil,   -- → Start() 中赋值 (跨模块回调)
     enterDarkWorld = nil,   -- → Start() 中赋值 (跨模块回调)
     storyMgr       = nil,   -- → Start() 中赋值 (StoryManager 实例)
+}
+
+-- 入场过渡遮罩 (替代 TitleScreen, 全黑→游戏)
+local introOverlay_ = {
+    active   = false,
+    bgAlpha  = 0.0,   -- 黑色底层透明度
+    txtAlpha = 0.0,   -- 标题文字透明度
 }
 
 -- 模块实例 (同时存储在 G 中供子模块访问)
@@ -446,9 +452,7 @@ function Start()
     NPCDialogues.registerAll()
     recalcLayout()
 
-    -- 预加载纹理 + 创建 3D 节点
-    CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
-    Board.createAllNodes(board, scene_, CardTextures)
+    -- 注意: 3D 节点延迟到入场过渡结束后创建，避免黑屏期间看到已排好的棋盘
 
     -- Token (3D Billboard)
     token = Token.new()
@@ -617,18 +621,47 @@ function Start()
     SubscribeToEvent("TouchMove", "HandleTouchMove")
     SubscribeToEvent("TouchEnd", "HandleTouchEnd")
 
-    -- 标题画面
-    G.gamePhase = "title"
+    -- 入场过渡: 全黑屏淡出 + 游戏标题一闪
+    -- 流程: 黑屏显示标题(1.2s) → 创建棋盘3D节点 → 黑屏淡出(1.0s，同时开始发牌)
+    G.gamePhase = "playing"
     G.demoState = "idle"
-    TitleScreen.show(function()
-        G.gamePhase = "playing"
-        AudioManager.playBGM("day_light", 2.0)
-        -- Day 1 开场剧情 (每日开场演出系统)
-        local morningCtx = { dayCount = G.dayCount }
-        StoryEventManager.tryMorningEvent(G.storyMgr, morningCtx, function()
-            GameFlow.startDeal()
-        end)
-    end)
+    introOverlay_.active  = true
+    introOverlay_.bgAlpha = 1.0
+    introOverlay_.txtAlpha = 0.0
+
+    -- 标题文字淡入
+    Tween.to(introOverlay_, { txtAlpha = 1.0 }, 0.6, {
+        delay = 0.3,
+        easing = Tween.Easing.easeOutQuad,
+        tag = "intro",
+    })
+
+    -- 1.2s 后: 创建棋盘节点 + 黑屏淡出 + 触发游戏流程
+    local _introDelay = { t = 0 }
+    Tween.to(_introDelay, { t = 1 }, 1.2, {
+        tag = "intro",
+        onComplete = function()
+            -- 创建棋盘 3D 节点 (此时黑屏遮住, 用户看不到排列状态)
+            CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
+            Board.createAllNodes(board, scene_, CardTextures)
+
+            -- 黑屏淡出 (和发牌动画一起进行, 产生"从黑暗中浮现"的感觉)
+            Tween.to(introOverlay_, { bgAlpha = 0.0, txtAlpha = 0.0 }, 1.0, {
+                easing = Tween.Easing.easeInOutQuad,
+                tag = "intro",
+                onComplete = function()
+                    introOverlay_.active = false
+                end,
+            })
+
+            -- BGM + 晨间事件 + 发牌
+            AudioManager.playBGM("day_light", 2.0)
+            local morningCtx = { dayCount = G.dayCount }
+            StoryEventManager.tryMorningEvent(G.storyMgr, morningCtx, function()
+                GameFlow.startDeal()
+            end)
+        end,
+    })
 
     print("[Main] Initialization complete (3D mode)")
 end
@@ -667,12 +700,10 @@ local function handleClick(inputX, inputY)
     local lx = inputX / dpr
     local ly = inputY / dpr
 
-    if DateTransition.isActive() then return end
+    -- 入场过渡期间屏蔽所有点击
+    if introOverlay_.active then return end
 
-    if TitleScreen.isActive() then
-        TitleScreen.handleClick()
-        return
-    end
+    if DateTransition.isActive() then return end
 
     if GameOver.isActive() then
         GameOver.handleClick(lx, ly, logicalW, logicalH)
@@ -831,12 +862,10 @@ end
 function HandleKeyDown(eventType, eventData)
     local key = eventData:GetInt("Key")
 
-    if DateTransition.isActive() then return end
+    -- 入场过渡期间屏蔽键盘
+    if introOverlay_.active then return end
 
-    if TitleScreen.isActive() then
-        TitleScreen.handleKey(key)
-        return
-    end
+    if DateTransition.isActive() then return end
 
     if GameOver.isActive() then
         GameOver.handleKey(key)
@@ -975,7 +1004,7 @@ function HandleUpdate(eventType, eventData)
     DarkWorld.update(dt, gameTime)
 
     -- 天气粒子更新 (游戏进行中且非暗面世界)
-    if G.gamePhase == "playing" and not DarkWorld.isActive() and not TitleScreen.isActive() then
+    if G.gamePhase == "playing" and not DarkWorld.isActive() and not introOverlay_.active then
         Weather.updateFX(dt, Weather.getWeather(G.dayCount), logicalW, logicalH, AudioManager)
     else
         Weather.updateFX(dt, nil, logicalW, logicalH, nil)
@@ -1059,7 +1088,7 @@ function HandleNanoVGRender(eventType, eventData)
     DarkWorld.draw(vg, logicalW, logicalH, gameTime)
 
     -- === 天气粒子 (位于3D场景之上、HUD之下) ===
-    if G.gamePhase == "playing" and not DarkWorld.isActive() and not TitleScreen.isActive() then
+    if G.gamePhase == "playing" and not DarkWorld.isActive() and not introOverlay_.active then
         local curWeather = Weather.getWeather(G.dayCount)
         local wAlpha = 0.65
         if EventPopup.isActive() or ShopPopup.isActive() or DialogueSystem.isActive() then
@@ -1189,8 +1218,45 @@ function HandleNanoVGRender(eventType, eventData)
     -- === 日期转场 ===
     DateTransition.draw(vg, logicalW, logicalH, gameTime)
 
-    -- === 标题画面 ===
-    TitleScreen.draw(vg, logicalW, logicalH, gameTime)
+    -- === 入场过渡遮罩 (最顶层, 覆盖一切) ===
+    if introOverlay_.active and introOverlay_.bgAlpha > 0.005 then
+        -- 黑色底层
+        nvgBeginPath(vg)
+        nvgRect(vg, 0, 0, logicalW, logicalH)
+        nvgFillColor(vg, nvgRGBA(12, 18, 30, math.floor(introOverlay_.bgAlpha * 255)))
+        nvgFill(vg)
+
+        -- 标题文字 (仅在背景足够不透明时显示)
+        if introOverlay_.txtAlpha > 0.01 and introOverlay_.bgAlpha > 0.3 then
+            local cx = logicalW / 2
+            local tc = Theme.current
+
+            -- 标题
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 42)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(tc.accent.r, tc.accent.g, tc.accent.b,
+                math.floor(introOverlay_.txtAlpha * 230)))
+            nvgText(vg, cx, logicalH * 0.40, "暗面都市", nil)
+
+            -- 标题光晕
+            local glowR = 90
+            local glow = nvgRadialGradient(vg, cx, logicalH * 0.40, 0, glowR,
+                nvgRGBA(tc.accent.r, tc.accent.g, tc.accent.b,
+                    math.floor(introOverlay_.txtAlpha * 28)),
+                nvgRGBA(tc.accent.r, tc.accent.g, tc.accent.b, 0))
+            nvgBeginPath(vg)
+            nvgCircle(vg, cx, logicalH * 0.40, glowR)
+            nvgFillPaint(vg, glow)
+            nvgFill(vg)
+
+            -- 副标题
+            nvgFontSize(vg, 14)
+            nvgFillColor(vg, nvgRGBA(180, 185, 200,
+                math.floor(introOverlay_.txtAlpha * 160)))
+            nvgText(vg, cx, logicalH * 0.52, "用镜头记录真相  ·  用光明驱散恐惧", nil)
+        end
+    end
 
     nvgEndFrame(vg)
 end
