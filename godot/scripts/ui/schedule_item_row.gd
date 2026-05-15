@@ -11,8 +11,8 @@ signal row_clicked(index: int)
 # ---------------------------------------------------------------------------
 # 常量（对应 HandPanel.lua）
 # ---------------------------------------------------------------------------
-const CHECK_SIZE: float = 11.0
-const ITEM_H: float     = 26.0
+const CHECK_SIZE: float = 33.0
+const ITEM_H: float     = 78.0
 
 # ---------------------------------------------------------------------------
 # @onready
@@ -43,9 +43,9 @@ func _ready() -> void:
 func _apply_styles() -> void:
 	var t: Node = get_node("/root/GameTheme")
 
-	_icon_label.add_theme_font_size_override("font_size", 13)
-	_text_label.add_theme_font_size_override("font_size", 11)
-	_reward_label.add_theme_font_size_override("font_size", 9)
+	_icon_label.add_theme_font_size_override("font_size", 39)
+	_text_label.add_theme_font_size_override("font_size", 33)
+	_reward_label.add_theme_font_size_override("font_size", 27)
 	_reward_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.47))
 
 	# 悬停高亮背景通过 draw() 实现
@@ -106,7 +106,7 @@ func _draw_checkbox() -> void:
 
 	# 勾选框在 CheckArea 中垂直居中
 	var area_h: float = _check_area.size.y
-	var ck_x: float   = 2.0
+	var ck_x: float   = 6.0
 	var ck_y: float   = (area_h - CHECK_SIZE) / 2.0
 	var rect: Rect2   = Rect2(ck_x, ck_y, CHECK_SIZE, CHECK_SIZE)
 
@@ -114,31 +114,31 @@ func _draw_checkbox() -> void:
 		"completed":
 			# 填充绿色方框
 			_check_area.draw_rect(rect, Color(t.completed, 0.71), true)
-			_check_area.draw_rect(rect, Color(t.completed, 0.86), false, 1.0)
+			_check_area.draw_rect(rect, Color(t.completed, 0.86), false, 2.0)
 			# 白色勾
 			var cy: float = ck_y + CHECK_SIZE / 2.0
 			_check_area.draw_line(
-				Vector2(ck_x + 2.5, cy),
-				Vector2(ck_x + CHECK_SIZE * 0.42, cy + 3.0),
-				Color.WHITE, 1.5
+				Vector2(ck_x + 7.5, cy),
+				Vector2(ck_x + CHECK_SIZE * 0.42, cy + 9.0),
+				Color.WHITE, 3.0
 			)
 			_check_area.draw_line(
-				Vector2(ck_x + CHECK_SIZE * 0.42, cy + 3.0),
-				Vector2(ck_x + CHECK_SIZE - 2.0, cy - 3.5),
-				Color.WHITE, 1.5
+				Vector2(ck_x + CHECK_SIZE * 0.42, cy + 9.0),
+				Vector2(ck_x + CHECK_SIZE - 6.0, cy - 10.5),
+				Color.WHITE, 3.0
 			)
 		"deferred":
 			# 空边框 + 箭头符号
-			_check_area.draw_rect(rect, Color(t.deferred, 0.47), false, 1.0)
+			_check_area.draw_rect(rect, Color(t.deferred, 0.47), false, 2.0)
 			_check_area.draw_string(
 				ThemeDB.fallback_font,
-				Vector2(ck_x + 1.0, ck_y + CHECK_SIZE - 2.0),
-				"↗", HORIZONTAL_ALIGNMENT_LEFT, -1, 9,
+				Vector2(ck_x + 3.0, ck_y + CHECK_SIZE - 6.0),
+				"↗", HORIZONTAL_ALIGNMENT_LEFT, -1, 27,
 				Color(t.deferred, 0.63)
 			)
 		_:
 			# 空边框（待完成）
-			_check_area.draw_rect(rect, Color(t.notebook_border, 0.55), false, 1.0)
+			_check_area.draw_rect(rect, Color(t.notebook_border, 0.55), false, 2.0)
 
 func _draw() -> void:
 	if not _is_hovered: return

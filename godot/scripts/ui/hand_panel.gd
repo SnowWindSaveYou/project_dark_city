@@ -12,33 +12,35 @@ signal use_exorcism_pressed
 signal open_clue_log
 
 # ---------------------------------------------------------------------------
-# 布局常量（对应 Lua 版常量）
+# 布局常量（Lua 原版 × 3，适配 Godot 1920×1080 canvas）
+# Lua 版在 ~640px 逻辑宽度下运行，ResourceBar stripW 最大 360px
+# Godot 版 ResourceBar stripW 最大 1080px → 缩放因子 3.0
 # ---------------------------------------------------------------------------
-const PANEL_W: float       = 200.0
-const MARGIN_TOP: float    = 56.0
-const MARGIN_BOT: float    = 20.0
-const SPINE_W: float       = 14.0
-const CORNER_R: float      = 5.0
-const PAGE_PAD: float      = 10.0
-const LINE_SPACING: float  = 18.0
+const PANEL_W: float       = 600.0
+const MARGIN_TOP: float    = 168.0   # ResourceBar 高度 156px，再留 12px
+const MARGIN_BOT: float    = 60.0
+const SPINE_W: float       = 42.0
+const CORNER_R: float      = 15.0
+const PAGE_PAD: float      = 30.0
+const LINE_SPACING: float  = 54.0
 
-const EXPANDED_X: float    = 6.0
-const PEEK_W: float        = 6.0
-const HIDDEN_EXTRA: float  = 50.0
+const EXPANDED_X: float    = 18.0
+const PEEK_W: float        = 18.0
+const HIDDEN_EXTRA: float  = 150.0
 const TILT_COLLAPSED: float = 0.12   # ~6.9°
 
-const TAB_W: float         = 36.0
-const TAB_H: float         = 48.0
-const TAB_GAP: float       = 8.0
-const TAB_RADIUS: float    = 3.0
-const TAB_OVERLAP: float   = 10.0
+const TAB_W: float         = 108.0
+const TAB_H: float         = 144.0
+const TAB_GAP: float       = 24.0
+const TAB_RADIUS: float    = 9.0
+const TAB_OVERLAP: float   = 30.0
 
-const NOTE_W: float        = 84.0
-const NOTE_H: float        = 46.0
-const ITEM_H: float        = 26.0
-const CHECK_SIZE: float    = 11.0
-const ICON_SIZE: float     = 40.0
-const ICON_GAP: float      = 8.0
+const NOTE_W: float        = 252.0
+const NOTE_H: float        = 138.0
+const ITEM_H: float        = 78.0
+const CHECK_SIZE: float    = 33.0
+const ICON_SIZE: float     = 120.0
+const ICON_GAP: float      = 24.0
 const ICONS_PER_ROW: int   = 3
 
 const TAB_COLORS: Array[Color] = [
@@ -152,8 +154,8 @@ func _apply_styles() -> void:
 	paper_sb.set_border_width_all(1)
 	paper_sb.set_corner_radius_all(int(CORNER_R))
 	paper_sb.shadow_color = Color(0.23, 0.16, 0.08, 0.20)
-	paper_sb.shadow_size = 4
-	paper_sb.shadow_offset = Vector2(2, 3)
+	paper_sb.shadow_size = 12
+	paper_sb.shadow_offset = Vector2(6, 9)
 	_notebook_bg.add_theme_stylebox_override("panel", paper_sb)
 
 	# 书脊颜色
@@ -170,26 +172,26 @@ func _apply_styles() -> void:
 	_note_bg.add_theme_stylebox_override("panel", note_sb)
 
 	# 页眉标题字号
-	_tab_title.add_theme_font_size_override("font_size", 11)
+	_tab_title.add_theme_font_size_override("font_size", 33)
 	_tab_title.add_theme_color_override("font_color", Color(t.text_secondary, 0.55))
 	_tab_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# 收起按钮样式
-	_collapse_btn.add_theme_font_size_override("font_size", 14)
+	_collapse_btn.add_theme_font_size_override("font_size", 42)
 	_collapse_btn.add_theme_color_override("font_color", t.text_secondary)
 
 	# NoteVBox 各 Label 字号
-	_note_icon.add_theme_font_size_override("font_size", 14)
-	_note_safe.add_theme_font_size_override("font_size", 9)
-	_note_text.add_theme_font_size_override("font_size", 8)
-	_note_page_label.add_theme_font_size_override("font_size", 7)
+	_note_icon.add_theme_font_size_override("font_size", 42)
+	_note_safe.add_theme_font_size_override("font_size", 27)
+	_note_text.add_theme_font_size_override("font_size", 24)
+	_note_page_label.add_theme_font_size_override("font_size", 21)
 	_note_page_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.55))
 
 	# ClueIcon / ClueText 样式
 	var clue_icon: Label = $NotebookRoot/CluePage/ClueIcon
 	var clue_text: Label = $NotebookRoot/CluePage/ClueText
-	clue_icon.add_theme_font_size_override("font_size", 28)
-	clue_text.add_theme_font_size_override("font_size", 11)
+	clue_icon.add_theme_font_size_override("font_size", 84)
+	clue_text.add_theme_font_size_override("font_size", 33)
 	clue_text.add_theme_color_override("font_color", Color(t.text_secondary, 0.35))
 
 	# 便签按钮样式
@@ -237,7 +239,7 @@ func _style_tab_buttons() -> void:
 		btn.add_theme_stylebox_override("pressed", sb_pressed)
 		btn.add_theme_stylebox_override("hover", sb_hover)
 		btn.add_theme_stylebox_override("focus", sb_normal)
-		btn.add_theme_font_size_override("font_size", 10)
+		btn.add_theme_font_size_override("font_size", 30)
 		btn.add_theme_color_override("font_color", Color(0.22, 0.18, 0.14, 0.92))
 
 # ---------------------------------------------------------------------------
@@ -254,11 +256,17 @@ func _update_notebook_size() -> void:
 	# 调整 SpineRect 高度
 	_spine_rect.size = Vector2(SPINE_W, panel_h)
 
+	# 调整 PageHeader 高度
+	var page_top: float = 78.0   # 页头高 26×3
+	_page_header.offset_left   = SPINE_W
+	_page_header.offset_right  = PANEL_W
+	_page_header.offset_bottom = page_top
+	_collapse_btn.custom_minimum_size = Vector2(60, 60)
+
 	# RuledLines 全覆盖（由 anchor 决定）
 	_ruled_lines.queue_redraw()
 
 	# 调整 SchedulePage / ItemsPage / CluePage 高度
-	var page_top: float  = 26.0
 	var page_h: float    = panel_h - page_top
 	var content_w: float = PANEL_W - SPINE_W
 
@@ -277,9 +285,9 @@ func _update_notebook_size() -> void:
 	_clue_page.offset_right  = PANEL_W - PAGE_PAD
 	_clue_page.offset_bottom = panel_h
 
-	# 计算传闻便签和 footer 位置
-	var note_y: float   = page_h - NOTE_H - 14.0
-	var footer_y: float = note_y - 34.0
+	# 计算传闻便签和 footer 位置（偏移量同样 ×3）
+	var note_y: float   = page_h - NOTE_H - 42.0
+	var footer_y: float = note_y - 102.0
 
 	_rumor_note.offset_left   = (content_w - NOTE_W) / 2.0
 	_rumor_note.offset_top    = note_y
@@ -289,11 +297,11 @@ func _update_notebook_size() -> void:
 	_footer_area.offset_left   = PAGE_PAD
 	_footer_area.offset_top    = footer_y
 	_footer_area.offset_right  = content_w - PAGE_PAD
-	_footer_area.offset_bottom = footer_y + 26.0
+	_footer_area.offset_bottom = footer_y + 78.0
 
 	# ScheduleScroll：占据从 0 到 footer_y 的空间
 	_schedule_scroll.offset_right  = content_w - PAGE_PAD
-	_schedule_scroll.offset_bottom = footer_y - 4.0
+	_schedule_scroll.offset_bottom = footer_y - 12.0
 
 	# 初始化时隐藏，定位到屏幕外
 	_notebook_root.position = Vector2(_panel_x, MARGIN_TOP)
@@ -328,9 +336,9 @@ func _position_tabs() -> void:
 # 高度辅助
 # ---------------------------------------------------------------------------
 func _get_panel_h(screen_h: float) -> float:
-	var max_h: float = floor(PANEL_W / 0.62)  # ≈ 323
+	var max_h: float = floor(PANEL_W / 0.62)  # ≈ 968
 	var raw_h: float = screen_h - MARGIN_TOP - MARGIN_BOT
-	return max(320.0, min(raw_h, max_h))
+	return max(960.0, min(raw_h, max_h))
 
 func _hidden_x() -> float:
 	return -(PANEL_W + (TAB_W - TAB_OVERLAP) + HIDDEN_EXTRA)
@@ -347,23 +355,23 @@ func _expanded_x() -> float:
 func _draw_ruled_lines() -> void:
 	var t: Node = get_node("/root/GameTheme")
 	var rect: Rect2 = _ruled_lines.get_rect()
-	var lx0: float = SPINE_W + 6.0
-	var lx1: float = rect.size.x - 6.0
+	var lx0: float = SPINE_W + 18.0
+	var lx1: float = rect.size.x - 18.0
 	var ly: float  = LINE_SPACING * 1.2
 
 	# 横线
-	while ly < rect.size.y - 4.0:
+	while ly < rect.size.y - 12.0:
 		_ruled_lines.draw_line(
 			Vector2(lx0, ly), Vector2(lx1, ly),
-			Color(t.notebook_line, 0.24), 0.5
+			Color(t.notebook_line, 0.24), 1.5
 		)
 		ly += LINE_SPACING
 
 	# 红色左边距竖线
-	var margin_x: float = SPINE_W + PAGE_PAD + CHECK_SIZE + 8.0
+	var margin_x: float = SPINE_W + PAGE_PAD + CHECK_SIZE + 24.0
 	_ruled_lines.draw_line(
-		Vector2(margin_x, 4.0), Vector2(margin_x, rect.size.y - 4.0),
-		Color(0.82, 0.47, 0.47, 0.16), 0.7
+		Vector2(margin_x, 12.0), Vector2(margin_x, rect.size.y - 12.0),
+		Color(0.82, 0.47, 0.47, 0.16), 2.0
 	)
 
 # ---------------------------------------------------------------------------
@@ -396,28 +404,28 @@ func _draw_footer() -> void:
 		var line_alpha: float = 0.35 + 0.35 * pulse
 		# 分隔线
 		_footer_area.draw_line(
-			Vector2(8.0, 0.0), Vector2(rect.size.x - 8.0, 0.0),
-			Color(0.82, 0.63, 0.24, line_alpha), 0.8
+			Vector2(24.0, 0.0), Vector2(rect.size.x - 24.0, 0.0),
+			Color(0.82, 0.63, 0.24, line_alpha), 2.0
 		)
 		# "结束今天 →" 文字
 		var text_alpha: float = 0.45 + 0.45 * pulse
-		var nudge: float = 1.5 * sin(_footer_pulse_time * 2.0)
+		var nudge: float = 4.5 * sin(_footer_pulse_time * 2.0)
 		_footer_area.draw_string(
 			ThemeDB.fallback_font,
-			Vector2(cx - 28.0 + nudge, 12.0),
+			Vector2(cx - 84.0 + nudge, 36.0),
 			"结束今天 →",
 			HORIZONTAL_ALIGNMENT_LEFT,
-			-1, 10,
+			-1, 30,
 			Color(t.warning, text_alpha)
 		)
 	else:
 		# 灰色小字
 		_footer_area.draw_string(
 			ThemeDB.fallback_font,
-			Vector2(cx, 10.0),
+			Vector2(cx, 30.0),
 			"还有 %d 项待完成" % pending_count,
 			HORIZONTAL_ALIGNMENT_CENTER,
-			-1, 9,
+			-1, 27,
 			Color(0.63, 0.58, 0.51, 0.24)
 		)
 
@@ -446,6 +454,7 @@ func show_panel() -> void:
 	_panel_x = _hidden_x()
 	_notebook_root.position.x = _panel_x
 	_animate_to(_collapsed_x(), TILT_COLLAPSED, 0.45, Tween.EASE_OUT, Tween.TRANS_BACK)
+	refresh()
 
 ## 隐藏面板
 func hide_panel() -> void:
@@ -549,6 +558,7 @@ func _process(delta: float) -> void:
 			_switch_tab_pages()
 			if not _expanded:
 				expand()
+			refresh()
 		_was_can_advance = can_advance
 
 # ---------------------------------------------------------------------------
