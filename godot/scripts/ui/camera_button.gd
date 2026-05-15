@@ -234,8 +234,8 @@ func _draw() -> void:
 	draw_set_transform_matrix(xf)
 	modulate.a = _btn_alpha
 
-	# 阴影
-	draw_circle(Vector2(cx + 3, cy + 6), r * 1.3, Color(0, 0, 0, 0.15))
+	# 软径向阴影 — Lua: offset(1,2), spread≈r*0.5, alpha=50/255 → Godot 3×
+	_draw_radial_shadow(Vector2(cx, cy), r, Vector2(3.0, 6.0), int(r * 0.5), 0.20)
 
 	# 按钮背景
 	var btn_color: Color = t.camera_btn_active if _in_camera_mode else t.camera_btn
@@ -359,6 +359,22 @@ func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
 # ---------------------------------------------------------------------------
 # 辅助
 # ---------------------------------------------------------------------------
+
+## 软径向阴影 (StyleBoxFlat，与 HandPanel 方式相同)
+## 圆形 = 四角半径等于按钮半径的 StyleBoxFlat
+func _draw_radial_shadow(center: Vector2, r: float, offset: Vector2, shadow_size: int, alpha: float) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.corner_radius_top_left     = int(r)
+	sb.corner_radius_top_right    = int(r)
+	sb.corner_radius_bottom_left  = int(r)
+	sb.corner_radius_bottom_right = int(r)
+	sb.shadow_color  = Color(0.0, 0.0, 0.0, alpha)
+	sb.shadow_size   = shadow_size
+	sb.shadow_offset = offset
+	draw_style_box(sb, Rect2(center.x - r, center.y - r, r * 2.0, r * 2.0))
+
+
 func _draw_circle_outline(center: Vector2, radius: float, color: Color, width: float) -> void:
 	var segments: int = 32
 	var prev: Vector2 = center + Vector2(radius, 0)

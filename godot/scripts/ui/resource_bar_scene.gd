@@ -256,9 +256,9 @@ func _update_dark_exit_position(sx: float, sy: float, sw: float) -> void:
 # ---------------------------------------------------------------------------
 func _draw_normal_strip(sx: float, sy: float, sw: float, _scy: float,
 		_font: Font, t) -> void:
-	# 纸张阴影
-	var shadow_rect: Rect2 = Rect2(sx - 12, sy + 3, sw + 24, STRIP_H + 18)
-	_strip_area.draw_rect(shadow_rect, Color(0.23, 0.16, 0.08, 0.12))
+	# 纸张阴影 — Lua: offset(+3,+6), color(60,40,20,35), feather=6 → Godot 3×
+	_draw_soft_box_shadow(sx, sy, sw, float(STRIP_H), 3.0, 6.0,
+		18, Color(0.235, 0.157, 0.078, 0.22))
 
 	# 纸条主体
 	_strip_area.draw_rect(Rect2(sx, sy, sw, STRIP_H), Color(t.notebook_paper, 0.95))
@@ -289,9 +289,9 @@ func _draw_normal_strip(sx: float, sy: float, sw: float, _scy: float,
 # ---------------------------------------------------------------------------
 func _draw_dark_strip(sx: float, sy: float, sw: float, _scy: float,
 		_font: Font, t) -> void:
-	# 深邃阴影
-	var shadow_rect: Rect2 = Rect2(sx - 18, sy - 6, sw + 36, STRIP_H + 30)
-	_strip_area.draw_rect(shadow_rect, Color(t.dark_shadow, 0.35))
+	# 深邃阴影 — Lua: offset(0,+12), color(8,4,20,100), feather=10 → Godot 3×
+	_draw_soft_box_shadow(sx, sy, sw, float(STRIP_H), 0.0, 12.0,
+		30, Color(0.031, 0.016, 0.078, 0.45))
 
 	# 面板主体 (深紫渐变 — 两段模拟)
 	_strip_area.draw_rect(Rect2(sx, sy, sw, STRIP_H / 2), Color(t.dark_strip_top, 0.88))
@@ -540,6 +540,24 @@ func _draw_delta_texts(scy: float, font: Font) -> void:
 
 		_strip_area.draw_string(font, Vector2(dx, scy - 24 + offset_y), dt["text"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 36, color)
+
+
+# ---------------------------------------------------------------------------
+# 辅助: 软盒形阴影 (StyleBoxFlat，与 HandPanel 方式相同)
+# ---------------------------------------------------------------------------
+func _draw_soft_box_shadow(sx: float, sy: float, sw: float, sh: float,
+		offset_x: float, offset_y: float,
+		shadow_size: int, shadow_color: Color) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)          # 主体透明，只要阴影
+	sb.corner_radius_top_left    = int(CORNER_R)
+	sb.corner_radius_top_right   = int(CORNER_R)
+	sb.corner_radius_bottom_left = int(CORNER_R)
+	sb.corner_radius_bottom_right = int(CORNER_R)
+	sb.shadow_color  = shadow_color
+	sb.shadow_size   = shadow_size
+	sb.shadow_offset = Vector2(offset_x, offset_y)
+	_strip_area.draw_style_box(sb, Rect2(sx, sy, sw, sh))
 
 
 # ---------------------------------------------------------------------------

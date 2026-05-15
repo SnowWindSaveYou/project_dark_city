@@ -53,13 +53,13 @@
 |------|--------|------|-----------|
 | KEY-D1-01 | `keyframe_d1_wardrobe_eyes` | 🔍 待审 | `keyframe_d1_wardrobe_eyes_20260515162604.png` |
 | KEY-D1-02 | `keyframe_d1_blanket_indent` | 🔍 待审 | `keyframe_d1_blanket_indent_20260515162556.png` |
-| KEY-D2-01 | `keyframe_d2_hand_cupping_fluffball` | 🔍 待审 | `keyframe_d2_hand_cupping_fluffball_20260515162643.png` |
-| KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | 🔍 待审 | `keyframe_d2_flashback_tang_silhouette_v2_20260515164836.png` |
+| KEY-D2-01 | `keyframe_d2_hand_cupping_fluffball` | ✅ 已验证 | `keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png` |
+| KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | ✅ 已验证 | `edited_keyframe_d2_flashback_tang_silhouette_v6_clean_20260515180852.png` |
 | KEY-D3-02 | `keyframe_d3_silent_follow` | ✅ 已验证 | `keyframe_d3_silent_follow_v3_20260515160624.png` |
 | KEY-D6-01 | `keyframe_d6_baiye_barrier` | 🔍 待审 | `keyframe_d6_baiye_barrier_20260515162839.png` |
-| KEY-D7-01 | `keyframe_d7_tang_revealed` | 🔍 待审 | `keyframe_d7_tang_revealed_20260515162732.png` |
+| KEY-D7-01 | `keyframe_d7_tang_revealed` | ✅ 已验证 | `edited_keyframe_d7_tang_revealed_v2_clean_20260515180916.png` |
 | KEY-D7-02 | `keyframe_d7_who_are_you_now` | 🔍 待审 | `keyframe_d7_who_are_you_now_20260515162744.png` |
-| KEY-D12-01 | `keyframe_d12_tang_leaves` | 🔍 待审 | `keyframe_d12_tang_leaves_v2_20260515164842.png` |
+| KEY-D12-01 | `keyframe_d12_tang_leaves` | ✅ 已验证 | `edited_keyframe_d12_tang_leaves_v6_overexposed_20260515175236.png` |
 | KEY-D14-01 | `keyframe_d14_enough` | 🔍 待审 | `keyframe_d14_enough_20260515162933.png` |
 | KEY-D14-02 | `keyframe_d14_sunlight` | 🔍 待审 | `keyframe_d14_sunlight_20260515162925.png` |
 

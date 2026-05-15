@@ -230,8 +230,9 @@ func show_event_data(
 	_location_label.visible = not loc_text.strip_edges().is_empty()
 	($PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
 
-	# 设置拍立得旋转
+	# 设置拍立得旋转，并通知 NotebookDecor 更新阴影位置
 	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
+	_notebook_decor.queue_redraw()
 
 	# --- 右侧文字区 ---
 	_title_label.text = tmpl.get("title", dark_info.get("label", "未知事件"))
@@ -285,6 +286,7 @@ func show_event(card: Card) -> void:
 	($PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
 
 	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
+	_notebook_decor.queue_redraw()
 
 	# 右侧
 	_title_label.text = darkside.get("label", "未知事件")
@@ -663,6 +665,9 @@ func _pick_template(card_type: String, trap_subtype: String = "", location: Stri
 # 笔记本稿纸装饰绘制（红色边距竖线 + 蓝色横线，对齐 Lua 版 drawPhoto）
 # ---------------------------------------------------------------------------
 func _draw_notebook_decor() -> void:
+	# 先绘制拍立得阴影（需在卡片 PanelContainer 之下渲染，利用 NotebookDecor 在场景树中更早）
+	_draw_polaroid_shadow_decor()
+
 	var t: Node = get_node("/root/GameTheme")
 	var sz: Vector2 = _notebook_decor.size
 	if sz.x < 10.0 or sz.y < 10.0:
@@ -694,6 +699,64 @@ func _draw_notebook_decor() -> void:
 			1.5
 		)
 		ly += line_spacing
+
+# ---------------------------------------------------------------------------
+# 拍立得阴影绘制（在 NotebookDecor 的 draw 回调中执行，渲染在卡片之下）
+# 对齐 Lua 版 drawPhoto() 中的 nvgBoxGradient 阴影实现：
+#   Lua: psx/psy = ±POL_W/2,±POL_H/2  shadow: nvgBoxGradient(psx+2,psy+4,POL_W,POL_H,POL_R,16,
+#        nvgRGBA(30,20,10,80), transparent)  rect: (psx-18,psy-14, POL_W+36,POL_H+32)
+# 分辨率缩放: scale = pol_w_godot / pol_w_lua = 232 / 122 ≈ 1.902
+# ---------------------------------------------------------------------------
+func _draw_polaroid_shadow_decor() -> void:
+	if _polaroid_card == null or not _polaroid_card.is_inside_tree():
+		return
+	# 获取卡片全局矩形（运行时实际像素大小）
+	var global_rect: Rect2 = _polaroid_card.get_global_rect()
+	var pol_w: float = global_rect.size.x   # ≈ 232
+	var pol_h: float = global_rect.size.y   # ≈ 356
+	if pol_w < 10.0 or pol_h < 10.0:
+		return
+
+	# 将卡片中心转换到 NotebookDecor 的本地坐标系
+	var local_center: Vector2 = _notebook_decor.to_local(global_rect.get_center())
+
+	# 分辨率缩放因子（Lua POL_W=122 → Godot 实际宽度）
+	var s: float = pol_w / 122.0       # ≈ 1.902
+
+	var hw: float = pol_w * 0.5        # 116
+	var hh: float = pol_h * 0.5        # 178
+	# Lua 原始阴影偏移：BoxGradient 起点 (psx+2, psy+4) → 整体偏移 (ox, oy)
+	var ox: float = 2.0 * s            # ≈ 4
+	var oy: float = 4.0 * s            # ≈ 8
+	# Lua BoxGradient feather=16 → 缩放后扩散半径
+	var feather: float = 16.0 * s      # ≈ 30
+
+	# 进入卡片旋转空间（以卡片中心为原点）
+	_notebook_decor.draw_set_transform(local_center, _polaroid_card.rotation)
+
+	# 用 N 层同心矩形模拟 nvgBoxGradient 的径向渐变
+	# t=0 → 最外层（最大扩展，alpha≈0）；t=1 → 最内层（无扩展，alpha=max_alpha）
+	# 内层颜色: Lua nvgRGBA(30,20,10,80) → Color(0.118, 0.078, 0.039, 0.314)
+	# 用二次曲线让中间层过渡更自然
+	const N := 10
+	const MAX_ALPHA := 0.30
+	for i: int in range(N):
+		var t_val: float = float(i) / float(N - 1)    # 0.0 → 1.0
+		var expand: float = feather * (1.0 - t_val)   # 最外层扩展最多
+		var alpha: float = MAX_ALPHA * t_val * t_val   # 二次增长（外稀内密）
+		_notebook_decor.draw_rect(
+			Rect2(
+				-hw + ox - expand,
+				-hh + oy - expand,
+				pol_w + expand * 2.0,
+				pol_h + expand * 2.0
+			),
+			Color(0.118, 0.078, 0.039, alpha),
+			true
+		)
+
+	# 恢复变换
+	_notebook_decor.draw_set_transform(Vector2.ZERO, 0.0)
 
 # ---------------------------------------------------------------------------
 # 拍立得动态尺寸计算（对齐 Lua 版比例）
