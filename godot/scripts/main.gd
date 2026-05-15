@@ -36,10 +36,8 @@ const ATMO_BRIGHT: Dictionary = {
 	"fog_color":   Color(0.5, 0.6, 0.7),
 	"table_color": Color(0.25, 0.22, 0.20),
 	# Bloom — 轻柔日光散射
-	"glow_intensity":        0.55,
-	"glow_bloom":            0.02,
-	"glow_hdr_threshold":    1.05,
-	"glow_hdr_scale":        2.0,
+	"glow_intensity":  0.55,
+	"glow_bloom":      0.02,
 	# 色彩调整 — 城市鲜活感
 	"adj_brightness":  1.0,
 	"adj_contrast":    1.05,
@@ -60,10 +58,8 @@ const ATMO_DARK: Dictionary = {
 	"fog_color":   Color(0.08, 0.06, 0.12),
 	"table_color": Color(0.10, 0.08, 0.14),
 	# Bloom — 暗面元素发光渗出
-	"glow_intensity":        1.10,
-	"glow_bloom":            0.08,
-	"glow_hdr_threshold":    0.72,
-	"glow_hdr_scale":        2.8,
+	"glow_intensity":  1.10,
+	"glow_bloom":      0.08,
 	# 色彩调整 — 压抑去饱和
 	"adj_brightness":  0.88,
 	"adj_contrast":    1.18,
@@ -430,12 +426,10 @@ func _setup_3d_scene() -> void:
 	_env.tonemap_exposure = ATMO_BRIGHT["tonemap_exposure"]
 	_env.tonemap_white    = ATMO_BRIGHT["tonemap_white"]
 	# Glow (Bloom)
-	_env.glow_enabled       = true
-	_env.glow_normalized    = false
-	_env.glow_intensity     = ATMO_BRIGHT["glow_intensity"]
-	_env.glow_bloom         = ATMO_BRIGHT["glow_bloom"]
-	_env.glow_hdr_bleed_threshold = ATMO_BRIGHT["glow_hdr_threshold"]
-	_env.glow_hdr_bleed_scale     = ATMO_BRIGHT["glow_hdr_scale"]
+	_env.glow_enabled    = true
+	_env.glow_normalized = false
+	_env.glow_intensity  = ATMO_BRIGHT["glow_intensity"]
+	_env.glow_bloom      = ATMO_BRIGHT["glow_bloom"]
 	# Color Adjustment
 	_env.adjustment_enabled    = true
 	_env.adjustment_brightness = ATMO_BRIGHT["adj_brightness"]
@@ -1018,10 +1012,6 @@ func _apply_atmosphere(t: float) -> void:
 		ATMO_BRIGHT["glow_intensity"], ATMO_DARK["glow_intensity"], t)
 	_env.glow_bloom = lerpf(
 		ATMO_BRIGHT["glow_bloom"], ATMO_DARK["glow_bloom"], t)
-	_env.glow_hdr_bleed_threshold = lerpf(
-		ATMO_BRIGHT["glow_hdr_threshold"], ATMO_DARK["glow_hdr_threshold"], t)
-	_env.glow_hdr_bleed_scale = lerpf(
-		ATMO_BRIGHT["glow_hdr_scale"], ATMO_DARK["glow_hdr_scale"], t)
 
 	# 色彩调整 (叠加雷暴偏移)
 	_env.adjustment_brightness = lerpf(
