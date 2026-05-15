@@ -106,9 +106,9 @@ func _render_overlay_image(accent: Color) -> ImageTexture:
 	var accent_a: Color = Color(accent.r, accent.g, accent.b, 0.72)
 	img.fill_rect(Rect2i(BORDER, BORDER, TEX_W - BORDER * 2, 18), accent_a)
 
-	# 底部标签色条 (深色半透明)
+	# 底部标签色条 (拍立得白底 - 与边框同色，形成宽白区供文字叠加)
 	img.fill_rect(Rect2i(BORDER, TEX_H - BORDER - 52, TEX_W - BORDER * 2, 52),
-		Color(0.10, 0.08, 0.07, 0.72))
+		Color(0.96, 0.93, 0.88, 0.95))
 
 	return ImageTexture.create_from_image(img)
 

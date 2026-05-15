@@ -791,31 +791,26 @@ function M.draw(vg, logicalW, logicalH, dayCount)
     else
         -- === 现实模式: 天数 + 天气 ===
 
-        -- 天气图标
+        -- 天气图标 + 天气名 (一组, 靠右)
         local weatherType = Weather.getWeather(dayCount)
         local weatherR = 10
-        Weather.drawIcon(vg, rightX - weatherR, stripCY, weatherR, weatherType, 220, true)
-
-        -- 天气名称 (小字)
+        -- 天气图标居中
+        Weather.drawIcon(vg, rightX - weatherR, stripCY - 2, weatherR, weatherType, 220, true)
+        -- 天气名称 (图标下方小字, 与图标同组)
         nvgFontSize(vg, 9)
-        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 160))
-        nvgText(vg, rightX - weatherR * 2 - 4, stripCY + 5, Weather.getName(weatherType), nil)
+        nvgText(vg, rightX - weatherR, stripCY + weatherR + 4, Weather.getName(weatherType), nil)
 
-        -- 天数 + 分隔线
+        -- 天数 (仅 Day X, 无副文字)
         local dayText = "Day " .. dayCount
         nvgFontSize(vg, 14)
         nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 220))
 
         local dayTextW = nvgTextBounds(vg, 0, 0, dayText, nil)
-        local dayRightX = rightX - weatherR * 2 - 8
-        nvgText(vg, dayRightX, stripCY - 4, dayText, nil)
-
-        -- "第X天" 小字
-        nvgFontSize(vg, 9)
-        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
-        nvgText(vg, dayRightX, stripCY + 7, "第" .. dayCount .. "天", nil)
+        local dayRightX = rightX - weatherR * 2 - 10
+        nvgText(vg, dayRightX, stripCY, dayText, nil)
 
         -- 天数组左侧分隔线
         local daySepX = dayRightX - dayTextW - 8

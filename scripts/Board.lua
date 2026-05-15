@@ -435,8 +435,9 @@ function M.generateCards(board, requiredLocations, opts)
         usedPositions[#usedPositions + 1] = pos
     end
 
-    -- 3.5 裂隙 (暗面世界入口, 每张棋盘1个)
-    local riftPositions = randomPositions(1, usedPositions)
+    -- 3.5 裂隙 (暗面世界入口, 每张棋盘1个; opts.canHaveRift==false 时不生成)
+    local canHaveRift = not (opts and opts.canHaveRift == false)
+    local riftPositions = canHaveRift and randomPositions(1, usedPositions) or {}
     for _, pos in ipairs(riftPositions) do
         usedPositions[#usedPositions + 1] = pos
     end

@@ -65,6 +65,7 @@ func _setup_vignette() -> void:
 	_vignette_rect = ColorRect.new()
 	_vignette_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_vignette_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette_rect.show_behind_parent = true
 	_vignette_rect.material = _vignette_material
 	_vignette_rect.visible = false
 	add_child(_vignette_rect)

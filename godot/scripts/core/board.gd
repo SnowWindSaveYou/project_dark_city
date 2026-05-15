@@ -64,7 +64,7 @@ func set_card(row: int, col: int, card: Card) -> void:
 # 卡牌生成
 # ---------------------------------------------------------------------------
 
-func generate_cards() -> void:
+func generate_cards(can_have_rift: bool = true) -> void:
 	clear()
 
 	var used_positions: Array = []  # Array of [row, col]
@@ -86,8 +86,8 @@ func generate_cards() -> void:
 	for pos in shop_positions:
 		used_positions.append(pos)
 
-	# 3.5 裂隙 (暗面世界入口, 每张棋盘 1 个)
-	var rift_positions: Array = _random_positions(1, used_positions)
+	# 3.5 裂隙 (暗面世界入口, 每张棋盘 1 个; can_have_rift=false 时不生成)
+	var rift_positions: Array = _random_positions(1, used_positions) if can_have_rift else []
 	for pos in rift_positions:
 		used_positions.append(pos)
 

@@ -407,29 +407,25 @@ func _draw_normal_right(sy: float, scy: float, right_x: float,
 	var weather_icon: String = Weather.get_icon(weather_type)
 	var weather_name: String = Weather.get_weather_name(weather_type)
 
-	# 天气图标
-	_strip_area.draw_string(font, Vector2(right_x - 42, scy + 6), weather_icon,
+	# 天气图标 (靠右, 图标中心 x = right_x - 21)
+	var weather_icon_cx: float = right_x - 21.0
+	_strip_area.draw_string(font, Vector2(weather_icon_cx - 21, scy + 6), weather_icon,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(t.text_primary, 0.86))
 
-	# 天气名 (小字) (Rule12: RIGHT 对齐需 width; x=0 起始, right_x-108 为右边界)
-	_strip_area.draw_string(font, Vector2(0.0, scy + 27), weather_name,
-		HORIZONTAL_ALIGNMENT_RIGHT, right_x - 108, 27, Color(t.text_secondary, 0.63))
+	# 天气名 (图标正下方小字, 与图标同组)
+	var weather_name_w: float = font.get_string_size(weather_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+	_strip_area.draw_string(font, Vector2(weather_icon_cx - weather_name_w * 0.5, scy + 30), weather_name,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(t.text_secondary, 0.63))
 
-	# Day X (主文字)
+	# Day X (主文字, 天气组左侧)
 	var day_text: String = "Day " + str(day)
 	var day_text_w: float = font.get_string_size(day_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 42).x
-	var day_right: float = right_x - 108.0
-	_strip_area.draw_string(font, Vector2(day_right - day_text_w, scy - 6), day_text,
+	var day_right: float = right_x - 48.0
+	_strip_area.draw_string(font, Vector2(day_right - day_text_w, scy + 6), day_text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(t.text_primary, 0.86))
 
-	# "第X天" (副文字)
-	var sub_text: String = "第" + str(day) + "天"
-	var sub_w: float = font.get_string_size(sub_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
-	_strip_area.draw_string(font, Vector2(day_right - sub_w, scy + 27), sub_text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.55))
-
 	# 步数显示 (Day左侧)
-	var max_text_w: float = maxf(day_text_w, sub_w)
+	var max_text_w: float = day_text_w
 	var steps_sep_x: float = day_right - max_text_w - 24.0
 	_strip_area.draw_line(Vector2(steps_sep_x, sy + SEP_PAD),
 		Vector2(steps_sep_x, sy + STRIP_H - SEP_PAD),
@@ -550,36 +546,46 @@ func _draw_delta_texts(scy: float, font: Font) -> void:
 # 辅助: 撕裂边缘 (现实模式底部)
 # ---------------------------------------------------------------------------
 func _draw_torn_edge(x: float, y: float, w: float, base_color: Color) -> void:
-	var tear_color: Color = Color(base_color, 0.6)
-	var step: float = 15.0
+	var tear_color: Color = Color(base_color, 1.0)
+	# Godot 坐标系是 Lua 的 3×，所有尺寸同比缩放
+	var step: float = 15.0   # Lua 5 × 3
+	var points: PackedVector2Array = []
+	points.append(Vector2(x, y))
 	var cx: float = x
 	var i: int = 0
 	while cx < x + w:
-		var _next_x: float = minf(cx + step, x + w)
-		var dy: float = 4.5 if (i % 2 == 0) else -1.5
-		var jitter: float = sin(cx * 1.7) * 2.4
-		var rect_h: float = 6.0 + absf(dy + jitter)
-		_strip_area.draw_rect(Rect2(cx, y, step * 0.7, rect_h), tear_color)
-		cx = _next_x
+		var next_x: float = minf(cx + step, x + w)
+		var dy: float = 4.5 if (i % 2 == 0) else -1.5   # Lua 1.5/-0.5 × 3
+		var jitter: float = sin(cx * 1.7) * 2.4          # Lua 0.8 × 3
+		points.append(Vector2(next_x, y + dy + jitter))
+		cx = next_x
 		i += 1
+	points.append(Vector2(x + w, y - 6.0))   # Lua -2 × 3
+	points.append(Vector2(x, y - 6.0))
+	_strip_area.draw_polygon(points, PackedColorArray([tear_color]))
 
 
 # ---------------------------------------------------------------------------
 # 辅助: 腐蚀边缘 (暗面模式底部)
 # ---------------------------------------------------------------------------
 func _draw_dark_edge(x: float, y: float, w: float) -> void:
-	var edge_color: Color = Color(GameTheme.dark_strip_bottom, 0.94)
-	var step: float = 12.0
+	var edge_color: Color = Color(0.071, 0.055, 0.137, 0.94)  # RGB(18,14,35) 与 Lua 一致
+	# Godot 坐标系是 Lua 的 3×，所有尺寸同比缩放
+	var step: float = 12.0   # Lua 4 × 3
+	var points: PackedVector2Array = []
+	points.append(Vector2(x, y))
 	var cx: float = x
 	var i: int = 0
 	while cx < x + w:
-		var _next_x: float = minf(cx + step, x + w)
-		var dy: float = 6.0 if (i % 2 == 0) else -0.9
-		var jitter: float = sin(cx * 2.1 + 0.7) * 3.6
-		var rect_h: float = 6.0 + absf(dy + jitter)
-		_strip_area.draw_rect(Rect2(cx, y, step * 0.7, rect_h), edge_color)
-		cx = _next_x
+		var next_x: float = minf(cx + step, x + w)
+		var dy: float = 6.0 if (i % 2 == 0) else -0.9   # Lua 2.0/-0.3 × 3
+		var jitter: float = sin(cx * 2.1 + 0.7) * 3.6   # Lua 1.2 × 3
+		points.append(Vector2(next_x, y + dy + jitter))
+		cx = next_x
 		i += 1
+	points.append(Vector2(x + w, y - 6.0))   # Lua -2 × 3
+	points.append(Vector2(x, y - 6.0))
+	_strip_area.draw_polygon(points, PackedColorArray([edge_color]))
 
 
 # ---------------------------------------------------------------------------

@@ -164,6 +164,10 @@ func _ready() -> void:
 	pol_style.content_margin_right = 12
 	pol_style.content_margin_top = 12
 	pol_style.content_margin_bottom = 0
+	# 软阴影（对应 Lua 版拍立得卡片 shadow）
+	pol_style.shadow_color = Color(0.0, 0.0, 0.0, 0.32)
+	pol_style.shadow_size = 14
+	pol_style.shadow_offset = Vector2(3.0, 5.0)
 	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
 
 	# 右侧文字区行间距

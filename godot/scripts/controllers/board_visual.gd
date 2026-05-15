@@ -175,22 +175,25 @@ func rebuild_card_nodes() -> void:
 			var label: Label3D = Label3D.new()
 			label.name = "TypeLabel"
 			if card.is_flipped:
-				# 已翻开 (地标): 显示事件信息
+				# 已翻开 (地标): 显示事件信息 (单行)
 				var type_info2: Dictionary = GameTheme.card_type_info(card.type)
-				label.text = type_info2.get("icon", "?") + "\n" + type_info2.get("label", "")
-				label.modulate = Color(1, 1, 1, 0.9)
+				label.text = type_info2.get("icon", "?") + " " + type_info2.get("label", "")
+				label.modulate = Color(0.18, 0.14, 0.10, 0.88)
 			else:
-				# 未翻开: 显示地点信息
+				# 未翻开: 显示地点信息 (单行)
 				var loc_info: Dictionary = card.get_location_info()
-				label.text = loc_info.get("icon", "?") + "\n" + loc_info.get("label", "")
-				label.modulate = Color(1, 1, 1, 0.85)
-			label.font_size = 48
-			label.pixel_size = 0.005
-			label.position = Vector3(0, Card.CARD_THICKNESS / 2.0 + 0.001, 0)
+				label.text = loc_info.get("icon", "?") + " " + loc_info.get("label", "")
+				label.modulate = Color(0.18, 0.14, 0.10, 0.85)
+			label.font_size = 28
+			label.pixel_size = 0.002
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			# 放在 overlay 底部白条中心：Z≈+0.37 (= strip_center_y/TEX_H - 0.5) × CARD_H)
+			# Y 比 SPRITE_Y 高一点保证在 sprite 层上方渲染
+			label.position = Vector3(0, SPRITE_Y + 0.002, 0.37)
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			label.no_depth_test = false
-			label.render_priority = 0
+			label.render_priority = 1
 			card_node.add_child(label)
 
 			# 侦察/揭示图标 Sprite3D (右上角, 平铺在卡面上方)
@@ -341,8 +344,8 @@ func update_card_visual(row: int, col: int) -> void:
 			if label:
 				var icon: String = type_info.get("icon", "?")
 				var type_label: String = type_info.get("label", "")
-				label.text = icon + "\n" + type_label
-				label.modulate = Color(1, 1, 1, 0.9)
+				label.text = icon + " " + type_label
+				label.modulate = Color(0.18, 0.14, 0.10, 0.88)
 			# 地标 / 家: 挂载光环 (尊重 safe_glow_active 开关)
 			if card.type == "landmark" or card.type == "home":
 				_attach_glow_rings(card_node, card.type)
@@ -367,8 +370,8 @@ func update_card_visual(row: int, col: int) -> void:
 				var loc_info: Dictionary = card.get_location_info()
 				var loc_icon: String = loc_info.get("icon", "?")
 				var loc_label: String = loc_info.get("label", "")
-				label.text = loc_icon + "\n" + loc_label
-				label.modulate = Color(1, 1, 1, 0.85)
+				label.text = loc_icon + " " + loc_label
+				label.modulate = Color(0.18, 0.14, 0.10, 0.85)
 			# 家/地标/辐射区即使未翻开也保留光环 (匹配 Lua Card.createNode)
 			if not card.should_have_glow() and not card.safe_glow_active:
 				_remove_glow_rings(card_node)
@@ -434,8 +437,8 @@ func update_dark_card_visual(row: int, col: int) -> void:
 			var icon: String = dark_info.get("icon", "?")
 			# 优先使用 dark_name (具体地点名), fallback 到类型通用 label
 			var display_name: String = card.dark_name if card.dark_name != "" else dark_info.get("label", "")
-			label.text = icon + "\n" + display_name
-			label.modulate = Color(1, 1, 1, 0.9)
+			label.text = icon + " " + display_name
+			label.modulate = Color(0.88, 0.82, 0.96, 0.90)  # 暗面用浅紫色文字
 	else:
 		# 暗面背面: 程序化暗面背面纹理
 		mat.albedo_color = Color.WHITE

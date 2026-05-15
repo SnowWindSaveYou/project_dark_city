@@ -690,6 +690,13 @@ func on_dark_exit_requested() -> void:
 			m.token.set_emotion("relieved")
 			m.board_visual.update_token_visual()
 
+			# 消除裂隙: 清除 has_rift 标记 + 销毁 chibi, 防止玩家再次进入
+			var rift_card: Card = m.board.get_card(_saved_token_row, _saved_token_col)
+			if rift_card != null and rift_card.has_rift:
+				rift_card.has_rift = false
+				m.board_visual.rift_clear_all()
+				print("[DarkWorldFlow] Rift consumed at (%d,%d)" % [_saved_token_row, _saved_token_col])
+
 			# 更新所有卡牌视觉
 			for r in range(1, Board.ROWS + 1):
 				for c in range(1, Board.COLS + 1):

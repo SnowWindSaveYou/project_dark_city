@@ -332,6 +332,14 @@ function M.exitDarkWorld()
             token.targetCol = riftCol
             Token.setEmotion(token, "normal")
 
+            -- 消除裂隙: 清除 hasRift 标记 + 销毁 chibi, 防止玩家再次进入
+            local riftCard = board.cards[riftRow] and board.cards[riftRow][riftCol]
+            if riftCard and riftCard.hasRift then
+                riftCard.hasRift = false
+                MonsterGhost.clearCardGhosts()
+                print("[DarkWorldFlow] Rift consumed at (" .. riftRow .. "," .. riftCol .. ")")
+            end
+
             print("[Main] Returned to reality from dark world")
 
             -- 里程碑: 退出暗面 hook
