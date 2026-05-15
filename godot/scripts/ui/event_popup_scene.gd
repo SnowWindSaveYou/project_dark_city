@@ -198,8 +198,8 @@ func _ready() -> void:
 				dismiss()
 	)
 
-	# 初始化拍立得尺寸（resize 通知还未到来，先用视口尺寸计算一次）
-	_update_polaroid_layout()
+	# 拍立得尺寸由 tscn 的 Inspector 直接设置，_update_polaroid_layout 仅在 resize 时刷新样式边距
+	# _update_polaroid_layout()  # ← 如需代码驱动尺寸再打开
 
 # ---------------------------------------------------------------------------
 # 关联组件引用
@@ -804,7 +804,10 @@ func _on_resized() -> void:
 			minf(vp.x * 0.72, 1080),
 			minf(vp.y * 0.52, 600)
 		)
-		_update_polaroid_layout()
+		# 拍立得尺寸由 tscn Inspector 固定，resize 时只刷新装饰线位置
+		# _update_polaroid_layout()  # ← 如需代码驱动尺寸再打开
+		if _notebook_decor:
+			_notebook_decor.queue_redraw()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:

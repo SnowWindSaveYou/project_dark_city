@@ -273,6 +273,9 @@ func advance_day() -> void:
 
 	m.day_count += 1
 	GameData.current_day = m.day_count
+	# 通知背景层更新当天文字
+	if m._monogatari_bg:
+		m._monogatari_bg.set_day(m.day_count)
 
 	# Phase 5: 动态天数 (替代硬编码 MAX_DAYS)
 	var max_days: int = StoryManager.get_max_days()
@@ -493,6 +496,8 @@ func restart_game() -> void:
 	m.game_time = 0.0
 	m._bg_transition = 0.0
 	m._bg_transition_target = 0.0
+	if m._monogatari_bg:
+		m._monogatari_bg.set_day(1)
 	m._camera_offset = Vector2.ZERO
 	m._hovered_card = null
 

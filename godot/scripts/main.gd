@@ -156,6 +156,7 @@ var _world_env: WorldEnvironment = null
 var _env: Environment = null
 var _table_mesh: MeshInstance3D = null
 var _table_mat: StandardMaterial3D = null
+var _monogatari_bg: Node2D = null   # 物语系列风格背景层
 
 # ---------------------------------------------------------------------------
 # 兼容方法 (Node3D 没有 CanvasItem.get_viewport_rect)
@@ -285,6 +286,16 @@ func _setup_scene_tree() -> void:
 	ui_layer.layer = 10
 	add_child(ui_layer)
 	_ui_layer = ui_layer
+
+	# 物语系列背景层 (layer=2: 最底层，在 3D 场景和天气粒子之下)
+	var bg_layer: CanvasLayer = CanvasLayer.new()
+	bg_layer.name = "MonogatariBGLayer"
+	bg_layer.layer = 2
+	add_child(bg_layer)
+
+	_monogatari_bg = load("res://scripts/visual/monogatari_bg.gd").new()
+	_monogatari_bg.name = "MonogatariBG"
+	bg_layer.add_child(_monogatari_bg)
 
 	# 天气粒子层 (layer=5: 位于 UI 层之下，渲染在界面背后)
 	var weather_layer: CanvasLayer = CanvasLayer.new()
@@ -448,26 +459,8 @@ func _setup_3d_scene() -> void:
 # ---------------------------------------------------------------------------
 
 func _setup_table() -> void:
-	# 桌面: 棋盘下方的平面, 提供视觉地面
-	var total_w: float = Board.COLS * (Card.CARD_W + Board.GAP) + 1.0
-	var total_h: float = Board.ROWS * (Card.CARD_H + Board.GAP) + 1.0
-	var table_size: Vector3 = Vector3(total_w, 0.05, total_h)
-
-	_table_mesh = MeshInstance3D.new()
-	_table_mesh.name = "TableSurface"
-	var box: BoxMesh = BoxMesh.new()
-	box.size = table_size
-	_table_mesh.mesh = box
-
-	_table_mat = StandardMaterial3D.new()
-	_table_mat.albedo_color = ATMO_BRIGHT["table_color"]
-	_table_mat.roughness = 0.85
-	_table_mat.metallic = 0.0
-	_table_mesh.material_override = _table_mat
-
-	# 桌面位于卡牌下方
-	_table_mesh.position = Vector3(0, -0.03, 0)
-	add_child(_table_mesh)
+	# 桌面已移除 — 物语系列风格场景不使用地面平面
+	pass
 
 # ---------------------------------------------------------------------------
 # 控制器初始化
@@ -1032,10 +1025,11 @@ func _apply_atmosphere(t: float) -> void:
 		_env.fog_light_color = ATMO_BRIGHT["fog_color"].lerp(
 			ATMO_DARK["fog_color"], fog_t)
 
-	# 桌面颜色
-	if _table_mat:
-		_table_mat.albedo_color = ATMO_BRIGHT["table_color"].lerp(
-			ATMO_DARK["table_color"], t)
+	# 桌面已移除，无需更新颜色
+
+	# 物语背景层明暗同步
+	if _monogatari_bg:
+		_monogatari_bg.set_dark_transition(t)
 
 # ---------------------------------------------------------------------------
 # 对话系统 tween 管理
