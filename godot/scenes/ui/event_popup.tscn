@@ -1,6 +1,57 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/event_popup_scene.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nb"]
+bg_color = Color(0.98, 0.965, 0.933, 0.98)
+border_color = Color(0.769, 0.722, 0.643, 0.7)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+content_margin_left = 20.0
+content_margin_right = 28.0
+content_margin_top = 16.0
+content_margin_bottom = 20.0
+shadow_color = Color(0, 0, 0, 0.28)
+shadow_size = 16
+shadow_offset = Vector2(4, 6)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pol"]
+bg_color = Color(0.992, 0.988, 0.965, 1.0)
+border_color = Color(0.824, 0.784, 0.725, 0.55)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 17.0
+content_margin_right = 17.0
+content_margin_top = 17.0
+content_margin_bottom = 0.0
+shadow_color = Color(0, 0, 0, 0.32)
+shadow_size = 14
+shadow_offset = Vector2(3, 5)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
+bg_color = Color(0.278, 0.706, 0.51, 0.92)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+content_margin_left = 24.0
+content_margin_right = 24.0
+content_margin_top = 14.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_right"]
 
 [node name="EventPopup" type="Control"]
 layout_mode = 3
@@ -36,6 +87,7 @@ mouse_filter = 2
 layout_mode = 2
 custom_minimum_size = Vector2(900, 540)
 mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_nb")
 
 [node name="NotebookDecor" type="Control" parent="PanelAnchor/Notebook"]
 layout_mode = 1
@@ -79,6 +131,7 @@ grow_horizontal = 2
 grow_vertical = 2
 pivot_offset = Vector2(116, 178)
 mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pol")
 
 [node name="PolaroidVBox" type="VBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard"]
 layout_mode = 2
@@ -87,7 +140,6 @@ theme_override_constants/separation = 0
 
 [node name="EventTexture" type="TextureRect" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 0)
 size_flags_vertical = 3
 stretch_mode = 6
 mouse_filter = 2
@@ -106,7 +158,6 @@ theme_override_font_sizes/font_size = 25
 [node name="CardBottomSep" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom"]
 layout_mode = 2
 text = "  "
-theme_override_font_sizes/font_size = 25
 
 [node name="LocationLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom"]
 layout_mode = 2
@@ -152,6 +203,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 custom_minimum_size = Vector2(180, 52)
 mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_btn")
 
 [node name="ConfirmLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/ConfirmButton"]
 layout_mode = 2

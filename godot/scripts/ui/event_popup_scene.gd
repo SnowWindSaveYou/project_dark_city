@@ -134,69 +134,11 @@ func _ready() -> void:
 	_notebook_decor.draw.connect(_draw_notebook_decor)
 	_notebook.resized.connect(func(): _notebook_decor.queue_redraw())
 
-	var t = GameTheme
-
-	# 笔记本底板样式（奶白色纸质感）
-	var nb_style: StyleBoxFlat = StyleBoxFlat.new()
-	nb_style.bg_color = Color(0.980, 0.965, 0.933, 0.98)
-	nb_style.border_color = Color(0.769, 0.722, 0.643, 0.70)
-	nb_style.set_border_width_all(3)
-	nb_style.set_corner_radius_all(18)
-	nb_style.content_margin_left = 20
-	nb_style.content_margin_right = 28
-	nb_style.content_margin_top = 16
-	nb_style.content_margin_bottom = 20
-	# 阴影（对应 Lua 版笔记本 shadow）
-	nb_style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
-	nb_style.shadow_size = 16
-	nb_style.shadow_offset = Vector2(4.0, 6.0)
-	_notebook.add_theme_stylebox_override("panel", nb_style)
+	# 笔记本/拍立得样式已写入 tscn sub_resource，运行时保持 custom_minimum_size 即可
 	_notebook.custom_minimum_size = Vector2(NB_W, NB_H)
 
-	# 拍立得区：横向固定不扩展，纵向填满 HBox；样式和尺寸在 _update_polaroid_layout() 中动态计算
-	_polaroid_area.size_flags_horizontal = 0
-	_polaroid_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	# 右侧文字区行间距
-	_right_vbox.add_theme_constant_override("separation", 16)
-	# HBox（拍立得区 ↔ 右栏）间距：16px
-	var hbox: HBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox
-	hbox.add_theme_constant_override("separation", 16)
-	# OuterVBox（HBox ↔ ConfirmButton）间距：12px
-	var outer_vbox: VBoxContainer = $PanelAnchor/Notebook/OuterVBox
-	outer_vbox.add_theme_constant_override("separation", 12)
-
-	# 标题字号
-	_title_label.add_theme_font_size_override("font_size", 52)
-	_title_label.add_theme_color_override("font_color", Color(0.18, 0.18, 0.22, 0.92))
-
-	# 描述字号
-	_desc_label.add_theme_font_size_override("font_size", 34)
-	_desc_label.add_theme_color_override("font_color", Color(0.38, 0.38, 0.44, 0.78))
-
-	# 白夜台词
-	_baiiye_label.add_theme_font_size_override("font_size", 30)
-	_baiiye_label.add_theme_color_override("font_color", Color(0.502, 0.459, 0.647, 0.72))
-
-	# 拍立得底部标签字号（与固定卡片高度 356px 比例匹配：356*0.072≈25）
-	_type_label.add_theme_font_size_override("font_size", 25)
-	_location_label.add_theme_font_size_override("font_size", 25)
-
-	# 拍立得卡片样式（奶白色相纸 + 边框 + 阴影）
-	# 尺寸由 tscn 固定（232×356px），这里只设颜色/边距/阴影
-	var pol_style := StyleBoxFlat.new()
-	pol_style.bg_color         = Color(0.992, 0.988, 0.965, 1.0)
-	pol_style.border_color     = Color(0.824, 0.784, 0.725, 0.55)
-	pol_style.set_border_width_all(2)
-	pol_style.set_corner_radius_all(6)
-	pol_style.content_margin_left   = 17.0  # 232 * 7.4%
-	pol_style.content_margin_right  = 17.0
-	pol_style.content_margin_top    = 17.0
-	pol_style.content_margin_bottom = 0.0   # 底白边由 CardBottom 撑开
-	pol_style.shadow_color  = Color(0.0, 0.0, 0.0, 0.32)
-	pol_style.shadow_size   = 14
-	pol_style.shadow_offset = Vector2(3.0, 5.0)
-	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
+	# 笔记本/拍立得/标题/描述/字号/间距等静态样式已移至 event_popup.tscn 的 sub_resource，
+	# 编辑器与运行时均可见，这里无需重复赋值。
 
 	# 确认按钮样式（绿色胶囊）
 	_style_confirm_button(false)

@@ -27,7 +27,7 @@ const TOKEN_CLICK_RADIUS: float = 32.0
 const ATMO_BRIGHT: Dictionary = {
 	# 灯光
 	"light_color":    Color(1.00, 0.97, 0.88),   # 暖黄白阳光
-	"light_energy":   2.8,
+	"light_energy":   2.2,                        # 降低避免 bloom 叠加过曝
 	"ambient_color":  Color(0.38, 0.45, 0.58),   # 蓝灰天光
 	"ambient_energy": 0.65,
 	# 背景/雾
@@ -36,15 +36,15 @@ const ATMO_BRIGHT: Dictionary = {
 	"fog_color":   Color(0.5, 0.6, 0.7),
 	"table_color": Color(0.25, 0.22, 0.20),
 	# Bloom — 轻柔日光散射
-	"glow_intensity":  0.55,
-	"glow_bloom":      0.02,
+	"glow_intensity":  0.45,
+	"glow_bloom":      0.01,
 	# 色彩调整 — 城市鲜活感
-	"adj_brightness":  1.0,
-	"adj_contrast":    1.05,
-	"adj_saturation":  1.18,
-	# Tonemap
+	"adj_brightness":  0.94,
+	"adj_contrast":    1.04,
+	"adj_saturation":  1.15,
+	# Tonemap (white 保持默认 1.0, 避免整体过亮)
 	"tonemap_exposure": 1.0,
-	"tonemap_white":    6.0,
+	"tonemap_white":    1.0,
 }
 const ATMO_DARK: Dictionary = {
 	# 灯光
@@ -65,8 +65,8 @@ const ATMO_DARK: Dictionary = {
 	"adj_contrast":    1.18,
 	"adj_saturation":  0.58,
 	# Tonemap
-	"tonemap_exposure": 0.80,
-	"tonemap_white":    4.5,
+	"tonemap_exposure": 0.82,
+	"tonemap_white":    1.0,
 }
 # 雷暴天气叠加偏移 (在当前氛围基础上额外施加)
 const ATMO_STORMY_OFFSET: Dictionary = {
