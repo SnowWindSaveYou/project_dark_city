@@ -3,15 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://blbmyundsw3xj"
-path="res://.godot/imported/token_surprised.png-c7384c687aa82c9dd77a8ca76999bac1.ctex"
-metadata={
-"vram_texture": false
-}
+valid=false
 
 [deps]
 
 source_file="res://assets/textures/token/token_surprised.png"
-dest_files=["res://.godot/imported/token_surprised.png-c7384c687aa82c9dd77a8ca76999bac1.ctex"]
 
 [params]
 

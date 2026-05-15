@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://dvoivr4kodjk0"]
 
-[ext_resource type="Script" path="res://scripts/visual/bubble_overlay.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dbamu8ljruw70" path="res://scripts/visual/bubble_overlay.gd" id="1_script"]
 
 [node name="BubbleOverlay" type="Control"]
 layout_mode = 3
