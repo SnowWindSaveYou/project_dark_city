@@ -83,21 +83,21 @@
 
 | 状态 | # | 事件ID | 卡面主题 | 构图描述 |
 |------|---|--------|---------|---------|
-| ⬜ | 1 | evt_safe_rest | **静谧街角** | 城市普通街角，微风、落叶，暖色路灯，无异常 |
-| ⬜ | 2 | evt_monster_shadow | **角落黑影** | 昏暗走廊，黑影从地面裂缝涌出，黑烟质感 |
-| ⬜ | 3 | evt_monster_whisper | **黑雾耳语** | 主角视角，黑雾弥漫，金色光粒（钱币）飘散，耳边低语氛围 |
-| ⬜ | 4 | evt_trap_generic | **陷阱触发** | 俯视视角，脚下符文裂开发光，可作trap各子类通用底图 |
-| ⬜ | 5 | evt_reward_supply | **遗忘宝藏** | 废弃空间（仓库/地下室），斑驳光线打在旧保险箱/背包上 |
-| ⬜ | 6 | evt_plot_inscription | **墙壁纹路** | 砖墙近景，古老纹路微微发光，城市旧建筑质感 |
-| ⬜ | 7 | evt_plot_find_photo | **泛黄照片** | 旧照片从墙缝滑落，背面墨水写字特写，焦黄纸质感 |
-| ⬜ | 8 | evt_plot_symbol_wall | **符文墙** | 手指触碰墙上符文特写，符文发出冷白光 |
-| ⬜ | 9 | evt_plot_missing_person | **寻人启事** | 废弃告示栏，贴满失踪启事，一张日期格外显眼 |
-| ⬜ | 10 | evt_plot_deep_rumble | **地底震动** | 地面裂缝视角，从裂缝能看见更深处有什么在蠕动 |
-| ⬜ | 11 | evt_clue_footprints | **非人脚印** | 潮湿地面上非人类的脚印，消失在完整墙壁前 |
-| ⬜ | 12 | evt_clue_blood_trail | **仪式血迹** | 角落干涸血迹俯视，排列成几何图案，令人不安的规整 |
-| ⬜ | 13 | evt_clue_diary | **潦草日记** | 旧书扉页，日记纸飘落，最后一行字放大特写 |
-| ⬜ | 14 | evt_clue_talisman | **碎裂护身符** | 地面上碎成两半的护身符，与墙上符文构成呼应 |
-| ⬜ | 15 | evt_clue_generic | **不寻常细节** | 城市角落某处被圈出的"细节"，侦探感泛化构图 |
+| 🔄 | 1 | evt_safe_rest | **静谧街角** | 城市普通街角，微风、落叶，暖色路灯，无异常 | `evt_safe_rest_shaft_v1` |
+| 🔄 | 2 | evt_monster_shadow | **角落黑影** | 昏暗走廊，黑影从地面裂缝涌出，黑烟质感 | `evt_monster_shadow_shaft_v1` |
+| 🔄 | 3 | evt_monster_whisper | **黑雾耳语** | 主角视角，黑雾弥漫，金色光粒（钱币）飘散，耳边低语氛围 | `evt_monster_whisper_shaft_v1` |
+| 🔄 | 4 | evt_trap_generic | **陷阱触发** | 俯视视角，脚下符文裂开发光，可作trap各子类通用底图 | `evt_trap_generic_shaft_v1` |
+| 🔄 | 5 | evt_reward_supply | **遗忘宝藏** | 废弃空间（仓库/地下室），斑驳光线打在旧保险箱/背包上 | `evt_reward_supply_shaft_v1` |
+| 🔄 | 6 | evt_plot_inscription | **墙壁纹路** | 砖墙近景，古老纹路微微发光，城市旧建筑质感 | `evt_plot_inscription_shaft_v1` |
+| 🔄 | 7 | evt_plot_find_photo | **泛黄照片** | 旧照片从墙缝滑落，背面墨水写字特写，焦黄纸质感 | `evt_plot_find_photo_shaft_v1` |
+| 🔄 | 8 | evt_plot_symbol_wall | **符文墙** | 手指触碰墙上符文特写，符文发出冷白光 | `evt_plot_symbol_wall_shaft_v1` |
+| 🔄 | 9 | evt_plot_missing_person | **寻人启事** | 废弃告示栏，贴满失踪启事，一张日期格外显眼 | `evt_plot_missing_person_shaft_v1` |
+| 🔄 | 10 | evt_plot_deep_rumble | **地底震动** | 地面裂缝视角，从裂缝能看见更深处有什么在蠕动 | `evt_plot_deep_rumble_shaft_v1` |
+| 🔄 | 11 | evt_clue_footprints | **非人脚印** | 潮湿地面上非人类的脚印，消失在完整墙壁前 | `evt_clue_footprints_shaft_v1` |
+| 🔄 | 12 | evt_clue_blood_trail | **仪式血迹** | 角落干涸血迹俯视，排列成几何图案，令人不安的规整 | `evt_clue_blood_trail_shaft_v1` |
+| 🔄 | 13 | evt_clue_diary | **潦草日记** | 旧书扉页，日记纸飘落，最后一行字放大特写 | `evt_clue_diary_shaft_v1` |
+| 🔄 | 14 | evt_clue_talisman | **碎裂护身符** | 地面上碎成两半的护身符，与墙上符文构成呼应 | `evt_clue_talisman_shaft_v1` |
+| 🔄 | 15 | evt_clue_generic | **不寻常细节** | 城市角落某处被圈出的"细节"，侦探感泛化构图 | `evt_clue_generic_shaft_v1` |
 | ⏸ | 16 | evt_photo_generic | **相片定格** | ~~相机取景框视角~~  → 拍照卡面 = 复用普通卡面 + 叠加「相片边框」框架，无需独立插画 |
 
 ### 2-B 地点专属事件

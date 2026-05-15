@@ -50,13 +50,13 @@ func _ready() -> void:
 	_load_story_config()
 
 func _load_story_config() -> void:
-	var file := FileAccess.open("res://data/story_config.json", FileAccess.READ)
+	var file: FileAccess = FileAccess.open("res://data/story_config.json", FileAccess.READ)
 	if file == null:
 		push_warning("[StoryManager] story_config.json not found, using empty config")
 		return
 
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	file.close()
 	if err != OK:
 		push_warning("[StoryManager] JSON parse error: %s (line %d)" % [json.get_error_message(), json.get_error_line()])

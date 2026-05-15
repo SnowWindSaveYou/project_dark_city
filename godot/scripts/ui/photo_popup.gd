@@ -50,7 +50,7 @@ func _ready() -> void:
 	var t = GameTheme
 
 	# 相片白框样式 (略带暖白)
-	var frame_style := StyleBoxFlat.new()
+	var frame_style: StyleBoxFlat = StyleBoxFlat.new()
 	frame_style.bg_color = Color(0.988, 0.980, 0.961, 0.98)
 	frame_style.border_color = Color(0.824, 0.784, 0.725, 0.47)
 	frame_style.set_border_width_all(3)
@@ -63,7 +63,7 @@ func _ready() -> void:
 	_photo_frame.custom_minimum_size = Vector2(PHOTO_W, PHOTO_H)
 
 	# 照片内区域样式 (暗蓝灰底色)
-	var image_style := StyleBoxFlat.new()
+	var image_style: StyleBoxFlat = StyleBoxFlat.new()
 	image_style.bg_color = Color(0.098, 0.118, 0.157, 0.94)
 	image_style.border_color = Color(0, 0, 0, 0.16)
 	image_style.set_border_width_all(3)
@@ -109,8 +109,8 @@ func show_photo(card: Card) -> void:
 
 	# 事件类型氛围色叠加到照片区域
 	var image_style: StyleBoxFlat = _image_area.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-	var base_color := Color(0.098, 0.118, 0.157, 0.94)
-	var atmos := Color(type_color.r, type_color.g, type_color.b, 0.15)
+	var base_color: Color = Color(0.098, 0.118, 0.157, 0.94)
+	var atmos: Color = Color(type_color.r, type_color.g, type_color.b, 0.15)
 	image_style.bg_color = base_color.blend(atmos)
 	_image_area.add_theme_stylebox_override("panel", image_style)
 

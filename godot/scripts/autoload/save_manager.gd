@@ -81,7 +81,7 @@ func reset_save() -> void:
 # ---------------------------------------------------------------------------
 
 func save_data() -> void:
-	var cfg := ConfigFile.new()
+	var cfg: ConfigFile = ConfigFile.new()
 
 	cfg.set_value("progress", "unlocked_endings", unlocked_endings)
 	cfg.set_value("progress", "total_runs", total_runs)
@@ -89,14 +89,14 @@ func save_data() -> void:
 	for key in best_stats.keys():
 		cfg.set_value("best_stats", key, best_stats[key])
 
-	var err := cfg.save(SAVE_PATH)
+	var err: Error = cfg.save(SAVE_PATH)
 	if err != OK:
 		push_warning("SaveManager: 写入失败 (%d)" % err)
 
 
 func load_data() -> void:
-	var cfg := ConfigFile.new()
-	var err := cfg.load(SAVE_PATH)
+	var cfg: ConfigFile = ConfigFile.new()
+	var err: Error = cfg.load(SAVE_PATH)
 	if err != OK:
 		return  # 首次运行，保持默认值
 

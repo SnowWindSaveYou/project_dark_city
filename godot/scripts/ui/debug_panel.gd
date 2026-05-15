@@ -15,11 +15,11 @@ signal debug_action(action_id: String)
 # ─── 常量 ──────────────────────────────────────────────
 const PANEL_WIDTH: int = 340
 const LINE_HEIGHT: int = 24
-const TITLE_COLOR := Color(0.39, 0.78, 1.0)
-const KEY_COLOR := Color(0.7, 0.7, 0.7)
-const VALUE_COLOR := Color(1.0, 1.0, 0.78)
-const BTN_COLOR := Color(0.2, 0.3, 0.4)
-const BG_COLOR := Color(0.0, 0.0, 0.0, 0.75)
+const TITLE_COLOR: Color = Color(0.39, 0.78, 1.0)
+const KEY_COLOR: Color = Color(0.7, 0.7, 0.7)
+const VALUE_COLOR: Color = Color(1.0, 1.0, 0.78)
+const BTN_COLOR: Color = Color(0.2, 0.3, 0.4)
+const BG_COLOR: Color = Color(0.0, 0.0, 0.0, 0.75)
 
 # ─── 内部节点 ─────────────────────────────────────────
 var _vbox: VBoxContainer = null
@@ -31,7 +31,7 @@ var _title_label: Label = null
 
 ## 创建并挂载到指定父节点（通常是 CanvasLayer）
 static func create(parent: Node) -> DebugPanel:
-	var panel := DebugPanel.new()
+	var panel: DebugPanel = DebugPanel.new()
 	parent.add_child(panel)
 	panel.visible = false
 	return panel
@@ -44,7 +44,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	# 面板自身样式
-	var style := StyleBoxFlat.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = BG_COLOR
 	style.border_color = TITLE_COLOR * Color(1, 1, 1, 0.4)
 	style.border_width_left = 1
@@ -85,7 +85,7 @@ func _build_ui() -> void:
 	_vbox.add_child(_title_label)
 
 	# 分隔线
-	var sep := HSeparator.new()
+	var sep: HSeparator = HSeparator.new()
 	sep.add_theme_color_override("separator", TITLE_COLOR * Color(1, 1, 1, 0.3))
 	_vbox.add_child(sep)
 
@@ -95,7 +95,7 @@ func _build_ui() -> void:
 	_vbox.add_child(_data_container)
 
 	# 分隔线 2
-	var sep2 := HSeparator.new()
+	var sep2: HSeparator = HSeparator.new()
 	sep2.add_theme_color_override("separator", TITLE_COLOR * Color(1, 1, 1, 0.2))
 	_vbox.add_child(sep2)
 
@@ -125,11 +125,11 @@ func _build_debug_buttons() -> void:
 	]
 
 	for def in buttons:
-		var btn := Button.new()
+		var btn: Button = Button.new()
 		btn.text = def["label"]
 		btn.custom_minimum_size = Vector2(100, 28)
 
-		var btn_style := StyleBoxFlat.new()
+		var btn_style: StyleBoxFlat = StyleBoxFlat.new()
 		btn_style.bg_color = BTN_COLOR
 		btn_style.corner_radius_top_left = 4
 		btn_style.corner_radius_top_right = 4
@@ -137,7 +137,7 @@ func _build_debug_buttons() -> void:
 		btn_style.corner_radius_bottom_right = 4
 		btn.add_theme_stylebox_override("normal", btn_style)
 
-		var btn_hover := StyleBoxFlat.new()
+		var btn_hover: StyleBoxFlat = StyleBoxFlat.new()
 		btn_hover.bg_color = BTN_COLOR.lightened(0.15)
 		btn_hover.corner_radius_top_left = 4
 		btn_hover.corner_radius_top_right = 4
@@ -175,16 +175,16 @@ func refresh(data: Dictionary) -> void:
 	keys.sort()
 
 	for key in keys:
-		var row := HBoxContainer.new()
+		var row: HBoxContainer = HBoxContainer.new()
 
-		var key_label := Label.new()
+		var key_label: Label = Label.new()
 		key_label.text = str(key) + ":"
 		key_label.add_theme_color_override("font_color", KEY_COLOR)
 		key_label.add_theme_font_size_override("font_size", 14)
 		key_label.custom_minimum_size.x = 140
 		row.add_child(key_label)
 
-		var val_label := Label.new()
+		var val_label: Label = Label.new()
 		val_label.text = str(data[key])
 		val_label.add_theme_color_override("font_color", VALUE_COLOR)
 		val_label.add_theme_font_size_override("font_size", 14)

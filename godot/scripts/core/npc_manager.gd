@@ -76,12 +76,12 @@ func _init() -> void:
 func _load_data() -> void:
 	if _loaded:
 		return
-	var file := FileAccess.open(DATA_PATH, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(DATA_PATH, FileAccess.READ)
 	if file == null:
 		push_warning("[NPCManager] %s not found" % DATA_PATH)
 		return
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	if err != OK:
 		push_warning("[NPCManager] JSON parse error: %s" % json.get_error_message())
 		return
@@ -164,7 +164,7 @@ func spawn_npc(id: String, row: int, col: int) -> void:
 
 	var type_config: Dictionary = _npc_types.get(id, {})
 
-	var npc := NPCData.new()
+	var npc: NPCData = NPCData.new()
 	npc.id = id
 	npc.npc_name = type_config.get("name", id)
 	npc.row = row
@@ -184,7 +184,7 @@ func spawn_npc_custom(id: String, npc_name: String, row: int, col: int,
 	if npcs.has(id):
 		remove_npc(id)
 
-	var npc := NPCData.new()
+	var npc: NPCData = NPCData.new()
 	npc.id = id
 	npc.npc_name = npc_name
 	npc.row = row

@@ -739,7 +739,7 @@ func _process(dt: float) -> void:
 		var clean_pos: Vector3 = _cam_pivot.position - _last_shake_offset_3d
 		clean_pos = clean_pos.lerp(target_pivot, minf(10.0 * dt, 1.0))
 		# 在干净的 base 上叠加本帧的 shake
-		var shake_3d := Vector3.ZERO
+		var shake_3d: Vector3 = Vector3.ZERO
 		if _vfx:
 			var shake: Vector2 = _vfx.shake_offset
 			if shake != Vector2.ZERO:

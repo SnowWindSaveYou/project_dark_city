@@ -69,13 +69,13 @@ func _load_audio_config() -> void:
 		_apply_default_mapping()
 		return
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		_apply_default_mapping()
 		return
 
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	file.close()
 	if err != OK:
 		push_warning("AudioManager: audio_config.json parse error: %s" % json.get_error_message())
@@ -184,7 +184,7 @@ func _setup_bgm_players() -> void:
 
 func _setup_sfx_pool() -> void:
 	for i in range(MAX_SFX_POOL):
-		var player := AudioStreamPlayer.new()
+		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.bus = "SFX"
 		player.volume_db = linear_to_db(_sfx_volume)
 		add_child(player)
@@ -207,7 +207,7 @@ func play_bgm(key_or_path: String, loop: bool = true) -> void:
 		return
 
 	var path: String = bgm_map.get(key_or_path, key_or_path)
-	var stream := _load_stream(path)
+	var stream: AudioStream = _load_stream(path)
 	if stream == null:
 		push_warning("AudioManager: BGM not found: %s" % path)
 		return
@@ -256,12 +256,12 @@ func set_bgm_volume(vol: float) -> void:
 ## 播放 SFX (通过 key 或直接路径)
 func play_sfx(key_or_path: String, volume: float = -1.0, combo: bool = false) -> void:
 	var path: String = sfx_map.get(key_or_path, key_or_path)
-	var stream := _load_stream(path)
+	var stream: AudioStream = _load_stream(path)
 	if stream == null:
 		# 静默忽略缺失的音效（可能尚未制作）
 		return
 
-	var player := _get_free_sfx_player()
+	var player: AudioStreamPlayer = _get_free_sfx_player()
 	if player == null:
 		return  # 池已满
 
@@ -309,7 +309,7 @@ func play_ambient(key: String) -> void:
 		return
 
 	var path: String = sfx_map.get(key, key)
-	var stream := _load_stream(path)
+	var stream: AudioStream = _load_stream(path)
 	if stream == null:
 		# 静默忽略（音效文件可能尚未制作）
 		_current_ambient_key = ""
@@ -439,7 +439,7 @@ func _load_stream(path: String) -> AudioStream:
 
 ## 将 BGM/SFX 音量保存到 user://audio_settings.cfg
 func save_settings() -> void:
-	var cfg := ConfigFile.new()
+	var cfg: ConfigFile = ConfigFile.new()
 	cfg.set_value("audio", "bgm_volume", _bgm_volume)
 	cfg.set_value("audio", "sfx_volume", _sfx_volume)
 	cfg.save(SETTINGS_PATH)
@@ -447,8 +447,8 @@ func save_settings() -> void:
 
 ## 从 user://audio_settings.cfg 加载音量设置 (初始化时调用)
 func _load_settings() -> void:
-	var cfg := ConfigFile.new()
-	var err := cfg.load(SETTINGS_PATH)
+	var cfg: ConfigFile = ConfigFile.new()
+	var err: Error = cfg.load(SETTINGS_PATH)
 	if err != OK:
 		return  # 文件不存在则保持默认值
 	_bgm_volume = clampf(cfg.get_value("audio", "bgm_volume", _bgm_volume), 0.0, 1.0)

@@ -196,7 +196,7 @@ func _pick_free_tile() -> Vector2i:
 			if r == m.board.home_row and c == m.board.home_col:
 				continue
 			# 跳过已有 NPC
-			var occupied := false
+			var occupied: bool = false
 			for npc in npc_manager.npcs.values():
 				if npc.row == r and npc.col == c:
 					occupied = true
@@ -256,7 +256,7 @@ func advance_day() -> void:
 	m.board_visual.hide_safe_glows()
 
 	# 夜谈事件 → 结束后再收牌 → 日期过渡
-	var do_undeal := func() -> void:
+	var do_undeal: Callable = func() -> void:
 		m.board_visual.play_undeal_animation(func() -> void:
 			m._date_transition.play(m.day_count)
 		)
@@ -295,7 +295,7 @@ func _try_morning_event() -> void:
 
 	# 第6天: 晨间事件结束后强制进入暗面
 	if m.day_count == 6:
-		var after_morning_day6 := func() -> void:
+		var after_morning_day6: Callable = func() -> void:
 			print("[GameFlow] Day 6: forcing dark world entry")
 			m._vfx.action_banner("暗面异动……", Color(0.7, 0.3, 0.9), 1.2)
 			# 短暂延迟后进入暗面 (棋盘中心格)

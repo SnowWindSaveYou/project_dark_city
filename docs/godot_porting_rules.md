@@ -45,6 +45,33 @@ const ROWS: int = 5
 | `ClassName.new()` | `ClassName` |
 | `int(...)`, `mini(...)`, `absi(...)` | `int` |
 | `float(...)`, `minf(...)`, `clampf(...)` | `float` |
+| `FileAccess.open(...)` | `FileAccess` |
+| `JSON.new()` | `JSON` |
+| `json.parse(...)` / `cfg.save(...)` / `cfg.load(...)` | `Error` |
+| `ConfigFile.new()` | `ConfigFile` |
+| `AudioStreamPlayer.new()` | `AudioStreamPlayer` |
+
+**`const` 同样禁止 `:=`**:
+
+```gdscript
+# ❌ 禁止
+const TITLE_COLOR := Color(0.39, 0.78, 1.0)
+
+# ✅ 正确
+const TITLE_COLOR: Color = Color(0.39, 0.78, 1.0)
+```
+
+**`.duplicate()` 必须标注具体子类型** 🔴
+
+`.duplicate()` 返回 `Resource`（父类），不标注会丢失 `StyleBoxFlat` 的字段访问：
+
+```gdscript
+# ❌ 错误: cb_hover 被推断为 Resource, 访问 .bg_color 等字段报错
+var cb_hover := cb_style.duplicate() as StyleBoxFlat  # as 只是运行时转型,推断类型仍是 Variant
+
+# ✅ 正确: 显式标注目标类型
+var cb_hover: StyleBoxFlat = cb_style.duplicate()
+```
 
 **可空值特殊处理** — 返回值可能是 null 时，不标注类型:
 ```gdscript

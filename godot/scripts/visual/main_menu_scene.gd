@@ -98,7 +98,7 @@ func _ready() -> void:
 func _style_button(btn: Button, color: Color, primary: bool) -> void:
 	var alpha: float = 0.92 if primary else 0.75
 
-	var normal := StyleBoxFlat.new()
+	var normal: StyleBoxFlat = StyleBoxFlat.new()
 	normal.bg_color = Color(color.r, color.g, color.b, alpha)
 	normal.corner_radius_top_left    = 10
 	normal.corner_radius_top_right   = 10
@@ -106,7 +106,7 @@ func _style_button(btn: Button, color: Color, primary: bool) -> void:
 	normal.corner_radius_bottom_right = 10
 	btn.add_theme_stylebox_override("normal", normal)
 
-	var hover := StyleBoxFlat.new()
+	var hover: StyleBoxFlat = StyleBoxFlat.new()
 	hover.bg_color = Color(color.r, color.g, color.b, 1.0)
 	hover.corner_radius_top_left    = 10
 	hover.corner_radius_top_right   = 10
@@ -114,7 +114,7 @@ func _style_button(btn: Button, color: Color, primary: bool) -> void:
 	hover.corner_radius_bottom_right = 10
 	btn.add_theme_stylebox_override("hover", hover)
 
-	var pressed_style := StyleBoxFlat.new()
+	var pressed_style: StyleBoxFlat = StyleBoxFlat.new()
 	pressed_style.bg_color = GameTheme.darken(color, 0.75)
 	pressed_style.corner_radius_top_left    = 10
 	pressed_style.corner_radius_top_right   = 10
@@ -233,21 +233,21 @@ func _init_floating_cards() -> void:
 # ---------------------------------------------------------------------------
 
 func _build_gallery_overlay() -> Control:
-	var root := Control.new()
+	var root: Control = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.visible = false
 
-	var overlay := ColorRect.new()
+	var overlay: ColorRect = ColorRect.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.color = Color(0.0, 0.0, 0.0, 0.72)
 	root.add_child(overlay)
 
-	var panel := PanelContainer.new()
+	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(780, 560)
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 
-	var ps := StyleBoxFlat.new()
+	var ps: StyleBoxFlat = StyleBoxFlat.new()
 	ps.bg_color = Color(0.10, 0.08, 0.16, 0.97)
 	ps.border_color = Color(0.45, 0.35, 0.75, 0.6)
 	ps.set_border_width_all(2)
@@ -262,38 +262,38 @@ func _build_gallery_overlay() -> Control:
 	panel.add_theme_stylebox_override("panel", ps)
 	root.add_child(panel)
 
-	var vbox := VBoxContainer.new()
+	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 20)
 	panel.add_child(vbox)
 
 	# 标题行
-	var hdr := HBoxContainer.new()
+	var hdr: HBoxContainer = HBoxContainer.new()
 	vbox.add_child(hdr)
 
-	var title_lbl := Label.new()
+	var title_lbl: Label = Label.new()
 	title_lbl.text = "📖  结局图鉴"
 	title_lbl.add_theme_font_size_override("font_size", 26)
 	title_lbl.add_theme_color_override("font_color", Color(0.72, 0.6, 1.0))
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(title_lbl)
 
-	var runs_lbl := Label.new()
+	var runs_lbl: Label = Label.new()
 	runs_lbl.text = "共游玩 %d 次" % SaveManager.total_runs
 	runs_lbl.add_theme_font_size_override("font_size", 14)
 	runs_lbl.add_theme_color_override("font_color", GameTheme.text_secondary)
 	runs_lbl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	hdr.add_child(runs_lbl)
 
-	var sep := HSeparator.new()
+	var sep: HSeparator = HSeparator.new()
 	sep.add_theme_color_override("color", Color(0.45, 0.35, 0.75, 0.35))
 	vbox.add_child(sep)
 
-	var scroll := ScrollContainer.new()
+	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vbox.add_child(scroll)
 
-	var grid := GridContainer.new()
+	var grid: GridContainer = GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 16)
 	grid.add_theme_constant_override("v_separation", 14)
@@ -315,15 +315,15 @@ func _build_gallery_overlay() -> Control:
 				frag_unlocked += 1
 
 	if frag_total > 0:
-		var frag_row := HBoxContainer.new()
+		var frag_row: HBoxContainer = HBoxContainer.new()
 		frag_row.add_theme_constant_override("separation", 12)
 		vbox.add_child(frag_row)
-		var frag_lbl := Label.new()
+		var frag_lbl: Label = Label.new()
 		frag_lbl.text = "📷  照片碎片  %d / %d" % [frag_unlocked, frag_total]
 		frag_lbl.add_theme_font_size_override("font_size", 15)
 		frag_lbl.add_theme_color_override("font_color", GameTheme.text_secondary)
 		frag_row.add_child(frag_lbl)
-		var prog := ProgressBar.new()
+		var prog: ProgressBar = ProgressBar.new()
 		prog.min_value  = 0.0
 		prog.max_value  = float(frag_total)
 		prog.value      = float(frag_unlocked)
@@ -333,24 +333,24 @@ func _build_gallery_overlay() -> Control:
 		frag_row.add_child(prog)
 
 	# 关闭按钮
-	var close_btn := Button.new()
+	var close_btn: Button = Button.new()
 	close_btn.text = "关 闭"
 	close_btn.custom_minimum_size = Vector2(120, 42)
 	close_btn.add_theme_font_size_override("font_size", 16)
 	close_btn.add_theme_color_override("font_color", Color.WHITE)
-	var cb_style := StyleBoxFlat.new()
+	var cb_style: StyleBoxFlat = StyleBoxFlat.new()
 	cb_style.bg_color = Color(0.25, 0.2, 0.4, 0.85)
 	cb_style.corner_radius_top_left    = 8
 	cb_style.corner_radius_top_right   = 8
 	cb_style.corner_radius_bottom_left = 8
 	cb_style.corner_radius_bottom_right = 8
 	close_btn.add_theme_stylebox_override("normal", cb_style)
-	var cb_hover := cb_style.duplicate() as StyleBoxFlat
+	var cb_hover: StyleBoxFlat = cb_style.duplicate()
 	cb_hover.bg_color = Color(0.35, 0.28, 0.55, 1.0)
 	close_btn.add_theme_stylebox_override("hover", cb_hover)
 	close_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var btn_wrap := HBoxContainer.new()
-	var bw_spacer := Control.new()
+	var btn_wrap: HBoxContainer = HBoxContainer.new()
+	var bw_spacer: Control = Control.new()
 	bw_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_wrap.add_child(bw_spacer)
 	btn_wrap.add_child(close_btn)
@@ -368,11 +368,11 @@ func _build_ending_card(entry: Dictionary) -> PanelContainer:
 	var unlocked: bool = entry.get("unlocked", false)
 	var is_vic: bool   = entry.get("is_victory", true)
 
-	var card := PanelContainer.new()
+	var card: PanelContainer = PanelContainer.new()
 	card.custom_minimum_size = Vector2(320, 88)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var card_style := StyleBoxFlat.new()
+	var card_style: StyleBoxFlat = StyleBoxFlat.new()
 	if unlocked:
 		card_style.bg_color     = Color(0.18, 0.14, 0.28, 0.9) if is_vic else Color(0.25, 0.08, 0.08, 0.9)
 		card_style.border_color = Color(0.55, 0.42, 0.85, 0.5) if is_vic else Color(0.75, 0.2,  0.2,  0.5)
@@ -390,14 +390,14 @@ func _build_ending_card(entry: Dictionary) -> PanelContainer:
 	card_style.content_margin_bottom = 12.0
 	card.add_theme_stylebox_override("panel", card_style)
 
-	var inner := VBoxContainer.new()
+	var inner: VBoxContainer = VBoxContainer.new()
 	inner.add_theme_constant_override("separation", 4)
 	card.add_child(inner)
 
-	var title_row := HBoxContainer.new()
+	var title_row: HBoxContainer = HBoxContainer.new()
 	inner.add_child(title_row)
 
-	var icon_lbl := Label.new()
+	var icon_lbl: Label = Label.new()
 	icon_lbl.text = "✦ " if unlocked else "？ "
 	icon_lbl.add_theme_font_size_override("font_size", 16)
 	icon_lbl.add_theme_color_override("font_color",
@@ -406,7 +406,7 @@ func _build_ending_card(entry: Dictionary) -> PanelContainer:
 		Color(0.4, 0.4, 0.45))
 	title_row.add_child(icon_lbl)
 
-	var title_lbl := Label.new()
+	var title_lbl: Label = Label.new()
 	title_lbl.text = entry.get("title", "???")
 	title_lbl.add_theme_font_size_override("font_size", 17)
 	title_lbl.add_theme_color_override("font_color",
@@ -415,14 +415,14 @@ func _build_ending_card(entry: Dictionary) -> PanelContainer:
 	title_row.add_child(title_lbl)
 
 	if unlocked:
-		var tag := Label.new()
+		var tag: Label = Label.new()
 		tag.text = "✓ 胜利" if is_vic else "✗ 失败"
 		tag.add_theme_font_size_override("font_size", 12)
 		tag.add_theme_color_override("font_color",
 			Color(0.5, 0.9, 0.5) if is_vic else Color(1.0, 0.5, 0.5))
 		title_row.add_child(tag)
 
-	var sub_lbl := Label.new()
+	var sub_lbl: Label = Label.new()
 	sub_lbl.text = entry.get("subtitle", "") if unlocked else "尚未解锁"
 	sub_lbl.add_theme_font_size_override("font_size", 13)
 	sub_lbl.add_theme_color_override("font_color",
@@ -442,13 +442,13 @@ func _on_gallery_pressed() -> void:
 	_refresh_gallery_content()
 	_gallery_overlay.visible = true
 	_gallery_overlay.modulate.a = 0.0
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_property(_gallery_overlay, "modulate:a", 1.0, 0.2) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 
 func _hide_gallery() -> void:
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_property(_gallery_overlay, "modulate:a", 0.0, 0.15) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func() -> void: _gallery_overlay.visible = false)
@@ -511,7 +511,7 @@ func _on_start_pressed() -> void:
 	_btn_gallery.disabled  = true
 	_btn_settings.disabled = true
 	_btn_quit.disabled     = true
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.4) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func() -> void:
@@ -526,7 +526,7 @@ func _on_settings_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	AudioManager.play_sfx("button_click")
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.25) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func() -> void: get_tree().quit())

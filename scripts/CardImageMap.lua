@@ -34,21 +34,21 @@ M.LOCATION_IMAGES = {
 -- ---------------------------------------------------------------------------
 -- 2-A 通用事件 (fallback，无地点前缀)
 local GENERIC = {
-    safe    = { "evt_safe_rest_20260512102141.png" },
-    monster = { "evt_monster_shadow_20260512102143.png",
-                "evt_monster_whisper_20260512102136.png" },
-    trap    = { "evt_trap_generic_20260512102144.png" },
-    reward  = { "evt_reward_supply_20260512175803.png" },
-    plot    = { "evt_plot_missing_person_20260512102142.png",
-                "evt_plot_symbol_wall_20260512102145.png",
-                "evt_plot_deep_rumble_20260512102200.png",
-                "evt_plot_find_photo_20260512175915.png",
-                "evt_plot_inscription_20260512175841.png" },
-    clue    = { "evt_clue_footprints_20260512102255.png",
-                "evt_clue_blood_trail_20260512102254.png",
-                "evt_clue_diary_20260512102537.png",
-                "evt_clue_talisman_20260512102323.png",
-                "evt_clue_generic_20260512180615.png" },
+    safe    = { "evt_safe_rest_shaft_v1_20260515073125.png" },
+    monster = { "evt_monster_shadow_shaft_v2_20260515073514.png",
+                "evt_monster_whisper_shaft_v1_20260515072928.png" },
+    trap    = { "evt_trap_generic_shaft_v1_20260515073123.png" },
+    reward  = { "evt_reward_supply_shaft_v1_20260515073125.png" },
+    plot    = { "evt_plot_missing_person_shaft_v1_20260515072942.png",
+                "evt_plot_symbol_wall_shaft_v1_20260515072932.png",
+                "evt_plot_deep_rumble_shaft_v1_20260515073027.png",
+                "evt_plot_find_photo_shaft_v1_20260515072928.png",
+                "evt_plot_inscription_shaft_v1_20260515072927.png" },
+    clue    = { "evt_clue_footprints_shaft_v1_20260515073029.png",
+                "evt_clue_blood_trail_shaft_v1_20260515073026.png",
+                "evt_clue_diary_shaft_v6_20260515074137.png",
+                "evt_clue_talisman_shaft_v1_20260515073024.png",
+                "evt_clue_generic_shaft_v1_20260515073027.png" },
 }
 
 -- 2-B 地点专属事件 (按地点 + 类型分组)

@@ -44,7 +44,7 @@ func _ready() -> void:
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
 	# 面板样式
-	var panel_style := StyleBoxFlat.new()
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.96)
 	panel_style.border_color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, 0.4)
 	panel_style.set_border_width_all(3)
@@ -54,7 +54,7 @@ func _ready() -> void:
 	_panel.custom_minimum_size = Vector2(780, 555)
 
 	# "进入暗面" 按钮样式
-	var enter_style := StyleBoxFlat.new()
+	var enter_style: StyleBoxFlat = StyleBoxFlat.new()
 	enter_style.bg_color = Color(t.dark_accent.r, t.dark_accent.g, t.dark_accent.b, 0.86)
 	enter_style.set_corner_radius_all(21)
 	enter_style.content_margin_left = 36
@@ -62,10 +62,10 @@ func _ready() -> void:
 	enter_style.content_margin_top = 12
 	enter_style.content_margin_bottom = 12
 	_enter_button.add_theme_stylebox_override("normal", enter_style)
-	var enter_hover := enter_style.duplicate()
+	var enter_hover: StyleBoxFlat = enter_style.duplicate()
 	enter_hover.bg_color = GameTheme.lighten(t.dark_accent, 0.15)
 	_enter_button.add_theme_stylebox_override("hover", enter_hover)
-	var enter_pressed := enter_style.duplicate()
+	var enter_pressed: StyleBoxFlat = enter_style.duplicate()
 	enter_pressed.bg_color = GameTheme.darken(t.dark_accent, 0.85)
 	_enter_button.add_theme_stylebox_override("pressed", enter_pressed)
 	_enter_button.add_theme_color_override("font_color", Color.WHITE)
@@ -74,7 +74,7 @@ func _ready() -> void:
 	_enter_button.custom_minimum_size = Vector2(300, 90)
 
 	# "留在原地" 按钮样式
-	var stay_style := StyleBoxFlat.new()
+	var stay_style: StyleBoxFlat = StyleBoxFlat.new()
 	stay_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.24)
 	stay_style.border_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.47)
 	stay_style.set_border_width_all(1)
@@ -84,7 +84,7 @@ func _ready() -> void:
 	stay_style.content_margin_top = 12
 	stay_style.content_margin_bottom = 12
 	_stay_button.add_theme_stylebox_override("normal", stay_style)
-	var stay_hover := stay_style.duplicate()
+	var stay_hover: StyleBoxFlat = stay_style.duplicate()
 	stay_hover.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.35)
 	_stay_button.add_theme_stylebox_override("hover", stay_hover)
 	_stay_button.add_theme_color_override("font_color", t.text_primary)
@@ -110,12 +110,12 @@ func show_custom_confirm(icon: String, title: String, desc: String,
 	_stay_button.text = btn_no
 	_color_bar.color = accent
 	# 更新确认按钮颜色
-	var enter_style := StyleBoxFlat.new()
+	var enter_style: StyleBoxFlat = StyleBoxFlat.new()
 	enter_style.bg_color = Color(accent.r, accent.g, accent.b, 0.86)
 	enter_style.set_corner_radius_all(4)
 	enter_style.set_content_margin_all(4)
 	_enter_button.add_theme_stylebox_override("normal", enter_style)
-	var enter_hover := enter_style.duplicate()
+	var enter_hover: StyleBoxFlat = enter_style.duplicate()
 	enter_hover.bg_color = accent.lightened(0.15)
 	_enter_button.add_theme_stylebox_override("hover", enter_hover)
 	show_rift_confirm()
@@ -130,12 +130,12 @@ func show_rift_confirm(_cx: float = 0.0, _cy: float = 0.0) -> void:
 	_stay_button.text = "留在原地"
 	_color_bar.color = GameTheme.dark_accent
 	# 恢复按钮样式
-	var enter_style := StyleBoxFlat.new()
+	var enter_style: StyleBoxFlat = StyleBoxFlat.new()
 	enter_style.bg_color = Color(GameTheme.dark_accent.r, GameTheme.dark_accent.g, GameTheme.dark_accent.b, 0.86)
 	enter_style.set_corner_radius_all(4)
 	enter_style.set_content_margin_all(4)
 	_enter_button.add_theme_stylebox_override("normal", enter_style)
-	var enter_hover := enter_style.duplicate()
+	var enter_hover: StyleBoxFlat = enter_style.duplicate()
 	enter_hover.bg_color = GameTheme.lighten(GameTheme.dark_accent, 0.15)
 	_enter_button.add_theme_stylebox_override("hover", enter_hover)
 

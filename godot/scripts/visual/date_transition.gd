@@ -356,10 +356,10 @@ func _draw() -> void:
 			if font_size < 4:
 				continue
 
-			# 日期数字
-			draw_string(default_font, Vector2(px, py + font_size * 0.35),
+			# 日期数字 (Rule12: RIGHT 对齐必须指定 width, x=0 为左边界)
+			draw_string(default_font, Vector2(0.0, py + font_size * 0.35),
 				day_str, HORIZONTAL_ALIGNMENT_RIGHT,
-				-1, font_size,
+				px, font_size,
 				Color(1, 1, 1, text_alpha))
 
 			# 星期
@@ -432,15 +432,16 @@ func _draw() -> void:
 			var bounce_y2: float = (1.0 - _clamp01(month_raw_t * 3)) * 12.0
 			var yr_fs: int = int(h * 0.035 * month_pop_t)
 			if yr_fs > 2:
+				# Rule12: RIGHT 对齐必须指定 width; mx 是右边界, x=0 起始
 				draw_string(default_font,
-					Vector2(mx, my + bounce_y2),
+					Vector2(0.0, my + bounce_y2),
 					str(year), HORIZONTAL_ALIGNMENT_RIGHT,
-					-1, yr_fs,
+					mx, yr_fs,
 					Color(0.7, 0.82, 0.94, month_alpha * 0.7))
 				draw_string(default_font,
-					Vector2(mx, my + bounce_y2 + yr_fs + 3),
+					Vector2(0.0, my + bounce_y2 + yr_fs + 3),
 					MONTH_NAMES[month - 1], HORIZONTAL_ALIGNMENT_RIGHT,
-					-1, int(h * 0.03 * month_pop_t),
+					mx, int(h * 0.03 * month_pop_t),
 					Color(0.7, 0.82, 0.94, month_alpha * 0.6))
 
 # ---------------------------------------------------------------------------

@@ -198,12 +198,12 @@ func get_dark_event_text(dark_type: String) -> String:
 # ---------------------------------------------------------------------------
 
 func _load_json(path: String) -> Dictionary:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		push_error("EventPool: 无法打开 %s" % path)
 		return {}
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	file.close()
 	if err != OK:
 		push_error("EventPool: JSON 解析失败 %s: %s (行 %d)" % [path, json.get_error_message(), json.get_error_line()])

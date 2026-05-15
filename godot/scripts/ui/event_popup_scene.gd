@@ -120,7 +120,7 @@ func _ready() -> void:
 	var t = GameTheme
 
 	# 面板样式
-	var panel_style := StyleBoxFlat.new()
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.card_face.r, t.card_face.g, t.card_face.b, 0.95)
 	panel_style.border_color = Color(t.card_border.r, t.card_border.g, t.card_border.b, 0.6)
 	panel_style.set_border_width_all(6)
@@ -302,8 +302,8 @@ func _populate_effects(effects: Dictionary) -> void:
 		var prefix: String = "+" if delta_val > 0 else ""
 		var badge_text: String = res_icon + " " + prefix + str(delta_val)
 
-		var badge := PanelContainer.new()
-		var badge_style := StyleBoxFlat.new()
+		var badge: PanelContainer = PanelContainer.new()
+		var badge_style: StyleBoxFlat = StyleBoxFlat.new()
 		var bg_c: Color = t.safe if delta_val > 0 else t.danger
 		badge_style.bg_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.14)
 		badge_style.border_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.31)
@@ -315,7 +315,7 @@ func _populate_effects(effects: Dictionary) -> void:
 		badge_style.content_margin_bottom = 6
 		badge.add_theme_stylebox_override("panel", badge_style)
 
-		var lbl := Label.new()
+		var lbl: Label = Label.new()
 		lbl.text = badge_text
 		lbl.add_theme_font_size_override("font_size", 42)
 		lbl.add_theme_color_override("font_color", bg_c)

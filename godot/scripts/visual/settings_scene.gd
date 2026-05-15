@@ -64,7 +64,7 @@ func _apply_styles() -> void:
 	_sfx_value_label.add_theme_color_override("font_color", GameTheme.accent)
 
 	# 面板样式 (圆角深色卡片)
-	var panel_style := StyleBoxFlat.new()
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.12, 0.10, 0.18, 0.97)
 	panel_style.border_color = Color(GameTheme.accent.r, GameTheme.accent.g,
 		GameTheme.accent.b, 0.5)
@@ -89,7 +89,7 @@ func _apply_styles() -> void:
 
 
 func _apply_slider_style(slider: HSlider) -> void:
-	var track_style := StyleBoxFlat.new()
+	var track_style: StyleBoxFlat = StyleBoxFlat.new()
 	track_style.bg_color = Color(0.25, 0.22, 0.35)
 	track_style.corner_radius_top_left = 4
 	track_style.corner_radius_top_right = 4
@@ -97,7 +97,7 @@ func _apply_slider_style(slider: HSlider) -> void:
 	track_style.corner_radius_bottom_right = 4
 	slider.add_theme_stylebox_override("slider", track_style)
 
-	var fill_style := StyleBoxFlat.new()
+	var fill_style: StyleBoxFlat = StyleBoxFlat.new()
 	fill_style.bg_color = GameTheme.accent
 	fill_style.corner_radius_top_left = 8
 	fill_style.corner_radius_top_right = 8
@@ -107,7 +107,7 @@ func _apply_slider_style(slider: HSlider) -> void:
 
 
 func _apply_button_style(btn: Button, color: Color) -> void:
-	var normal_style := StyleBoxFlat.new()
+	var normal_style: StyleBoxFlat = StyleBoxFlat.new()
 	normal_style.bg_color = Color(color.r, color.g, color.b, 0.85)
 	normal_style.corner_radius_top_left = 8
 	normal_style.corner_radius_top_right = 8
@@ -115,7 +115,7 @@ func _apply_button_style(btn: Button, color: Color) -> void:
 	normal_style.corner_radius_bottom_right = 8
 	btn.add_theme_stylebox_override("normal", normal_style)
 
-	var hover_style := StyleBoxFlat.new()
+	var hover_style: StyleBoxFlat = StyleBoxFlat.new()
 	hover_style.bg_color = Color(color.r, color.g, color.b, 1.0)
 	hover_style.corner_radius_top_left = 8
 	hover_style.corner_radius_top_right = 8
@@ -147,14 +147,14 @@ func show_settings() -> void:
 	# 同步最新音量到滑块 (可能被其他地方修改)
 	_bgm_slider.value = AudioManager.get_bgm_volume()
 	_sfx_slider.value = AudioManager.get_sfx_volume()
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_property(self, "modulate:a", 1.0, 0.2)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 
 ## 隐藏设置面板 (带淡出动画)
 func hide_settings() -> void:
-	var tw := create_tween()
+	var tw: Tween = create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.15)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func(): visible = false)

@@ -110,7 +110,7 @@ func _ready() -> void:
 func _apply_dark_exit_style() -> void:
 	var t = GameTheme
 	# 按钮样式: 暗紫色圆角背景
-	var normal_sb := StyleBoxFlat.new()
+	var normal_sb: StyleBoxFlat = StyleBoxFlat.new()
 	normal_sb.bg_color = Color(t.dark_strip_top, 0.86)
 	normal_sb.border_color = Color(t.dark_accent, 0.31)
 	normal_sb.set_border_width_all(1)
@@ -118,11 +118,11 @@ func _apply_dark_exit_style() -> void:
 	normal_sb.set_content_margin_all(12)
 	_dark_exit_btn.add_theme_stylebox_override("normal", normal_sb)
 
-	var hover_sb := normal_sb.duplicate()
+	var hover_sb: StyleBoxFlat = normal_sb.duplicate()
 	hover_sb.bg_color = Color(GameTheme.lighten(t.dark_strip_top, 0.3), 0.92)
 	_dark_exit_btn.add_theme_stylebox_override("hover", hover_sb)
 
-	var pressed_sb := normal_sb.duplicate()
+	var pressed_sb: StyleBoxFlat = normal_sb.duplicate()
 	pressed_sb.bg_color = Color(GameTheme.lighten(t.dark_strip_top, 0.5), 0.95)
 	_dark_exit_btn.add_theme_stylebox_override("pressed", pressed_sb)
 
@@ -411,9 +411,9 @@ func _draw_normal_right(sy: float, scy: float, right_x: float,
 	_strip_area.draw_string(font, Vector2(right_x - 42, scy + 6), weather_icon,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(t.text_primary, 0.86))
 
-	# 天气名 (小字)
-	_strip_area.draw_string(font, Vector2(right_x - 108, scy + 27), weather_name,
-		HORIZONTAL_ALIGNMENT_RIGHT, -1, 27, Color(t.text_secondary, 0.63))
+	# 天气名 (小字) (Rule12: RIGHT 对齐需 width; x=0 起始, right_x-108 为右边界)
+	_strip_area.draw_string(font, Vector2(0.0, scy + 27), weather_name,
+		HORIZONTAL_ALIGNMENT_RIGHT, right_x - 108, 27, Color(t.text_secondary, 0.63))
 
 	# Day X (主文字)
 	var day_text: String = "Day " + str(day)

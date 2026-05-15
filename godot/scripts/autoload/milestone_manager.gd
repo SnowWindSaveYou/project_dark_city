@@ -30,14 +30,14 @@ func _load_events() -> void:
 	if _loaded:
 		return
 
-	var file := FileAccess.open("res://data/milestone_events.json", FileAccess.READ)
+	var file: FileAccess = FileAccess.open("res://data/milestone_events.json", FileAccess.READ)
 	if file == null:
 		push_warning("[MilestoneManager] milestone_events.json not found")
 		_loaded = true
 		return
 
-	var json := JSON.new()
-	var err := json.parse(file.get_as_text())
+	var json: JSON = JSON.new()
+	var err: Error = json.parse(file.get_as_text())
 	file.close()
 	if err != OK:
 		push_warning("[MilestoneManager] JSON parse error: %s" % json.get_error_message())

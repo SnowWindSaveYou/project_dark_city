@@ -676,7 +676,7 @@ func on_dark_exit_requested() -> void:
 		m._resource_bar.set_dark_mode(false)
 
 		# 恢复大气
-		var daily_rev: int = GameData.cards_revealed - GameData.day_start_revealed
+		daily_rev = GameData.cards_revealed - GameData.day_start_revealed
 		m._bg_transition_target = minf(float(daily_rev) / 8.0, 1.0)
 
 		# 发牌动画

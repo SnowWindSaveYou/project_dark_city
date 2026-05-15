@@ -89,21 +89,21 @@ func _setup_button_style() -> void:
 	# 默认使用胜利色（show_result 中会根据实际结果切换）
 	var btn_color: Color = GameTheme.safe
 
-	var normal := StyleBoxFlat.new()
+	var normal: StyleBoxFlat = StyleBoxFlat.new()
 	normal.bg_color = btn_color
 	normal.set_corner_radius_all(12)
 	normal.set_content_margin_all(24)
 	_restart_button.add_theme_stylebox_override("normal", normal)
 
-	var hover := normal.duplicate()
+	var hover: StyleBoxFlat = normal.duplicate()
 	hover.bg_color = GameTheme.lighten(btn_color, 0.15)
 	_restart_button.add_theme_stylebox_override("hover", hover)
 
-	var pressed := normal.duplicate()
+	var pressed: StyleBoxFlat = normal.duplicate()
 	pressed.bg_color = GameTheme.darken(btn_color, 0.85)
 	_restart_button.add_theme_stylebox_override("pressed", pressed)
 
-	var focus := StyleBoxEmpty.new()
+	var focus: StyleBoxEmpty = StyleBoxEmpty.new()
 	_restart_button.add_theme_stylebox_override("focus", focus)
 
 	_restart_button.add_theme_color_override("font_color", Color.WHITE)
@@ -111,17 +111,17 @@ func _setup_button_style() -> void:
 	_restart_button.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 0.8))
 
 func _update_button_color(btn_color: Color) -> void:
-	var normal := StyleBoxFlat.new()
+	var normal: StyleBoxFlat = StyleBoxFlat.new()
 	normal.bg_color = btn_color
 	normal.set_corner_radius_all(12)
 	normal.set_content_margin_all(24)
 	_restart_button.add_theme_stylebox_override("normal", normal)
 
-	var hover := normal.duplicate()
+	var hover: StyleBoxFlat = normal.duplicate()
 	hover.bg_color = GameTheme.lighten(btn_color, 0.15)
 	_restart_button.add_theme_stylebox_override("hover", hover)
 
-	var pressed := normal.duplicate()
+	var pressed: StyleBoxFlat = normal.duplicate()
 	pressed.bg_color = GameTheme.darken(btn_color, 0.85)
 	_restart_button.add_theme_stylebox_override("pressed", pressed)
 

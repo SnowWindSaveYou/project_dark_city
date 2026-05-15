@@ -84,7 +84,7 @@ static func is_blocking_type(event_type: EventType) -> bool:
 # ============================================================================
 
 func parse_real_world_card(card: Card) -> EventResult:
-	var result := EventResult.new()
+	var result: EventResult = EventResult.new()
 	result.event_type = _card_type_to_event_type(card.type)
 	result.effects = card.get_effects()
 	result.auto_apply = true
@@ -161,7 +161,7 @@ func parse_real_world_card(card: Card) -> EventResult:
 # ============================================================================
 
 func parse_dark_world_card(card: Card, row: int, col: int, day_count: int) -> EventResult:
-	var result := EventResult.new()
+	var result: EventResult = EventResult.new()
 	result.event_type = _dark_type_to_event_type(card.dark_type)
 	
 	match card.dark_type:
@@ -233,7 +233,7 @@ func parse_dark_world_card(card: Card, row: int, col: int, day_count: int) -> Ev
 # ============================================================================
 
 func parse_npc_dialogue(npc_data: Dictionary) -> EventResult:
-	var result := EventResult.new()
+	var result: EventResult = EventResult.new()
 	result.event_type = EventType.NPC_DIALOGUE
 	result.is_blocking = true
 	result.auto_apply = false
@@ -339,7 +339,7 @@ func resolve_event_by_id(event_id: String, card: Card = null) -> EventResult:
 
 ## 从事件定义构建 EventResult
 func _build_result_from_event(evt: Dictionary, card: Card = null) -> EventResult:
-	var result := EventResult.new()
+	var result: EventResult = EventResult.new()
 	var evt_type: String = evt.get("type", "safe")
 	result.event_type = _string_to_event_type(evt_type)
 

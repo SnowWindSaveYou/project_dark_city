@@ -40,7 +40,7 @@ func _ready() -> void:
 
 	# 面板样式
 	var t = GameTheme
-	var style := StyleBoxFlat.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.94)
 	style.border_color = Color(t.panel_border.r, t.panel_border.g, t.panel_border.b, 0.31)
 	style.set_border_width_all(3)
@@ -65,7 +65,7 @@ func _ready() -> void:
 	_desc_label.add_theme_color_override("font_color", t.text_secondary)
 
 	# 进度条样式
-	var pb_bg := StyleBoxFlat.new()
+	var pb_bg: StyleBoxFlat = StyleBoxFlat.new()
 	pb_bg.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.12)
 	pb_bg.set_corner_radius_all(3)
 	_progress_bar.add_theme_stylebox_override("background", pb_bg)
@@ -95,7 +95,7 @@ func setup(data: Dictionary) -> void:
 	_populate_effects(data)
 
 	# 进度条前景色
-	var pb_fg := StyleBoxFlat.new()
+	var pb_fg: StyleBoxFlat = StyleBoxFlat.new()
 	pb_fg.bg_color = Color(type_color.r, type_color.g, type_color.b, 0.47)
 	pb_fg.set_corner_radius_all(3)
 	_progress_bar.add_theme_stylebox_override("fill", pb_fg)
@@ -113,7 +113,7 @@ func _populate_effects(data: Dictionary) -> void:
 	var effects: Dictionary = data.get("effects", {})
 
 	if shield_used:
-		var lbl := Label.new()
+		var lbl: Label = Label.new()
 		lbl.text = "🧿 护身符抵挡了伤害!"
 		lbl.add_theme_font_size_override("font_size", 26)
 		lbl.add_theme_color_override("font_color", Color(t.safe.r, t.safe.g, t.safe.b, 0.86))
@@ -125,8 +125,8 @@ func _populate_effects(data: Dictionary) -> void:
 			var prefix: String = "+" if delta_val > 0 else ""
 			var badge_text: String = res_icon + prefix + str(delta_val)
 
-			var badge := PanelContainer.new()
-			var badge_style := StyleBoxFlat.new()
+			var badge: PanelContainer = PanelContainer.new()
+			var badge_style: StyleBoxFlat = StyleBoxFlat.new()
 			var bg_c: Color = t.safe if delta_val > 0 else t.danger
 			badge_style.bg_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.14)
 			badge_style.border_color = Color(bg_c.r, bg_c.g, bg_c.b, 0.31)
@@ -138,7 +138,7 @@ func _populate_effects(data: Dictionary) -> void:
 			badge_style.content_margin_bottom = 4
 			badge.add_theme_stylebox_override("panel", badge_style)
 
-			var lbl := Label.new()
+			var lbl: Label = Label.new()
 			lbl.text = badge_text
 			lbl.add_theme_font_size_override("font_size", 26)
 			lbl.add_theme_color_override("font_color", Color(bg_c.r, bg_c.g, bg_c.b, 0.86))
@@ -202,7 +202,7 @@ func _process(delta: float) -> void:
 # ---------------------------------------------------------------------------
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
+		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			start_exit()
 			accept_event()

@@ -36,8 +36,12 @@
 
 ### 图片尺寸规格
 
-- 比例：`2:3`
-- 目标尺寸：`515x768`
+| 用途 | 比例 | 目标尺寸 |
+|------|------|---------|
+| 地点卡 / 事件卡 | `2:3` | `515x768` |
+| 剧情演出背景底图 | `16:9` | `1024x576` |
+| 过渡切换帧 | `2:3` 或 `1:1` | `512x768` 或 `512x512` |
+| 关键情绪帧 | `2:3` | `515x768` |
 
 ---
 
@@ -106,6 +110,53 @@ Monogatari series anime background art, SHAFT studio style, daytime, no people.
 | 医院 | 红十字标志 + 空轮椅 + 冷白灯光 | 红十字图形感强可用 |
 | 小巷 | 自动贩卖机 + 极度压缩走廊 + 稀疏电线 | "不该在这里"的发光物体 |
 | 图书馆 | 落地玻璃橱窗透出整排书架 + 暖黄灯光 | 透窗策略 |
+
+---
+
+## 五、剧情演出背景底图（16:9）
+
+### 用途
+
+对话期间垫在画面底层，整段对话全程显示。需要上层叠加文字，因此不能太抢眼。
+
+### Prompt 结构
+
+```
+Monogatari series anime background art, SHAFT studio style, no people, no characters.
+[场景描述], [时间/光源], [核心道具], [氛围细节],
+eerie stillness, overwhelming silence, uncanny quality of ordinary space,
+graphic design sensibility, oversaturated [主色调],
+precise shadow geometry, hard-edged shadow blocks,
+strong one-point perspective, no text, no border
+```
+
+### 背景底图专属规则 🔴
+
+- **极简道具密度**：只保留 1-2 件叙事道具，其他一律删除。物语感来自"缺失"，不是"真实感的丰富"
+- **禁止矢量/无渐变强调**：光影渐变没问题，物语系列本身用渐变。问题是**道具密度和氛围**，不是平面程度
+- **`oversaturated [color]` 必加**：指定主色调并让它过饱和，是物语感和"普通动画感"的核心区别
+- **不加 `minimalist sparse room` 还不够**：需要额外说明"nothing else in the room"或列举不要出现的具体物件
+
+### 已验证的调优流程（BG-02 公寓客厅·深夜）
+
+**第一轮问题**：有动画铅笔线质感、软边阴影、颜色渐变——整体"普通动画背景"感
+→ 原因：过度强调"vector/flat"反而破坏了物语的光影氛围，且未强调氛围关键词
+
+**第二轮调整**：加入 `oversaturated cold blue`、`eerie stillness`、`uncanny quality of ordinary space`
+→ 效果明显改善，物语感出来了，但杂物太多（书架、纸箱、电视）
+
+**第三轮调整**：加入 `minimalist sparse room, almost empty, nothing else in the room`，明确只保留低桌+泡面碗+落地灯
+→ 通过。最终版：`bg_apartment_living_night_v5_20260515071406.png`
+
+**结论**：物语背景的关键在于**氛围密度（道具少、留白大、颜色设计感强）**，而非风格化程度
+
+### 已验证的背景底图
+
+| 文件 | 场景 | 状态 |
+|------|------|------|
+| `bg_apartment_living_night_v5_20260515071406.png` | 公寓客厅·深夜 | ✅ 通过，作为底图风格基准 |
+
+---
 
 ### 地点卡经验教训
 

@@ -59,7 +59,7 @@ func _ready() -> void:
 	var t = GameTheme
 
 	# 面板样式
-	var panel_style := StyleBoxFlat.new()
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
 	panel_style.bg_color = Color(t.panel_bg.r, t.panel_bg.g, t.panel_bg.b, 0.96)
 	panel_style.border_color = Color(t.panel_border.r, t.panel_border.g, t.panel_border.b, 0.47)
 	panel_style.set_border_width_all(3)
@@ -80,15 +80,15 @@ func _ready() -> void:
 		Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.7))
 
 	# 刷新按钮样式
-	var refresh_style := StyleBoxFlat.new()
+	var refresh_style: StyleBoxFlat = StyleBoxFlat.new()
 	refresh_style.bg_color = Color(t.info.r, t.info.g, t.info.b, 0.72)
 	refresh_style.set_corner_radius_all(21)
 	refresh_style.set_content_margin_all(12)
 	_refresh_button.add_theme_stylebox_override("normal", refresh_style)
-	var refresh_hover := refresh_style.duplicate()
+	var refresh_hover: StyleBoxFlat = refresh_style.duplicate()
 	refresh_hover.bg_color = GameTheme.lighten(t.info, 0.25)
 	_refresh_button.add_theme_stylebox_override("hover", refresh_hover)
-	var refresh_pressed := refresh_style.duplicate()
+	var refresh_pressed: StyleBoxFlat = refresh_style.duplicate()
 	refresh_pressed.bg_color = GameTheme.darken(t.info, 0.85)
 	_refresh_button.add_theme_stylebox_override("pressed", refresh_pressed)
 	_refresh_button.add_theme_color_override("font_color", Color.WHITE)
@@ -96,20 +96,20 @@ func _ready() -> void:
 	_refresh_button.add_theme_color_override("font_pressed_color", Color.WHITE)
 	_refresh_button.add_theme_font_size_override("font_size", 36)
 	# 消除 focus 边框
-	var empty_focus := StyleBoxEmpty.new()
+	var empty_focus: StyleBoxEmpty = StyleBoxEmpty.new()
 	_refresh_button.add_theme_stylebox_override("focus", empty_focus)
 	_refresh_button.focus_mode = Control.FOCUS_NONE
 
 	# 离开按钮样式
-	var leave_style := StyleBoxFlat.new()
+	var leave_style: StyleBoxFlat = StyleBoxFlat.new()
 	leave_style.bg_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, 0.55)
 	leave_style.set_corner_radius_all(21)
 	leave_style.set_content_margin_all(12)
 	_leave_button.add_theme_stylebox_override("normal", leave_style)
-	var leave_hover := leave_style.duplicate()
+	var leave_hover: StyleBoxFlat = leave_style.duplicate()
 	leave_hover.bg_color = GameTheme.lighten(t.text_secondary, 0.3)
 	_leave_button.add_theme_stylebox_override("hover", leave_hover)
-	var leave_pressed := leave_style.duplicate()
+	var leave_pressed: StyleBoxFlat = leave_style.duplicate()
 	leave_pressed.bg_color = GameTheme.darken(t.text_secondary, 0.85)
 	_leave_button.add_theme_stylebox_override("pressed", leave_pressed)
 	_leave_button.add_theme_color_override("font_color", Color.WHITE)

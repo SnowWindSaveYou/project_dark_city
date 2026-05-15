@@ -36,33 +36,33 @@ func _load_data() -> void:
 		return
 
 	# 加载 story_events.json
-	var f1 := FileAccess.open("res://data/story_events.json", FileAccess.READ)
+	var f1: FileAccess = FileAccess.open("res://data/story_events.json", FileAccess.READ)
 	if f1 != null:
-		var json1 := JSON.new()
+		var json1: JSON = JSON.new()
 		if json1.parse(f1.get_as_text()) == OK and json1.data is Dictionary:
 			_story_events = json1.data.get("events", [])
 		f1.close()
 
 	# 加载 morning_events.json
-	var f2 := FileAccess.open("res://data/morning_events.json", FileAccess.READ)
+	var f2: FileAccess = FileAccess.open("res://data/morning_events.json", FileAccess.READ)
 	if f2 != null:
-		var json2 := JSON.new()
+		var json2: JSON = JSON.new()
 		if json2.parse(f2.get_as_text()) == OK and json2.data is Dictionary:
 			_morning_events = json2.data.get("events", [])
 		f2.close()
 
 	# 加载 evening_events.json
-	var f3 := FileAccess.open("res://data/evening_events.json", FileAccess.READ)
+	var f3: FileAccess = FileAccess.open("res://data/evening_events.json", FileAccess.READ)
 	if f3 != null:
-		var json3 := JSON.new()
+		var json3: JSON = JSON.new()
 		if json3.parse(f3.get_as_text()) == OK and json3.data is Dictionary:
 			_evening_events = json3.data.get("events", [])
 		f3.close()
 
 	# 加载 mid_day_events.json
-	var f4 := FileAccess.open("res://data/mid_day_events.json", FileAccess.READ)
+	var f4: FileAccess = FileAccess.open("res://data/mid_day_events.json", FileAccess.READ)
 	if f4 != null:
-		var json4 := JSON.new()
+		var json4: JSON = JSON.new()
 		if json4.parse(f4.get_as_text()) == OK and json4.data is Dictionary:
 			_mid_day_events = json4.data.get("events", [])
 		f4.close()
@@ -296,7 +296,7 @@ func on_evening_event_complete(event: Dictionary, chosen_choice_id: String = "")
 ## 返回 Dictionary (事件数据) 或 null (无匹配)
 func query_mid_event(location: String):
 	# 第一轮：地点专属 hook
-	var specific_hook := "daily_goal_" + location
+	var specific_hook: String = "daily_goal_" + location
 	var result = _pick_mid_candidates(specific_hook)
 	if result != null:
 		return result
