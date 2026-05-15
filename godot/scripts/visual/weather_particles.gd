@@ -26,7 +26,18 @@ var _current_type:   int     = -1  # Weather.Type 当前天气
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# CanvasLayer 为父节点时锚点无法自动扩展 (父节点非 Control),
+	# 必须手动从 viewport 获取尺寸并监听变化
+	var vp := get_viewport()
+	if vp:
+		size = vp.get_visible_rect().size
+		vp.size_changed.connect(_on_viewport_resized)
 	_thunder_timer = 6.0 + randf() * 12.0
+
+func _on_viewport_resized() -> void:
+	var vp := get_viewport()
+	if vp:
+		size = vp.get_visible_rect().size
 
 # ---------------------------------------------------------------------------
 # 外部接口

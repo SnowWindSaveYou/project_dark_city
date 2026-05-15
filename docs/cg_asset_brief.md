@@ -30,14 +30,14 @@
 
 | 编号 | 文件名 | 状态 | 已生成文件 |
 |------|--------|------|-----------|
-| BG-01 | `bg_apartment_living_dusk` | ⬜ 待生成 | — |
+| BG-01 | `bg_apartment_living_dusk` | 🔍 待审 | `bg_apartment_living_dusk_20260515161009.png` |
 | BG-02 | `bg_apartment_living_night` | ✅ 已验证 | `bg_apartment_living_night_v5_20260515071406.png` |
-| BG-03 | `bg_apartment_bedroom_night` | ⬜ 待生成 | — |
-| BG-04 | `bg_apartment_kitchen` | ⬜ 待生成 | — |
-| BG-05 | `bg_dark_world_open` | ⬜ 待生成 | — |
-| BG-06 | `bg_dark_world_deep` | ⬜ 待生成 | — |
-| BG-07 | `bg_memory_overexposed` | ⬜ 待生成 | — |
-| BG-08 | `bg_apartment_entrance_dusk` | ⬜ 待生成 | — |
+| BG-03 | `bg_apartment_bedroom_night` | 🔍 待审 | `bg_apartment_bedroom_night_20260515161006.png` |
+| BG-04 | `bg_apartment_kitchen` | 🔍 待审 | `bg_apartment_kitchen_20260515161008.png` |
+| BG-05 | `bg_dark_world_open` | 🔍 待审 | `bg_dark_world_open_20260515161039.png` |
+| BG-06 | `bg_dark_world_deep` | 🔍 待审 | `bg_dark_world_deep_20260515161043.png` |
+| BG-07 | `bg_memory_overexposed` | 🔍 待审 | `bg_memory_overexposed_20260515161038.png` |
+| BG-08 | `bg_apartment_entrance_dusk` | 🔍 待审 | `bg_apartment_entrance_dusk_20260515161007.png` |
 
 ### B类过渡切换帧进度
 
@@ -57,9 +57,9 @@
 
 ### 当前阶段
 
-**已完成**：演出方案确认（物语分镜式，16:9统一规格）、双锚点帧验证  
-**正在进行**：A类背景底图生成（已完成 1/8）  
-**下一步**：完成剩余 7 张背景底图 → DialogueSystem 背景图代码接入
+**已完成**：演出方案确认（物语分镜式，16:9统一规格）、双锚点帧验证、A类背景底图全部生成（8/8）  
+**当前**：等待 BG-01/03/04/05/06/07/08 审核  
+**下一步**：审核通过 → DialogueSystem 背景图代码接入 / 开始第二批情绪帧
 
 ### 风格基准
 

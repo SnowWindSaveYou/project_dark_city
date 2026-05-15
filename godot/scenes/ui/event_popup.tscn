@@ -56,7 +56,7 @@ mouse_filter = 2
 
 [node name="PolaroidArea" type="Control" parent="PanelAnchor/Notebook/OuterVBox/HBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(240, 340)
+custom_minimum_size = Vector2(200, 260)
 size_flags_vertical = 4
 mouse_filter = 2
 
@@ -67,13 +67,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -100.0
-offset_top = -160.0
-offset_right = 100.0
-offset_bottom = 160.0
+offset_left = -80.0
+offset_top = -120.0
+offset_right = 80.0
+offset_bottom = 120.0
 grow_horizontal = 2
 grow_vertical = 2
-pivot_offset = Vector2(100, 160)
+pivot_offset = Vector2(80, 120)
 mouse_filter = 2
 
 [node name="PolaroidVBox" type="VBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard"]
@@ -135,7 +135,8 @@ visible = false
 
 [node name="ConfirmButton" type="PanelContainer" parent="PanelAnchor/Notebook/OuterVBox"]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(180, 52)
 mouse_filter = 0
 
 [node name="ConfirmLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/ConfirmButton"]

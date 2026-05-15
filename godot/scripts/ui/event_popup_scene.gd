@@ -200,6 +200,17 @@ func _ready() -> void:
 	_confirm_label.add_theme_font_size_override("font_size", 40)
 	_confirm_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.96))
 
+	# 确认按钮点击：PanelContainer mouse_filter=STOP 会消耗事件，
+	# 父节点 _gui_input 收不到，需直接连接子节点 gui_input 信号。
+	_confirm_button.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton:
+			var mb := ev as InputEventMouseButton
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT \
+					and _active and _phase != "enter":
+				_style_confirm_button(true)
+				dismiss()
+	)
+
 # ---------------------------------------------------------------------------
 # 关联组件引用
 # ---------------------------------------------------------------------------

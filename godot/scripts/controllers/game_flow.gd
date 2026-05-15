@@ -67,8 +67,8 @@ func start_deal() -> void:
 	GameData.set_demo_state("dealing")
 	# 每日氛围重置 (匹配 Lua: dayStartRevealed = cardsRevealed)
 	GameData.day_start_revealed = GameData.cards_revealed
-	# BGM (首次或重新开始时播放)
-	AudioManager.play_bgm("main")
+	# BGM (与 main.gd _process 使用相同 key, 避免每天发牌时触发无意义交叉淡入)
+	AudioManager.play_bgm("day_light")
 	m._vfx.action_banner("第 %d 天" % m.day_count, Color.WHITE, 1.2)
 	m.board_visual.start_deal_animation(_on_deal_complete)
 

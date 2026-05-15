@@ -187,9 +187,11 @@ func rebuild_card_nodes() -> void:
 			label.font_size = 28
 			label.pixel_size = 0.002
 			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			# 放在 overlay 底部白条中心：Z≈+0.37 (= strip_center_y/TEX_H - 0.5) × CARD_H)
+			# 放在 overlay 底部白条中心：Z≈-0.37 (贴图底部在世界 -Z 方向)
+			# Sprite3D rotation(-90,180,0): 贴图顶部→+Z, 底部→-Z
+			# strip 中心 = -(328/360 - 0.5) × CARD_H ≈ -0.37m
 			# Y 比 SPRITE_Y 高一点保证在 sprite 层上方渲染
-			label.position = Vector3(0, SPRITE_Y + 0.002, 0.37)
+			label.position = Vector3(0, SPRITE_Y + 0.002, -0.37)
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			label.no_depth_test = false
