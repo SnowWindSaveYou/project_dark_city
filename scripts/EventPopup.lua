@@ -53,6 +53,7 @@ local resourceMeta = {
 ---@field cy number 弹窗中心 Y
 ---@field onDismiss function|nil 关闭后回调
 ---@field isPhoto boolean 是否为相片预览模式
+---@field baiiye string|nil 白夜的碎碎念台词（可选彩蛋）
 
 local state = {
     active = false,
@@ -65,6 +66,7 @@ local state = {
     onDismiss = nil,
     isPhoto = false,           -- 相片预览模式 (拍立得风格)
     isEvent = false,           -- 事件结果模式 (替代 toast, 显示 effects + 确认按钮)
+    baiiye = nil,              -- 白夜碎碎念台词（可选彩蛋）
     photoLocation = nil,       -- 相片对应的地点
     photoScenePath = nil,      -- 场景图 NVG 图片路径
     monsterChibiPath = nil,    -- 怪物 chibi 图片路径 (仅 monster 类型)
@@ -128,6 +130,7 @@ function M.show(cardType, cx, cy, onDismiss, location)
     state.cardType = cardType
     state.title = displayTitle
     state.desc = tmpl.desc
+    state.baiiye = nil  -- 普通弹窗不显示白夜台词
     state.effects = (cardType == "monster")
         and EventPool.getMonsterEffects(ResourceBar.get("inspiration"))
         or (EventPool.CARD_EFFECTS[cardType] or {})
@@ -198,8 +201,12 @@ end
 ---@param onDismiss function|nil 关闭后回调
 ---@param location string|nil 地点类型
 function M.showPhoto(cardType, cx, cy, onDismiss, location)
-    -- 随机选取文案
-    local pool = EventPool.TEMPLATES[cardType]
+    -- 随机选取文案：优先地点专属池，fallback 通用池
+    local pool = (location
+        and EventPool.LOCATION_EVENT_TEMPLATES
+        and EventPool.LOCATION_EVENT_TEMPLATES[location]
+        and EventPool.LOCATION_EVENT_TEMPLATES[location][cardType])
+        or EventPool.TEMPLATES[cardType]
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
     end
@@ -209,8 +216,8 @@ function M.showPhoto(cardType, cx, cy, onDismiss, location)
     local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = (darkInfo and darkInfo.label) or tmpl.title
 
-    -- 场景图路径: 统一用地点面图 (rule: 所有类型用同一张地点场景图)
-    local sceneFile = location and CardImageMap.getLocationImage(location)
+    -- 事件图路径: 优先地点专属事件图，fallback 通用事件图
+    local sceneFile = location and CardImageMap.getEventImage(location, cardType)
     local scenePath = sceneFile and ("image/" .. sceneFile) or nil
 
     -- 怪物 chibi: 仅 monster 类型
@@ -224,6 +231,7 @@ function M.showPhoto(cardType, cx, cy, onDismiss, location)
     state.cardType = cardType
     state.title = displayTitle
     state.desc = tmpl.desc
+    state.baiiye = tmpl.baiiye or nil
     state.effects = {}  -- 相片预览不显示资源变化
     state.cx = cx
     state.cy = cy
@@ -277,7 +285,8 @@ function M.showPhoto(cardType, cx, cy, onDismiss, location)
         end
     })
 
-    print(string.format("[EventPopup] ShowPhoto: %s - %s", cardType, displayTitle))
+    print(string.format("[EventPopup] ShowPhoto: %s - %s | location=%s baiiye=%s",
+        cardType, displayTitle, tostring(location), tostring(state.baiiye)))
 end
 
 -- ---------------------------------------------------------------------------
@@ -295,12 +304,16 @@ end
 ---@param location string|nil 地点类型
 ---@param trapSubtype string|nil 陷阱子类型
 function M.showEvent(cardType, appliedEffects, shieldUsed, cx, cy, onDismiss, location, trapSubtype, titleOverride, descOverride)
-    -- 文案: 陷阱子类型专属池
+    -- 文案: 陷阱子类型专属池 → 地点专属池 → 通用池
     local pool
     if cardType == "trap" and trapSubtype and EventPool.TRAP_SUBTYPE_TEMPLATES and EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype] then
         pool = EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype]
     else
-        pool = EventPool.TEMPLATES[cardType]
+        pool = (location
+            and EventPool.LOCATION_EVENT_TEMPLATES
+            and EventPool.LOCATION_EVENT_TEMPLATES[location]
+            and EventPool.LOCATION_EVENT_TEMPLATES[location][cardType])
+            or EventPool.TEMPLATES[cardType]
     end
     if not pool or #pool == 0 then
         pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
@@ -311,8 +324,8 @@ function M.showEvent(cardType, appliedEffects, shieldUsed, cx, cy, onDismiss, lo
     local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
     local displayTitle = titleOverride or (darkInfo and darkInfo.label) or tmpl.title
 
-    -- 场景图 (同 showPhoto 逻辑)
-    local sceneFile = location and CardImageMap.getLocationImage(location)
+    -- 事件图 (优先地点专属事件图，fallback 通用事件图)
+    local sceneFile = location and CardImageMap.getEventImage(location, cardType)
     local scenePath = sceneFile and ("image/" .. sceneFile) or nil
 
     -- 怪物 chibi 叠加
@@ -326,6 +339,7 @@ function M.showEvent(cardType, appliedEffects, shieldUsed, cx, cy, onDismiss, lo
     state.cardType = cardType
     state.title = displayTitle
     state.desc = descOverride or tmpl.desc
+    state.baiiye = (not descOverride) and (tmpl.baiiye or nil) or nil
     state.effects = {}      -- 不用于 drawPopup, 仅 isEvent 模式用 eventEffects
     state.cx = cx
     state.cy = cy
@@ -372,8 +386,13 @@ function M.showEvent(cardType, appliedEffects, shieldUsed, cx, cy, onDismiss, lo
         easing = Tween.Easing.easeOutCubic,
         tag = "popup",
     })
-    Tween.to(state, { buttonT = 1 }, 0.25, {
+    Tween.to(state, { descT = 1 }, 0.25, {
         delay = base + 0.18,
+        easing = Tween.Easing.easeOutCubic,
+        tag = "popup",
+    })
+    Tween.to(state, { buttonT = 1 }, 0.25, {
+        delay = base + 0.24,
         easing = Tween.Easing.easeOutBack,
         tag = "popup",
         onComplete = function()
@@ -381,7 +400,8 @@ function M.showEvent(cardType, appliedEffects, shieldUsed, cx, cy, onDismiss, lo
         end
     })
 
-    print(string.format("[EventPopup] ShowEvent: %s - %s (shield=%s)", cardType, displayTitle, tostring(shieldUsed)))
+    print(string.format("[EventPopup] ShowEvent: %s - %s (shield=%s) | location=%s baiiye=%s",
+        cardType, displayTitle, tostring(shieldUsed), tostring(location), tostring(state.baiiye)))
 end
 
 -- ---------------------------------------------------------------------------
@@ -938,20 +958,26 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     nvgStrokeWidth(vg, 0.6)
     nvgStroke(vg)
 
-    -- 底部白标签区: 地点名
+    -- 底部白标签区: 事件类型 (上行) + 地点 (下行)
     local labelY = imgY + imgH + 4
     if state.buttonT > 0.01 then
         nvgSave(vg)
         nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT)
 
-        local locInfo = state.photoLocation and EventPool.LOCATION_INFO[state.photoLocation]
-        local locLabel = locInfo and (locInfo.icon .. " " .. locInfo.label) or "未知地点"
+        local typeLabel = (info and info.label) or state.cardType
+        local typeIcon  = (info and info.icon) or "❓"
 
+        -- 事件类型 + 地点并排（同一行居中）
+        local locInfo = state.photoLocation and EventPool.LOCATION_INFO[state.photoLocation]
+        local bottomText = typeIcon .. " " .. typeLabel
+        if locInfo then
+            bottomText = bottomText .. "  " .. locInfo.icon .. " " .. locInfo.label
+        end
         nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 11)
+        nvgFontSize(vg, 10)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, nvgRGBA(60, 50, 38, 200))
-        nvgText(vg, 0, labelY + (POL_BOTTOM - 4) / 2, locLabel, nil)
+        nvgFillColor(vg, Theme.rgbaA(tc, 200))
+        nvgText(vg, 0, labelY + (POL_BOTTOM - 4) / 2, bottomText, nil)
 
         nvgRestore(vg)
     end
@@ -963,40 +989,7 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     -- ==================================================================
     -- 文字区相对于弹窗中心的起点X
     local txStartX = -NB_W / 2 + TEXT_AREA_X
-    local txY      = -NB_H / 2 + 20  -- 距笔记本顶部 20px
-
-    -- 事件图标 + 类型名 (同行小标签)
-    if state.iconT > 0.01 then
-        nvgSave(vg)
-        local iconSlide = (1 - state.iconT) * 12
-        nvgGlobalAlpha(vg, state.popupAlpha * state.iconT)
-
-        -- 类型色小圆点
-        nvgBeginPath(vg)
-        nvgCircle(vg, txStartX + 6, txY + 7, 5)
-        nvgFillColor(vg, Theme.rgbaA(tc, 200))
-        nvgFill(vg)
-
-        -- 类型名
-        nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 11)
-        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgbaA(tc, 220))
-        local typeLabel = (info and info.label) or state.cardType
-        nvgText(vg, txStartX + 15 + iconSlide, txY + 7, typeLabel, nil)
-
-        nvgRestore(vg)
-    end
-    txY = txY + 20
-
-    -- 分隔线
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, txStartX, txY)
-    nvgLineTo(vg, txStartX + TEXT_AREA_W, txY)
-    nvgStrokeColor(vg, nvgRGBA(196, 184, 164, 80))
-    nvgStrokeWidth(vg, 0.7)
-    nvgStroke(vg)
-    txY = txY + 8
+    local txY      = -NB_H / 2 + 16  -- 距笔记本顶部 16px（地点移走后稍微上移）
 
     -- 事件名 (大字, 关键信息)
     if state.titleT > 0.01 then
@@ -1037,7 +1030,12 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
                 nvgText(vg, txStartX, txY + 8, "无资源变化", nil)
                 txY = txY + 20
             else
-                -- 逐行显示 effects (彩色文字, 无多余圆点)
+                -- 流式换行排列 effects（按容器宽度自动折行）
+                local ITEM_GAP_X = 8    -- 同行间距
+                local ITEM_H     = 17   -- 行高
+                local curX = txStartX + 2
+                local lineY = txY + 4
+                nvgFontSize(vg, 12)
                 for i, eff in ipairs(state.eventEffects) do
                     local resKey = eff[1]
                     local delta  = eff[2]
@@ -1046,16 +1044,24 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
                     local label  = meta and meta.label or resKey
                     local isPos  = delta > 0
                     local sign   = isPos and "+" or ""
+                    local text   = icon .. " " .. label .. " " .. sign .. tostring(delta)
 
-                    local dotR, dotG, dotB = isPos and 70 or 200, isPos and 175 or 65, isPos and 90 or 65
-                    nvgFontSize(vg, 12)
-                    nvgFillColor(vg, nvgRGBA(dotR, dotG, dotB, 230))
-                    nvgText(vg, txStartX + 2, txY + 7,
-                        icon .. " " .. label .. " " .. sign .. tostring(delta), nil)
+                    -- 估算文本宽度（emoji~14px，汉字~12px，ASCII~7px）
+                    local estW = #text * 7 + 10  -- 粗估，足够判断是否换行
 
-                    txY = txY + 18
-                    if txY > NB_H / 2 - 50 then break end  -- 防止超出笔记本底部
+                    if curX + estW > txStartX + TEXT_AREA_W and curX > txStartX + 2 then
+                        -- 换行
+                        curX  = txStartX + 2
+                        lineY = lineY + ITEM_H
+                        if lineY > NB_H / 2 - 50 then break end
+                    end
+
+                    local r, g, b = isPos and 70 or 200, isPos and 175 or 65, isPos and 90 or 65
+                    nvgFillColor(vg, nvgRGBA(r, g, b, 230))
+                    nvgText(vg, curX, lineY, text, nil)
+                    curX = curX + estW + ITEM_GAP_X
                 end
+                txY = lineY + ITEM_H  -- txY 推进到 effects 块之后
             end
             nvgRestore(vg)
         end
@@ -1069,6 +1075,19 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
             nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
             nvgFillColor(vg, nvgRGBA(120, 110, 90, 180))
             nvgTextBox(vg, txStartX + 2, txY + 6, TEXT_AREA_W - 6, state.desc, nil)
+            nvgRestore(vg)
+            txY = txY + 32
+        end
+
+        -- 白夜碎碎念（彩蛋，斜体小字）
+        if state.descT > 0.01 and state.baiiye and state.baiiye ~= "" then
+            nvgSave(vg)
+            nvgGlobalAlpha(vg, state.popupAlpha * state.descT * 0.65)
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 9)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_TOP)
+            nvgFillColor(vg, nvgRGBA(90, 105, 130, 200))
+            nvgText(vg, txStartX + TEXT_AREA_W - 4, txY, "— " .. state.baiiye, nil)
             nvgRestore(vg)
         end
 
@@ -1122,6 +1141,19 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
             nvgFillColor(vg, nvgRGBA(80, 70, 55, 200))
             nvgTextBox(vg, txStartX + descSlide, txY, TEXT_AREA_W - 4, state.desc, nil)
 
+            nvgRestore(vg)
+            txY = txY + 40
+        end
+
+        -- 白夜碎碎念（彩蛋，右对齐小字）
+        if state.descT > 0.01 and state.baiiye and state.baiiye ~= "" then
+            nvgSave(vg)
+            nvgGlobalAlpha(vg, state.popupAlpha * state.descT * 0.65)
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 9)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_TOP)
+            nvgFillColor(vg, nvgRGBA(90, 105, 130, 200))
+            nvgText(vg, txStartX + TEXT_AREA_W - 4, txY, "— " .. state.baiiye, nil)
             nvgRestore(vg)
         end
 

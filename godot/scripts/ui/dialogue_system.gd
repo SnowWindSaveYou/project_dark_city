@@ -148,6 +148,19 @@ func handle_key() -> bool:
 	_advance()
 	return true
 
+## 跳过整段对话 (非 choosing 状态可用)
+## 直接结束对话并触发退场动画
+func skip() -> void:
+	if state == "idle" or state == "exiting" or state == "entering":
+		return
+	# 有选项时不允许跳过 (必须做选择)
+	if state == "waiting" and not _current_choices.is_empty():
+		return
+	# 直接跳到末尾并触发退场
+	_script_index = _script.size()
+	_current_choices = []
+	state = "exiting"
+
 ## 每帧更新 (打字机效果)
 func update(dt: float) -> void:
 	if state != "typing":

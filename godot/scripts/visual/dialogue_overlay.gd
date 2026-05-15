@@ -39,11 +39,21 @@ const LINE_H_MULT: float = 1.5
 const ADVANCE_BLINK_SPEED: float = 2.5
 
 # ---------------------------------------------------------------------------
+# 跳过按钮常量
+# ---------------------------------------------------------------------------
+const SKIP_BTN_W: float = 144.0   ## 跳过按钮宽度
+const SKIP_BTN_H: float = 54.0    ## 跳过按钮高度
+const SKIP_BTN_MARGIN_R: float = 30.0  ## 距对话框右边距
+const SKIP_BTN_MARGIN_B: float = 24.0  ## 距对话框底边距
+
+# ---------------------------------------------------------------------------
 # 缓存 + 选项交互状态
 # ---------------------------------------------------------------------------
 var _font: Font = null
 var _choice_rects: Array = []   ## 每个选项按钮的 Rect2 (用于命中检测)
 var _hovered_choice: int = -1   ## 当前 hover 的选项索引 (-1 = 无)
+var _skip_rect: Rect2 = Rect2()    ## 跳过按钮点击区域
+var _skip_hovered: bool = false    ## 鼠标是否悬停在跳过按钮上
 
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
@@ -53,13 +63,15 @@ func _process(_dt: float) -> void:
 	if m == null or m._dialogue_system == null:
 		return
 	var ds: DialogueSystem = m._dialogue_system
-	# 有选项时拦截鼠标，否则透传
+	# 有选项 或 跳过按钮可见时，拦截鼠标；否则透传
 	var has_choices: bool = ds.state == "waiting" and not ds.get_current_choices().is_empty()
-	mouse_filter = Control.MOUSE_FILTER_STOP if has_choices else Control.MOUSE_FILTER_IGNORE
+	var skip_visible: bool = _is_skip_visible(ds)
+	mouse_filter = Control.MOUSE_FILTER_STOP if (has_choices or skip_visible) else Control.MOUSE_FILTER_IGNORE
 
-	# 更新 hover 状态
+	var mp: Vector2 = get_local_mouse_position()
+
+	# 更新选项 hover 状态
 	if has_choices:
-		var mp: Vector2 = get_local_mouse_position()
 		var new_hover: int = -1
 		for i in range(_choice_rects.size()):
 			if _choice_rects[i].has_point(mp):
@@ -69,6 +81,16 @@ func _process(_dt: float) -> void:
 			_hovered_choice = new_hover
 			queue_redraw()
 
+	# 更新跳过按钮 hover 状态
+	if skip_visible and not _skip_rect.size.is_zero_approx():
+		var new_skip_hover: bool = _skip_rect.has_point(mp)
+		if new_skip_hover != _skip_hovered:
+			_skip_hovered = new_skip_hover
+			queue_redraw()
+	elif _skip_hovered:
+		_skip_hovered = false
+		queue_redraw()
+
 	# 需要渲染时才 queue_redraw
 	if ds.is_active() or ds.overlay_alpha > 0.01:
 		queue_redraw()
@@ -77,10 +99,26 @@ func _gui_input(event: InputEvent) -> void:
 	if m == null or m._dialogue_system == null:
 		return
 	var ds: DialogueSystem = m._dialogue_system
-	if ds.state != "waiting" or ds.get_current_choices().is_empty():
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var mp: Vector2 = get_local_mouse_position()
+
+	var mp: Vector2 = get_local_mouse_position()
+
+	# 优先检测跳过按钮 (非 choosing 状态)
+	if _is_skip_visible(ds) and not _skip_rect.size.is_zero_approx():
+		if _skip_rect.has_point(mp):
+			ds.skip()
+			_skip_hovered = false
+			get_viewport().set_input_as_handled()
+			return
+		# 点击在跳过按钮之外 → 当作普通点击推进对话
+		# (此时 mouse_filter=STOP 导致 _unhandled_input 收不到，需在此手动转发)
+		ds.handle_click()
+		get_viewport().set_input_as_handled()
+		return
+
+	# 选项按钮 (choosing 状态)
+	if ds.state == "waiting" and not ds.get_current_choices().is_empty():
 		for i in range(_choice_rects.size()):
 			if _choice_rects[i].has_point(mp):
 				ds.select_choice(i)
@@ -174,6 +212,42 @@ func _draw() -> void:
 				lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_TEXT,
 				text_color)
 
+	# --- 跳过按钮 (非 choosing 状态显示，右下角) ---
+	if _is_skip_visible(ds):
+		var sb_x: float = box_x + box_w - SKIP_BTN_W - SKIP_BTN_MARGIN_R
+		var sb_y: float = box_y + box_h - SKIP_BTN_H - SKIP_BTN_MARGIN_B
+		_skip_rect = Rect2(sb_x, sb_y, SKIP_BTN_W, SKIP_BTN_H)
+
+		# 投影阴影
+		draw_rect(Rect2(sb_x + 3, sb_y + 3, SKIP_BTN_W, SKIP_BTN_H),
+			Color(0, 0, 0, ds.box_alpha * 0.22), true)
+
+		# 按钮背景 (笔记本纸色调，hover 时稍亮)
+		var bg_alpha: float = 0.82 if _skip_hovered else 0.55
+		var bg_col: Color = Color(t.dialogue_paper, ds.box_alpha * bg_alpha)
+		# hover 时叠加一层浅色高亮
+		if _skip_hovered:
+			bg_col = bg_col.lerp(Color(1, 1, 1, ds.box_alpha * 0.9), 0.18)
+		draw_rect(Rect2(sb_x, sb_y, SKIP_BTN_W, SKIP_BTN_H), bg_col, true)
+
+		# 按钮边框 (使用对话框边框色)
+		var bdr_alpha: float = 0.65 if _skip_hovered else 0.38
+		draw_rect(Rect2(sb_x, sb_y, SKIP_BTN_W, SKIP_BTN_H),
+			Color(t.dialogue_border, ds.box_alpha * bdr_alpha), false, 3.0)
+
+		# 按钮文字 "跳过 »"
+		var skip_label: String = "跳过 »"
+		var txt_size: Vector2 = _font.get_string_size(skip_label,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_NAME - 4)
+		var txt_x: float = sb_x + (SKIP_BTN_W - txt_size.x) * 0.5
+		var txt_y: float = sb_y + (SKIP_BTN_H + txt_size.y * 0.5) * 0.5
+		var txt_alpha: float = 0.92 if _skip_hovered else 0.55
+		draw_string(_font, Vector2(txt_x, txt_y), skip_label,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE_NAME - 4,
+			Color(t.dialogue_text, ds.box_alpha * txt_alpha))
+	else:
+		_skip_rect = Rect2()
+
 	# --- 选项按钮 / 闪烁三角 ---
 	if ds.state == "waiting":
 		var choices: Array = ds.get_current_choices()
@@ -226,6 +300,25 @@ func _draw() -> void:
 				Vector2(tri_x + tri_size, tri_y + tri_size),
 			])
 			draw_colored_polygon(points, tri_color)
+
+# ---------------------------------------------------------------------------
+# 辅助方法
+# ---------------------------------------------------------------------------
+
+## 判断跳过按钮是否应该显示
+## 条件: 对话活跃 + 非 choosing 状态 (有选项时不显示)
+func _is_skip_visible(ds: DialogueSystem) -> bool:
+	if not ds.is_active():
+		return false
+	if ds.box_alpha < 0.01:
+		return false
+	# choosing 状态 (waiting + 有选项) 时隐藏
+	if ds.state == "waiting" and not ds.get_current_choices().is_empty():
+		return false
+	# entering/exiting 过渡中也不显示
+	if ds.state == "entering" or ds.state == "exiting":
+		return false
+	return true
 
 # ---------------------------------------------------------------------------
 # 自动换行

@@ -1,8 +1,8 @@
-## ConsumableItemBtn - 单个消耗品道具按钮
-## 用作 HandPanel 中 ToolbarHBox 的子节点
-## 独立 _draw() 绘制：圆形底色 + 纹理图标/emoji + 数量角标 + hover tooltip
+## ConsumableItemBtn - 道具格子按钮（节点版）
+## Button 包含 TextureRect（有贴图时）或 EmojiLabel（fallback）
+## 数量通过 BadgeLabel 覆盖，名称通过 NameLabel 显示
 class_name ConsumableItemBtn
-extends Control
+extends VBoxContainer
 
 # ---------------------------------------------------------------------------
 # 信号
@@ -12,111 +12,136 @@ signal item_used(key: String)
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const BTN_SIZE: int = 72
-const BADGE_R: float = 15.0
+const ICON_SIZE: float = 40.0
+
+# ---------------------------------------------------------------------------
+# @onready
+# ---------------------------------------------------------------------------
+@onready var _item_btn: Button        = $ItemBtn
+@onready var _icon_texture: TextureRect = $ItemBtn/IconTexture
+@onready var _emoji_label: Label      = $ItemBtn/EmojiLabel
+@onready var _badge_label: Label      = $ItemBtn/BadgeLabel
+@onready var _name_label: Label       = $NameLabel
 
 # ---------------------------------------------------------------------------
 # 数据
 # ---------------------------------------------------------------------------
-var item_key: String = ""
-var item_info: Dictionary = {}   ## ConsumableController.get_consumable_entries() 中的 entry
-var item_count: int = 0
-var tooltip_text: String = ""
-
-var _is_hovered: bool = false
+var _entry: Dictionary = {}
+var _tooltip_text: String = ""
 
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
 func _ready() -> void:
-	custom_minimum_size = Vector2(BTN_SIZE, BTN_SIZE)
-	size = Vector2(BTN_SIZE, BTN_SIZE)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
+	_apply_styles()
+	_item_btn.pressed.connect(func() -> void: _on_pressed())
+	_item_btn.mouse_entered.connect(func() -> void: _on_hover(true))
+	_item_btn.mouse_exited.connect(func() -> void: _on_hover(false))
 
-## 设置道具数据（由 HandPanel 调用）
-func set_entry(entry: Dictionary, tooltip: String) -> void:
-	item_key = entry.get("key", "")
-	item_info = entry.get("info", {})
-	item_count = entry.get("count", 0)
-	tooltip_text = tooltip
-	queue_redraw()
+func _apply_styles() -> void:
+	var t: Node = get_node("/root/GameTheme")
+
+	# 图标按钮外框样式
+	var sb_normal := StyleBoxFlat.new()
+	sb_normal.bg_color = Color(t.notebook_border, 0.11)
+	sb_normal.set_border_width_all(1)
+	sb_normal.border_color = Color(t.notebook_border, 0.27)
+	sb_normal.set_corner_radius_all(6)
+
+	var sb_hover := StyleBoxFlat.new()
+	sb_hover.bg_color = Color(0.29, 0.64, 0.89, 0.11)
+	sb_hover.set_border_width_all(1)
+	sb_hover.border_color = Color(t.notebook_border, 0.47)
+	sb_hover.set_corner_radius_all(6)
+
+	var sb_pressed := sb_hover.duplicate()
+	sb_pressed.bg_color = Color(0.29, 0.64, 0.89, 0.20)
+
+	_item_btn.add_theme_stylebox_override("normal",  sb_normal)
+	_item_btn.add_theme_stylebox_override("hover",   sb_hover)
+	_item_btn.add_theme_stylebox_override("pressed", sb_pressed)
+	_item_btn.add_theme_stylebox_override("focus",   sb_normal)
+
+	# Emoji 字号
+	_emoji_label.add_theme_font_size_override("font_size", 20)
+
+	# 角标样式
+	var badge_sb := StyleBoxFlat.new()
+	badge_sb.bg_color = Color(t.info, 0.82)
+	badge_sb.set_corner_radius_all(6)
+	_badge_label.add_theme_stylebox_override("normal", badge_sb)
+	_badge_label.add_theme_font_size_override("font_size", 7)
+	_badge_label.add_theme_color_override("font_color", Color.WHITE)
+
+	# 名称小字
+	_name_label.add_theme_font_size_override("font_size", 9)
+	_name_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.63))
 
 # ---------------------------------------------------------------------------
-# 输入
+# 注入数据
 # ---------------------------------------------------------------------------
-func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb: InputEventMouseButton = event as InputEventMouseButton
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			item_used.emit(item_key)
-			accept_event()
+func set_entry(entry: Dictionary, tooltip: String = "") -> void:
+	_entry        = entry
+	_tooltip_text = tooltip
 
-func _on_mouse_entered() -> void:
-	_is_hovered = true
-	queue_redraw()
+	var info: Dictionary = entry.get("info", {})
+	var count: int = entry.get("count", 1)
 
-func _on_mouse_exited() -> void:
-	_is_hovered = false
-	queue_redraw()
-
-# ---------------------------------------------------------------------------
-# 渲染
-# ---------------------------------------------------------------------------
-func _draw() -> void:
-	if item_key == "":
-		return
-
-	var t = GameTheme
-	var font: Font = ThemeDB.fallback_font
-	var icon_cx: float = BTN_SIZE / 2.0
-	var icon_cy: float = BTN_SIZE / 2.0
-
-	# hover 底色
-	if _is_hovered:
-		draw_rect(Rect2(-6, -6, BTN_SIZE + 12, BTN_SIZE + 12), Color(t.info, 0.12))
-
-	# 图标背景圆
-	var bg_alpha: float = 0.2 if _is_hovered else 0.12
-	draw_circle(Vector2(icon_cx, icon_cy), BTN_SIZE / 2.0, Color(t.notebook_border, bg_alpha))
-
-	# 纹理图标（优先）或 emoji fallback
-	var tex: Texture2D = ItemIcons.get_texture(item_key)
-	if tex:
-		var tex_size: float = BTN_SIZE - 4
-		draw_texture_rect(tex, Rect2(icon_cx - tex_size / 2, icon_cy - tex_size / 2,
-			tex_size, tex_size), false)
+	# 贴图图标
+	var icon_key: String = info.get("icon_key", "")
+	if icon_key != "":
+		var tex: Texture2D = ItemIcons.get_texture(icon_key) if has_node("/root/ItemIcons") else null
+		if tex:
+			_icon_texture.texture = tex
+			_icon_texture.visible = true
+			_emoji_label.visible  = false
+		else:
+			_icon_texture.visible = false
+			_emoji_label.visible  = true
+			_emoji_label.text = info.get("icon", "🧪")
 	else:
-		var icon_str: String = item_info.get("icon", "?")
-		draw_string(font, Vector2(icon_cx - 21, icon_cy + 15), icon_str,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 42, t.text_primary)
+		_icon_texture.visible = false
+		_emoji_label.visible  = true
+		_emoji_label.text = info.get("icon", "🧪")
 
-	# 数量角标（> 1 时显示）
-	if item_count > 1:
-		var badge_pos: Vector2 = Vector2(BTN_SIZE - 3, 6)
-		draw_circle(badge_pos, BADGE_R, Color(t.info, 0.78))
-		draw_string(font, Vector2(badge_pos.x - 9, badge_pos.y + 9), str(item_count),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color.WHITE)
+	# 数量角标
+	if count > 1:
+		_badge_label.text    = str(count)
+		_badge_label.visible = true
+	else:
+		_badge_label.visible = false
 
-	# hover tooltip 气泡（绘制在按钮上方）
-	if _is_hovered and tooltip_text != "":
-		var tip: String = tooltip_text
-		var tip_size: float = 27.0
-		var tip_w: float = font.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, tip_size).x
-		var pad_x: float = 18.0
-		var pad_y: float = 9.0
-		var bx: float = icon_cx - tip_w / 2 - pad_x
-		var by: float = -tip_size - pad_y * 2 - 6
-		var bw: float = tip_w + pad_x * 2
-		var bh: float = tip_size + pad_y * 2
+	# 名称
+	_name_label.text = info.get("label", "")
 
-		# 阴影
-		draw_rect(Rect2(bx + 3, by + 3, bw, bh), Color(t.notebook_border, 0.16))
-		# 填充
-		draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_paper, 0.96))
-		# 边框
-		draw_rect(Rect2(bx, by, bw, bh), Color(t.notebook_border, 0.47), false, 1.5)
-		# 文字
-		draw_string(font, Vector2(bx + pad_x, by + bh - pad_y), tip,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, tip_size, t.text_primary)
+	# Tooltip
+	if tooltip != "":
+		_item_btn.tooltip_text = tooltip
+	else:
+		# 自动生成 tooltip
+		var effects: Array = info.get("effects", [])
+		var parts: Array[String] = []
+		for eff: Array in effects:
+			if eff.size() >= 2:
+				if eff[0] == "exorcism":
+					parts.append("驱除怪物")
+				else:
+					var res_names: Dictionary = {"san": "理智", "order": "秩序", "film": "胶卷"}
+					var rn: String = res_names.get(eff[0], str(eff[0]))
+					var sign: String = "+" if int(eff[1]) > 0 else ""
+					parts.append(rn + sign + str(eff[1]))
+		_item_btn.tooltip_text = " / ".join(parts)
+
+# ---------------------------------------------------------------------------
+# 交互
+# ---------------------------------------------------------------------------
+func _on_pressed() -> void:
+	var key: String = _entry.get("key", "")
+	if key != "":
+		item_used.emit(key)
+
+func _on_hover(hovered: bool) -> void:
+	# hover 时轻微放大
+	var target_scale: Vector2 = Vector2(1.08, 1.08) if hovered else Vector2.ONE
+	var tw: Tween = create_tween()
+	tw.tween_property(_item_btn, "scale", target_scale, 0.1)

@@ -34,7 +34,7 @@ M.LOCATION_IMAGES = {
 -- ---------------------------------------------------------------------------
 -- 2-A 通用事件 (fallback，无地点前缀)
 local GENERIC = {
-    safe    = { "evt_safe_rest_shaft_v1_20260515073125.png" },
+    safe    = { "evt_safe_rest_shaft_20260515084013.png" },
     monster = { "evt_monster_shadow_shaft_v2_20260515073514.png",
                 "evt_monster_whisper_shaft_v1_20260515072928.png" },
     trap    = { "evt_trap_generic_shaft_v2_20260515074928.png" },
@@ -42,7 +42,7 @@ local GENERIC = {
     plot    = { "evt_plot_missing_person_shaft_v1_20260515072942.png",
                 "evt_plot_symbol_wall_shaft_v1_20260515072932.png",
                 "evt_plot_deep_rumble_shaft_v1_20260515073027.png",
-                "evt_plot_find_photo_shaft_v1_20260515072928.png",
+                "evt_plot_find_photo_shaft_v2_20260515080100.png",
                 "evt_plot_inscription_shaft_v1_20260515072927.png" },
     clue    = { "evt_clue_footprints_shaft_v1_20260515073029.png",
                 "evt_clue_blood_trail_shaft_v1_20260515073026.png",
@@ -56,7 +56,7 @@ M.LOCATION_EVENT_IMAGES = {
     -- 公司
     company = {
         safe    = { "evt_company_safe_bonus_20260512103420.png" },
-        plot    = { "evt_company_overtime_20260512104442.png" },
+        trap    = { "evt_company_overtime_20260512104442.png" },   -- "无尽加班令"对应加班图
         clue    = { "evt_company_email_clue_20260512105926.png" },
     },
     -- 学校
@@ -69,14 +69,14 @@ M.LOCATION_EVENT_IMAGES = {
     park = {
         safe    = { "evt_park_healing_breeze_20260512102843.png" },
         reward  = { "evt_park_herb_find_20260512102843.png" },
-        clue    = { "evt_park_nature_clue_20260512102840.png" },
+        clue    = { "evt_park_nature_clue_shaft_20260515083206.png" },
     },
     -- 小巷
     alley = {
         monster = { "evt_alley_ambush_20260512102854.png" },
-        trap    = { "evt_alley_thugs_trap_20260512111733.png" },
+        trap    = { "evt_alley_thugs_trap_shaft_20260515083207.png" },
         reward  = { "evt_alley_stash_20260512111843.png" },
-        clue    = { "evt_alley_graffiti_clue_20260512111815.png" },
+        clue    = { "evt_alley_graffiti_clue_shaft_20260515083204.png" },
     },
     -- 车站
     station = {
@@ -95,12 +95,12 @@ M.LOCATION_EVENT_IMAGES = {
     library = {
         safe    = { "evt_library_deep_read_20260512181125.png" },
         monster = { "evt_library_self_turning_book_20260512181226.png" },
-        trap    = { "evt_library_forbidden_book_20260512181254.png" },
-        clue    = { "evt_library_ancient_scroll_20260512181313.png" },
+        plot    = { "evt_library_forbidden_book_20260512181254.png" },   -- "禁书"对应禁书图
+        reward  = { "evt_library_ancient_scroll_20260512181313.png" },   -- "古老卷轴"对应卷轴图
     },
     -- 银行
     bank = {
-        reward  = { "evt_bank_vault_find_20260512181335.png" },
+        safe    = { "evt_bank_vault_find_20260512181335.png" },   -- "空金库"对应发现金库图
         trap    = { "evt_bank_vault_trap_20260512181356.png" },
         clue    = { "evt_bank_suspicious_record_20260512181419.png" },
     },

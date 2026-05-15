@@ -1,8 +1,7 @@
-## ScheduleItemRow - 单条日程行
-## 用作 HandPanel 中 ScheduleVBox 的子节点
-## 独立 _draw() 绘制 checkbox + 图标 + 动词 + 奖励
+## ScheduleItemRow - 单条日程行（节点版）
+## 使用 HBoxContainer + Label 节点，只有勾选框用轻量 _draw()
 class_name ScheduleItemRow
-extends Control
+extends HBoxContainer
 
 # ---------------------------------------------------------------------------
 # 信号
@@ -10,140 +9,155 @@ extends Control
 signal row_clicked(index: int)
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量（对应 HandPanel.lua）
 # ---------------------------------------------------------------------------
-const ITEM_H: int = 84
-const CHECK_SIZE: int = 36
-const SPINE_W: int = 30
-const PAGE_PAD: int = 36
+const CHECK_SIZE: float = 11.0
+const ITEM_H: float     = 26.0
+
+# ---------------------------------------------------------------------------
+# @onready
+# ---------------------------------------------------------------------------
+@onready var _check_area: Control = $CheckArea
+@onready var _icon_label: Label   = $IconLabel
+@onready var _text_label: Label   = $TextLabel
+@onready var _reward_label: Label = $RewardLabel
 
 # ---------------------------------------------------------------------------
 # 数据
 # ---------------------------------------------------------------------------
-var schedule_index: int = 0       ## 对应 _card_manager.schedules[schedule_index]
-var schedule_data: Dictionary = {}
-var reward_right_x: float = 0.0   ## 由父节点注入，奖励文字右侧边界 x (本地坐标)
-
-var _is_hovered: bool = false
+var _index: int           = 0
+var _data: Dictionary     = {}
+var _is_hovered: bool     = false
 
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
 func _ready() -> void:
+	_apply_styles()
+	_check_area.draw.connect(_draw_checkbox)
+	mouse_entered.connect(func() -> void: _is_hovered = true; queue_redraw(); _check_area.queue_redraw())
+	mouse_exited.connect(func() -> void: _is_hovered = false; queue_redraw(); _check_area.queue_redraw())
+	gui_input.connect(_on_gui_input)
 	custom_minimum_size = Vector2(0, ITEM_H)
-	mouse_filter = Control.MOUSE_FILTER_PASS
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
 
-## 设置行数据（由 HandPanel 调用）
-func set_data(idx: int, data: Dictionary, rr_x: float) -> void:
-	schedule_index = idx
-	schedule_data = data
-	reward_right_x = rr_x
+func _apply_styles() -> void:
+	var t: Node = get_node("/root/GameTheme")
+
+	_icon_label.add_theme_font_size_override("font_size", 13)
+	_text_label.add_theme_font_size_override("font_size", 11)
+	_reward_label.add_theme_font_size_override("font_size", 9)
+	_reward_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.47))
+
+	# 悬停高亮背景通过 draw() 实现
+	set("theme_override_styles/panel", null)
+
+# ---------------------------------------------------------------------------
+# 注入数据
+# ---------------------------------------------------------------------------
+func set_data(idx: int, data: Dictionary) -> void:
+	_index = idx
+	_data  = data
+
+	var status: String = data.get("status", "pending")
+	var t: Node = get_node("/root/GameTheme")
+
+	# 图标
+	_icon_label.text = data.get("icon", "📍")
+
+	# 名称
+	_text_label.text = data.get("label", "")
+	match status:
+		"completed":
+			_text_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.51))
+			# 删除线通过在文字外套一条线段（_draw 实现）
+		"deferred":
+			_text_label.add_theme_color_override("font_color", Color(t.deferred, 0.63))
+		_:
+			_text_label.add_theme_color_override("font_color", Color(t.text_primary, 0.86))
+
+	# 奖励角标
+	if status != "deferred":
+		var reward: Array = data.get("reward", [])
+		if reward.size() >= 2:
+			var res_icon: String = _reward_icon(reward[0])
+			_reward_label.text = "%s+%s" % [res_icon, str(reward[1])]
+			_reward_label.visible = true
+		else:
+			_reward_label.visible = false
+	else:
+		_reward_label.visible = false
+
+	_check_area.queue_redraw()
 	queue_redraw()
 
+func _reward_icon(res_key: String) -> String:
+	match res_key:
+		"money":  return "💰"
+		"san":    return "🧠"
+		"order":  return "⚖️"
+		_:        return "?"
+
 # ---------------------------------------------------------------------------
-# 输入
+# _draw()：勾选框（CheckArea 内部）+ 悬停高亮 + 删除线
 # ---------------------------------------------------------------------------
-func _gui_input(event: InputEvent) -> void:
+func _draw_checkbox() -> void:
+	var t: Node = get_node("/root/GameTheme")
+	var status: String = _data.get("status", "pending")
+
+	# 勾选框在 CheckArea 中垂直居中
+	var area_h: float = _check_area.size.y
+	var ck_x: float   = 2.0
+	var ck_y: float   = (area_h - CHECK_SIZE) / 2.0
+	var rect: Rect2   = Rect2(ck_x, ck_y, CHECK_SIZE, CHECK_SIZE)
+
+	match status:
+		"completed":
+			# 填充绿色方框
+			_check_area.draw_rect(rect, Color(t.completed, 0.71), true)
+			_check_area.draw_rect(rect, Color(t.completed, 0.86), false, 1.0)
+			# 白色勾
+			var cy: float = ck_y + CHECK_SIZE / 2.0
+			_check_area.draw_line(
+				Vector2(ck_x + 2.5, cy),
+				Vector2(ck_x + CHECK_SIZE * 0.42, cy + 3.0),
+				Color.WHITE, 1.5
+			)
+			_check_area.draw_line(
+				Vector2(ck_x + CHECK_SIZE * 0.42, cy + 3.0),
+				Vector2(ck_x + CHECK_SIZE - 2.0, cy - 3.5),
+				Color.WHITE, 1.5
+			)
+		"deferred":
+			# 空边框 + 箭头符号
+			_check_area.draw_rect(rect, Color(t.deferred, 0.47), false, 1.0)
+			_check_area.draw_string(
+				ThemeDB.fallback_font,
+				Vector2(ck_x + 1.0, ck_y + CHECK_SIZE - 2.0),
+				"↗", HORIZONTAL_ALIGNMENT_LEFT, -1, 9,
+				Color(t.deferred, 0.63)
+			)
+		_:
+			# 空边框（待完成）
+			_check_area.draw_rect(rect, Color(t.notebook_border, 0.55), false, 1.0)
+
+func _draw() -> void:
+	if not _is_hovered: return
+	var status: String = _data.get("status", "pending")
+	if status != "pending" and status != "deferred": return
+
+	# 悬停高亮背景（浅蓝圆角矩形）
+	draw_rect(
+		Rect2(0.0, 2.0, size.x, size.y - 4.0),
+		Color(0.29, 0.64, 0.89, 0.07), true, -1.0
+	)
+
+# ---------------------------------------------------------------------------
+# 输入处理
+# ---------------------------------------------------------------------------
+func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			row_clicked.emit(schedule_index)
-			accept_event()
-
-func _on_mouse_entered() -> void:
-	var status: String = schedule_data.get("status", "")
-	if status in ["pending", "deferred"]:
-		_is_hovered = true
-		queue_redraw()
-
-func _on_mouse_exited() -> void:
-	_is_hovered = false
-	queue_redraw()
-
-# ---------------------------------------------------------------------------
-# 渲染
-# ---------------------------------------------------------------------------
-func _draw() -> void:
-	if schedule_data.is_empty():
-		return
-
-	var t = GameTheme
-	var font: Font = ThemeDB.fallback_font
-	var status: String = schedule_data.get("status", "pending")
-	var w: float = size.x
-	var center_y: float = ITEM_H / 2.0
-
-	# hover 高亮背景
-	if _is_hovered:
-		draw_rect(Rect2(-6, 6, w + 12, ITEM_H - 12), Color(t.info, 0.07))
-
-	# --- 勾选框 ---
-	var check_x: float = CHECK_SIZE + 12.0   # 留出左边距
-	var check_y: float = center_y - CHECK_SIZE / 2.0
-
-	if status == "completed":
-		draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE), Color(t.completed, 0.71))
-		draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-			Color(t.completed, 0.86), false, 3.0)
-		draw_string(font, Vector2(check_x + 3, center_y + 15), "✓",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color.WHITE)
-	elif status == "deferred":
-		draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-			Color(t.deferred, 0.47), false, 3.0)
-		draw_string(font, Vector2(check_x + 3, center_y + 12), "↗",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(t.deferred, 0.63))
-	else:
-		draw_rect(Rect2(check_x, check_y, CHECK_SIZE, CHECK_SIZE),
-			Color(t.notebook_border, 0.55), false, 3.0)
-
-	# --- 图标 + 动词 ---
-	var text_start_x: float = check_x + CHECK_SIZE + 30
-	var icon_str: String = schedule_data.get("icon", "📋")
-	draw_string(font, Vector2(text_start_x, center_y + 15), icon_str,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 42, t.text_primary)
-	var icon_w: float = font.get_string_size(icon_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 42).x
-
-	var verb: String = schedule_data.get("verb", "")
-	var verb_color: Color
-	if status == "completed":
-		verb_color = Color(t.text_secondary, 0.55)
-	elif status == "deferred":
-		verb = verb + " (明天)"
-		verb_color = Color(t.deferred, 0.63)
-	else:
-		verb_color = Color(t.text_primary, 0.86)
-
-	var available_verb_w: float = (reward_right_x if reward_right_x > 0 else w) \
-		- text_start_x - icon_w - 12 - 200
-	draw_string(font, Vector2(text_start_x + icon_w + 12, center_y + 15), verb,
-		HORIZONTAL_ALIGNMENT_LEFT, available_verb_w, 36, verb_color)
-
-	# 删除线（已完成）
-	if status == "completed":
-		var verb_w: float = font.get_string_size(verb, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-		var line_x1: float = text_start_x + icon_w + 9
-		draw_line(Vector2(line_x1, center_y),
-			Vector2(line_x1 + verb_w + 6, center_y),
-			Color(t.text_secondary, 0.39), 2.4)
-
-	# --- 奖励 ---
-	if status != "deferred":
-		var reward: Array = schedule_data.get("reward", [])
-		if reward.size() >= 2:
-			var res_icon: String = GameData.RESOURCE_ICONS.get(reward[0], "?")
-			var reward_text: String = res_icon + "+" + str(reward[1])
-			var rw: float = font.get_string_size(reward_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 27).x
-			var rx: float = (reward_right_x if reward_right_x > 0 else w - 12) - rw
-			draw_string(font, Vector2(rx, center_y + 12), reward_text,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color(t.text_secondary, 0.55))
-
-	# hover 提示
-	if _is_hovered:
-		var tip: String = "点击取消" if status == "deferred" else "点击推迟"
-		var tip_color: Color = Color(t.deferred, 0.63) if status == "deferred" \
-			else Color(t.schedule, 0.63)
-		var rx2: float = (reward_right_x if reward_right_x > 0 else w - 12) - 200
-		draw_string(font, Vector2(rx2, center_y + 12), tip,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 27, tip_color)
+			var status: String = _data.get("status", "pending")
+			if status == "pending" or status == "deferred":
+				row_clicked.emit(_index)
