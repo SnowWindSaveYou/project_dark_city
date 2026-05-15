@@ -291,6 +291,11 @@ func _setup_scene_tree() -> void:
 	_camera_button = load("res://scenes/ui/camera_button.tscn").instantiate()
 	ui_layer.add_child(_camera_button)
 
+	# BubbleOverlay — 在所有弹窗之前添加，确保气泡不会遮挡弹窗
+	_bubble_overlay = load("res://scenes/screens/bubble_overlay.tscn").instantiate()
+	_bubble_overlay.m = self
+	ui_layer.add_child(_bubble_overlay)
+
 	var event_popup_scene: PackedScene = load("res://scenes/ui/event_popup.tscn")
 	_event_popup = event_popup_scene.instantiate()
 	ui_layer.add_child(_event_popup)
@@ -323,11 +328,6 @@ func _setup_scene_tree() -> void:
 	_date_transition.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_date_transition.visible = false
 	ui_layer.add_child(_date_transition)
-
-	# BubbleOverlay — Scene 化 (Token 头顶气泡)
-	_bubble_overlay = load("res://scenes/screens/bubble_overlay.tscn").instantiate()
-	_bubble_overlay.m = self
-	ui_layer.add_child(_bubble_overlay)
 
 	# DialogueOverlay — Scene 化 (遮罩 + 对话框 + 立绘)
 	_dialogue_overlay = load("res://scenes/screens/dialogue_overlay.tscn").instantiate()

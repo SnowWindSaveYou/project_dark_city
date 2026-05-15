@@ -13,6 +13,10 @@ const DECK_SPAWN_POS: Vector3 = Vector3(3.0, 1.0, -2.5)
 const FLIP_HALF_DUR: float = 0.12
 ## 卡牌悬浮高度 (Y 轴微偏, 避免 Z-fighting)
 const CARD_Y: float = 0.008
+## PNG底图 / overlay Sprite3D 的 Y 高度 (卡面正上方 ~3mm)
+const SPRITE_Y: float = CARD_Y + Card.CARD_THICKNESS / 2.0 + 0.003
+## overlay 纹理 pixel_size = CARD_W / TEX_W
+const OVERLAY_PIXEL_SIZE: float = Card.CARD_W / 256.0
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -26,6 +30,8 @@ var m = null  # 主场景引用 (untyped 避免循环依赖)
 var board_layer: Node3D = null
 ## 卡牌材质缓存 (每张卡牌独立材质实例)
 var _card_materials: Dictionary = {}  # "row_col" -> StandardMaterial3D
+## 卡牌纹理生成器 (PNG加载 + 程序化overlay/back纹理)
+var _card_textures: CardTextures = null
 ## 共享卡牌 Mesh
 var _card_mesh: BoxMesh = null
 ## 光环 Shader (方形发光边框上浮特效)
@@ -79,6 +85,9 @@ func setup(main_ref) -> void:
 	_tex_scouted = preload("res://assets/image/icon_scouted_v2_20260426051601.png")
 	_tex_revealed = preload("res://assets/image/icon_revealed_v2_20260426051619.png")
 
+	# 卡牌纹理生成器
+	_card_textures = CardTextures.new()
+
 # ---------------------------------------------------------------------------
 # 卡牌节点创建 (全量重建)
 # ---------------------------------------------------------------------------
@@ -107,9 +116,9 @@ func rebuild_card_nodes() -> void:
 			card_node.name = "Card_%d_%d" % [row, col]
 			card_node.mesh = _card_mesh
 
-			# 独立材质实例
+			# 独立材质实例 (白色底色，PNG 纹理叠在独立 Sprite3D 上)
 			var mat: StandardMaterial3D = StandardMaterial3D.new()
-			mat.albedo_color = GameTheme.card_back
+			mat.albedo_color = Color.WHITE
 			mat.roughness = 0.7
 			mat.metallic = 0.0
 			card_node.material_override = mat
@@ -120,10 +129,43 @@ func rebuild_card_nodes() -> void:
 			card_node.set_meta("col", col)
 			card_node.set_meta("target_pos", target_pos)
 
-			# 地标卡初始就正面朝上: 显示事件面颜色和文字
+			# PNG 底图 Sprite3D (平铺在卡面正上方)
+			var png_sprite: Sprite3D = Sprite3D.new()
+			png_sprite.name = "PngSprite"
+			png_sprite.pixel_size = OVERLAY_PIXEL_SIZE
+			png_sprite.position = Vector3(0, SPRITE_Y, 0)
+			png_sprite.rotation_degrees = Vector3(-90, 180, 0)
+			png_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+			png_sprite.transparent = true
+			png_sprite.alpha_cut_mode = SpriteBase3D.ALPHA_CUT_DISABLED
+			png_sprite.no_depth_test = false
+			card_node.add_child(png_sprite)
+
+			# overlay Sprite3D (拍立得边框 + 色条，透明底)
+			var overlay_sprite: Sprite3D = Sprite3D.new()
+			overlay_sprite.name = "OverlaySprite"
+			overlay_sprite.pixel_size = OVERLAY_PIXEL_SIZE
+			overlay_sprite.position = Vector3(0, SPRITE_Y + 0.001, 0)
+			overlay_sprite.rotation_degrees = Vector3(-90, 180, 0)
+			overlay_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+			overlay_sprite.transparent = true
+			overlay_sprite.alpha_cut_mode = SpriteBase3D.ALPHA_CUT_DISABLED
+			overlay_sprite.no_depth_test = false
+			card_node.add_child(overlay_sprite)
+
+			# 地标卡初始就正面朝上: 设置正面纹理
 			if card.is_flipped:
 				var type_info: Dictionary = GameTheme.card_type_info(card.type)
-				mat.albedo_color = type_info.get("color", GameTheme.card_face)
+				var accent: Color = type_info.get("color", GameTheme.card_face)
+				var png_tex: Texture2D = _card_textures.get_event_texture(card.location, card.type)
+				if png_tex == null:
+					png_tex = _card_textures.get_location_texture(card.location)
+				png_sprite.texture = png_tex
+				overlay_sprite.texture = _card_textures.get_overlay(accent)
+			else:
+				# 未翻开: 地点插画 + 米白色 overlay 边框
+				png_sprite.texture = _card_textures.get_location_texture(card.location)
+				overlay_sprite.texture = _card_textures.get_plain_overlay()
 
 			# 占位 Label3D (显示卡牌类型文字)
 			var label: Label3D = Label3D.new()
@@ -241,11 +283,22 @@ func update_card_visual(row: int, col: int) -> void:
 
 	var card_node: MeshInstance3D = get_card_node(row, col)
 
+	var png_sprite: Sprite3D = card_node.get_node_or_null("PngSprite") as Sprite3D if card_node else null
+	var overlay_sprite: Sprite3D = card_node.get_node_or_null("OverlaySprite") as Sprite3D if card_node else null
+
 	if card.is_flipped:
 		var type_info: Dictionary = GameTheme.card_type_info(card.type)
-		mat.albedo_color = type_info.get("color", GameTheme.card_face)
-		if card.scouted or card.revealed:
-			mat.albedo_color = mat.albedo_color.lightened(0.15)
+		var accent: Color = type_info.get("color", GameTheme.card_face)
+		# mat 保留为白色底，用 emission 做高亮效果 (动画时用)
+		mat.albedo_color = Color.WHITE
+		# 更新 PNG + overlay 纹理
+		if png_sprite:
+			var png_tex: Texture2D = _card_textures.get_event_texture(card.location, card.type)
+			if png_tex == null:
+				png_tex = _card_textures.get_location_texture(card.location)
+			png_sprite.texture = png_tex
+		if overlay_sprite:
+			overlay_sprite.texture = _card_textures.get_overlay(accent)
 		# 翻开后显示事件信息
 		if card_node:
 			var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
@@ -265,7 +318,12 @@ func update_card_visual(row: int, col: int) -> void:
 			else:
 				_remove_glow_rings(card_node)
 	else:
-		mat.albedo_color = GameTheme.card_back
+		mat.albedo_color = Color.WHITE
+		# 未翻开: 地点插画 + 米白 overlay
+		if png_sprite:
+			png_sprite.texture = _card_textures.get_location_texture(card.location)
+		if overlay_sprite:
+			overlay_sprite.texture = _card_textures.get_plain_overlay()
 		# 未翻开时显示地点信息
 		if card_node:
 			var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
@@ -324,10 +382,16 @@ func update_dark_card_visual(row: int, col: int) -> void:
 	if not mat:
 		return
 
+	var png_sprite_d: Sprite3D = card_node.get_node_or_null("PngSprite") as Sprite3D
+	var overlay_sprite_d: Sprite3D = card_node.get_node_or_null("OverlaySprite") as Sprite3D
+
 	if card.is_flipped:
-		var dark_color: Color = GameTheme.dark_card_type_color(card.dark_type)
-		mat.albedo_color = dark_color
-		# 暗面卡牌显示: 类型图标 + 地点名
+		# 暗面正面: 程序化暗色纹理 + 标签
+		mat.albedo_color = Color.WHITE
+		if png_sprite_d:
+			png_sprite_d.texture = _card_textures.get_dark_face_texture(card.dark_type)
+		if overlay_sprite_d:
+			overlay_sprite_d.texture = null
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
 		if label:
 			var dark_info: Dictionary = GameTheme.dark_card_type_info(card.dark_type)
@@ -337,7 +401,12 @@ func update_dark_card_visual(row: int, col: int) -> void:
 			label.text = icon + "\n" + display_name
 			label.modulate = Color(1, 1, 1, 0.9)
 	else:
-		mat.albedo_color = GameTheme.card_back_dark
+		# 暗面背面: 程序化暗面背面纹理
+		mat.albedo_color = Color.WHITE
+		if png_sprite_d:
+			png_sprite_d.texture = _card_textures.get_back_dark_texture()
+		if overlay_sprite_d:
+			overlay_sprite_d.texture = null
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
 		if label:
 			label.modulate = Color(1, 1, 1, 0)
@@ -478,26 +547,17 @@ func start_deal_animation(on_complete: Callable) -> void:
 		card_node.scale = Vector3(0.4, 0.4, 0.4)
 		card_node.visible = true
 
-		# 设置初始透明度
-		var mat: StandardMaterial3D = _get_card_mat(pos.x, pos.y)
-		if mat:
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			mat.albedo_color.a = 0.0
+		# 设置初始透明度 (通过节点 modulate 统一控制所有子节点)
+		card_node.modulate.a = 0.0
 
 		var fly_dur: float = 0.35
 
-		# 淡入 (通过材质 alpha)
-		if mat:
-			var tw_fade: Tween = m.create_tween()
-			tw_fade.tween_method(
-				func(a: float): mat.albedo_color.a = a,
-				0.0, 1.0, 0.15
-			).set_delay(acc_delay)
-			# 淡入完成后关闭透明 (性能优化)
-			tw_fade.tween_callback(func():
-				mat.albedo_color.a = 1.0
-				mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-			)
+		# 淡入
+		var tw_fade: Tween = m.create_tween()
+		tw_fade.tween_method(
+			func(a: float): card_node.modulate.a = a,
+			0.0, 1.0, 0.15
+		).set_delay(acc_delay)
 
 		# 飞行
 		var tw2: Tween = m.create_tween()
@@ -589,17 +649,12 @@ func play_undeal_animation(on_complete: Callable) -> void:
 			.set_delay(fly_delay) \
 			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
-		# 淡出 (通过材质 alpha)
-		var mat: StandardMaterial3D = _get_card_mat(pos.x, pos.y)
-		if mat:
-			var tw_fade: Tween = m.create_tween()
-			tw_fade.tween_callback(func():
-				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			).set_delay(fly_delay)
-			tw_fade.tween_method(
-				func(a: float): mat.albedo_color.a = a,
-				1.0, 0.0, fly_dur
-			).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		# 淡出 (通过节点 modulate)
+		var tw_fade: Tween = m.create_tween()
+		tw_fade.tween_method(
+			func(a: float): card_node.modulate.a = a,
+			1.0, 0.0, fly_dur
+		).set_delay(fly_delay).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
 		# 飞行结束后隐藏
 		var tw_hide: Tween = m.create_tween()
@@ -738,14 +793,19 @@ func play_exorcise_animation(row: int, col: int, on_complete: Callable) -> void:
 				card.glow_intensity = 1.0
 			var mat: StandardMaterial3D = _get_card_mat(row, col)
 			if mat:
-				var base_color: Color = mat.albedo_color
+				# 翻牌闪光颜色: 用卡牌类型 accent 色 (比白色更生动)
+				var flipped_card: Card = m.board.get_card(row, col)
+				var glow_color: Color = Color.WHITE
+				if flipped_card and flipped_card.is_flipped:
+					var ti: Dictionary = GameTheme.card_type_info(flipped_card.type)
+					glow_color = ti.get("color", Color.WHITE)
 				var tw_glow: Tween = m.create_tween()
 				tw_glow.tween_method(func(t: float) -> void:
 					if card:
 						card.glow_intensity = 1.0 - t
 					if mat:
 						mat.emission_enabled = true
-						mat.emission = base_color
+						mat.emission = glow_color
 						mat.emission_energy_multiplier = (1.0 - t) * 2.0
 				, 0.0, 1.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 				tw_glow.tween_callback(func() -> void:

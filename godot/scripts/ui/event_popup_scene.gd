@@ -90,19 +90,19 @@ static func is_blocking_event(card_type: String, _has_choices: bool = false) -> 
 @onready var _overlay: ColorRect = $Overlay
 @onready var _notebook: PanelContainer = $PanelAnchor/Notebook
 @onready var _notebook_decor: Control = $PanelAnchor/Notebook/NotebookDecor
-@onready var _polaroid_area: Control = $PanelAnchor/Notebook/HBox/PolaroidArea
-@onready var _polaroid_card: PanelContainer = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard
-@onready var _event_texture: TextureRect = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/EventTexture
-@onready var _card_bottom: HBoxContainer = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom
-@onready var _type_label: Label = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/TypeLabel
-@onready var _location_label: Label = $PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/LocationLabel
-@onready var _right_vbox: VBoxContainer = $PanelAnchor/Notebook/HBox/RightVBox
-@onready var _title_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/TitleLabel
-@onready var _effects_row: HBoxContainer = $PanelAnchor/Notebook/HBox/RightVBox/EffectsRow
-@onready var _desc_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/DescLabel
-@onready var _baiiye_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/BaiyeLabel
-@onready var _confirm_button: PanelContainer = $PanelAnchor/Notebook/HBox/RightVBox/ConfirmButton
-@onready var _confirm_label: Label = $PanelAnchor/Notebook/HBox/RightVBox/ConfirmButton/ConfirmLabel
+@onready var _polaroid_area: Control = $PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea
+@onready var _polaroid_card: PanelContainer = $PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard
+@onready var _event_texture: TextureRect = $PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/EventTexture
+@onready var _card_bottom: HBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom
+@onready var _type_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/TypeLabel
+@onready var _location_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/LocationLabel
+@onready var _right_vbox: VBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox
+@onready var _title_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/TitleLabel
+@onready var _effects_row: HBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/EffectsRow
+@onready var _desc_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescLabel
+@onready var _baiiye_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/BaiyeLabel
+@onready var _confirm_button: PanelContainer = $PanelAnchor/Notebook/OuterVBox/ConfirmButton
+@onready var _confirm_label: Label = $PanelAnchor/Notebook/OuterVBox/ConfirmButton/ConfirmLabel
 @onready var _toast_container: VBoxContainer = $ToastContainer
 
 # ---------------------------------------------------------------------------
@@ -142,10 +142,15 @@ func _ready() -> void:
 	nb_style.border_color = Color(0.769, 0.722, 0.643, 0.70)
 	nb_style.set_border_width_all(3)
 	nb_style.set_corner_radius_all(18)
+	# 左边距 0：拍立得卡贴紧左边缘（与 Lua 版对齐）
 	nb_style.content_margin_left = 0
-	nb_style.content_margin_right = 36
+	nb_style.content_margin_right = 28
 	nb_style.content_margin_top = 0
-	nb_style.content_margin_bottom = 0
+	nb_style.content_margin_bottom = 20
+	# 阴影（对应 Lua 版笔记本 shadow）
+	nb_style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
+	nb_style.shadow_size = 16
+	nb_style.shadow_offset = Vector2(4.0, 6.0)
 	_notebook.add_theme_stylebox_override("panel", nb_style)
 	_notebook.custom_minimum_size = Vector2(NB_W, NB_H)
 
@@ -161,10 +166,14 @@ func _ready() -> void:
 	pol_style.content_margin_bottom = 0
 	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
 
-	# 右侧文字区内边距
+	# 右侧文字区行间距
 	_right_vbox.add_theme_constant_override("separation", 16)
-	var hbox: HBoxContainer = $PanelAnchor/Notebook/HBox
-	hbox.add_theme_constant_override("separation", 0)
+	# HBox（拍立得区 ↔ 右栏）间距：16px
+	var hbox: HBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox
+	hbox.add_theme_constant_override("separation", 16)
+	# OuterVBox（HBox ↔ ConfirmButton）间距：12px
+	var outer_vbox: VBoxContainer = $PanelAnchor/Notebook/OuterVBox
+	outer_vbox.add_theme_constant_override("separation", 12)
 
 	# 标题字号
 	_title_label.add_theme_font_size_override("font_size", 52)
@@ -256,7 +265,7 @@ func show_event_data(
 	_location_label.text = loc_text.strip_edges()
 	_location_label.add_theme_color_override("font_color", Color(0.314, 0.294, 0.255, 0.72))
 	_location_label.visible = not loc_text.strip_edges().is_empty()
-	($PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
+	($PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
 
 	# 设置拍立得旋转
 	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
@@ -310,7 +319,7 @@ func show_event(card: Card) -> void:
 	var loc_text: String = loc_info.get("icon", "") + " " + loc_info.get("label", "")
 	_location_label.text = loc_text.strip_edges()
 	_location_label.visible = not loc_text.strip_edges().is_empty()
-	($PanelAnchor/Notebook/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
+	($PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = _location_label.visible
 
 	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
 
