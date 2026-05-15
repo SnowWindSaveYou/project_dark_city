@@ -291,9 +291,10 @@ func _setup_scene_tree() -> void:
 	_camera_button = load("res://scenes/ui/camera_button.tscn").instantiate()
 	ui_layer.add_child(_camera_button)
 
-	# BubbleOverlay — 在所有弹窗之前添加，确保气泡不会遮挡弹窗
+	# BubbleOverlay — 气泡层，z_index=-1 确保低于所有 UI 菜单和弹窗
 	_bubble_overlay = load("res://scenes/screens/bubble_overlay.tscn").instantiate()
 	_bubble_overlay.m = self
+	_bubble_overlay.z_index = -1
 	ui_layer.add_child(_bubble_overlay)
 
 	var event_popup_scene: PackedScene = load("res://scenes/ui/event_popup.tscn")
@@ -716,11 +717,16 @@ func _process_click(pos: Vector2) -> void:
 			return
 
 	# NPC 点击检测 (ready 状态下才响应, 避免移动途中误触)
+	# 只有玩家与 NPC 同格才能交互
 	if GameData.demo_state == "ready":
 		var npc_hit: Dictionary = board_visual.hit_test_npc(pos)
 		if not npc_hit.is_empty():
-			card_interaction.handle_npc_click(npc_hit["row"], npc_hit["col"])
-			return
+			var same_tile: bool = (npc_hit["row"] == token.target_row \
+				and npc_hit["col"] == token.target_col)
+			if same_tile:
+				card_interaction.handle_npc_click(npc_hit["row"], npc_hit["col"])
+				return
+			# 不同格：透传给棋盘，允许玩家走过去
 
 	# 棋盘点击检测
 	var grid_pos: Vector2i = board_visual.hit_test(pos)

@@ -56,7 +56,7 @@ mouse_filter = 2
 
 [node name="PolaroidArea" type="Control" parent="PanelAnchor/Notebook/OuterVBox/HBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(240, 320)
+custom_minimum_size = Vector2(240, 340)
 size_flags_vertical = 4
 mouse_filter = 2
 
@@ -68,12 +68,12 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -100.0
-offset_top = -135.0
+offset_top = -160.0
 offset_right = 100.0
-offset_bottom = 135.0
+offset_bottom = 160.0
 grow_horizontal = 2
 grow_vertical = 2
-pivot_offset = Vector2(100, 135)
+pivot_offset = Vector2(100, 160)
 mouse_filter = 2
 
 [node name="PolaroidVBox" type="VBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard"]
@@ -83,7 +83,7 @@ theme_override_constants/separation = 0
 
 [node name="EventTexture" type="TextureRect" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(186, 240)
+custom_minimum_size = Vector2(0, 0)
 size_flags_vertical = 3
 stretch_mode = 6
 mouse_filter = 2

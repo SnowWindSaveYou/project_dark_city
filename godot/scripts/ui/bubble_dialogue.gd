@@ -375,13 +375,17 @@ const NPC_LINES: Dictionary = {
 static func create_for_npc(npc_id: String) -> BubbleDialogue:
 	var bd: BubbleDialogue = BubbleDialogue.new()
 	bd._npc_id = npc_id
-	# NPC 静止触发比主角略慢，间隔更长
 	bd._is_npc = true
+	# 随机初始偏移，避免所有 NPC 同时弹出
+	bd.idle_accum = randf_range(0.0, 5.5)
+	# 每个 NPC 独立的触发间隔 (8~14s)，让节奏各不相同
+	bd._npc_trigger_interval = randf_range(8.0, 14.0)
 	return bd
 
 # NPC 实例标记
 var _npc_id: String = ""
 var _is_npc: bool = false
+var _npc_trigger_interval: float = 10.0  # 每实例独立触发间隔
 
 ## NPC 台词选取 (覆盖默认的 _pick_line)
 func _pick_npc_line() -> String:
@@ -400,9 +404,9 @@ func update_npc(dt: float) -> void:
 		if timer >= DISPLAY_DURATION:
 			hide()
 
-	# NPC 使用更长的静止触发间隔 (6s)
+	# 使用每实例独立的触发间隔
 	idle_accum += dt
-	if idle_accum >= 6.0 and state == "hidden" and cooldown_timer <= 0:
+	if idle_accum >= _npc_trigger_interval and state == "hidden" and cooldown_timer <= 0:
 		text = _pick_npc_line()
 		timer = 0.0
 		state = "showing"
@@ -410,3 +414,5 @@ func update_npc(dt: float) -> void:
 		bubble_scale = 0.3
 		offset_y = 8.0
 		idle_accum = 0.0
+		# 显示后重随机下一次间隔，保持节奏不规律
+		_npc_trigger_interval = randf_range(8.0, 16.0)

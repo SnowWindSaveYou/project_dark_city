@@ -155,9 +155,9 @@ var dialogue_nametag: Color = h("#598CBF")     # 名牌填充
 var dialogue_nametag_border: Color = h("#4073A6") # 名牌边框
 var dialogue_text: Color = h("#262626")        # 对话正文
 var dialogue_indicator: Color = h("#668CB3")   # 翻页三角
-var choice_bg: Color = h("#2A1F45")           # 选项按钮背景
-var choice_hover: Color = h("#5B38A0")        # 选项按钮悬停
-var choice_border: Color = h("#9B7ED8")       # 选项按钮边框
+var choice_bg: Color = h("#EDE9DF")           # 选项按钮背景 (笔记本纸调，稍深于 paper)
+var choice_hover: Color = h("#D6CEBC")        # 选项按钮悬停 (更深的纸色)
+var choice_border: Color = h("#A6998C")       # 选项按钮边框 (与对话框边框一致)
 
 # ---------------------------------------------------------------------------
 # 字号

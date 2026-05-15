@@ -15,8 +15,10 @@ const FLIP_HALF_DUR: float = 0.12
 const CARD_Y: float = 0.008
 ## PNG底图 / overlay Sprite3D 的 Y 高度 (卡面正上方 ~3mm)
 const SPRITE_Y: float = CARD_Y + Card.CARD_THICKNESS / 2.0 + 0.003
-## overlay 纹理 pixel_size = CARD_W / TEX_W
+## overlay 纹理 pixel_size = CARD_W / TEX_W (256×360 程序化纹理)
 const OVERLAY_PIXEL_SIZE: float = Card.CARD_W / 256.0
+## PNG 底图纹理高度 (515×768 资源图)
+const PNG_TEX_HEIGHT: int = 768
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -131,9 +133,10 @@ func rebuild_card_nodes() -> void:
 			card_node.set_meta("target_pos", target_pos)
 
 			# PNG 底图 Sprite3D (平铺在卡面正上方)
+			# pixel_size 由 _set_png_texture() 按纹理实际高度计算，此处给默认值
 			var png_sprite: Sprite3D = Sprite3D.new()
 			png_sprite.name = "PngSprite"
-			png_sprite.pixel_size = OVERLAY_PIXEL_SIZE
+			png_sprite.pixel_size = Card.CARD_H / float(PNG_TEX_HEIGHT)
 			png_sprite.position = Vector3(0, SPRITE_Y, 0)
 			png_sprite.rotation_degrees = Vector3(-90, 180, 0)
 			png_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
@@ -161,11 +164,11 @@ func rebuild_card_nodes() -> void:
 				var png_tex: Texture2D = _card_textures.get_event_texture(card.location, card.type)
 				if png_tex == null:
 					png_tex = _card_textures.get_location_texture(card.location)
-				png_sprite.texture = png_tex
+				_set_png_texture(png_sprite, png_tex)
 				overlay_sprite.texture = _card_textures.get_overlay(accent)
 			else:
 				# 未翻开: 地点插画 + 米白色 overlay 边框
-				png_sprite.texture = _card_textures.get_location_texture(card.location)
+				_set_png_texture(png_sprite, _card_textures.get_location_texture(card.location))
 				overlay_sprite.texture = _card_textures.get_plain_overlay()
 
 			# 占位 Label3D (显示卡牌类型文字)
@@ -290,6 +293,17 @@ func get_card_center(row: int, col: int) -> Vector2:
 # 卡牌视觉更新
 # ---------------------------------------------------------------------------
 
+## 设置 PNG 底图纹理并按实际高度计算 pixel_size，防止尺寸溢出卡面
+## 程序化 overlay 纹理 (360px 高) → CARD_H/360 = OVERLAY_PIXEL_SIZE (保持一致)
+## 资源 PNG 纹理 (768px 高) → CARD_H/768 ≈ 0.00117 (正好铺满卡面高度)
+func _set_png_texture(sprite: Sprite3D, tex: Texture2D) -> void:
+	sprite.texture = tex
+	if tex == null:
+		return
+	var th: int = tex.get_height()
+	if th > 0:
+		sprite.pixel_size = Card.CARD_H / float(th)
+
 func _get_card_mat(row: int, col: int) -> StandardMaterial3D:
 	var key: String = "%d_%d" % [row, col]
 	return _card_materials.get(key) as StandardMaterial3D
@@ -318,7 +332,7 @@ func update_card_visual(row: int, col: int) -> void:
 			var png_tex: Texture2D = _card_textures.get_event_texture(card.location, card.type)
 			if png_tex == null:
 				png_tex = _card_textures.get_location_texture(card.location)
-			png_sprite.texture = png_tex
+			_set_png_texture(png_sprite, png_tex)
 		if overlay_sprite:
 			overlay_sprite.texture = _card_textures.get_overlay(accent)
 		# 翻开后显示事件信息
@@ -343,7 +357,7 @@ func update_card_visual(row: int, col: int) -> void:
 		mat.albedo_color = Color.WHITE
 		# 未翻开: 地点插画 + 米白 overlay
 		if png_sprite:
-			png_sprite.texture = _card_textures.get_location_texture(card.location)
+			_set_png_texture(png_sprite, _card_textures.get_location_texture(card.location))
 		if overlay_sprite:
 			overlay_sprite.texture = _card_textures.get_plain_overlay()
 		# 未翻开时显示地点信息
@@ -411,7 +425,7 @@ func update_dark_card_visual(row: int, col: int) -> void:
 		# 暗面正面: 程序化暗色纹理 + 标签
 		mat.albedo_color = Color.WHITE
 		if png_sprite_d:
-			png_sprite_d.texture = _card_textures.get_dark_face_texture(card.dark_type)
+			_set_png_texture(png_sprite_d, _card_textures.get_dark_face_texture(card.dark_type))
 		if overlay_sprite_d:
 			overlay_sprite_d.texture = null
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
@@ -426,7 +440,7 @@ func update_dark_card_visual(row: int, col: int) -> void:
 		# 暗面背面: 程序化暗面背面纹理
 		mat.albedo_color = Color.WHITE
 		if png_sprite_d:
-			png_sprite_d.texture = _card_textures.get_back_dark_texture()
+			_set_png_texture(png_sprite_d, _card_textures.get_back_dark_texture())
 		if overlay_sprite_d:
 			overlay_sprite_d.texture = null
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D

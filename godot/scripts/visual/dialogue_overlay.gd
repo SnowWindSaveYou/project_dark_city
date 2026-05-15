@@ -286,14 +286,14 @@ func _draw() -> void:
 				var ty: float = by + (BTN_H + text_size.y * 0.5) * 0.5
 				draw_string(_font, Vector2(tx, ty), label,
 					HORIZONTAL_ALIGNMENT_LEFT, btn_w - BTN_PAD_X * 2, BTN_FONT_SIZE,
-					Color(1.0, 1.0, 1.0, ds.box_alpha))
+					Color(t.dialogue_text.r, t.dialogue_text.g, t.dialogue_text.b, ds.box_alpha))
 		else:
-			# 无选项时显示闪烁三角
+			# 无选项时显示闪烁三角 (居中底部，避免与跳过按钮重叠)
 			var blink: float = (sin(m.game_time * ADVANCE_BLINK_SPEED * TAU) + 1.0) * 0.5
-			var tri_x: float = box_x + box_w - 90
-			var tri_y: float = box_y + box_h - 60
-			var tri_color: Color = Color(t.dialogue_indicator, ds.box_alpha * blink)
 			var tri_size: float = 18.0
+			var tri_x: float = box_x + box_w * 0.5 - tri_size  # 水平居中
+			var tri_y: float = box_y + box_h - 48
+			var tri_color: Color = Color(t.dialogue_indicator, ds.box_alpha * blink)
 			var points: PackedVector2Array = PackedVector2Array([
 				Vector2(tri_x, tri_y),
 				Vector2(tri_x + tri_size * 2, tri_y),

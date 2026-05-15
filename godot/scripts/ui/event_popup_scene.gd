@@ -431,6 +431,113 @@ func is_active() -> bool:
 	return _active
 
 # ===========================================================================
+# 选择面板 API（暗面遭遇 / 通道方向）
+# ===========================================================================
+
+## 当前选择面板节点（null 表示未显示）
+var _choice_panel: Control = null
+
+## 显示选择面板，labels 为按钮文字数组，callback 接收选择的索引（0-based）
+## 调用方：dark_world_flow.gd → _trigger_encounter_dialogue / _show_passage_choice
+func show_choice(labels: Array, callback: Callable) -> void:
+	_dismiss_choice_panel()
+
+	# 确保弹窗容器可见（可能在事件弹窗关闭后调用）
+	visible = true
+	_overlay.visible = true
+	_overlay.color.a = 0.55
+
+	# 根节点：全屏居中容器，鼠标穿透（让 Overlay 拦截背景点击）
+	var anchor: CenterContainer = CenterContainer.new()
+	anchor.set_anchors_preset(Control.PRESET_FULL_RECT)
+	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(anchor)
+	_choice_panel = anchor
+
+	# 卡片面板（奶白色纸质感，带阴影）
+	var panel: PanelContainer = PanelContainer.new()
+	panel.custom_minimum_size = Vector2(380, 0)
+	var ps: StyleBoxFlat = StyleBoxFlat.new()
+	ps.bg_color = Color(0.980, 0.965, 0.933, 0.97)
+	ps.border_color = Color(0.769, 0.722, 0.643, 0.55)
+	ps.set_border_width_all(2)
+	ps.set_corner_radius_all(18)
+	ps.content_margin_left = 28
+	ps.content_margin_right = 28
+	ps.content_margin_top = 28
+	ps.content_margin_bottom = 28
+	ps.shadow_color = Color(0.0, 0.0, 0.0, 0.30)
+	ps.shadow_size = 18
+	ps.shadow_offset = Vector2(4.0, 7.0)
+	panel.add_theme_stylebox_override("panel", ps)
+	anchor.add_child(panel)
+
+	# 内部垂直布局
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	panel.add_child(vbox)
+
+	# 为每个选项创建按钮行
+	for i: int in labels.size():
+		var idx: int = i  # 闭包捕获
+		var btn_panel: PanelContainer = PanelContainer.new()
+		btn_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		btn_panel.custom_minimum_size = Vector2(0, 56)
+
+		# 交替配色：主色 蓝灰 / 暗绿，与暗面风格匹配
+		var btn_color: Color
+		if i % 2 == 0:
+			btn_color = Color(0.286, 0.416, 0.518, 1.0)  # 深蓝灰
+		else:
+			btn_color = Color(0.235, 0.431, 0.376, 1.0)  # 暗绿
+
+		var bs: StyleBoxFlat = StyleBoxFlat.new()
+		bs.bg_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.82)
+		bs.border_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.60)
+		bs.set_border_width_all(2)
+		bs.set_corner_radius_all(12)
+		bs.content_margin_left = 20
+		bs.content_margin_right = 20
+		bs.content_margin_top = 10
+		bs.content_margin_bottom = 10
+		btn_panel.add_theme_stylebox_override("panel", bs)
+
+		var lbl: Label = Label.new()
+		lbl.text = labels[i]
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 38)
+		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.92))
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn_panel.add_child(lbl)
+
+		# 点击响应（通过 gui_input 捕获）
+		btn_panel.gui_input.connect(func(ev: InputEvent) -> void:
+			if ev is InputEventMouseButton:
+				var mb: InputEventMouseButton = ev as InputEventMouseButton
+				if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+					_dismiss_choice_panel()
+					callback.call(idx)
+		)
+
+		vbox.add_child(btn_panel)
+
+	# 入场动画（淡入）
+	panel.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	tw.tween_property(panel, "modulate:a", 1.0, 0.22)
+
+## 关闭选择面板；如果主弹窗也不活跃则隐藏 overlay
+func _dismiss_choice_panel() -> void:
+	if _choice_panel:
+		_choice_panel.queue_free()
+		_choice_panel = null
+	# 仅当主弹窗和 toast 均不活跃时才隐藏 overlay
+	if not _active and not _has_active_toasts():
+		_overlay.visible = false
+		visible = false
+
+# ===========================================================================
 # 效果徽章（Lua 版风格：绿/红胶囊，icon + 数值）
 # ===========================================================================
 
