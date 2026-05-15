@@ -49,11 +49,13 @@ mouse_filter = 2
 [node name="OuterVBox" type="VBoxContainer" parent="PanelAnchor/Notebook"]
 layout_mode = 2
 mouse_filter = 2
+theme_override_constants/separation = 12
 
 [node name="HBox" type="HBoxContainer" parent="PanelAnchor/Notebook/OuterVBox"]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
+theme_override_constants/separation = 16
 
 [node name="PolaroidArea" type="Control" parent="PanelAnchor/Notebook/OuterVBox/HBox"]
 layout_mode = 2
@@ -99,25 +101,31 @@ mouse_filter = 2
 [node name="TypeLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom"]
 layout_mode = 2
 text = "✨ 安全"
+theme_override_font_sizes/font_size = 25
 
 [node name="CardBottomSep" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom"]
 layout_mode = 2
 text = "  "
+theme_override_font_sizes/font_size = 25
 
 [node name="LocationLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom"]
 layout_mode = 2
 text = "🚂 车站"
+theme_override_font_sizes/font_size = 25
 
 [node name="RightVBox" type="VBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 mouse_filter = 2
+theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox"]
 layout_mode = 2
 text = "事件标题"
 autowrap_mode = 1
+theme_override_font_sizes/font_size = 52
+theme_override_colors/font_color = Color(0.18, 0.18, 0.22, 0.92)
 
 [node name="EffectsRow" type="HBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox"]
 layout_mode = 2
@@ -128,12 +136,16 @@ layout_mode = 2
 size_flags_vertical = 3
 text = "事件描述"
 autowrap_mode = 2
+theme_override_font_sizes/font_size = 34
+theme_override_colors/font_color = Color(0.38, 0.38, 0.44, 0.78)
 
 [node name="BaiyeLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox"]
 layout_mode = 2
 text = ""
 autowrap_mode = 2
 visible = false
+theme_override_font_sizes/font_size = 30
+theme_override_colors/font_color = Color(0.502, 0.459, 0.647, 0.72)
 
 [node name="ConfirmButton" type="PanelContainer" parent="PanelAnchor/Notebook/OuterVBox"]
 layout_mode = 2
@@ -146,6 +158,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 horizontal_alignment = 1
 text = "知道了"
+theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(1, 1, 1, 0.96)
 
 [node name="ToastContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
