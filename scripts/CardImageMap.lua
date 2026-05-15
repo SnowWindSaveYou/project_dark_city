@@ -56,23 +56,27 @@ M.LOCATION_EVENT_IMAGES = {
     -- 公司
     company = {
         safe    = { "evt_company_safe_bonus_20260512103420.png" },
-        trap    = { "evt_company_overtime_20260512104442.png" },   -- "无尽加班令"对应加班图
+        trap    = { "evt_company_overtime_20260512104442.png" },
+        reward  = { "evt_company_reward_briefcase_20260515100611.png" },
         clue    = { "evt_company_email_clue_20260512105926.png" },
     },
     -- 学校
     school = {
         safe    = { "evt_school_quiet_study_20260512104512.png" },
+        plot    = { "evt_school_plot_backpack_20260515100613.png" },
         reward  = { "evt_school_supply_find_20260512111521.png" },
         clue    = { "evt_school_old_notebook_20260512104523.png" },
     },
     -- 公园
     park = {
         safe    = { "evt_park_healing_breeze_20260512102843.png" },
+        trap    = { "evt_park_trap_vines_20260515100608.png" },
         reward  = { "evt_park_herb_find_20260512102843.png" },
         clue    = { "evt_park_nature_clue_shaft_20260515083206.png" },
     },
     -- 小巷
     alley = {
+        safe    = { "evt_alley_safe_20260515100612.png" },
         monster = { "evt_alley_ambush_20260512102854.png" },
         trap    = { "evt_alley_thugs_trap_shaft_20260515083207.png" },
         reward  = { "evt_alley_stash_20260512111843.png" },
@@ -80,6 +84,7 @@ M.LOCATION_EVENT_IMAGES = {
     },
     -- 车站
     station = {
+        safe    = { "evt_station_safe_20260515100633.png" },
         monster = { "evt_station_ghost_train_20260512111935.png" },
         trap    = { "evt_station_warp_trap_20260512111913.png" },
         reward  = { "evt_station_lost_luggage_20260512112002.png" },
@@ -88,6 +93,7 @@ M.LOCATION_EVENT_IMAGES = {
     -- 医院
     hospital = {
         safe    = { "evt_hospital_treatment_20260512112328.png" },
+        monster = { "evt_hospital_monster_nurse_20260515100605.png" },
         reward  = { "evt_hospital_medicine_reward_20260512180027.png" },
         clue    = { "evt_hospital_medical_record_20260512180052.png" },
     },
