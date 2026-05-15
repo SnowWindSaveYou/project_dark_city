@@ -35,7 +35,7 @@
 | BG-03 | `bg_apartment_bedroom_night` | 🔍 待审 | `bg_apartment_bedroom_night_20260515161006.png` |
 | BG-04 | `bg_apartment_kitchen` | 🔍 待审 | `bg_apartment_kitchen_20260515161008.png` |
 | BG-05 | `bg_dark_world_open` | 🔍 待审 | `bg_dark_world_open_20260515161039.png` |
-| BG-06 | `bg_dark_world_deep` | 🔍 待审 | `bg_dark_world_deep_20260515161043.png` |
+| BG-06 | `bg_dark_world_deep` | 🔍 待审 | `bg_dark_world_deep_v2_20260515161735.png` |
 | BG-07 | `bg_memory_overexposed` | 🔍 待审 | `bg_memory_overexposed_20260515161038.png` |
 | BG-08 | `bg_apartment_entrance_dusk` | 🔍 待审 | `bg_apartment_entrance_dusk_20260515161007.png` |
 
@@ -45,8 +45,23 @@
 
 ### C类关键情绪帧进度
 
-全部 28 张待生成（⬜）  
-**第二批优先生成**：KEY-D1-01、KEY-D1-02、KEY-D2-01、KEY-D2-02、KEY-D3-02、KEY-D6-01、KEY-D7-01、KEY-D7-02、KEY-D12-01、KEY-D14-01、KEY-D14-02
+**第二批（已生成，待审）**：
+
+| 编号 | 文件名 | 状态 | 已生成文件 |
+|------|--------|------|-----------|
+| KEY-D1-01 | `keyframe_d1_wardrobe_eyes` | 🔍 待审 | `keyframe_d1_wardrobe_eyes_20260515162604.png` |
+| KEY-D1-02 | `keyframe_d1_blanket_indent` | 🔍 待审 | `keyframe_d1_blanket_indent_20260515162556.png` |
+| KEY-D2-01 | `keyframe_d2_hand_cupping_fluffball` | 🔍 待审 | `keyframe_d2_hand_cupping_fluffball_20260515162643.png` |
+| KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | 🔍 待审 | `keyframe_d2_flashback_tang_silhouette_20260515162643.png` |
+| KEY-D3-02 | `keyframe_d3_silent_follow` | ✅ 已验证 | `keyframe_d3_silent_follow_v3_20260515160624.png` |
+| KEY-D6-01 | `keyframe_d6_baiye_barrier` | 🔍 待审 | `keyframe_d6_baiye_barrier_20260515162839.png` |
+| KEY-D7-01 | `keyframe_d7_tang_revealed` | 🔍 待审 | `keyframe_d7_tang_revealed_20260515162732.png` |
+| KEY-D7-02 | `keyframe_d7_who_are_you_now` | 🔍 待审 | `keyframe_d7_who_are_you_now_20260515162744.png` |
+| KEY-D12-01 | `keyframe_d12_tang_leaves` | 🔍 待审 | `keyframe_d12_tang_leaves_20260515163014.png` |
+| KEY-D14-01 | `keyframe_d14_enough` | 🔍 待审 | `keyframe_d14_enough_20260515162933.png` |
+| KEY-D14-02 | `keyframe_d14_sunlight` | 🔍 待审 | `keyframe_d14_sunlight_20260515162925.png` |
+
+**剩余待生成**（⬜）：其余 17 张 C 类帧 + 全部 15 张 B 类过渡帧
 
 ### 已验证锚点帧
 
@@ -57,9 +72,9 @@
 
 ### 当前阶段
 
-**已完成**：演出方案确认（物语分镜式，16:9统一规格）、双锚点帧验证、A类背景底图全部生成（8/8）  
-**当前**：等待 BG-01/03/04/05/06/07/08 审核  
-**下一步**：审核通过 → DialogueSystem 背景图代码接入 / 开始第二批情绪帧
+**已完成**：演出方案确认（物语分镜式，16:9统一规格）、双锚点帧验证、A类背景底图全部生成（8/8）、第二批关键情绪帧全部生成（11/11）  
+**当前**：等待 BG 系列 + 第二批情绪帧审核  
+**下一步**：审核通过 → B类过渡帧（15张）/ C类剩余情绪帧（17张）/ DialogueSystem 背景图代码接入
 
 ### 风格基准
 

@@ -142,10 +142,9 @@ func _ready() -> void:
 	nb_style.border_color = Color(0.769, 0.722, 0.643, 0.70)
 	nb_style.set_border_width_all(3)
 	nb_style.set_corner_radius_all(18)
-	# 左边距 0：拍立得卡贴紧左边缘（与 Lua 版对齐）
-	nb_style.content_margin_left = 0
+	nb_style.content_margin_left = 20
 	nb_style.content_margin_right = 28
-	nb_style.content_margin_top = 0
+	nb_style.content_margin_top = 16
 	nb_style.content_margin_bottom = 20
 	# 阴影（对应 Lua 版笔记本 shadow）
 	nb_style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
@@ -169,6 +168,10 @@ func _ready() -> void:
 	pol_style.shadow_size = 14
 	pol_style.shadow_offset = Vector2(3.0, 5.0)
 	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
+
+	# 拍立得区：固定宽度 200px，不参与 HBox 扩展（size_flags=0）
+	_polaroid_area.custom_minimum_size = Vector2(200, 0)
+	_polaroid_area.size_flags_horizontal = 0
 
 	# 右侧文字区行间距
 	_right_vbox.add_theme_constant_override("separation", 16)
