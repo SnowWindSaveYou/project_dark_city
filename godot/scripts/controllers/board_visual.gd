@@ -121,6 +121,7 @@ func rebuild_card_nodes() -> void:
 			mat.albedo_color = Color.WHITE
 			mat.roughness = 0.7
 			mat.metallic = 0.0
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA  # 支持淡入淡出
 			card_node.material_override = mat
 			_card_materials["%d_%d" % [row, col]] = mat
 
@@ -238,6 +239,27 @@ func get_card_node(row: int, col: int) -> MeshInstance3D:
 		return null
 	var card_name: String = "Card_%d_%d" % [row, col]
 	return board_layer.get_node_or_null(card_name) as MeshInstance3D
+
+## 设置卡牌节点整体透明度
+## MeshInstance3D 没有 modulate 属性，需要分别处理各类子节点
+func _set_card_alpha(card_node: MeshInstance3D, a: float) -> void:
+	if card_node == null:
+		return
+	# 卡牌底板 mesh 材质
+	var mat := card_node.material_override as StandardMaterial3D
+	if mat:
+		var c := mat.albedo_color
+		c.a = a
+		mat.albedo_color = c
+	# 子节点：Sprite3D / Label3D 都有 modulate
+	for child in card_node.get_children():
+		if child is Sprite3D or child is Label3D:
+			child.modulate.a = a
+		elif child is Node3D:
+			# 递归处理更深层子节点（图标等）
+			for grandchild in child.get_children():
+				if grandchild is Sprite3D or grandchild is Label3D:
+					grandchild.modulate.a = a
 
 ## 获取卡牌 3D 世界位置
 func get_card_world_pos(row: int, col: int) -> Vector3:
@@ -547,15 +569,15 @@ func start_deal_animation(on_complete: Callable) -> void:
 		card_node.scale = Vector3(0.4, 0.4, 0.4)
 		card_node.visible = true
 
-		# 设置初始透明度 (通过节点 modulate 统一控制所有子节点)
-		card_node.modulate.a = 0.0
+		# 设置初始透明度
+		_set_card_alpha(card_node, 0.0)
 
 		var fly_dur: float = 0.35
 
 		# 淡入
 		var tw_fade: Tween = m.create_tween()
 		tw_fade.tween_method(
-			func(a: float): card_node.modulate.a = a,
+			func(a: float): _set_card_alpha(card_node, a),
 			0.0, 1.0, 0.15
 		).set_delay(acc_delay)
 
@@ -649,10 +671,10 @@ func play_undeal_animation(on_complete: Callable) -> void:
 			.set_delay(fly_delay) \
 			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
-		# 淡出 (通过节点 modulate)
+		# 淡出
 		var tw_fade: Tween = m.create_tween()
 		tw_fade.tween_method(
-			func(a: float): card_node.modulate.a = a,
+			func(a: float): _set_card_alpha(card_node, a),
 			1.0, 0.0, fly_dur
 		).set_delay(fly_delay).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 

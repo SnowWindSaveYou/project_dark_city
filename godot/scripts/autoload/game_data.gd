@@ -58,7 +58,7 @@ func _load_game_config() -> void:
 	var file: FileAccess = FileAccess.open("res://data/game_config.json", FileAccess.READ)
 	if file == null:
 		push_warning("[GameData] game_config.json not found, using defaults")
-		INITIAL_RESOURCES = { "san": 10, "order": 10, "money": 50, "film": 3, "health": 5, "inspiration": 10 }
+		INITIAL_RESOURCES = { "san": 10, "order": 10, "money": 50, "film": 3, "health": 10, "inspiration": 10 }
 		RESOURCE_MAX = { "san": 10, "order": 10, "money": -1, "film": -1, "health": 10, "inspiration": -1 }
 		RESOURCE_ICONS = { "san": "🧠", "order": "⚖️", "money": "💰", "film": "📷", "health": "❤️", "inspiration": "✨" }
 		return
