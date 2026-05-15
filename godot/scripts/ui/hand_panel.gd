@@ -73,7 +73,8 @@ const TAB_NAMES: Array[String] = ["日程", "道具", "线索"]
 @onready var _note_text: Label                 = $NotebookRoot/SchedulePage/RumorNote/NoteVBox/NoteText
 @onready var _note_page_label: Label           = $NotebookRoot/SchedulePage/RumorNote/NotePageLabel
 
-@onready var _items_page: GridContainer  = $NotebookRoot/ItemsPage
+@onready var _items_page: ScrollContainer = $NotebookRoot/ItemsPage
+@onready var _items_vbox: VBoxContainer   = $NotebookRoot/ItemsPage/ItemsVBox
 @onready var _clue_page: VBoxContainer   = $NotebookRoot/CluePage
 
 @onready var _tabs_container: Control = $NotebookRoot/TabsContainer
@@ -235,6 +236,7 @@ func _style_tab_buttons() -> void:
 		sb_hover.set_border_width_all(1)
 		sb_hover.border_width_left = 0
 
+		btn.flat = false   # flat=true 会屏蔽所有 StyleBox 覆盖，必须关闭
 		btn.add_theme_stylebox_override("normal", sb_normal)
 		btn.add_theme_stylebox_override("pressed", sb_pressed)
 		btn.add_theme_stylebox_override("hover", sb_hover)
@@ -657,7 +659,7 @@ func _refresh_rumors() -> void:
 		_note_page_label.visible = false
 
 func _refresh_items() -> void:
-	for child in _items_page.get_children():
+	for child in _items_vbox.get_children():
 		child.queue_free()
 
 	if not _has_game_data(): return
@@ -665,7 +667,7 @@ func _refresh_items() -> void:
 
 	for entry: Dictionary in consumables:
 		var btn: Node = preload("res://scenes/ui/components/consumable_item_btn.tscn").instantiate()
-		_items_page.add_child(btn)
+		_items_vbox.add_child(btn)
 		btn.set_entry(entry)
 		btn.item_used.connect(func(key: String) -> void: _on_item_used(key))
 
@@ -676,9 +678,13 @@ func _on_schedule_row_clicked(idx: int) -> void:
 	schedule_toggled.emit(idx)
 
 func _on_item_used(key: String) -> void:
+	# exorcism 还额外发出信号供外部处理怪物驱除效果
 	if key == "exorcism":
 		use_exorcism_pressed.emit()
-	# 其余道具的使用逻辑由接收方处理
+	# 所有道具通过 ConsumableController 统一处理
+	if _consumable_controller != null:
+		_consumable_controller.use_consumable(key)
+		refresh()   # 更新道具数量显示
 
 func _on_footer_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

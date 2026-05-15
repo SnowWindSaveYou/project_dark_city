@@ -160,14 +160,19 @@ horizontal_alignment = 1
 text = ""
 visible = false
 
-[node name="ItemsPage" type="GridContainer" parent="NotebookRoot"]
+[node name="ItemsPage" type="ScrollContainer" parent="NotebookRoot"]
 layout_mode = 0
 offset_left = 14.0
 offset_top = 26.0
 offset_right = 200.0
 offset_bottom = 320.0
-columns = 3
 visible = false
+mouse_filter = 1
+horizontal_scroll_mode = 0
+
+[node name="ItemsVBox" type="VBoxContainer" parent="NotebookRoot/ItemsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
 mouse_filter = 2
 
 [node name="CluePage" type="VBoxContainer" parent="NotebookRoot"]

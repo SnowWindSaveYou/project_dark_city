@@ -64,8 +64,8 @@ func set_data(idx: int, data: Dictionary) -> void:
 	# 图标
 	_icon_label.text = data.get("icon", "📍")
 
-	# 名称
-	_text_label.text = data.get("label", "")
+	# 名称（日程数据字段为 "verb"，兼容旧 "label"）
+	_text_label.text = data.get("verb", data.get("label", ""))
 	match status:
 		"completed":
 			_text_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.51))
@@ -75,10 +75,17 @@ func set_data(idx: int, data: Dictionary) -> void:
 		_:
 			_text_label.add_theme_color_override("font_color", Color(t.text_primary, 0.86))
 
-	# 奖励角标
+	# 奖励角标（reward 是 Dictionary，如 {"san": 1}）
 	if status != "deferred":
-		var reward: Array = data.get("reward", [])
-		if reward.size() >= 2:
+		var reward = data.get("reward", {})
+		if reward is Dictionary and not reward.is_empty():
+			var first_key: String = reward.keys()[0]
+			var first_val = reward[first_key]
+			var res_icon: String = _reward_icon(first_key)
+			_reward_label.text = "%s+%s" % [res_icon, str(first_val)]
+			_reward_label.visible = true
+		elif reward is Array and reward.size() >= 2:
+			# 兼容旧格式 Array
 			var res_icon: String = _reward_icon(reward[0])
 			_reward_label.text = "%s+%s" % [res_icon, str(reward[1])]
 			_reward_label.visible = true
