@@ -130,6 +130,7 @@ offset_bottom = 178.0
 grow_horizontal = 2
 grow_vertical = 2
 pivot_offset = Vector2(116, 178)
+clip_contents = true
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pol")
 
@@ -141,6 +142,7 @@ theme_override_constants/separation = 0
 [node name="EventTexture" type="TextureRect" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox"]
 layout_mode = 2
 size_flags_vertical = 3
+expand_mode = 1
 stretch_mode = 6
 mouse_filter = 2
 
