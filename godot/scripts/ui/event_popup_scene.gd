@@ -178,9 +178,25 @@ func _ready() -> void:
 	_baiiye_label.add_theme_font_size_override("font_size", 30)
 	_baiiye_label.add_theme_color_override("font_color", Color(0.502, 0.459, 0.647, 0.72))
 
-	# 拍立得底部标签字号
-	_type_label.add_theme_font_size_override("font_size", 30)
-	_location_label.add_theme_font_size_override("font_size", 30)
+	# 拍立得底部标签字号（与固定卡片高度 356px 比例匹配：356*0.072≈25）
+	_type_label.add_theme_font_size_override("font_size", 25)
+	_location_label.add_theme_font_size_override("font_size", 25)
+
+	# 拍立得卡片样式（奶白色相纸 + 边框 + 阴影）
+	# 尺寸由 tscn 固定（232×356px），这里只设颜色/边距/阴影
+	var pol_style := StyleBoxFlat.new()
+	pol_style.bg_color         = Color(0.992, 0.988, 0.965, 1.0)
+	pol_style.border_color     = Color(0.824, 0.784, 0.725, 0.55)
+	pol_style.set_border_width_all(2)
+	pol_style.set_corner_radius_all(6)
+	pol_style.content_margin_left   = 17.0  # 232 * 7.4%
+	pol_style.content_margin_right  = 17.0
+	pol_style.content_margin_top    = 17.0
+	pol_style.content_margin_bottom = 0.0   # 底白边由 CardBottom 撑开
+	pol_style.shadow_color  = Color(0.0, 0.0, 0.0, 0.32)
+	pol_style.shadow_size   = 14
+	pol_style.shadow_offset = Vector2(3.0, 5.0)
+	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
 
 	# 确认按钮样式（绿色胶囊）
 	_style_confirm_button(false)
