@@ -3,13 +3,13 @@
 [ext_resource type="Script" path="res://scripts/ui/schedule_item_row.gd" id="1_script"]
 
 [node name="ScheduleItemRow" type="HBoxContainer"]
-custom_minimum_size = Vector2(0, 26)
+custom_minimum_size = Vector2(0, 78)
 mouse_filter = 1
 script = ExtResource("1_script")
 
 [node name="CheckArea" type="Control" parent="."]
 layout_mode = 2
-custom_minimum_size = Vector2(15, 26)
+custom_minimum_size = Vector2(48, 78)
 size_flags_vertical = 4
 mouse_filter = 2
 

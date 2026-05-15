@@ -392,9 +392,11 @@ func _draw_footer() -> void:
 			has_pending = true
 			pending_count += 1
 
-	var steps_used: int   = GameData.steps_remaining if _has_game_data() else 0
-	var steps_max: int    = GameData.steps_total     if _has_game_data() else 0
-	var steps_done: bool  = steps_max > 0 and steps_used >= steps_max
+	# steps_remaining 是剩余步数（Lua getSteps 返回已用步数，语义相反）
+	# 步数耗尽 = 剩余为 0 且 total > 0
+	var steps_remaining: int = GameData.steps_remaining if _has_game_data() else 0
+	var steps_total: int     = GameData.steps_total     if _has_game_data() else 0
+	var steps_done: bool  = steps_total > 0 and steps_remaining <= 0
 	var can_advance: bool = (not has_pending) or steps_done
 
 	var rect: Rect2 = _footer_area.get_rect()
@@ -552,7 +554,7 @@ func _process(delta: float) -> void:
 				break
 		var su: int = GameData.steps_remaining
 		var sm: int = GameData.steps_total
-		var steps_done: bool  = sm > 0 and su >= sm
+		var steps_done: bool  = sm > 0 and su <= 0   # remaining <= 0 表示耗尽
 		var can_advance: bool = (not has_pending) or steps_done
 
 		if can_advance and not _was_can_advance:
@@ -699,7 +701,7 @@ func _on_footer_input(event: InputEvent) -> void:
 					break
 			var su: int = GameData.steps_remaining
 			var sm: int = GameData.steps_total
-			var steps_done: bool = sm > 0 and su >= sm
+			var steps_done: bool = sm > 0 and su <= 0   # remaining <= 0 表示耗尽
 			if (not has_pending or steps_done):
 				end_day_pressed.emit()
 				if _on_advance_day.is_valid():

@@ -19,6 +19,37 @@ offset_bottom = 320.0
 pivot_offset = Vector2(200, 0)
 mouse_filter = 2
 
+[node name="TabsContainer" type="Control" parent="NotebookRoot"]
+layout_mode = 0
+offset_left = 190.0
+offset_right = 226.0
+offset_bottom = 320.0
+z_index = -1
+mouse_filter = 2
+
+[node name="Tab1Btn" type="Button" parent="NotebookRoot/TabsContainer"]
+layout_mode = 0
+offset_right = 36.0
+offset_bottom = 48.0
+flat = true
+text = "日程"
+
+[node name="Tab2Btn" type="Button" parent="NotebookRoot/TabsContainer"]
+layout_mode = 0
+offset_top = 56.0
+offset_right = 36.0
+offset_bottom = 104.0
+flat = true
+text = "道具"
+
+[node name="Tab3Btn" type="Button" parent="NotebookRoot/TabsContainer"]
+layout_mode = 0
+offset_top = 112.0
+offset_right = 36.0
+offset_bottom = 160.0
+flat = true
+text = "线索"
+
 [node name="NotebookBg" type="Panel" parent="NotebookRoot"]
 layout_mode = 1
 anchors_preset = 15
@@ -194,33 +225,3 @@ text = "🔍"
 layout_mode = 2
 horizontal_alignment = 1
 text = "线索系统开发中…"
-
-[node name="TabsContainer" type="Control" parent="NotebookRoot"]
-layout_mode = 0
-offset_left = 190.0
-offset_right = 226.0
-offset_bottom = 320.0
-mouse_filter = 2
-
-[node name="Tab1Btn" type="Button" parent="NotebookRoot/TabsContainer"]
-layout_mode = 0
-offset_right = 36.0
-offset_bottom = 48.0
-flat = true
-text = "日程"
-
-[node name="Tab2Btn" type="Button" parent="NotebookRoot/TabsContainer"]
-layout_mode = 0
-offset_top = 56.0
-offset_right = 36.0
-offset_bottom = 104.0
-flat = true
-text = "道具"
-
-[node name="Tab3Btn" type="Button" parent="NotebookRoot/TabsContainer"]
-layout_mode = 0
-offset_top = 112.0
-offset_right = 36.0
-offset_bottom = 160.0
-flat = true
-text = "线索"

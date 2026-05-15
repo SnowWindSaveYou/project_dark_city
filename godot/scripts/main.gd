@@ -434,6 +434,9 @@ func _setup_controllers() -> void:
 	consumable_controller = load("res://scripts/controllers/consumable_controller.gd").new()
 	consumable_controller.setup(self)
 
+	# 手牌面板需要 card_manager 和 consumable_controller 引用才能展示内容
+	_hand_panel.setup(card_manager, consumable_controller)
+
 # ---------------------------------------------------------------------------
 # 信号连接
 # ---------------------------------------------------------------------------
