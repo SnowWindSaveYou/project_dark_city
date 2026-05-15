@@ -35,11 +35,24 @@ const ICONS: Dictionary = {
 }
 
 # ---------------------------------------------------------------------------
+# 剧情固定天气 (优先级最高，覆盖哈希结果)
+# 依据 story_doc.md 中的环境描述确定
+# ---------------------------------------------------------------------------
+const STORY_WEATHER: Dictionary = {
+	2:  Type.STORMY,  # "暴雨预警……今晚别出门了" / 雷雨夜
+	14: Type.STORMY,  # "又一个雷雨夜" (结局章节)
+}
+
+# ---------------------------------------------------------------------------
 # 确定性天气生成
 # ---------------------------------------------------------------------------
 
 ## 基于 dayCount 的确定性哈希，同一天永远返回相同天气
+## 剧情固定天气优先级高于哈希结果
 static func get_weather(day_count: int) -> Type:
+	# 剧情固定天气优先
+	if STORY_WEATHER.has(day_count):
+		return STORY_WEATHER[day_count]
 	# 与 Lua 版相同的哈希算法
 	var hash: int = ((day_count * 2654435761) % 2147483647) % 100
 	if hash < 0:
@@ -62,6 +75,14 @@ static func get_weather_name(weather_type: Type) -> String:
 ## 获取天气图标
 static func get_icon(weather_type: Type) -> String:
 	return ICONS.get(weather_type, "❓")
+
+## 获取当前天气对应的环境音 key (传给 AudioManager.play_ambient)
+## 雷暴 → "weather_wind"，雨天 → "weather_rain"，其他 → ""
+static func get_ambient_key(weather_type: Type) -> String:
+	match weather_type:
+		Type.STORMY: return "weather_wind"
+		Type.RAINY:  return "weather_rain"
+		_:           return ""
 
 # ---------------------------------------------------------------------------
 # 日期计算 (与 DateTransition 共享)

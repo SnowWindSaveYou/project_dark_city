@@ -304,7 +304,8 @@ end
 ---@param fadeTime? number 淡入淡出时长 (默认 1.5s)
 function M.playBGM(key, fadeTime)
     if not scene_ or not bgmSource_ then return end
-    if key == bgmCurrentKey_ and not bgmFading_ then return end
+    -- 已在播放该曲目, 或已在向该曲目过渡中 → 忽略 (防止 HandleUpdate 每帧重复触发打断淡入)
+    if key == bgmCurrentKey_ or key == bgmPendingKey_ then return end
 
     fadeTime = fadeTime or 1.5
 

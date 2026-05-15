@@ -109,7 +109,7 @@ local function createBackdrop(parent)
     else
         print("[BoardDecor] WARNING: backdrop texture not found")
     end
-    mat:SetShaderParameter("MatDiffColor", Variant(Color(1.2, 1.2, 1.2, 1.0)))
+    mat:SetShaderParameter("MatDiffColor", Variant(Color(1.0, 1.0, 1.0, 1.0)))  -- 移除HDR值防过曝 (原1.2)
     bbSet:SetMaterial(mat)
 
     -- Billboard 底部锚点: 中心向上偏移半高

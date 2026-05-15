@@ -149,9 +149,25 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 				_on_card_flipped(arrived_card, row, col)
 			)
 		else:
+			# 已翻开格子: 检查日程到达并尝试触发中段事件
+			var mid_loc: String = ""
+			if arrived_card and arrived_card.location != "":
+				var completed: Dictionary = m.card_manager.complete_schedule_at(arrived_card.location)
+				if not completed.is_empty():
+					mid_loc = arrived_card.location
+					var reward: Array = completed.get("reward", [])
+					if reward.size() >= 2:
+						GameData.modify_resource(reward[0], reward[1])
+						m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
+							Color(0.4, 0.8, 0.5), 0.8)
 			m.token.set_emotion("default")
-			GameData.set_demo_state("ready")
-			m._camera_button.show_button()
+			if mid_loc != "" and not _try_mid_day_event(mid_loc):
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+			elif mid_loc == "":
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+			# else: 对话完成回调里恢复 ready
 	)
 
 # ---------------------------------------------------------------------------
@@ -175,10 +191,12 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		m.board_visual.update_card_visual(row, col)
 		m._vfx.action_banner("灵感不足, 线索消散...", Color(0.6, 0.6, 0.6), 0.8)
 
-	# 日程完成检查
+	# 日程完成检查 (翻牌到达时)
+	var arrived_location_for_mid: String = ""
 	if card.location != "":
 		var completed: Dictionary = m.card_manager.complete_schedule_at(card.location)
 		if not completed.is_empty():
+			arrived_location_for_mid = card.location
 			var reward: Array = completed.get("reward", [])
 			if reward.size() >= 2:
 				GameData.modify_resource(reward[0], reward[1])
@@ -292,13 +310,20 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		# 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready (匹配 Lua 0.6s pauseDummy)
 		if card_type == "monster":
 			await m.get_tree().create_timer(0.6).timeout
-			GameData.set_demo_state("ready")
-			m._camera_button.show_button()
 			if card.has_rift:
 				m.board_visual.rift_show_on_card(row, col)
 				_show_rift_confirm(row, col)
 				return
-			m.game_flow.check_defeat()
+			# 中段事件: 日程完成时触发
+			if arrived_location_for_mid != "" and not _try_mid_day_event(arrived_location_for_mid):
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+				m.game_flow.check_defeat()
+			elif arrived_location_for_mid == "":
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+				m.game_flow.check_defeat()
+			# else: _try_mid_day_event 返回 true, 对话完成回调里负责恢复 ready
 			return
 
 		# Phase 5: 兑换事件 (safe 牌 + 特定 location, 30% 概率)
@@ -306,16 +331,28 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 			# 兑换弹窗已显示, 状态由回调管理
 			return
 
-		GameData.set_demo_state("ready")
-		m._camera_button.show_button()
-
-		# 裂隙检查
-		if card.has_rift:
-			m.board_visual.rift_show_on_card(row, col)
-			_show_rift_confirm(row, col)
-			return
-
-		m.game_flow.check_defeat()
+		# 中段事件: 日程完成时触发 (非阻断非 monster 路径)
+		if arrived_location_for_mid != "" and not _try_mid_day_event(arrived_location_for_mid):
+			GameData.set_demo_state("ready")
+			m._camera_button.show_button()
+			if card.has_rift:
+				m.board_visual.rift_show_on_card(row, col)
+				_show_rift_confirm(row, col)
+				return
+			m.game_flow.check_defeat()
+		elif arrived_location_for_mid != "":
+			# _try_mid_day_event 返回 true, 对话完成回调里负责恢复 ready
+			# 裂隙检查需提前处理 (中段对话后不会再走裂隙逻辑, 可接受)
+			pass
+		else:
+			GameData.set_demo_state("ready")
+			m._camera_button.show_button()
+			# 裂隙检查
+			if card.has_rift:
+				m.board_visual.rift_show_on_card(row, col)
+				_show_rift_confirm(row, col)
+				return
+			m.game_flow.check_defeat()
 
 # ---------------------------------------------------------------------------
 # 陷阱处理 (Toast 非阻塞)
@@ -765,6 +802,37 @@ func _try_story_event(card: Card, card_type: String, _row: int, _col: int) -> bo
 		event.get("id", ""), card_type])
 	return true
 
+## 尝试触发中段事件 (玩家完成当日日程时调用)
+## location: 到达的地点 key
+## 返回 true 表示触发了对话; false 表示无匹配, 调用方应自行恢复 ready 状态
+func _try_mid_day_event(location: String) -> bool:
+	var sem: StoryEventManager = m.game_flow.story_event_mgr
+	if sem == null:
+		return false
+
+	var event = sem.query_mid_event(location)
+	if event == null:
+		return false
+
+	event = sem.trigger_mid_event(event)
+
+	# 通过 event_dialogue_requested 信号委托 main.gd 展示对话
+	m.game_flow.event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
+		var result: Dictionary = sem.on_mid_event_complete(event, chosen_id)
+
+		if result.get("is_new_fragment", false):
+			m._vfx.action_banner("获得记忆碎片: %s" % result.get("fragment_name", ""),
+				Color(0.6, 0.4, 0.9), 1.0)
+
+		GameData.set_demo_state("ready")
+		m._camera_button.show_button()
+		m.game_flow.check_defeat()
+	)
+
+	print("[CardInteraction] Mid-day event '%s' triggered for location '%s'" % [
+		event.get("id", ""), location])
+	return true
+
 ## NPC 点击对话: 点击棋盘上的 NPC sprite 时触发
 func handle_npc_click(row: int, col: int) -> void:
 	var npc_mgr: NPCManager = m.game_flow.npc_manager
@@ -902,18 +970,25 @@ func _walk_step(path: Array, step_idx: int) -> void:
 					_on_card_flipped(arrived_card, row, col)
 				)
 			else:
-				# 已翻开格子: 检查日程到达 + NPC 对话
+				# 已翻开格子: 检查日程到达 + 中段事件
+				var walk_mid_loc: String = ""
 				if arrived_card and arrived_card.is_flipped and arrived_card.location != "":
 					var completed: Dictionary = m.card_manager.complete_schedule_at(arrived_card.location)
 					if not completed.is_empty():
+						walk_mid_loc = arrived_card.location
 						var reward: Array = completed.get("reward", [])
 						if reward.size() >= 2:
 							GameData.modify_resource(reward[0], reward[1])
 							m._vfx.action_banner("日程完成! %s +%d" % [reward[0], reward[1]],
 								Color(0.4, 0.8, 0.5), 0.8)
 				m.token.set_emotion("default")
-				GameData.set_demo_state("ready")
-				m._camera_button.show_button()
+				if walk_mid_loc != "" and not _try_mid_day_event(walk_mid_loc):
+					GameData.set_demo_state("ready")
+					m._camera_button.show_button()
+				elif walk_mid_loc == "":
+					GameData.set_demo_state("ready")
+					m._camera_button.show_button()
+				# else: 对话完成回调里恢复 ready
 		else:
 			# 中间步: 检查日程到达, 然后继续下一步
 			var mid_card: Card = m.board.get_card(row, col)

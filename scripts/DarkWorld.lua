@@ -85,6 +85,7 @@ local DARK_NPCS = {
           },
         },
         { id = "faceless", name = "无脸商人", tex = "image/怪物_无脸商人_20260426071011.png",
+          bindToCard = "shop",
           dialogue = {
               { speaker = "无脸商人", text = "……" },
               { speaker = "无脸商人", text = "只认钱。不问来历。" },
@@ -197,7 +198,8 @@ local function newLayerData(layerIdx)
         energy      = MAX_ENERGY,
         entryRow    = 3,
         entryCol    = 3,
-        collected   = {},      -- [row..","..col] = true
+        collected   = {},      -- [row..","..col] = true (clue/item 已收集)
+        dots        = {},      -- [row..","..col] = true (暗币小点已收集)
     }
 end
 
@@ -314,9 +316,25 @@ local function generateGhosts(layerIdx, layer)
 end
 
 --- 为当前层生成 NPC 数据 (不创建节点)
-local function generateNPCs(layerIdx, layer)
+local function generateNPCs(layerIdx, layer, board)
     local npcDefs = DARK_NPCS[layerIdx]
     if not npcDefs then return end
+
+    -- 建立 darkType → 格子 的索引表 (用于 bindToCard)
+    local cardTypePos = {}
+    if board and board.cards then
+        for r = 1, ROWS do
+            for c = 1, COLS do
+                local cd = board.cards[r] and board.cards[r][c]
+                if cd and cd.darkType and cd.darkType ~= "normal" then
+                    if not cardTypePos[cd.darkType] then
+                        cardTypePos[cd.darkType] = {}
+                    end
+                    cardTypePos[cd.darkType][#cardTypePos[cd.darkType] + 1] = { r, c }
+                end
+            end
+        end
+    end
 
     local walkablePositions = {}
     for r = 1, ROWS do
@@ -330,18 +348,51 @@ local function generateNPCs(layerIdx, layer)
     end
     shuffle(walkablePositions)
 
+    -- 已被 bindToCard NPC 占用的格子 (避免普通 NPC 重叠)
+    local occupiedKeys = {}
     layer.npcs = {}
-    for i, def in ipairs(npcDefs) do
-        local pos = walkablePositions[i]
-        if pos then
-            layer.npcs[#layer.npcs + 1] = {
-                id       = def.id,
-                name     = def.name,
-                row      = pos[1],
-                col      = pos[2],
-                tex      = def.tex,
-                dialogue = def.dialogue,
-            }
+
+    -- 第一遍: 放置 bindToCard NPC
+    for _, def in ipairs(npcDefs) do
+        if def.bindToCard then
+            local candidates = cardTypePos[def.bindToCard]
+            local pos = candidates and candidates[1]
+            if pos then
+                layer.npcs[#layer.npcs + 1] = {
+                    id       = def.id,
+                    name     = def.name,
+                    row      = pos[1],
+                    col      = pos[2],
+                    tex      = def.tex,
+                    dialogue = def.dialogue,
+                }
+                occupiedKeys[pos[1] .. "," .. pos[2]] = true
+            end
+        end
+    end
+
+    -- 第二遍: 随机放置普通 NPC (排除已占用格子)
+    local freeIdx = 1
+    for _, def in ipairs(npcDefs) do
+        if not def.bindToCard then
+            -- 跳过已占用格子
+            while freeIdx <= #walkablePositions do
+                local p = walkablePositions[freeIdx]
+                if not occupiedKeys[p[1] .. "," .. p[2]] then break end
+                freeIdx = freeIdx + 1
+            end
+            local pos = walkablePositions[freeIdx]
+            if pos then
+                layer.npcs[#layer.npcs + 1] = {
+                    id       = def.id,
+                    name     = def.name,
+                    row      = pos[1],
+                    col      = pos[2],
+                    tex      = def.tex,
+                    dialogue = def.dialogue,
+                }
+                freeIdx = freeIdx + 1
+            end
         end
     end
 end
@@ -713,13 +764,14 @@ end
 
 --- 在 Board 生成卡牌后，生成幽灵和NPC数据
 ---@param layerIdx number
-function M.generateOverlayData(layerIdx)
+---@param board table|nil Board 实例 (用于 bindToCard NPC 定位)
+function M.generateOverlayData(layerIdx, board)
     local layer = layers_[layerIdx]
     if not layer then return end
 
     -- walkable 已由 Board.generateDarkCards 设置
     generateGhosts(layerIdx, layer)
-    generateNPCs(layerIdx, layer)
+    generateNPCs(layerIdx, layer, board)
     layer.generated = true
 
     print(string.format("[DarkWorld] Overlay data generated: layer=%d, %d ghosts, %d NPCs",
@@ -805,8 +857,10 @@ end
 ---@param dialogueSystem table
 ---@param shopPopup table
 ---@param dayCount number
+---@param eventPopup table|nil EventPopup 模块 (可选)
+---@param storyEventMgr table|nil StoryEventManager 模块 (可选)
 ---@return boolean consumed
-function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem, shopPopup, dayCount)
+function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem, shopPopup, dayCount, eventPopup, storyEventMgr)
     if not active_ or darkState_ ~= "ready" then return false end
 
     local layer = layers_[currentLayer_]
@@ -821,6 +875,21 @@ function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem
     -- 只能移动到相邻格子
     local dr = math.abs(row - pRow)
     local dc = math.abs(col - pCol)
+    if dr + dc == 0 then
+        -- 点击当前格子: 检查是否有 NPC 可对话
+        if darkState_ ~= "ready" then return true end
+        for _, npc in ipairs(layer.npcs) do
+            if npc.row == row and npc.col == col and npc.dialogue then
+                darkState_ = "popup"
+                dialogueSystem.start(npc.dialogue, npc.tex, function()
+                    darkState_ = "ready"
+                end)
+                return true
+            end
+        end
+        Card.shake(card)
+        return true
+    end
     if not (dr + dc == 1) then
         Card.shake(card)
         return true
@@ -851,7 +920,7 @@ function M.handleClick(board, token, inputX, inputY, resourceBar, dialogueSystem
 
         moveGhosts(row, col, resourceBar, pRow, pCol)
         checkGhostCollision(row, col, resourceBar)
-        M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, shopPopup, dayCount)
+        M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, shopPopup, dayCount, eventPopup, storyEventMgr)
 
         if layer.energy <= 0 then
             Tween.to({ t = 0 }, { t = 1 }, 0.8, {
@@ -911,29 +980,95 @@ local function tryDarkFragmentDrop()
 end
 
 --- 处理踩上卡牌的效果
-function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, shopPopup, dayCount)
+--- eventPopup      : EventPopup 模块 (可选, 用于展示事件结果弹窗)
+--- storyEventMgr   : StoryEventManager 模块 (可选, 用于查询剧情优先触发)
+function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, shopPopup, dayCount, eventPopup, storyEventMgr)
     local layer = layers_[currentLayer_]
     local darkType = card.darkType
     local key = row..","..col
 
-    -- NPC 对话检测
-    for _, npc in ipairs(layer.npcs) do
-        if npc.row == row and npc.col == col and npc.dialogue then
-            darkState_ = "popup"
-            dialogueSystem.start(npc.dialogue, npc.tex, function()
+    -- -----------------------------------------------------------------------
+    -- 内部辅助: 效果结算后，先查剧情，再弹事件结果窗
+    -- effects = {res, delta} 列表; cardTypeForQuery = 查剧情用的类型字符串
+    -- -----------------------------------------------------------------------
+    local function showResultWithStory(effects, darkCardType, title, desc, onAfter)
+        local popCX = (G_ and G_.logicalW or physW_) / 2
+        local popCY = (G_ and G_.logicalH or physH_) * 0.42
+
+        local function doPopup()
+            if eventPopup and eventPopup.showEvent then
+                darkState_ = "popup"
+                eventPopup.showEvent(darkCardType, effects, false, popCX, popCY, function()
+                    darkState_ = "ready"
+                    if onAfter then onAfter() end
+                end, nil, nil, title, desc)
+            else
+                -- 降级: 无弹窗模块时直接恢复
                 darkState_ = "ready"
-            end)
-            return
+                if onAfter then onAfter() end
+            end
         end
+
+        -- 暗面世界有独立 NPC 对话系统，不复用明面剧情事件，直接弹事件结果窗
+        doPopup()
+    end
+
+    -- -----------------------------------------------------------------------
+    -- 内部辅助: 收集卡牌过渡动效 (闪光 → 淡出 → 切 normal → 淡入)
+    -- onSwap: 切换时执行资源/标记更新
+    -- onDone: 淡入完成后的回调
+    -- -----------------------------------------------------------------------
+    local function collectCard(onSwap, onDone)
+        -- 闪光
+        VFX.flashScreen(220, 200, 255, 0.18, 80)
+        -- 淡出
+        Tween.to(card, { alpha = 0 }, 0.18, {
+            tag = "darkcollect",
+            easing = Tween.Easing.easeInQuad,
+            onComplete = function()
+                -- 切换为 normal
+                card.darkType   = "normal"
+                card.darkName   = "空走廊"
+                card.darkIcon   = "🌑"
+                card.darkLabel  = "暗巷"
+                if onSwap then onSwap() end
+                if CardTextures_ then
+                    Card.updateTexture(card, CardTextures_)
+                end
+                -- 淡入
+                Tween.to(card, { alpha = 1 }, 0.22, {
+                    tag = "darkcollect",
+                    easing = Tween.Easing.easeOutQuad,
+                    onComplete = function()
+                        if onDone then onDone() end
+                    end,
+                })
+            end,
+        })
     end
 
     if darkType == "normal" then
+        -- 吃豆人暗币: 踩到有暗币的格子就收集
+        if card.darkDot then
+            card.darkDot = false
+            layer.dots[key] = true                       -- 持久化: 本层已收集
+            resourceBar.change("darkcoin", 1)
+            -- 微型 VFX: 小爆散 + 短暂闪屏
+            VFX.spawnBurst(physW_ / 2, physH_ / 2, 4, 200, 130, 255)
+            VFX.flashScreen(180, 100, 255, 0.08, 60)
+            -- 刷新卡面纹理 (去掉圆点)
+            if CardTextures_ then
+                Card.updateTexture(card, CardTextures_)
+            end
+        end
         return
 
     elseif darkType == "shop" then
         local tc = Theme.current
+        local shopCX = (G_ and G_.logicalW or physW_) / 2
+        local shopCY = (G_ and G_.logicalH or physH_) / 2
         VFX.spawnBanner("🏪 " .. card.darkName, tc.info.r, tc.info.g, tc.info.b, 18, 0.8)
-        shopPopup.show(0, 0, function()
+        shopPopup.show(shopCX, shopCY, function()
             darkState_ = "ready"
         end, { dark = true })
         darkState_ = "popup"
@@ -943,8 +1078,13 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
         if resourceBar.get("money") >= cost then
             resourceBar.change("money", -cost)
             local tc = Theme.current
-            VFX.spawnBanner("👁️ 获得情报!", tc.plot.r, tc.plot.g, tc.plot.b, 18, 0.8)
             VFX.spawnBurst(physW_ / 2, physH_ / 2, 6, tc.plot.r, tc.plot.g, tc.plot.b)
+            showResultWithStory(
+                { { "money", -cost } },
+                "plot",
+                "👁️ 暗面情报",
+                "消耗金币获得了情报线索。"
+            )
         else
             VFX.spawnBanner("💰 金币不足 (需要" .. cost .. ")", 220, 80, 80, 16, 0.8)
         end
@@ -993,13 +1133,6 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
                         -- 收集当前 clue 卡
                         card.darkCollected = true
                         layer.collected[key] = true
-                        card.darkType = "normal"
-                        card.darkName = "空走廊"
-                        card.darkIcon = "🌑"
-                        card.darkLabel = "暗巷"
-                        if CardTextures_ then
-                            Card.updateTexture(card, CardTextures_)
-                        end
                         VFX.triggerShake(8, 0.5, 15)
                         VFX.flashScreen(200, 160, 255, 0.4, 200)
                         VFX.spawnBanner("⚡ 白夜变身！消耗力量" .. oldPower .. "，获得碎片 (" .. newCount .. "/10)",
@@ -1007,6 +1140,7 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
                         VFX.spawnBurst(physW_ / 2, physH_ / 2, 15, 200, 160, 255)
                         print("[DarkWorld] Elite defeated: power consumed=" .. oldPower
                             .. ", sleep=3, frag_05 collected (total=" .. newCount .. ")")
+                        collectCard(nil, nil)
                     elseif choiceData.choiceId == "retreat" then
                         retreatChosen = true
                     end
@@ -1018,19 +1152,20 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
         -- 正常收集线索
         card.darkCollected = true
         layer.collected[key] = true
+        darkState_ = "popup"  -- 锁住状态，防止 moveTo 回调把状态恢复为 ready
         local tc = Theme.current
-        VFX.spawnBanner("🔮 发现线索: " .. card.darkName, tc.info.r, tc.info.g, tc.info.b, 18, 1.0)
         VFX.spawnBurst(physW_ / 2, physH_ / 2, 10, 180, 130, 255)
-        -- 更新为已收集 → 重新渲染纹理
-        card.darkType = "normal"
-        card.darkName = "空走廊"
-        card.darkIcon = "🌑"
-        card.darkLabel = "暗巷"
-        if CardTextures_ then
-            Card.updateTexture(card, CardTextures_)
-        end
-        -- 尝试碎片掉落
-        tryDarkFragmentDrop()
+        -- 收集过渡动效: 淡出 → 切 normal → 淡入 → 弹窗
+        local clueNameSnapshot = card.darkName  -- 保存名称供弹窗使用
+        collectCard(nil, function()
+            -- 尝试碎片掉落
+            local fragDropped = tryDarkFragmentDrop()
+            -- 弹窗 (效果无资源变化, 仅展示线索发现)
+            local clueEffects = fragDropped
+                and { { "inspiration", 1 } }
+                or {}
+            showResultWithStory(clueEffects, "clue", "🔮 " .. clueNameSnapshot, "在暗面深处发现了线索碎片。")
+        end)
 
     elseif darkType == "item" and not card.darkCollected then
         card.darkCollected = true
@@ -1049,27 +1184,28 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
             { res = "healthMax",   amt = 2,  label = "❤️健康上限+2" },
         }
         local pick = rewards[math.random(#rewards)]
-        -- 处理效果
-        if pick.res == "sanMax" or pick.res == "healthMax" then
-            local baseKey = (pick.res == "sanMax") and "san" or "health"
-            local oldMax = resourceBar.getMax(baseKey)
-            resourceBar.setMax(baseKey, oldMax + pick.amt)
-            resourceBar.change(baseKey, pick.amt)
-        else
-            resourceBar.change(pick.res, pick.amt)
-        end
-        local tc = Theme.current
         local isRare = pick.res == "sanMax" or pick.res == "healthMax"
-        local bannerIcon = isRare and "✨" or "📦"
-        VFX.spawnBanner(bannerIcon .. " " .. pick.label,
-            tc.highlight.r, tc.highlight.g, tc.highlight.b, 18, 1.0)
-        card.darkType = "normal"
-        card.darkName = "空走廊"
-        card.darkIcon = "🌑"
-        card.darkLabel = "暗巷"
-        if CardTextures_ then
-            Card.updateTexture(card, CardTextures_)
-        end
+        darkState_ = "popup"  -- 锁住状态，防止 moveTo 回调把状态恢复为 ready
+        VFX.spawnBurst(physW_ / 2, physH_ / 2, 8, 200, 180, 100)
+        -- 收集过渡动效: 淡出 → 切 normal → 淡入 → 结算效果 → 弹窗
+        collectCard(nil, function()
+            -- 结算资源 (在卡牌切换完成后再改数值，视觉上更自然)
+            if pick.res == "sanMax" or pick.res == "healthMax" then
+                local baseKey = (pick.res == "sanMax") and "san" or "health"
+                local oldMax = resourceBar.getMax(baseKey)
+                resourceBar.setMax(baseKey, oldMax + pick.amt)
+                resourceBar.change(baseKey, pick.amt)
+            else
+                resourceBar.change(pick.res, pick.amt)
+            end
+            -- 整理 effects 列表 (上限提升映射为基础属性变化)
+            local baseKey = (pick.res == "sanMax") and "san"
+                         or (pick.res == "healthMax") and "health"
+                         or nil
+            local itemEffects = { { baseKey or pick.res, pick.amt } }
+            local titlePrefix = isRare and "✨ 稀有发现" or "📦 暗面拾取"
+            showResultWithStory(itemEffects, "plot", titlePrefix, pick.label)
+        end)
 
     elseif darkType == "passage" then
         local targetLayer

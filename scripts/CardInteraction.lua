@@ -176,9 +176,12 @@ local function onCardFlipped(card, screenX, screenY)
         end
     end
 
+    -- 日程到达检测：在事件处理前捕获，供后续回调使用
+    local arrivedLocation = nil
     if card.location then
         local anyCompleted = CardManager.checkArrival(card.location)
         if anyCompleted then
+            arrivedLocation = card.location
             local sc = Theme.current.completed
             VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
         end
@@ -261,37 +264,6 @@ local function onCardFlipped(card, screenX, screenY)
     else
         -- === 非阻塞路径: 怪物/陷阱/安全/线索/剧情/照片/悬赏 → Toast ===
 
-        -- === 剧情事件拦截 (plot/clue 优先查询剧情对话) ===
-        if (card.type == "plot" or card.type == "clue") and G.storyMgr then
-            local ctx = { dayCount = G.dayCount or 1, weather = G.weather or "" }
-            local storyEvt = StoryEventManager.queryEvent(card.type, G.storyMgr, ctx)
-            if storyEvt then
-                -- 走剧情对话路径, 替代原有 toast
-                G.demoState = "story_dialogue"
-                StoryEventManager.triggerEvent(storyEvt, G.storyMgr, ResourceBar, function()
-                    -- 应用原有卡牌效果
-                    local baseEffects = EventPool.CARD_EFFECTS[card.type] or {}
-                    for _, eff in ipairs(baseEffects) do
-                        ResourceBar.change(eff[1], eff[2])
-                    end
-                    -- 统计
-                    G.gameStats.cardsRevealed = G.gameStats.cardsRevealed + 1
-                    -- clue: 传闻
-                    if card.type == "clue" then
-                        local added = CardManager.addRumor(G.board)
-                        if added then
-                            local tc2 = Theme.current
-                            VFX.spawnBanner("📰 获得了新传闻!", tc2.rumor.r, tc2.rumor.g, tc2.rumor.b, 18, 0.8)
-                        end
-                    end
-                    G.demoState = "ready"
-                    CameraButton.show()
-                    G.checkDefeat()
-                end, ctx)
-                return  -- 跳过后续 toast 路径
-            end
-        end
-
         -- 效果表: 怪物动态计算, 陷阱按子类型, safe按地点, 其他查静态表
         local effects
         if card.type == "monster" then
@@ -351,80 +323,141 @@ local function onCardFlipped(card, screenX, screenY)
             Token.setEmotion(G.token, "happy")
         end
 
-        -- 发送 toast (传递 trapSubtype)
-        EventPopup.toast(card.type, effects, shieldUsed, card.location, card.trapSubtype)
+        -- 事件结果弹窗 (阻塞式)
+        -- 若当前卡牌类型有对应剧情事件, 先播放剧情对话, 对话结束后再弹窗
+        local popCX = G.logicalW / 2
+        local popCY = G.logicalH * 0.42
 
-        -- 怪物: 短暂停顿让 chibi 弹出, 再恢复 ready
-        if card.type == "monster" then
-            local pauseDummy = { t = 0 }
-            Tween.to(pauseDummy, { t = 1 }, 0.6, {
-                tag = "monster_pause",
-                onComplete = function()
-                    G.demoState = "ready"
-                    CameraButton.show()
-                    G.checkDefeat()
-                end,
-            })
-        elseif card.type == "trap" and card.trapSubtype == "teleport" and not shieldUsed then
-            -- === 空间错位: 传送到随机未翻开格子 ===
-            G.demoState = "teleporting"
-
-            local candidates = {}
-            for r = 1, Board.ROWS do
-                for c = 1, Board.COLS do
-                    if not (r == card.row and c == card.col) then
-                        local cd = G.board.cards[r] and G.board.cards[r][c]
-                        if cd and not cd.faceUp and not cd.isFlipping then
-                            candidates[#candidates + 1] = { r = r, c = c, card = cd }
-                        end
-                    end
-                end
-            end
-
-            if #candidates == 0 then
-                G.demoState = "ready"
-                CameraButton.show()
-                G.checkDefeat()
-            else
-                local pick = candidates[math.random(1, #candidates)]
-
-                local teleDelay = { t = 0 }
-                Tween.to(teleDelay, { t = 1 }, 0.5, {
-                    tag = "teleport_delay",
+        -- 内层函数: 显示事件结果弹窗 (剧情播完后或无剧情时直接调用)
+        local function doShowEventPopup()
+            G.demoState = "popup"
+            EventPopup.showEvent(card.type, effects, shieldUsed, popCX, popCY, function()
+            -- -----------------------------------------------------------------
+            -- 弹窗关闭后: 按类型执行后续逻辑
+            -- -----------------------------------------------------------------
+            if card.type == "monster" then
+                -- 怪物: 短暂停顿让 chibi 动效完成, 再触发故事事件
+                local pauseDummy = { t = 0 }
+                Tween.to(pauseDummy, { t = 1 }, 0.4, {
+                    tag = "monster_pause",
                     onComplete = function()
-                        AudioManager.playSFX("rift_enter", 0.6)
-                        VFX.flashScreen(140, 80, 200, 0.35, 160)
-                        VFX.triggerShake(5, 0.3)
-
-                        local destWx, destWz = Board.cardPos(G.board, pick.r, pick.c)
-                        local shareOff = NPCManager.getShareOffset(pick.r, pick.c)
-                        G.token.targetRow = pick.r
-                        G.token.targetCol = pick.c
-                        Token.setEmotion(G.token, "scared")
-
-                        Token.moveTo(G.token, destWx + shareOff, destWz, function()
-                            local destCard = pick.card
-                            if not destCard.faceUp and not destCard.isFlipping then
-                                local dsx, dsy = G.worldToScreen(Vector3(destWx, 0, destWz))
-                                G.demoState = "flipping"
-                                Card.flip(destCard, function(c)
-                                    onCardFlipped(c, dsx, dsy)
-                                end, CardTextures)
-                            else
+                        if arrivedLocation and G.storyMgr then
+                            local midCtx = { dayCount = G.dayCount or 1 }
+                            G.demoState = "dialogue"
+                            CameraButton.hide()
+                            if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+                            if not StoryEventManager.tryMidEvent(arrivedLocation, G.storyMgr, midCtx, function()
+                                G.demoState = "ready"
+                                CameraButton.show()
+                                G.checkDefeat()
+                            end) then
                                 G.demoState = "ready"
                                 CameraButton.show()
                                 G.checkDefeat()
                             end
-                        end)
+                        else
+                            G.demoState = "ready"
+                            CameraButton.show()
+                            G.checkDefeat()
+                        end
                     end,
                 })
+            elseif card.type == "trap" and card.trapSubtype == "teleport" and not shieldUsed then
+                -- === 空间错位: 传送到随机未翻开格子 ===
+                G.demoState = "teleporting"
+
+                local candidates = {}
+                for r = 1, Board.ROWS do
+                    for c = 1, Board.COLS do
+                        if not (r == card.row and c == card.col) then
+                            local cd = G.board.cards[r] and G.board.cards[r][c]
+                            if cd and not cd.faceUp and not cd.isFlipping then
+                                candidates[#candidates + 1] = { r = r, c = c, card = cd }
+                            end
+                        end
+                    end
+                end
+
+                if #candidates == 0 then
+                    G.demoState = "ready"
+                    CameraButton.show()
+                    G.checkDefeat()
+                else
+                    local pick = candidates[math.random(1, #candidates)]
+
+                    local teleDelay = { t = 0 }
+                    Tween.to(teleDelay, { t = 1 }, 0.5, {
+                        tag = "teleport_delay",
+                        onComplete = function()
+                            AudioManager.playSFX("rift_enter", 0.6)
+                            VFX.flashScreen(140, 80, 200, 0.35, 160)
+                            VFX.triggerShake(5, 0.3)
+
+                            local destWx, destWz = Board.cardPos(G.board, pick.r, pick.c)
+                            local shareOff = NPCManager.getShareOffset(pick.r, pick.c)
+                            G.token.targetRow = pick.r
+                            G.token.targetCol = pick.c
+                            Token.setEmotion(G.token, "scared")
+
+                            Token.moveTo(G.token, destWx + shareOff, destWz, function()
+                                local destCard = pick.card
+                                if not destCard.faceUp and not destCard.isFlipping then
+                                    local dsx, dsy = G.worldToScreen(Vector3(destWx, 0, destWz))
+                                    G.demoState = "flipping"
+                                    Card.flip(destCard, function(c)
+                                        onCardFlipped(c, dsx, dsy)
+                                    end, CardTextures)
+                                else
+                                    G.demoState = "ready"
+                                    CameraButton.show()
+                                    G.checkDefeat()
+                                end
+                            end)
+                        end,
+                    })
+                end
+            elseif card.type == "safe" and card.location and M._tryConversionEvent(card.location) then
+                -- 转换事件弹窗已弹出, 不进入 ready (弹窗回调中恢复)
+            else
+                if arrivedLocation and G.storyMgr then
+                    local midCtx = { dayCount = G.dayCount or 1 }
+                    G.demoState = "dialogue"
+                    CameraButton.hide()
+                    if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+                    if not StoryEventManager.tryMidEvent(arrivedLocation, G.storyMgr, midCtx, function()
+                        G.demoState = "ready"
+                        CameraButton.show()
+                        G.checkDefeat()
+                    end) then
+                        G.demoState = "ready"
+                        CameraButton.show()
+                        G.checkDefeat()
+                    end
+                else
+                    G.demoState = "ready"
+                    CameraButton.show()
+                    G.checkDefeat()
+                end
             end
-        elseif card.type == "safe" and card.location and M._tryConversionEvent(card.location) then
-            -- 转换事件弹窗已弹出, 不进入 ready (弹窗回调中恢复)
+            end, card.location, card.trapSubtype)
+        end  -- doShowEventPopup
+
+        -- === 剧情优先: 有剧情则先播对话, 对话结束后再弹窗 ===
+        local storyEvt = nil
+        if G.storyMgr then
+            local ctx = { dayCount = G.dayCount or 1, weather = G.weather or "" }
+            storyEvt = StoryEventManager.queryEvent(card.type, G.storyMgr, ctx)
+        end
+
+        if storyEvt then
+            G.demoState = "story_dialogue"
+            CameraButton.hide()
+            if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+            StoryEventManager.triggerEvent(storyEvt, G.storyMgr, ResourceBar, function()
+                doShowEventPopup()
+            end, { dayCount = G.dayCount or 1, weather = G.weather or "" })
         else
-            G.demoState = "ready"
-            CameraButton.show()
-            G.checkDefeat()
+            doShowEventPopup()
         end
     end
 end
@@ -511,61 +544,25 @@ local function onPhotographFlipped(card, screenX, screenY)
     G.gameStats.cardsRevealed = G.gameStats.cardsRevealed + 1
 
     -- -----------------------------------------------------------------------
-    -- 侦察=清除: 怪物/陷阱 → 显示动效后自动驱除, 变为安全格
+    -- 所有类型: 先显示相片弹窗，关闭后再处理后续逻辑
     -- -----------------------------------------------------------------------
-    if card.type == "monster" or card.type == "trap" then
-        local isDanger = card.type
-
-        if isDanger == "monster" then
-            MonsterGhost.showOnCard(card, card.location)
-            G.gameStats.monstersSlain = G.gameStats.monstersSlain + 1
-        end
-
-        Token.setEmotion(G.token, isDanger == "monster" and "scared" or "nervous")
-        G.demoState = "exorcising"
-        G.hoveredCard = nil
-
-        local revealPause = { t = 0 }
-        Tween.to(revealPause, { t = 1 }, 0.8, {
-            tag = "photograph_exorcise",
-            onComplete = function()
-                AudioManager.playSFX("exorcise")
-                local pc = Theme.color("plot")
-                VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
-                VFX.triggerShake(4, 0.2)
-                Token.setEmotion(G.token, "angry")
-                Token.hop(G.token, 0.06)
-
-                MonsterGhost.clearCardGhosts()
-
-                AudioManager.playSFX("ghost_dispel")
-                Card.transformTo(card, "photo", function(c)
-                    VFX.spawnBurst(screenX, screenY, 16, pc.r, pc.g, pc.b)
-                    if isDanger == "monster" then
-                        VFX.spawnBanner("👻 发现怪物! 已驱除!", pc.r, pc.g, pc.b, 20, 1.0)
-                    else
-                        local trapLabel = "陷阱"
-                        if card.trapSubtype and EventPool.TRAP_SUBTYPE_INFO[card.trapSubtype] then
-                            trapLabel = EventPool.TRAP_SUBTYPE_INFO[card.trapSubtype].label
-                        end
-                        VFX.spawnBanner("⚡ 发现" .. trapLabel .. "! 已清除!", pc.r, pc.g, pc.b, 20, 1.0)
-                    end
-                    Token.setEmotion(G.token, "happy")
-                    G.demoState = "ready"
-                    CameraButton.show()
-                end, CardTextures)
-            end
-        })
-        return
-    end
-
-    -- -----------------------------------------------------------------------
-    -- 非危险格: 显示踪迹箭头 + 侦察预览
-    -- -----------------------------------------------------------------------
-    local hasTrail = MonsterGhost.calculateTrail(card, G.board, Board.ROWS, Board.COLS)
-
     G.demoState = "popup"
     G.hoveredCard = nil
+
+    -- 危险格: 先显示 ghost 动效 (不会阻塞弹窗)
+    if card.type == "monster" then
+        MonsterGhost.showOnCard(card, card.location)
+        G.gameStats.monstersSlain = G.gameStats.monstersSlain + 1
+        Token.setEmotion(G.token, "scared")
+    elseif card.type == "trap" then
+        Token.setEmotion(G.token, "nervous")
+    end
+
+    -- 计算踪迹 (非危险格用于显示箭头)
+    local hasTrail = false
+    if card.type ~= "monster" and card.type ~= "trap" then
+        hasTrail = MonsterGhost.calculateTrail(card, G.board, Board.ROWS, Board.COLS)
+    end
 
     local popupDelay = { t = 0 }
     Tween.to(popupDelay, { t = 1 }, 0.4, {
@@ -577,15 +574,59 @@ local function onPhotographFlipped(card, screenX, screenY)
 
             local popCX = G.logicalW / 2
             local popCY = G.logicalH * 0.42
+
             EventPopup.showPhoto(card.type, popCX, popCY, function(_cardType, _effects)
-                card.scouted = true
-                Card.flipBack(card, nil, CardTextures)
+                if card.type == "monster" or card.type == "trap" then
+                    -- -------------------------------------------------------
+                    -- 危险格: 弹窗关闭后驱除
+                    -- -------------------------------------------------------
+                    local isDanger = card.type
+                    G.demoState = "exorcising"
 
-                MonsterGhost.clearTrailGhosts()
+                    local exorcisePause = { t = 0 }
+                    Tween.to(exorcisePause, { t = 1 }, 0.3, {
+                        tag = "photograph_exorcise",
+                        onComplete = function()
+                            AudioManager.playSFX("exorcise")
+                            local pc = Theme.color("plot")
+                            VFX.flashScreen(pc.r, pc.g, pc.b, 0.35, 150)
+                            VFX.triggerShake(4, 0.2)
+                            Token.setEmotion(G.token, "angry")
+                            Token.hop(G.token, 0.06)
 
-                Token.setEmotion(G.token, "happy")
-                G.demoState = "ready"
-                CameraButton.show()
+                            MonsterGhost.clearCardGhosts()
+
+                            AudioManager.playSFX("ghost_dispel")
+                            Card.transformTo(card, "photo", function(c)
+                                VFX.spawnBurst(screenX, screenY, 16, pc.r, pc.g, pc.b)
+                                if isDanger == "monster" then
+                                    VFX.spawnBanner("👻 发现怪物! 已驱除!", pc.r, pc.g, pc.b, 20, 1.0)
+                                else
+                                    local trapLabel = "陷阱"
+                                    if card.trapSubtype and EventPool.TRAP_SUBTYPE_INFO[card.trapSubtype] then
+                                        trapLabel = EventPool.TRAP_SUBTYPE_INFO[card.trapSubtype].label
+                                    end
+                                    VFX.spawnBanner("⚡ 发现" .. trapLabel .. "! 已清除!", pc.r, pc.g, pc.b, 20, 1.0)
+                                end
+                                Token.setEmotion(G.token, "happy")
+                                G.demoState = "ready"
+                                CameraButton.show()
+                            end, CardTextures)
+                        end
+                    })
+                else
+                    -- -------------------------------------------------------
+                    -- 非危险格: 翻回卡牌，标记为已侦察
+                    -- -------------------------------------------------------
+                    card.scouted = true
+                    Card.flipBack(card, nil, CardTextures)
+
+                    MonsterGhost.clearTrailGhosts()
+
+                    Token.setEmotion(G.token, "happy")
+                    G.demoState = "ready"
+                    CameraButton.show()
+                end
             end, card.location)
         end
     })
@@ -773,16 +814,32 @@ local function executeAutoWalk(path, screenX, screenY)
                         onCardFlipped(c, screenX, screenY)
                     end, CardTextures)
                 else
+                    local midLoc = nil
                     if card.location then
                         local anyCompleted = CardManager.checkArrival(card.location)
                         if anyCompleted then
+                            midLoc = card.location
                             local sc = Theme.current.completed
                             VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
                         end
                     end
                     Token.setEmotion(G.token, "default")
-                    G.demoState = "ready"
-                    CameraButton.show()
+                    if midLoc and G.storyMgr then
+                        local midCtx = { dayCount = G.dayCount or 1 }
+                        G.demoState = "dialogue"
+                        CameraButton.hide()
+                        if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+                        if not StoryEventManager.tryMidEvent(midLoc, G.storyMgr, midCtx, function()
+                            G.demoState = "ready"
+                            CameraButton.show()
+                        end) then
+                            G.demoState = "ready"
+                            CameraButton.show()
+                        end
+                    else
+                        G.demoState = "ready"
+                        CameraButton.show()
+                    end
                 end
             else
                 -- 中间格子: 检查日程完成, 继续下一步
@@ -936,16 +993,32 @@ function M.handleNormalModeClick(card, row, col)
                 onCardFlipped(c, sx, sy)
             end, CardTextures)
         else
+            local midLoc = nil
             if card.location then
                 local anyCompleted = CardManager.checkArrival(card.location)
                 if anyCompleted then
+                    midLoc = card.location
                     local sc = Theme.current.completed
                     VFX.spawnBanner("日程完成!", sc.r, sc.g, sc.b, 20, 0.8)
                 end
             end
             Token.setEmotion(G.token, "default")
-            G.demoState = "ready"
-            CameraButton.show()
+            if midLoc and G.storyMgr then
+                local midCtx = { dayCount = G.dayCount or 1 }
+                G.demoState = "dialogue"
+                CameraButton.hide()
+                if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+                if not StoryEventManager.tryMidEvent(midLoc, G.storyMgr, midCtx, function()
+                    G.demoState = "ready"
+                    CameraButton.show()
+                end) then
+                    G.demoState = "ready"
+                    CameraButton.show()
+                end
+            else
+                G.demoState = "ready"
+                CameraButton.show()
+            end
         end
     end, function()
         -- onLand: 角色落地瞬间（落地挤压开始时）

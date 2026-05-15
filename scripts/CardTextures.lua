@@ -292,7 +292,7 @@ end
 -- 绘制函数: 暗面世界卡牌 (全明牌, 暗色底 + 类型图标)
 -- ---------------------------------------------------------------------------
 
-local function renderDarkCard(tex, darkType, darkName)
+local function renderDarkCard(tex, darkType, darkName, hasDot)
     local vg = texVg
     local w, h = TEX_W, TEX_H
     local t = Theme.current
@@ -343,6 +343,31 @@ local function renderDarkCard(tex, darkType, darkName)
     nvgStrokeWidth(vg, 2.5)
     nvgStroke(vg)
 
+    -- 暗币小点 (右下角, 仅 normal 格有暗币时显示)
+    if hasDot then
+        local dotR = 10
+        local dotX = w - 26
+        local dotY = h - 28
+        -- 外发光
+        local glowPaint = nvgRadialGradient(vg,
+            dotX, dotY, dotR * 0.4, dotR * 1.8,
+            nvgRGBA(180, 100, 255, 120), nvgRGBA(100, 50, 200, 0))
+        nvgBeginPath(vg)
+        nvgCircle(vg, dotX, dotY, dotR * 1.8)
+        nvgFillPaint(vg, glowPaint)
+        nvgFill(vg)
+        -- 圆点主体
+        nvgBeginPath(vg)
+        nvgCircle(vg, dotX, dotY, dotR)
+        nvgFillColor(vg, nvgRGBA(200, 130, 255, 230))
+        nvgFill(vg)
+        -- 高光
+        nvgBeginPath(vg)
+        nvgCircle(vg, dotX - 3, dotY - 3, dotR * 0.35)
+        nvgFillColor(vg, nvgRGBA(255, 230, 255, 180))
+        nvgFill(vg)
+    end
+
     -- 外边框
     nvgBeginPath(vg)
     nvgRect(vg, 0, 0, w, h)
@@ -373,6 +398,177 @@ local function loadPNGTexture(imgFile)
     end
     print("[CardTextures] WARN: PNG not found: " .. path)
     return nil
+end
+
+--- 渲染拍立得风格 overlay（未翻开地点卡专用）
+--- 样式：左/右/上各 12px 白色实边 + 底部 56px 白色标签区 + 深色卡名文字
+--- 中心完全透明，让 PNG 地点插图透出
+--- @param labelText  string  底部卡名
+local function renderPolaroidOverlay(labelText)
+    local vg = texVg
+    local w, h = TEX_W, TEX_H
+
+    local tex = Texture2D:new()
+    tex:SetNumLevels(1)
+    tex:SetSize(w, h, Graphics:GetRGBAFormat(), TEXTURE_RENDERTARGET)
+    tex:SetFilterMode(FILTER_BILINEAR)
+
+    nvgSetRenderTarget(vg, tex)
+    nvgBeginFrame(vg, w, h, 1.0)
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
+
+    local sideW  = 12   -- 左/右/上边框宽度
+    local bottomH = 60  -- 底部标签区高度（稍大留文字空间）
+
+    -- ── 1. 全透明底（不遮挡 PNG）─────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, h)
+    nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
+    nvgFill(vg)
+
+    -- ── 2. 左边白条 ───────────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, sideW, h)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 3. 右边白条 ───────────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, w - sideW, 0, sideW, h)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 4. 上边白条（NanoVG Y=0 为卡牌顶部）──────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, sideW)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 5. 底部标签区（NanoVG Y=h 为卡牌底部）────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, h - bottomH, w, bottomH)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 6. 底部标签区上方细分隔线 ─────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, sideW, h - bottomH)
+    nvgLineTo(vg, w - sideW, h - bottomH)
+    nvgStrokeColor(vg, nvgRGBA(200, 190, 175, 120))
+    nvgStrokeWidth(vg, 1)
+    nvgStroke(vg)
+
+    -- ── 7. 卡名文字（深色，居中，带轻微阴影）─────────────────────────────
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 32)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    local textY = h - bottomH / 2
+    -- 文字阴影
+    nvgFillColor(vg, nvgRGBA(120, 110, 95, 60))
+    nvgText(vg, w / 2 + 1, textY + 1, labelText, nil)
+    -- 文字主体
+    nvgFillColor(vg, nvgRGBA(45, 38, 30, 220))
+    nvgText(vg, w / 2, textY, labelText, nil)
+
+    -- ── 8. 极细外轮廓线（卡片边缘感）─────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0.5, 0.5, w - 1, h - 1)
+    nvgStrokeColor(vg, nvgRGBA(180, 170, 155, 100))
+    nvgStrokeWidth(vg, 1)
+    nvgStroke(vg)
+
+    nvgEndFrame(vg)
+    nvgSetRenderTarget(vg, nil)
+
+    return tex
+end
+
+--- 渲染事件拍立得 overlay（翻开后事件卡专用）
+--- 与地点卡拍立得相同白色边框，底部标签区叠上事件类型半透明色
+--- @param labelText  string  事件名称
+--- @param typeColor  table   { r, g, b } 事件类型颜色
+local function renderEventPolaroidOverlay(labelText, typeColor)
+    local vg = texVg
+    local w, h = TEX_W, TEX_H
+
+    local tex = Texture2D:new()
+    tex:SetNumLevels(1)
+    tex:SetSize(w, h, Graphics:GetRGBAFormat(), TEXTURE_RENDERTARGET)
+    tex:SetFilterMode(FILTER_BILINEAR)
+
+    nvgSetRenderTarget(vg, tex)
+    nvgBeginFrame(vg, w, h, 1.0)
+    nvgTranslate(vg, 0, h)
+    nvgScale(vg, 1, -1)
+
+    local sideW   = 12
+    local bottomH = 60
+    local tc = typeColor or { r = 180, g = 160, b = 120 }
+
+    -- ── 1. 全透明底 ───────────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, h)
+    nvgFillColor(vg, nvgRGBA(0, 0, 0, 0))
+    nvgFill(vg)
+
+    -- ── 2. 左/右白条 ──────────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, sideW, h)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+    nvgBeginPath(vg)
+    nvgRect(vg, w - sideW, 0, sideW, h)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 3. 上边白条 ───────────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, w, sideW)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 4. 底部标签区：奶白底 ─────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, h - bottomH, w, bottomH)
+    nvgFillColor(vg, nvgRGBA(252, 248, 240, 255))
+    nvgFill(vg)
+
+    -- ── 5. 底部标签区：事件类型半透明叠色 ────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, sideW, h - bottomH, w - sideW * 2, bottomH)
+    nvgFillColor(vg, nvgRGBA(tc.r, tc.g, tc.b, 72))
+    nvgFill(vg)
+
+    -- ── 6. 分隔线 ─────────────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, sideW, h - bottomH)
+    nvgLineTo(vg, w - sideW, h - bottomH)
+    nvgStrokeColor(vg, nvgRGBA(tc.r, tc.g, tc.b, 100))
+    nvgStrokeWidth(vg, 1.2)
+    nvgStroke(vg)
+
+    -- ── 7. 卡名文字 ───────────────────────────────────────────────────────
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 32)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    local textY = h - bottomH / 2
+    nvgFillColor(vg, nvgRGBA(tc.r, tc.g, tc.b, 50))
+    nvgText(vg, w / 2 + 1, textY + 1, labelText, nil)
+    nvgFillColor(vg, nvgRGBA(45, 38, 30, 230))
+    nvgText(vg, w / 2, textY, labelText, nil)
+
+    -- ── 8. 极细外轮廓线 ───────────────────────────────────────────────────
+    nvgBeginPath(vg)
+    nvgRect(vg, 0.5, 0.5, w - 1, h - 1)
+    nvgStrokeColor(vg, nvgRGBA(180, 170, 155, 100))
+    nvgStrokeWidth(vg, 1)
+    nvgStroke(vg)
+
+    nvgEndFrame(vg)
+    nvgSetRenderTarget(vg, nil)
+
+    return tex
 end
 
 --- 渲染 overlay（透明背景 + 三层矩形边框 + 底部标签）
@@ -482,8 +678,8 @@ function M.getLocationOverlay(locKey)
     end
     local locInfo = EventPool.LOCATION_INFO[locKey]
     local label = locInfo and locInfo.label or locKey
-    local bc = { r = 255, g = 255, b = 255 }  -- 地点卡边框固定为白色
-    local overlay = renderOverlay(label, bc)
+    -- 地点卡（未翻开）使用拍立得样式
+    local overlay = renderPolaroidOverlay(label)
     locationOverlayCache[locKey] = overlay
     return overlay
 end
@@ -535,8 +731,15 @@ function M.getEventOverlay(locKey, eventType)
     local locInfo = EventPool.LOCATION_INFO[locKey]
     local label = (locInfo and (eventType == "home" or eventType == "landmark" or eventType == "shop") and locInfo.label)
         or (darkInfo and darkInfo.label) or (typeInfo and typeInfo.label) or eventType
+    local overlay
     local tc = Theme.cardTypeColor(eventType)
-    local overlay = renderOverlay(label, tc)
+    if REUSE_LOC_IMAGE_TYPES[eventType] then
+        -- home/landmark/shop 复用地点图，使用纯拍立得样式（无事件色）
+        overlay = renderPolaroidOverlay(label)
+    else
+        -- 普通事件：拍立得白框 + 底部叠事件类型颜色
+        overlay = renderEventPolaroidOverlay(label, tc)
+    end
     eventOverlayCache[cacheKey] = overlay
     return overlay
 end
@@ -552,14 +755,16 @@ end
 --- 获取暗面卡牌纹理 (全明牌, 暗色主题)
 ---@param darkType string  暗面类型 (normal/shop/clue/item/passage/intel/checkpoint/abyss_core)
 ---@param darkName string|nil  地点名称 (可选, 未传则用 typeInfo.label)
+---@param hasDot boolean|nil   是否显示暗币小点 (仅 normal 类型有效)
 ---@return userdata Texture2D
-function M.getDarkCardTexture(darkType, darkName)
-    local cacheKey = (darkType or "normal") .. "_" .. (darkName or "")
+function M.getDarkCardTexture(darkType, darkName, hasDot)
+    local dotSuffix = hasDot and "_dot" or ""
+    local cacheKey = (darkType or "normal") .. "_" .. (darkName or "") .. dotSuffix
     if darkCardTexCache[cacheKey] then
         return darkCardTexCache[cacheKey]
     end
     local tex = createRenderTexture()
-    renderDarkCard(tex, darkType, darkName)
+    renderDarkCard(tex, darkType, darkName, hasDot)
     darkCardTexCache[cacheKey] = tex
     return tex
 end
@@ -572,7 +777,7 @@ end
 function M.ensureCard(card)
     if card.isDark then
         -- 暗面卡牌: 全明牌, 只需暗面纹理
-        M.getDarkCardTexture(card.darkType or "normal", card.darkName)
+        M.getDarkCardTexture(card.darkType or "normal", card.darkName, card.darkDot)
     else
         M.getLocationTexture(card.location)
         M.getEventTexture(card.location, card.type)

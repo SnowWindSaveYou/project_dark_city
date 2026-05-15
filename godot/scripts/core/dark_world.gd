@@ -213,11 +213,24 @@ func generate_ghosts(layer_idx: int) -> void:
 		layer.ghosts.append(gd)
 
 ## 为指定层生成 NPC 数据，统一存入 npc_manager
+## board 可选参数用于 bind_to_card NPC 定位（绑定到指定卡牌类型格子）
 ## 配置来源: CardConfig.get_dw_npcs() → dark_world.json → npcs
-func generate_npcs(layer_idx: int, npc_manager: NPCManager) -> void:
+func generate_npcs(layer_idx: int, npc_manager: NPCManager, board = null) -> void:
 	var layer: LayerData = layers[layer_idx]
 	var npc_defs: Array = CardConfig.get_dw_npcs(layer_idx)
 
+	# 构建 dark_type → 格子(0-based) 的索引（用于 bind_to_card）
+	var card_type_pos: Dictionary = {}  # dark_type -> Array[Vector2i]
+	if board != null:
+		for r in range(1, Board.ROWS + 1):
+			for c in range(1, Board.COLS + 1):
+				var cd: Card = board.get_card(r, c)
+				if cd != null and cd.dark_type != "" and cd.dark_type != "normal":
+					if not card_type_pos.has(cd.dark_type):
+						card_type_pos[cd.dark_type] = []
+					card_type_pos[cd.dark_type].append(Vector2i(r - 1, c - 1))  # 转 0-based
+
+	# 可行走位置（排除出生点）
 	var walkable_pos: Array = []
 	for key in layer.walkable:
 		if layer.walkable[key]:
@@ -228,24 +241,50 @@ func generate_npcs(layer_idx: int, npc_manager: NPCManager) -> void:
 				walkable_pos.append(Vector2i(r, c))
 	walkable_pos.shuffle()
 
-	for i in range(npc_defs.size()):
-		if i >= walkable_pos.size():
-			break
-		var def: Dictionary = npc_defs[i]
+	# 已被 bind_to_card NPC 占用的格子
+	var occupied: Dictionary = {}
+
+	# 辅助：注册并生成 NPC
+	var _spawn = func(def: Dictionary, pos: Vector2i) -> void:
 		var npc_id: String = def["id"]
-		# 注册类型（对话包装成 dialogues 多组格式）
 		npc_manager._npc_types[npc_id] = {
 			"name": def["name"],
 			"tex_path": def["tex"],
 			"dialogues": [def["dialogue"]],
 			"sprite_scale": 1.0,
 		}
-		npc_manager.spawn_npc(npc_id, walkable_pos[i].x, walkable_pos[i].y)
+		npc_manager.spawn_npc(npc_id, pos.x, pos.y)
+
+	# 第一遍：bind_to_card NPC 精确放置
+	for def in npc_defs:
+		if def.has("bind_to_card"):
+			var target_type: String = def["bind_to_card"]
+			var candidates: Array = card_type_pos.get(target_type, [])
+			if candidates.size() > 0:
+				var pos: Vector2i = candidates[0]
+				_spawn.call(def, pos)
+				occupied["%d,%d" % [pos.x, pos.y]] = true
+
+	# 第二遍：普通 NPC 随机放置（跳过占用格子）
+	var free_idx: int = 0
+	for def in npc_defs:
+		if not def.has("bind_to_card"):
+			# 找下一个未占用位置
+			while free_idx < walkable_pos.size():
+				var p: Vector2i = walkable_pos[free_idx]
+				if not occupied.has("%d,%d" % [p.x, p.y]):
+					break
+				free_idx += 1
+			if free_idx >= walkable_pos.size():
+				break
+			_spawn.call(def, walkable_pos[free_idx])
+			free_idx += 1
 
 ## 一次性生成幽灵 + NPC + 标记 generated
-func generate_overlay_data(layer_idx: int) -> void:
+## board 参数用于 bind_to_card NPC 定位
+func generate_overlay_data(layer_idx: int, board = null) -> void:
 	generate_ghosts(layer_idx)
-	generate_npcs(layer_idx, _npc_manager)
+	generate_npcs(layer_idx, _npc_manager, board)
 	layers[layer_idx].generated = true
 
 ## 查询指定格子 (0-based) 是否有暗面 NPC，委托给 npc_manager

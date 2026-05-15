@@ -139,6 +139,132 @@ M.EVENTS = {
         },
         fragment = "frag_03",  -- 碎片·训练
     },
+
+    -- ====================================================================
+    -- 6) 碎片守卫遭遇 — 第6天, 暗面中触发 (clue, 强制碎片收集)
+    -- 注: 此事件在 DarkWorldFlow 进入第6天暗面后由 StoryEventManager 自动查询
+    -- ====================================================================
+    {
+        id       = "dark_shard_guardian",
+        cardType = "clue",
+        priority = 1,
+        onceFlag = "seen_shard_guardian",
+        condition = { all = {
+            { min_day = 6 },
+            { max_day = 6 },
+            { flag = "in_dark_world" },
+            { not_flag = "seen_shard_guardian" },
+        }},
+        dialogue = {
+            { speaker = "白夜", text = "不对劲。有东西在等我们。" },
+            { speaker = "旁白", text = "雾气深处，一个巨大的轮廓缓缓移动。比之前遇到的所有东西都大。" },
+            { speaker = "白夜", text = "是碎片守卫。暗面最古老的东西之一。它守着记忆。" },
+            { speaker = "白夜", text = "退后！！！" },
+            { speaker = "旁白", text = "苏柚被一股力量推了出去。摔在地上，抬起头——白夜体积变得巨大，像一面墙一样挡在她面前。" },
+            { speaker = "旁白", text = "守卫撞上白夜。没有声音，只有空间的震颤。白夜的身体挡住了魔物的攻击。" },
+            { speaker = "苏柚", text = "白夜！！！" },
+            { speaker = "白夜", text = "拿碎片。快！" },
+            { speaker = "旁白", text = "苏柚触碰到碎片的瞬间，画面涌来：白夜站在一个人面前，说「我来扛」。那个人伸出手，抵住他的胸口，力量从她指尖流入他体内。诅咒在转移。" },
+            { speaker = "旁白", text = "碎片碎了。守卫消失。白夜缩成毛球掉下来。" },
+        },
+        fragment = "frag_06",  -- 碎片·诅咒转移
+    },
+
+    -- ====================================================================
+    -- 7) 棠的誓言碎片 — 第7天, truth章节开始时, plot
+    -- ====================================================================
+    {
+        id       = "plot_tang_vow",
+        cardType = "plot",
+        priority = 5,
+        onceFlag = "seen_tang_vow",
+        condition = { all = {
+            { min_day = 7 },
+            { max_day = 8 },
+            { not_flag = "seen_tang_vow" },
+            { flag = "morning_day7_seen" },
+        }},
+        dialogue = {
+            { speaker = "旁白", text = "新的碎片补全了闪回画面。终于看清了那个和白夜并肩站着的人——" },
+            { speaker = "旁白", text = "容貌和自己相似，但气质截然不同。眉眼凛冽，站姿笔直，像一柄收在鞘中的刀。" },
+            { speaker = "旁白", text = "风吹过的时候，她没动。白夜站在她身侧，眼神里全是追随。" },
+            { speaker = "白夜", text = "棠……" },
+            { speaker = "旁白", text = "暗面裂隙里传出声音。" },
+            { speaker = "???",  text = "你想成为棠吗？我可以帮你。" },
+            { speaker = "???",  text = "或者，把白夜还回来，你就自由了。" },
+            { speaker = "苏柚", text = "（她是我的前世？）" },
+        },
+        fragment = "frag_07",  -- 碎片·棠的样子
+    },
+
+    -- ====================================================================
+    -- 8) 棠的篝火记忆 — 第11天, clue
+    -- ====================================================================
+    {
+        id       = "clue_tang_campfire",
+        cardType = "clue",
+        priority = 5,
+        onceFlag = "seen_tang_campfire",
+        condition = { all = {
+            { min_day = 11 },
+            { max_day = 11 },
+            { not_flag = "seen_tang_campfire" },
+        }},
+        dialogue = {
+            { speaker = "旁白", text = "碎片的画面——棠站在战场上，剑尖抵着地面，血从手臂滴下来。" },
+            { speaker = "旁白", text = "棠坐在篝火边，白夜靠在她肩膀上，她没动，但嘴角有一点很淡的笑。" },
+            { speaker = "棠",   text = "我不会让你一个人扛。" },
+            { speaker = "旁白", text = "碎片碎了。苏柚看着自己的手，久久没有说话。" },
+        },
+        fragment = "frag_08",  -- 碎片·篝火约定
+    },
+
+    -- ====================================================================
+    -- 9) 棠转身那一刻 — 第12天, 倒数第二片碎片, plot
+    -- ====================================================================
+    {
+        id       = "plot_tang_turns_away",
+        cardType = "plot",
+        priority = 5,
+        onceFlag = "seen_tang_turns_away",
+        condition = { all = {
+            { min_day = 12 },
+            { max_day = 12 },
+            { not_flag = "seen_tang_turns_away" },
+        }},
+        dialogue = {
+            { speaker = "旁白", text = "倒数第二片碎片。" },
+            { speaker = "旁白", text = "碎片里，棠站在白夜面前。白夜已经半跪在地上，诅咒侵蚀了他大半身体，黑色的纹路爬上他的脸。" },
+            { speaker = "旁白", text = "棠没有说话。她只是看着他。然后她转身走了。" },
+            { speaker = "白夜", text = "棠。" },
+            { speaker = "旁白", text = "碎片碎了。苏柚的眼眶红了一下，又忍住了。" },
+        },
+        fragment = "frag_09",  -- 碎片·背离
+    },
+
+    -- ====================================================================
+    -- 10) 最后一片碎片 — 第13天, 全部记忆揭晓, clue
+    -- ====================================================================
+    {
+        id       = "clue_final_memory",
+        cardType = "clue",
+        priority = 1,
+        onceFlag = "seen_final_memory",
+        condition = { all = {
+            { min_day = 13 },
+            { max_day = 13 },
+            { not_flag = "seen_final_memory" },
+        }},
+        dialogue = {
+            { speaker = "旁白", text = "最后一片碎片。白夜试图拉住她的手——指尖握住了她的手腕，全部记忆向苏柚涌来。" },
+            { speaker = "旁白", text = "棠和白夜相爱。诅咒降临。两人本可以各自承担一半，都能活下来。" },
+            { speaker = "旁白", text = "但棠没有那样做。她选择了独自面对——和魔王同归于尽。" },
+            { speaker = "苏柚", text = "她明明答应了和你一起分担，最后自己和魔王同归于尽。" },
+            { speaker = "白夜", text = "我也不明白。想了一千年，还是不明白。" },
+            { speaker = "苏柚", text = "所以你找上我。因为她是我的前世。你可以重新来过，把她找回来，然后问她为什么。" },
+        },
+        fragment = "frag_10",  -- 碎片·真相
+    },
 }
 
 return M

@@ -39,6 +39,9 @@ local savedRealityCards = nil
 local savedRealityFaceUp = nil  -- {[row]={[col]=bool}}
 local savedHomeRow, savedHomeCol = nil, nil
 local savedBgTransition = 0
+-- 过渡中标志: enterDarkWorld 到 DarkWorld.enter() 完成前为 true
+-- main.lua HandleUpdate 中用于屏蔽明面 BGM 自动切换，避免覆盖 dark_world BGM
+local isDarkTransitioning_ = false
 
 -- ============================================================================
 -- 初始化
@@ -64,6 +67,13 @@ function M.resetSavedState()
     savedHomeRow = nil
     savedHomeCol = nil
     savedBgTransition = 0
+    isDarkTransitioning_ = false
+end
+
+--- 是否处于暗面过渡中 (进出动画期间)
+--- main.lua HandleUpdate 用此标志屏蔽明面 BGM 自动切换
+function M.isTransitioning()
+    return isDarkTransitioning_
 end
 
 -- ============================================================================
@@ -84,6 +94,7 @@ function M.enterDarkWorld(riftRow, riftCol)
     end
 
     G.demoState = "transition"
+    isDarkTransitioning_ = true  -- 屏蔽 HandleUpdate 的明面 BGM 自动切换
     CameraButton.hide()
     HandPanel.hide()
     if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
@@ -169,7 +180,7 @@ function M.enterDarkWorld(riftRow, riftCol)
             local darkConfig = DarkWorld.getDarkConfig(layerIdx)
             local darkLocations = DarkWorld.getDarkLocations(layerIdx)
             Board.generateDarkCards(board, layerData, darkLocations, darkConfig)
-            DarkWorld.generateOverlayData(layerIdx)
+            DarkWorld.generateOverlayData(layerIdx, board)
         end
 
         -- 7. 预加载纹理 → 创建节点 → 发牌
@@ -212,6 +223,7 @@ function M.enterDarkWorld(riftRow, riftCol)
             -- 里程碑: 进入暗面 hook
             local msCtx = { dayCount = G.dayCount }
             MilestoneManager.tryTrigger("enter_dark_world", G.storyMgr, msCtx, function()
+                isDarkTransitioning_ = false  -- 进入完成, BGM 已稳定, 解除屏蔽
                 G.demoState = "ready"
                 CameraButton.show()
             end)
@@ -231,6 +243,7 @@ function M.exitDarkWorld()
     if not DarkWorld.isActive() then return end
 
     G.demoState = "transition"
+    isDarkTransitioning_ = true  -- 退出过渡中, 屏蔽 HandleUpdate 的明面 BGM 自动切换
     CameraButton.hide()
     if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
     AudioManager.playSFX("rift_exit")
@@ -241,6 +254,7 @@ function M.exitDarkWorld()
     else
         AudioManager.playBGM("day_light", 2.0)
     end
+    isDarkTransitioning_ = false  -- BGM 已提交给淡入淡出系统, 解除屏蔽
 
     -- 1. 保存暗面卡牌状态
     local layerData = DarkWorld.getLayerData()
@@ -392,7 +406,7 @@ function M.changeDarkLayer(targetLayer, dc)
             local darkConfig = DarkWorld.getDarkConfig(newLayerIdx)
             local darkLocations = DarkWorld.getDarkLocations(newLayerIdx)
             Board.generateDarkCards(board, newLayerData, darkLocations, darkConfig)
-            DarkWorld.generateOverlayData(newLayerIdx)
+            DarkWorld.generateOverlayData(newLayerIdx, board)
         end
 
         -- 6. 预加载 → 创建 → 发牌

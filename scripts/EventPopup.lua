@@ -5,12 +5,27 @@
 -- 退场: 缩放收回(easeInBack) + 淡出
 -- ============================================================================
 
-local Tween       = require "lib.Tween"
-local Theme       = require "Theme"
-local ResourceBar = require "ResourceBar"
-local EventPool   = require "EventPool"
+local Tween        = require "lib.Tween"
+local Theme        = require "Theme"
+local ResourceBar  = require "ResourceBar"
+local EventPool    = require "EventPool"
+local CardImageMap = require "CardImageMap"
+local MonsterGhost = require "MonsterGhost"
 
 local M = {}
+
+-- ---------------------------------------------------------------------------
+-- NVG 图像缓存 (懒加载, 用于相片弹窗中渲染场景图和怪物chibi)
+-- ---------------------------------------------------------------------------
+local nvgImageCache_ = {}   -- path → handle
+
+local function getNvgImage(vg, path)
+    if not path then return -1 end
+    if nvgImageCache_[path] then return nvgImageCache_[path] end
+    local handle = nvgCreateImage(vg, path, 0)
+    nvgImageCache_[path] = (handle and handle > 0) and handle or -1
+    return nvgImageCache_[path]
+end
 
 -- 资源中文名 / 图标
 local resourceMeta = {
@@ -48,8 +63,16 @@ local state = {
     effects = {},
     cx = 0, cy = 0,
     onDismiss = nil,
-    isPhoto = false,       -- 相片预览模式 (拍立得风格)
-    photoLocation = nil,   -- 相片对应的地点
+    isPhoto = false,           -- 相片预览模式 (拍立得风格)
+    isEvent = false,           -- 事件结果模式 (替代 toast, 显示 effects + 确认按钮)
+    photoLocation = nil,       -- 相片对应的地点
+    photoScenePath = nil,      -- 场景图 NVG 图片路径
+    monsterChibiPath = nil,    -- 怪物 chibi 图片路径 (仅 monster 类型)
+    eventEffects = {},         -- 已结算的资源变化 [{资源key, 增量}]
+    eventShieldUsed = false,   -- 护盾是否生效
+    -- 确认按钮 hover 状态
+    confirmBtnHoverT = 0,
+    confirmBtnX = 0, confirmBtnY = 0, confirmBtnW = 0, confirmBtnH = 0,
 
     -- 动画参数
     overlayAlpha = 0,
@@ -184,7 +207,17 @@ function M.showPhoto(cardType, cx, cy, onDismiss, location)
 
     -- 暗面世界标题
     local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
-    local displayTitle = darkInfo and darkInfo.label or tmpl.title
+    local displayTitle = (darkInfo and darkInfo.label) or tmpl.title
+
+    -- 场景图路径: 统一用地点面图 (rule: 所有类型用同一张地点场景图)
+    local sceneFile = location and CardImageMap.getLocationImage(location)
+    local scenePath = sceneFile and ("image/" .. sceneFile) or nil
+
+    -- 怪物 chibi: 仅 monster 类型
+    local chibiPath = nil
+    if cardType == "monster" and location then
+        chibiPath = MonsterGhost.getMonsterTexture(location)
+    end
 
     state.active = true
     state.phase = "enter"
@@ -197,12 +230,14 @@ function M.showPhoto(cardType, cx, cy, onDismiss, location)
     state.onDismiss = onDismiss
     state.isPhoto = true
     state.photoLocation = location
+    state.photoScenePath = scenePath
+    state.monsterChibiPath = chibiPath
 
     -- 重置动画值
     state.overlayAlpha = 0
     state.popupScale = 0.2
     state.popupAlpha = 0
-    state.photoRotation = math.random(-6, 6)  -- 随机微倾
+    state.photoRotation = math.random(-5, 5)  -- 随机微倾
     state.iconT = 0
     state.titleT = 0
     state.descT = 0
@@ -246,6 +281,110 @@ function M.showPhoto(cardType, cx, cy, onDismiss, location)
 end
 
 -- ---------------------------------------------------------------------------
+-- 打开事件结果弹窗 (阻塞式, 替代 toast)
+-- 显示笔记本+拍立得布局 + 已结算 effects + 确认按钮
+-- ---------------------------------------------------------------------------
+
+--- 打开事件结果弹窗
+---@param cardType string 卡牌事件类型
+---@param appliedEffects table 已结算资源变化 {{ "san", -1 }, ...}
+---@param shieldUsed boolean 护盾是否生效
+---@param cx number 弹窗中心 X
+---@param cy number 弹窗中心 Y
+---@param onDismiss function|nil 关闭后回调
+---@param location string|nil 地点类型
+---@param trapSubtype string|nil 陷阱子类型
+function M.showEvent(cardType, appliedEffects, shieldUsed, cx, cy, onDismiss, location, trapSubtype, titleOverride, descOverride)
+    -- 文案: 陷阱子类型专属池
+    local pool
+    if cardType == "trap" and trapSubtype and EventPool.TRAP_SUBTYPE_TEMPLATES and EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype] then
+        pool = EventPool.TRAP_SUBTYPE_TEMPLATES[trapSubtype]
+    else
+        pool = EventPool.TEMPLATES[cardType]
+    end
+    if not pool or #pool == 0 then
+        pool = { { title = "未知事件", desc = "你遇到了无法描述的事情。" } }
+    end
+    local tmpl = pool[math.random(1, #pool)]
+
+    -- 暗面世界标题 (外部 override 优先)
+    local darkInfo = location and EventPool.getDarksideInfo(location, cardType) or nil
+    local displayTitle = titleOverride or (darkInfo and darkInfo.label) or tmpl.title
+
+    -- 场景图 (同 showPhoto 逻辑)
+    local sceneFile = location and CardImageMap.getLocationImage(location)
+    local scenePath = sceneFile and ("image/" .. sceneFile) or nil
+
+    -- 怪物 chibi 叠加
+    local chibiPath = nil
+    if cardType == "monster" and location then
+        chibiPath = MonsterGhost.getMonsterTexture(location)
+    end
+
+    state.active = true
+    state.phase = "enter"
+    state.cardType = cardType
+    state.title = displayTitle
+    state.desc = descOverride or tmpl.desc
+    state.effects = {}      -- 不用于 drawPopup, 仅 isEvent 模式用 eventEffects
+    state.cx = cx
+    state.cy = cy
+    state.onDismiss = onDismiss
+    state.isPhoto = true        -- 复用相片布局渲染
+    state.isEvent = true
+    state.photoLocation = location
+    state.photoScenePath = scenePath
+    state.monsterChibiPath = chibiPath
+    state.eventEffects = appliedEffects or {}
+    state.eventShieldUsed = shieldUsed or false
+    state.confirmBtnHoverT = 0
+
+    -- 重置动画
+    state.overlayAlpha = 0
+    state.popupScale = 0.2
+    state.popupAlpha = 0
+    state.photoRotation = math.random(-4, 4)
+    state.iconT = 0
+    state.titleT = 0
+    state.descT = 0
+    state.effectsT = 0
+    state.buttonT = 0
+    state.btnHoverT = 0
+
+    Tween.to(state, { overlayAlpha = 0.5, popupScale = 1.0, popupAlpha = 1.0 }, 0.3, {
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+    })
+
+    local base = 0.08
+    Tween.to(state, { iconT = 1 }, 0.25, {
+        delay = base,
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+    })
+    Tween.to(state, { titleT = 1 }, 0.25, {
+        delay = base + 0.06,
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+    })
+    Tween.to(state, { effectsT = 1 }, 0.25, {
+        delay = base + 0.12,
+        easing = Tween.Easing.easeOutCubic,
+        tag = "popup",
+    })
+    Tween.to(state, { buttonT = 1 }, 0.25, {
+        delay = base + 0.18,
+        easing = Tween.Easing.easeOutBack,
+        tag = "popup",
+        onComplete = function()
+            state.phase = "idle"
+        end
+    })
+
+    print(string.format("[EventPopup] ShowEvent: %s - %s (shield=%s)", cardType, displayTitle, tostring(shieldUsed)))
+end
+
+-- ---------------------------------------------------------------------------
 -- 关闭弹窗
 -- ---------------------------------------------------------------------------
 
@@ -266,9 +405,11 @@ function M.dismiss()
         onComplete = function()
             state.active = false
             state.phase = "done"
-            local wasPhoto = state.isPhoto
             state.isPhoto = false
+            state.isEvent = false
             state.photoLocation = nil
+            state.eventEffects = {}
+            state.eventShieldUsed = false
             if state.onDismiss then
                 state.onDismiss(state.cardType, state.effects)
             end
@@ -347,10 +488,21 @@ end
 function M.updateHover(lx, ly, dt)
     if not state.active or state.phase ~= "idle" then
         state.btnHoverT = state.btnHoverT + (0 - state.btnHoverT) * math.min(1, dt * 12)
+        state.confirmBtnHoverT = state.confirmBtnHoverT + (0 - state.confirmBtnHoverT) * math.min(1, dt * 12)
         return
     end
     local target = M.hitTestButton(lx, ly) and 1.0 or 0.0
     state.btnHoverT = state.btnHoverT + (target - state.btnHoverT) * math.min(1, dt * 12)
+
+    -- 事件模式确认按钮 hover
+    if state.isEvent and state.confirmBtnW > 0 then
+        local inBtn = lx >= state.confirmBtnX and lx <= state.confirmBtnX + state.confirmBtnW
+                   and ly >= state.confirmBtnY and ly <= state.confirmBtnY + state.confirmBtnH
+        local cTarget = inBtn and 1.0 or 0.0
+        state.confirmBtnHoverT = state.confirmBtnHoverT + (cTarget - state.confirmBtnHoverT) * math.min(1, dt * 12)
+    else
+        state.confirmBtnHoverT = state.confirmBtnHoverT + (0 - state.confirmBtnHoverT) * math.min(1, dt * 12)
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -584,23 +736,45 @@ function M.draw(vg, logicalW, logicalH, gameTime)
 end
 
 -- ---------------------------------------------------------------------------
--- 渲染: 相片预览模式 (拍立得风格)
+-- 渲染: 相片预览模式 (笔记本底板 + 倾斜拍立得卡溢出 + 右侧文字区)
 -- ---------------------------------------------------------------------------
 
--- 相片尺寸 (拍立得比例: 宽略窄, 底部留白多)
-local PHOTO_W       = 200
-local PHOTO_H       = 260
-local PHOTO_BORDER  = 10      -- 上/左/右白边
-local PHOTO_BOTTOM  = 40      -- 底部白边 (拍立得特征)
-local PHOTO_R       = 3       -- 相片圆角 (很小, 偏硬朗)
-local PHOTO_IMG_R   = 2       -- 内部照片区圆角
+-- 笔记本容器尺寸
+local NB_W          = 300     -- 笔记本宽
+local NB_H          = 200     -- 笔记本高
+local NB_R          = 8       -- 笔记本圆角
+local NB_PAD        = 12      -- 内边距
+
+-- 拍立得卡尺寸 (卡牌比例 256:360 = 0.711)
+local POL_IMG_W     = 104     -- 内图区宽
+local POL_IMG_H     = 146     -- 内图区高 (104 * 360/256 ≈ 146)
+local POL_SIDE      = 9       -- 左/右/上白边宽
+local POL_BOTTOM    = 32      -- 底部白边 (拍立得特征)
+local POL_W         = POL_IMG_W + POL_SIDE * 2     -- 总宽 122
+local POL_H         = POL_IMG_H + POL_SIDE + POL_BOTTOM  -- 总高 187
+local POL_R         = 3       -- 整体圆角
+local POL_IMG_R     = 2       -- 内图区圆角
+
+-- 拍立得相对于笔记本中心的偏移 (左边溢出笔记本约 35px)
+local POL_CENTER_X  = -(NB_W / 2) + (POL_W / 2) - 30   -- cx_nb - 150 + 61 - 30 = cx_nb - 119
+
+-- 文字区起始 X (相对笔记本左边)
+-- 拍立得右边缘相对弹窗中心 = POL_CENTER_X + POL_W/2 = (-119) + 61 = -58
+-- 文字起点转换: txStartX = -NB_W/2 + TEXT_AREA_X
+-- 要让 txStartX > -58 (即在拍立得右边缘之外), 需 TEXT_AREA_X > (-58 + NB_W/2) = 92
+local TEXT_AREA_X   = 98                                  -- txStartX = -150+98 = -52, 拍立得右边缘 -58 右侧 6px
+local TEXT_AREA_W   = NB_W - TEXT_AREA_X - NB_PAD        -- 300 - 98 - 12 = 190px
 
 function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     local t = Theme.current
     local tc = Theme.cardTypeColor(state.cardType)
     local info = Theme.cardTypeInfo(state.cardType)
 
-    -- === 遮罩层 (比普通弹窗更暗) ===
+    -- 懒加载 NVG 图像句柄
+    local sceneImg  = getNvgImage(vg, state.photoScenePath)
+    local chibiImg  = (state.monsterChibiPath) and getNvgImage(vg, state.monsterChibiPath) or -1
+
+    -- === 遮罩层 ===
     if state.overlayAlpha > 0.01 then
         nvgBeginPath(vg)
         nvgRect(vg, -50, -50, logicalW + 100, logicalH + 100)
@@ -608,201 +782,363 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
         nvgFill(vg)
     end
 
-    -- === 相片主体 ===
+    -- === 弹窗整体 transform (缩放入场) ===
     nvgSave(vg)
     nvgTranslate(vg, state.cx, state.cy)
-    nvgRotate(vg, state.photoRotation * math.pi / 180)  -- 微倾
     nvgScale(vg, state.popupScale, state.popupScale)
     nvgGlobalAlpha(vg, state.popupAlpha)
 
-    local hw = PHOTO_W / 2
-    local hh = PHOTO_H / 2
+    -- ==================================================================
+    -- 1. 笔记本底板
+    -- ==================================================================
+    local nbX = -NB_W / 2
+    local nbY = -NB_H / 2
 
-    -- 阴影 (更柔和, 偏暖)
-    local shadowP = nvgBoxGradient(vg, -hw + 1, -hh + 3, PHOTO_W, PHOTO_H, PHOTO_R, 20,
-        nvgRGBA(30, 20, 10, 90), nvgRGBA(0, 0, 0, 0))
+    -- 笔记本阴影
+    local shadowP = nvgBoxGradient(vg, nbX + 2, nbY + 4, NB_W, NB_H, NB_R, 18,
+        nvgRGBA(0, 0, 0, 55), nvgRGBA(0, 0, 0, 0))
     nvgBeginPath(vg)
-    nvgRect(vg, -hw - 25, -hh - 20, PHOTO_W + 50, PHOTO_H + 45)
+    nvgRect(vg, nbX - 20, nbY - 14, NB_W + 40, NB_H + 36)
     nvgFillPaint(vg, shadowP)
     nvgFill(vg)
 
-    -- 相片白底 (略带暖白, 模拟相纸)
+    -- 笔记本背景 (奶白色纸质感)
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, -hw, -hh, PHOTO_W, PHOTO_H, PHOTO_R)
-    nvgFillColor(vg, nvgRGBA(252, 250, 245, 250))
+    nvgRoundedRect(vg, nbX, nbY, NB_W, NB_H, NB_R)
+    nvgFillColor(vg, nvgRGBA(250, 246, 238, 252))
     nvgFill(vg)
 
-    -- 相片边框 (极细, 模拟纸张边缘)
+    -- 笔记本边框
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, -hw, -hh, PHOTO_W, PHOTO_H, PHOTO_R)
-    nvgStrokeColor(vg, nvgRGBA(210, 200, 185, 120))
+    nvgRoundedRect(vg, nbX, nbY, NB_W, NB_H, NB_R)
+    nvgStrokeColor(vg, nvgRGBA(196, 184, 164, 180))
+    nvgStrokeWidth(vg, 1.2)
+    nvgStroke(vg)
+
+    -- 左侧红色竖线装饰 (笔记本特征)
+    local redLineX = nbX + 42
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, redLineX, nbY + 6)
+    nvgLineTo(vg, redLineX, nbY + NB_H - 6)
+    nvgStrokeColor(vg, nvgRGBA(200, 85, 85, 130))
+    nvgStrokeWidth(vg, 1.2)
+    nvgStroke(vg)
+
+    -- 横线装饰 (笔记本稿纸风格)
+    local lineSpacing = 22
+    local lineStartY  = nbY + 28
+    local lineEndX    = nbX + NB_W - NB_PAD
+    nvgStrokeWidth(vg, 0.6)
+    for li = 0, 6 do
+        local ly = lineStartY + li * lineSpacing
+        if ly < nbY + NB_H - 12 then
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, redLineX + 6, ly)
+            nvgLineTo(vg, lineEndX, ly)
+            nvgStrokeColor(vg, nvgRGBA(197, 212, 232, 90))
+            nvgStroke(vg)
+        end
+    end
+
+    -- ==================================================================
+    -- 2. 倾斜的拍立得卡 (叠在笔记本上，左侧溢出)
+    -- ==================================================================
+    local polCX = POL_CENTER_X   -- 相对弹窗中心
+    local polCY = 0
+
+    nvgSave(vg)
+    nvgTranslate(vg, polCX, polCY)
+    nvgRotate(vg, state.photoRotation * math.pi / 180)
+
+    -- 拍立得阴影
+    local psx = -POL_W / 2
+    local psy = -POL_H / 2
+    local polShadow = nvgBoxGradient(vg, psx + 2, psy + 4, POL_W, POL_H, POL_R, 16,
+        nvgRGBA(30, 20, 10, 80), nvgRGBA(0, 0, 0, 0))
+    nvgBeginPath(vg)
+    nvgRect(vg, psx - 18, psy - 14, POL_W + 36, POL_H + 32)
+    nvgFillPaint(vg, polShadow)
+    nvgFill(vg)
+
+    -- 拍立得白底 (奶白色相纸)
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, psx, psy, POL_W, POL_H, POL_R)
+    nvgFillColor(vg, nvgRGBA(253, 251, 246, 255))
+    nvgFill(vg)
+
+    -- 拍立得外框线
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, psx, psy, POL_W, POL_H, POL_R)
+    nvgStrokeColor(vg, nvgRGBA(210, 200, 185, 140))
     nvgStrokeWidth(vg, 0.8)
     nvgStroke(vg)
 
-    -- === 内部照片区 (深色背景, 模拟冲印画面) ===
-    local imgX = -hw + PHOTO_BORDER
-    local imgY = -hh + PHOTO_BORDER
-    local imgW = PHOTO_W - PHOTO_BORDER * 2
-    local imgH = PHOTO_H - PHOTO_BORDER - PHOTO_BOTTOM
+    -- 内图区位置
+    local imgX = psx + POL_SIDE
+    local imgY = psy + POL_SIDE
+    local imgW = POL_IMG_W
+    local imgH = POL_IMG_H
 
-    -- 照片底色 (暗蓝灰, 像夜间拍摄)
+    -- 内图区底色 (深色, 以防图片未加载)
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
-    nvgFillColor(vg, nvgRGBA(25, 30, 40, 240))
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
+    nvgFillColor(vg, nvgRGBA(30, 35, 45, 240))
     nvgFill(vg)
 
-    -- 照片内氛围渐变 (事件类型颜色从中心扩散)
-    local atmosPaint = nvgRadialGradient(vg,
-        imgX + imgW / 2, imgY + imgH * 0.4,
-        10, imgW * 0.6,
-        nvgRGBA(tc.r, tc.g, tc.b, 50),
-        nvgRGBA(tc.r, tc.g, tc.b, 0))
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
-    nvgFillPaint(vg, atmosPaint)
-    nvgFill(vg)
-
-    -- === 照片内容 ===
-    local imgCX = imgX + imgW / 2
-    local imgCY = imgY + imgH / 2
-
-    -- 事件图标 (大号, 居中)
-    if state.iconT > 0.01 then
+    -- 场景图片
+    if sceneImg > 0 then
         nvgSave(vg)
-        local iconScale = state.iconT
-        nvgTranslate(vg, imgCX, imgCY - 18)
-        nvgScale(vg, iconScale, iconScale)
-        nvgGlobalAlpha(vg, state.popupAlpha * state.iconT)
-
+        nvgScissor(vg, imgX, imgY, imgW, imgH)
+        local imgPaint = nvgImagePattern(vg, imgX, imgY, imgW, imgH, 0, sceneImg, 1.0)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
+        nvgFillPaint(vg, imgPaint)
+        nvgFill(vg)
+        nvgResetScissor(vg)
+        nvgRestore(vg)
+    else
+        -- 场景图加载失败时, 显示事件图标作为占位
         nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 42)
+        nvgFontSize(vg, 36)
         nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, 230))
-        nvgText(vg, 0, 0, info and info.icon or "❓", nil)
-        nvgRestore(vg)
+        nvgFillColor(vg, nvgRGBA(255, 255, 255, 120))
+        nvgText(vg, imgX + imgW / 2, imgY + imgH / 2, info and info.icon or "📷", nil)
     end
 
-    -- 事件标题 (图标下方, 白色)
-    if state.titleT > 0.01 then
+    -- 怪物 chibi 叠加 (仅 monster 类型)
+    if chibiImg > 0 then
         nvgSave(vg)
-        local titleOff = (1 - state.titleT) * 10
-        nvgGlobalAlpha(vg, state.popupAlpha * state.titleT)
-
-        nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 16)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_TOP)
-        nvgFillColor(vg, nvgRGBA(tc.r, tc.g, tc.b, 230))
-        nvgText(vg, imgCX, imgCY + 14 + titleOff, state.title, nil)
+        nvgScissor(vg, imgX, imgY, imgW, imgH)
+        -- chibi 居中偏下, 大小约占图区 85%
+        local chibiW = imgW * 0.85
+        local chibiH = chibiW  -- 假设 chibi 接近正方形
+        local chibiX = imgX + (imgW - chibiW) / 2
+        local chibiY = imgY + imgH - chibiH + chibiH * 0.15  -- 底部对齐带轻微裁剪
+        local chibiPaint = nvgImagePattern(vg, chibiX, chibiY, chibiW, chibiH, 0, chibiImg, 0.92)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
+        nvgFillPaint(vg, chibiPaint)
+        nvgFill(vg)
+        nvgResetScissor(vg)
         nvgRestore(vg)
     end
 
-    -- 描述 (照片区下部, 浅色小字)
-    if state.descT > 0.01 then
-        nvgSave(vg)
-        local descOff = (1 - state.descT) * 8
-        nvgGlobalAlpha(vg, state.popupAlpha * state.descT)
-
-        nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 10)
-        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
-        nvgFillColor(vg, nvgRGBA(200, 200, 210, 180))
-
-        local textPad = 10
-        local descY = imgCY + 36 + descOff
-        nvgTextBox(vg, imgX + textPad, descY, imgW - textPad * 2, state.desc, nil)
-        nvgRestore(vg)
-    end
-
-    -- 照片区四角暗角 (模拟镜头暗角)
-    local vigPaint = nvgBoxGradient(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R, imgW * 0.35,
-        nvgRGBA(0, 0, 0, 0), nvgRGBA(0, 0, 0, 80))
+    -- 照片暗角 (镜头效果)
+    local vigPaint = nvgBoxGradient(vg, imgX, imgY, imgW, imgH, POL_IMG_R, imgW * 0.4,
+        nvgRGBA(0, 0, 0, 0), nvgRGBA(0, 0, 0, 70))
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
     nvgFillPaint(vg, vigPaint)
     nvgFill(vg)
 
-    -- 胶片颗粒模拟 (随机小点)
-    nvgSave(vg)
-    nvgScissor(vg, imgX, imgY, imgW, imgH)
-    for i = 1, 12 do
-        local gx = imgX + math.sin(gameTime * 0.7 + i * 47.3) * imgW * 0.5 + imgW * 0.5
-        local gy = imgY + math.cos(gameTime * 0.5 + i * 31.7) * imgH * 0.5 + imgH * 0.5
-        local gr = 0.5 + math.sin(i * 17.1) * 0.3
-        nvgBeginPath(vg)
-        nvgCircle(vg, gx, gy, gr)
-        nvgFillColor(vg, nvgRGBA(255, 255, 255, 15 + math.floor(math.sin(i * 7.3) * 10)))
-        nvgFill(vg)
-    end
-    nvgResetScissor(vg)
-    nvgRestore(vg)
-
-    -- 照片区内边框 (模拟冲印边缘)
+    -- 照片内边框
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, PHOTO_IMG_R)
-    nvgStrokeColor(vg, nvgRGBA(0, 0, 0, 40))
+    nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
+    nvgStrokeColor(vg, nvgRGBA(0, 0, 0, 50))
     nvgStrokeWidth(vg, 0.6)
     nvgStroke(vg)
 
-    -- === 底部白边区域 (拍立得签名区) ===
-    local bottomY = imgY + imgH + 6
-
-    -- 📷 图标 + 地点名 (手写感)
+    -- 底部白标签区: 地点名
+    local labelY = imgY + imgH + 4
     if state.buttonT > 0.01 then
         nvgSave(vg)
         nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT)
 
-        -- 地点图标和名称
         local locInfo = state.photoLocation and EventPool.LOCATION_INFO[state.photoLocation]
-        local locLabel = locInfo and (locInfo.icon .. " " .. locInfo.label) or ""
+        local locLabel = locInfo and (locInfo.icon .. " " .. locInfo.label) or "未知地点"
 
         nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 12)
-        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, nvgRGBA(80, 75, 65, 200))
-        nvgText(vg, -hw + PHOTO_BORDER + 2, bottomY + 10, locLabel, nil)
-
-        -- 右下角 "📷 侦察" 标记
-        nvgFontSize(vg, 10)
-        nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, nvgRGBA(150, 140, 125, 160))
-        nvgText(vg, hw - PHOTO_BORDER - 2, bottomY + 10, "📷 侦察", nil)
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(60, 50, 38, 200))
+        nvgText(vg, 0, labelY + (POL_BOTTOM - 4) / 2, locLabel, nil)
 
         nvgRestore(vg)
     end
 
-    -- === 顶部小胶带装饰 (模拟贴在桌上的效果) ===
-    nvgSave(vg)
-    nvgGlobalAlpha(vg, state.popupAlpha * 0.6)
-    local tapeW = 36
-    local tapeH = 10
-    local tapeX = -tapeW / 2
-    local tapeY = -hh - tapeH / 2
-    nvgBeginPath(vg)
-    nvgRect(vg, tapeX, tapeY, tapeW, tapeH)
-    nvgFillColor(vg, nvgRGBA(220, 210, 180, 160))
-    nvgFill(vg)
-    -- 胶带纹理线
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, tapeX, tapeY + tapeH * 0.5)
-    nvgLineTo(vg, tapeX + tapeW, tapeY + tapeH * 0.5)
-    nvgStrokeColor(vg, nvgRGBA(200, 190, 165, 60))
-    nvgStrokeWidth(vg, 0.5)
-    nvgStroke(vg)
-    nvgRestore(vg)
+    nvgRestore(vg)  -- 拍立得 transform (旋转)
 
-    -- === 点击关闭提示 (底部) ===
-    if state.buttonT > 0.01 then
+    -- ==================================================================
+    -- 3. 笔记本右侧文字区
+    -- ==================================================================
+    -- 文字区相对于弹窗中心的起点X
+    local txStartX = -NB_W / 2 + TEXT_AREA_X
+    local txY      = -NB_H / 2 + 20  -- 距笔记本顶部 20px
+
+    -- 事件图标 + 类型名 (同行小标签)
+    if state.iconT > 0.01 then
         nvgSave(vg)
-        nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT * 0.5)
+        local iconSlide = (1 - state.iconT) * 12
+        nvgGlobalAlpha(vg, state.popupAlpha * state.iconT)
+
+        -- 类型色小圆点
+        nvgBeginPath(vg)
+        nvgCircle(vg, txStartX + 6, txY + 7, 5)
+        nvgFillColor(vg, Theme.rgbaA(tc, 200))
+        nvgFill(vg)
+
+        -- 类型名
         nvgFontFace(vg, "sans")
-        nvgFontSize(vg, 10)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_TOP)
-        nvgFillColor(vg, nvgRGBA(180, 170, 155, 180))
-        nvgText(vg, 0, hh + 8, "点击任意处关闭", nil)
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(tc, 220))
+        local typeLabel = (info and info.label) or state.cardType
+        nvgText(vg, txStartX + 15 + iconSlide, txY + 7, typeLabel, nil)
+
         nvgRestore(vg)
     end
+    txY = txY + 20
 
-    nvgRestore(vg)  -- 相片整体 transform
+    -- 分隔线
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, txStartX, txY)
+    nvgLineTo(vg, txStartX + TEXT_AREA_W, txY)
+    nvgStrokeColor(vg, nvgRGBA(196, 184, 164, 80))
+    nvgStrokeWidth(vg, 0.7)
+    nvgStroke(vg)
+    txY = txY + 8
+
+    -- 事件名 (大字, 关键信息)
+    if state.titleT > 0.01 then
+        nvgSave(vg)
+        local titleSlide = (1 - state.titleT) * 14
+        nvgGlobalAlpha(vg, state.popupAlpha * state.titleT)
+
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 15)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+        nvgFillColor(vg, nvgRGBA(45, 38, 28, 230))
+        nvgText(vg, txStartX + titleSlide, txY, state.title, nil)
+
+        nvgRestore(vg)
+    end
+    txY = txY + 22
+
+    if state.isEvent then
+        -- ---------------------------------------------------------------
+        -- 事件结果模式: 护盾/effects 列表 + 确认按钮
+        -- ---------------------------------------------------------------
+        if state.effectsT > 0.01 then
+            nvgSave(vg)
+            nvgGlobalAlpha(vg, state.popupAlpha * state.effectsT)
+            nvgFontFace(vg, "sans")
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+
+            if state.eventShieldUsed then
+                -- 护盾格档提示
+                nvgFontSize(vg, 12)
+                nvgFillColor(vg, nvgRGBA(80, 160, 220, 230))
+                nvgText(vg, txStartX, txY + 8, "🧿 护身符抵消伤害", nil)
+                txY = txY + 22
+            elseif #state.eventEffects == 0 then
+                -- 无资源变化
+                nvgFontSize(vg, 11)
+                nvgFillColor(vg, nvgRGBA(120, 110, 90, 180))
+                nvgText(vg, txStartX, txY + 8, "无资源变化", nil)
+                txY = txY + 20
+            else
+                -- 逐行显示 effects (彩色文字, 无多余圆点)
+                for i, eff in ipairs(state.eventEffects) do
+                    local resKey = eff[1]
+                    local delta  = eff[2]
+                    local meta   = resourceMeta[resKey]
+                    local icon   = meta and meta.icon or "?"
+                    local label  = meta and meta.label or resKey
+                    local isPos  = delta > 0
+                    local sign   = isPos and "+" or ""
+
+                    local dotR, dotG, dotB = isPos and 70 or 200, isPos and 175 or 65, isPos and 90 or 65
+                    nvgFontSize(vg, 12)
+                    nvgFillColor(vg, nvgRGBA(dotR, dotG, dotB, 230))
+                    nvgText(vg, txStartX + 2, txY + 7,
+                        icon .. " " .. label .. " " .. sign .. tostring(delta), nil)
+
+                    txY = txY + 18
+                    if txY > NB_H / 2 - 50 then break end  -- 防止超出笔记本底部
+                end
+            end
+            nvgRestore(vg)
+        end
+
+        -- 描述文字 (小字, 填充 effects 与按钮间空白)
+        if state.descT > 0.01 and state.desc ~= "" then
+            nvgSave(vg)
+            nvgGlobalAlpha(vg, state.popupAlpha * state.descT * 0.75)
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 10)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+            nvgFillColor(vg, nvgRGBA(120, 110, 90, 180))
+            nvgTextBox(vg, txStartX + 2, txY + 6, TEXT_AREA_W - 6, state.desc, nil)
+            nvgRestore(vg)
+        end
+
+        -- 确认按钮
+        if state.buttonT > 0.01 then
+            local btnW   = math.min(TEXT_AREA_W - 8, 88)
+            local btnH   = 26
+            local btnX   = txStartX + (TEXT_AREA_W - btnW) / 2
+            local btnY   = NB_H / 2 - btnH - NB_PAD
+
+            -- 记录碰撞区 (转换为弹窗中心相对坐标系 → 屏幕坐标需加 cx/cy, 此处先存偏移)
+            state.confirmBtnX = state.cx + btnX
+            state.confirmBtnY = state.cy - NB_H / 2 * state.popupScale + (btnY + NB_H / 2) * state.popupScale
+            state.confirmBtnW = btnW * state.popupScale
+            state.confirmBtnH = btnH * state.popupScale
+
+            nvgSave(vg)
+            nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT)
+
+            -- hover 填充
+            local hov = state.confirmBtnHoverT
+            local btnAlpha = math.floor(180 + hov * 50)
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, btnX, btnY, btnW, btnH, 6)
+            nvgFillColor(vg, Theme.rgbaA(tc, btnAlpha))
+            nvgFill(vg)
+
+            -- 文字
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 12)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+            nvgText(vg, btnX + btnW / 2, btnY + btnH / 2, "知道了", nil)
+
+            nvgRestore(vg)
+        end
+    else
+        -- ---------------------------------------------------------------
+        -- 相片预览模式: 描述文本 + 点击关闭提示
+        -- ---------------------------------------------------------------
+
+        -- 描述文本 (小字, 多行)
+        if state.descT > 0.01 then
+            nvgSave(vg)
+            local descSlide = (1 - state.descT) * 10
+            nvgGlobalAlpha(vg, state.popupAlpha * state.descT * 0.85)
+
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 11)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+            nvgFillColor(vg, nvgRGBA(80, 70, 55, 200))
+            nvgTextBox(vg, txStartX + descSlide, txY, TEXT_AREA_W - 4, state.desc, nil)
+
+            nvgRestore(vg)
+        end
+
+        -- 底部关闭提示 (笔记本右下角)
+        if state.buttonT > 0.01 then
+            nvgSave(vg)
+            nvgGlobalAlpha(vg, state.popupAlpha * state.buttonT * 0.5)
+            nvgFontFace(vg, "sans")
+            nvgFontSize(vg, 10)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_BOTTOM)
+            nvgFillColor(vg, nvgRGBA(150, 140, 120, 180))
+            nvgText(vg, NB_W / 2 - NB_PAD, NB_H / 2 - 8, "点击任意处关闭", nil)
+            nvgRestore(vg)
+        end
+    end
+
+    nvgRestore(vg)  -- 弹窗整体 transform (缩放)
 end
 
 -- ===========================================================================

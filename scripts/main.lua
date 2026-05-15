@@ -522,7 +522,7 @@ function Start()
         return CardManager.getRumorFor(location)
     end)
 
-    HandPanel.setEndDayCallback(function()
+    HandPanel.setAdvanceDayCallback(function()
         GameFlow.advanceDay()
     end)
 
@@ -741,7 +741,7 @@ local function handleClick(inputX, inputY)
             end
         end
         -- 暗面世界卡牌点击
-        DarkWorld.handleClick(board, token, inputX, inputY, ResourceBar, DialogueSystem, ShopPopup, G.dayCount)
+        DarkWorld.handleClick(board, token, inputX, inputY, ResourceBar, DialogueSystem, ShopPopup, G.dayCount, EventPopup, StoryEventManager)
         return
     end
 
@@ -907,6 +907,7 @@ local function updateHover(dt)
     DialogueSystem.updateChoiceHover(lx, ly)
     EventPopup.updateRiftHover(lx, ly, dt)
     CameraButton.updateHover(lx, ly, dt)
+    HandPanel.update(dt, logicalH)
     HandPanel.updateHover(lx, ly, dt, logicalW, logicalH)
 
     if G.gamePhase ~= "playing" or G.demoState ~= "ready" or dragState_.isDragging then
@@ -1001,11 +1002,10 @@ function HandleUpdate(eventType, eventData)
         local totalForFull = 8
         local dailyRevealed = gameStats.cardsRevealed - gameStats.dayStartRevealed
         bgTransitionTarget = math.min(dailyRevealed / totalForFull, 1.0)
-        -- BGM 随氛围切换: 亮 → day_light, 暗 → day_dark
-        if G.gamePhase == "playing" then
-            local wantDark = bgTransitionTarget > 0.5
-            local curKey = wantDark and "day_dark" or "day_light"
-            AudioManager.playBGM(curKey)  -- 内部会跳过相同 key
+        -- 明面 BGM: 固定使用 day_light, 不区分昼夜氛围
+        -- (playBGM 内部已跳过相同 key / 已过渡中的 key, 每帧调用安全)
+        if G.gamePhase == "playing" and not DarkWorldFlow.isTransitioning() then
+            AudioManager.playBGM("day_light")
         end
     end
     local bgSpeed = 2.0

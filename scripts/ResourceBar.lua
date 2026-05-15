@@ -62,6 +62,13 @@ function M.setSteps(used, max)
     stepsMax_  = max or 0
 end
 
+--- 获取当前步数状态 (used, max)
+---@return number used  已用步数
+---@return number max   每日步数上限（0 表示无限制）
+function M.getSteps()
+    return stepsUsed_, stepsMax_
+end
+
 -- ---------------------------------------------------------------------------
 -- 资源定义
 -- ---------------------------------------------------------------------------
@@ -81,6 +88,12 @@ end
 
 local resources = {}
 
+-- 暗面专属: 暗币 (仅在暗面模式 HUD 显示，不出现在现实面资源条)
+---@type ResourceDef
+local darkCoinData = { key = "darkcoin", icon = "⚫", label = "暗币", value = 0,
+                       displayValue = 0, maxValue = 999, colorKey = "info",
+                       flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 }
+
 function M.init()
     resources = {
         { key = "san",         icon = "🧠", label = "理智", value = 10, displayValue = 10, maxValue = 10,
@@ -98,6 +111,13 @@ function M.init()
     -- 长期胶卷: 可跨天留存，通过事件奖励和商店获取
     permFilmData = { key = "permFilm", value = 0, displayValue = 0, maxValue = 99,
                      colorKey = "highlight", flashTimer = 0, flashDir = 0, deltaText = "", deltaAlpha = 0 }
+    -- 暗币: 进入/重置暗面时不清零 (跨层累积), 仅全局重置时清零
+    darkCoinData.value        = 0
+    darkCoinData.displayValue = 0
+    darkCoinData.flashTimer   = 0
+    darkCoinData.flashDir     = 0
+    darkCoinData.deltaText    = ""
+    darkCoinData.deltaAlpha   = 0
 end
 
 -- ---------------------------------------------------------------------------
@@ -113,6 +133,8 @@ function M.change(key, delta)
         res = dailyFilmData
     elseif key == "permFilm" then
         res = permFilmData
+    elseif key == "darkcoin" then
+        res = darkCoinData
     elseif key == "film" then
         -- 兼容旧代码: "film" 优先扣每日胶卷，不够再扣长期胶卷
         if delta < 0 then
@@ -164,6 +186,7 @@ function M.get(key)
     if key == "dailyFilm" then return dailyFilmData.value end
     if key == "permFilm" then return permFilmData.value end
     if key == "film" then return dailyFilmData.value + permFilmData.value end
+    if key == "darkcoin" then return darkCoinData.value end
     for _, res in ipairs(resources) do
         if res.key == key then return res.value end
     end
@@ -210,6 +233,9 @@ function M.update(dt)
     end
     if permFilmData.flashTimer > 0 then
         permFilmData.flashTimer = permFilmData.flashTimer - dt
+    end
+    if darkCoinData.flashTimer > 0 then
+        darkCoinData.flashTimer = darkCoinData.flashTimer - dt
     end
     if darkEnergyFlash_ > 0 then
         darkEnergyFlash_ = darkEnergyFlash_ - dt
@@ -593,6 +619,63 @@ function M.draw(vg, logicalW, logicalH, dayCount)
                 drawSeparator(vg, nextX, stripY, STRIP_H, t)
             end
             cx = nextX + 8
+        end
+    end
+
+    -- ---- 暗面专属: 暗币显示 (资源条末尾追加) ----
+    if darkMode_ then
+        -- 先画分隔线
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, cx, stripY + SEP_PAD)
+        nvgLineTo(vg, cx, stripY + STRIP_H - SEP_PAD)
+        nvgStrokeColor(vg, nvgRGBA(139, 92, 246, 50))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
+        cx = cx + 8
+
+        local dc = darkCoinData
+        local coinNum = math.floor(dc.displayValue + 0.5)
+
+        -- ⚫ 图标 (小圆点改为紫色调)
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(200, 130, 255, 220))
+        local coinIconEnd = nvgText(vg, cx, stripCY, dc.icon, nil)
+
+        -- 标签
+        nvgFontSize(vg, 9)
+        nvgFillColor(vg, nvgRGBA(180, 130, 220, 160))
+        nvgText(vg, coinIconEnd + 1, stripCY - 8, dc.label, nil)
+
+        -- 数值 (闪烁)
+        nvgFontSize(vg, 15)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        if dc.flashTimer > 0 then
+            local pulse = 0.5 + 0.5 * math.sin(dc.flashTimer * 20)
+            if dc.flashDir > 0 then
+                nvgFillColor(vg, nvgRGBA(230, 180, 255,
+                    math.floor(180 + 75 * pulse)))
+            else
+                nvgFillColor(vg, nvgRGBA(255, 80, 80, 220))
+            end
+        else
+            nvgFillColor(vg, nvgRGBA(200, 130, 255, 200))
+        end
+        local coinNumEnd = nvgText(vg, coinIconEnd + 1, stripCY + 5, tostring(coinNum), nil)
+
+        -- 变化量浮动
+        if dc.deltaAlpha > 0.01 then
+            local dy = -12 * (1 - dc.deltaAlpha)
+            nvgFontSize(vg, 11)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_BOTTOM)
+            if dc.flashDir > 0 then
+                nvgFillColor(vg, nvgRGBA(230, 180, 255,
+                    math.floor(dc.deltaAlpha * 255)))
+            else
+                nvgFillColor(vg, nvgRGBA(255, 100, 100,
+                    math.floor(dc.deltaAlpha * 255)))
+            end
+            nvgText(vg, coinNumEnd + 2, stripCY - 2 + dy, dc.deltaText, nil)
         end
     end
 

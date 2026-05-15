@@ -60,6 +60,7 @@ var _hover_end_day: bool = false
 var _hover_toolbar: String = "" # 工具栏 hover 的 item key
 var _hover_clue_btn: bool = false  # 线索按钮 hover
 var _rumor_page: int = 1  # 传闻翻页 (1-based, 循环)
+var _was_can_advance: bool = false  # 上帧是否可进入下一天（过渡检测）
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -279,12 +280,21 @@ func _gui_input(event: InputEvent) -> void:
 				accept_event()
 				return
 
-	# "结束今天"按钮
-	var btn_rect: Rect2 = _get_end_day_btn_rect(px, py, pw)
-	if btn_rect.has_point(Vector2(lx, ly)):
-		end_day_pressed.emit()
-		accept_event()
-		return
+	# "结束今天"页脚区域点击
+	if _card_manager:
+		var max_v: int = _card_manager.schedules.size()
+		var c_y: float = py + TAB_H + 12
+		var n_y: float = py + _get_full_h() - NOTE_H - 21
+		var raw_fy: float = c_y + max_v * ITEM_H + 21
+		var footer_y2: float = minf(raw_fy, n_y - 45)
+		var footer_x2: float = px + SPINE_W + PAGE_PAD
+		var footer_w2: float = pw - SPINE_W - PAGE_PAD * 2
+		if lx >= footer_x2 and lx <= footer_x2 + footer_w2 \
+				and ly >= footer_y2 and ly <= footer_y2 + 30:
+			if _can_advance():
+				end_day_pressed.emit()
+			accept_event()
+			return
 
 	# 传闻便签点击 → 翻页
 	if _card_manager and _card_manager.rumors.size() > 1:
@@ -348,10 +358,18 @@ func _update_hover(lx: float, ly: float) -> void:
 	var py: float = pr.position.y
 	var pw: float = pr.size.x
 
-	# 结束今天
-	var btn_rect: Rect2 = _get_end_day_btn_rect(px, py, pw)
-	if btn_rect.has_point(Vector2(lx, ly)):
-		_hover_end_day = true
+	# 结束今天页脚区域
+	if _card_manager:
+		var max_vh: int = _card_manager.schedules.size()
+		var c_yh: float = py + TAB_H + 12
+		var n_yh: float = py + _get_full_h() - NOTE_H - 21
+		var raw_fyh: float = c_yh + max_vh * ITEM_H + 21
+		var footer_yh: float = minf(raw_fyh, n_yh - 45)
+		var footer_xh: float = px + SPINE_W + PAGE_PAD
+		var footer_wh: float = pw - SPINE_W - PAGE_PAD * 2
+		if lx >= footer_xh and lx <= footer_xh + footer_wh \
+				and ly >= footer_yh and ly <= footer_yh + 30:
+			_hover_end_day = true
 
 	# 工具栏
 	var consumables: Array = _get_consumable_entries()
@@ -385,11 +403,35 @@ func _use_consumable(key: String) -> void:
 		queue_redraw()
 
 # ---------------------------------------------------------------------------
+# 辅助：判断是否可进入下一天（所有日程完成 OR 步数耗尽）
+# ---------------------------------------------------------------------------
+func _can_advance() -> bool:
+	if not _card_manager:
+		return false
+	# 步数耗尽
+	var steps_exhausted: bool = GameData.steps_total > 0 and GameData.steps_remaining <= 0
+	if steps_exhausted:
+		return true
+	# 所有日程均非 pending
+	for s: Dictionary in _card_manager.schedules:
+		if s.get("status", "") == "pending":
+			return false
+	return _card_manager.schedules.size() > 0
+
+# ---------------------------------------------------------------------------
 # 更新
 # ---------------------------------------------------------------------------
 func _process(_delta: float) -> void:
 	if _visible_state and _alpha > 0.01:
 		queue_redraw()
+
+	# 自动展开：检测「可进入下一天」的首次触发
+	if _visible_state:
+		var now_can: bool = _can_advance()
+		if now_can and not _was_can_advance:
+			if not _expanded:
+				expand()
+		_was_can_advance = now_can
 
 # ---------------------------------------------------------------------------
 # 渲染
@@ -829,37 +871,58 @@ func _draw_toolbar(px: float, py: float, pw: float, font: Font, t) -> void:
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 27, t.text_primary)
 
 # ---------------------------------------------------------------------------
-# "结束今天" 按钮 (手写风)
+# "结束今天" 页脚（琥珀线 + 呼吸动效 / 灰色待完成提示）
 # ---------------------------------------------------------------------------
 func _draw_end_day_btn(px: float, py: float, pw: float, font: Font, t) -> void:
-	var btn_rect: Rect2 = _get_end_day_btn_rect(px, py, pw)
-	var bx: float = btn_rect.position.x
-	var by: float = btn_rect.position.y
-	var bw: float = btn_rect.size.x
-	var bh: float = btn_rect.size.y
-	var center_y: float = by + bh / 2.0
+	if not _card_manager:
+		return
 
-	# hover 底色
-	if _hover_end_day:
-		draw_rect(Rect2(bx, by, bw, bh), Color(0.706, 0.47, 0.314, 0.1))
+	# 计算 pending 数量
+	var pending_count: int = 0
+	for s: Dictionary in _card_manager.schedules:
+		if s.get("status", "") == "pending":
+			pending_count += 1
 
-	# 虚线分隔
-	var dash_x: float = bx + 12
-	var dash_end: float = bx + bw - 12
-	var dash_y: float = by - 3
-	var dx: float = dash_x
-	while dx < dash_end:
-		draw_line(Vector2(dx, dash_y),
-			Vector2(minf(dx + 12, dash_end), dash_y),
-			Color(t.notebook_border, 0.31), 1.8)
-		dx += 24
+	var steps_exhausted: bool = GameData.steps_total > 0 and GameData.steps_remaining <= 0
+	var can_adv: bool = pending_count == 0 or steps_exhausted
 
-	# 手写文字
-	var alpha: float = 0.94 if _hover_end_day else 0.63
-	var text: String = "☾ 结束今天，回家休息"
-	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-	draw_string(font, Vector2(bx + (bw - tw) / 2, center_y + 12), text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.549, 0.353, 0.196, alpha))
+	# footer 定位：紧贴最后一条日程下方
+	var max_visible: int = _card_manager.schedules.size()
+	var content_y: float = py + TAB_H + 12
+	var note_y: float = py + _get_full_h() - NOTE_H - 21
+	var raw_footer_y: float = content_y + max_visible * ITEM_H + 21
+	var footer_y: float = minf(raw_footer_y, note_y - 45)
+	var footer_x: float = px + SPINE_W + PAGE_PAD
+	var footer_w: float = pw - SPINE_W - PAGE_PAD * 2
+
+	var t_now: float = Time.get_ticks_msec() / 1000.0
+
+	if can_adv:
+		# 琥珀分隔线（内缩 8px）
+		var pulse: float = 0.72 + 0.28 * sin(t_now * 2.6)
+		var line_alpha: float = 0.78 if _hover_end_day else (0.35 * pulse + 0.16)
+		draw_line(
+			Vector2(footer_x + 8, footer_y),
+			Vector2(footer_x + footer_w - 8, footer_y),
+			Color(0.824, 0.627, 0.235, line_alpha), 1.5)
+
+		# "结束今天 →" 呼吸文字
+		var arrow_nudge: float = 3.0 if _hover_end_day else (1.5 * sin(t_now * 2.0))
+		var text_alpha: float = 1.0 if _hover_end_day else (0.67 * pulse + 0.22)
+		var text: String = "结束今天 →"
+		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+		draw_string(font,
+			Vector2(footer_x + footer_w / 2.0 - tw / 2.0 + arrow_nudge, footer_y + 18),
+			text, HORIZONTAL_ALIGNMENT_LEFT, -1, 30,
+			Color(0.824, 0.627, 0.235, text_alpha))
+	else:
+		# 未完成：极低调灰色小字
+		var hint: String = "还有 %d 项待完成" % pending_count
+		var hw: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+		draw_string(font,
+			Vector2(footer_x + footer_w / 2.0 - hw / 2.0, footer_y + 18),
+			hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 24,
+			Color(0.627, 0.580, 0.510, 0.24))
 
 # ---------------------------------------------------------------------------
 # 重置
@@ -874,3 +937,4 @@ func reset() -> void:
 	_hover_toolbar = ""
 	_hover_clue_btn = false
 	_rumor_page = 1
+	_was_can_advance = false

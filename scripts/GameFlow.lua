@@ -24,6 +24,7 @@ local BoardItems     = require "BoardItems"
 local NPCManager     = require "NPCManager"
 local DialogueSystem = require "DialogueSystem"
 local DarkWorld      = require "DarkWorld"
+local DarkWorldFlow  = require "DarkWorldFlow"
 local AudioManager   = require "AudioManager"
 local StoryManager        = require "StoryManager"
 local EndingSystem        = require "EndingSystem"
@@ -267,23 +268,26 @@ function M.advanceDay()
         return
     end
 
-    G.demoState = "dealing"
-    G.hoveredCard = nil
-    if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
-    Tween.cancelTag("cardflip")
-    Tween.cancelTag("cardshake")
-    Tween.cancelTag("bubble")
+    -- 夜谈触发: 在 undeal 动画前播放当日结束对话
+    local eveningCtx = { dayCount = G.dayCount }
+    local function doUndealAndAdvance()
+        G.demoState = "dealing"
+        G.hoveredCard = nil
+        if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+        Tween.cancelTag("cardflip")
+        Tween.cancelTag("cardshake")
+        Tween.cancelTag("bubble")
 
-    G.token.visible = false
-    G.token.alpha = 0
-    if G.baiye then G.baiye.visible = false; G.baiye.alpha = 0 end
-    HandPanel.hide()
-    CameraButton.hide()
-    BoardItems.clear()
-    NPCManager.clear()
-    DialogueSystem.reset()
+        G.token.visible = false
+        G.token.alpha = 0
+        if G.baiye then G.baiye.visible = false; G.baiye.alpha = 0 end
+        HandPanel.hide()
+        CameraButton.hide()
+        BoardItems.clear()
+        NPCManager.clear()
+        DialogueSystem.reset()
 
-    Board.undealAll(G.board, function()
+        Board.undealAll(G.board, function()
         G.dayCount = G.dayCount + 1
 
         -- 故事系统: 每日结算
@@ -339,10 +343,36 @@ function M.advanceDay()
                     tryChapterEnter()
                 end
             end
-            -- 每日开场事件 (morning event → milestone chain)
-            StoryEventManager.tryMorningEvent(G.storyMgr, msCtx, tryMilestoneChain)
+            -- 第6天特殊: 开场后强制进入暗面（碎片守卫剧情）
+            -- 先播放晨间事件对话，结束后直接触发 enterDarkWorld
+            local function afterMorningForDay6()
+                -- 显示提示横幅后进入暗面
+                VFX.spawnBanner("暗面异动……", 180, 80, 220, 18, 1.2)
+                local delay = { t = 0 }
+                Tween.to(delay, { t = 1 }, 0.8, {
+                    tag = "day6_dark_enter",
+                    onComplete = function()
+                        -- 找棋盘中心位置作为裂隙入口（固定行列）
+                        local riftRow = math.ceil(Board.ROWS / 2)
+                        local riftCol = math.ceil(Board.COLS / 2)
+                        DarkWorldFlow.enterDarkWorld(riftRow, riftCol)
+                    end,
+                })
+            end
+
+            if G.dayCount == 6 then
+                -- 第6天: 晨间事件完成后强制进入暗面，不走里程碑链
+                StoryEventManager.tryMorningEvent(G.storyMgr, msCtx, afterMorningForDay6)
+            else
+                -- 其他天: 正常晨间事件 → 里程碑链
+                StoryEventManager.tryMorningEvent(G.storyMgr, msCtx, tryMilestoneChain)
+            end
         end)
-    end)
+        end)  -- Board.undealAll 结束
+    end  -- doUndealAndAdvance 结束
+
+    -- 触发夜谈: 对话结束后再进行 undeal 流程
+    StoryEventManager.tryEveningEvent(G.storyMgr, eveningCtx, doUndealAndAdvance)
 end
 
 -- ============================================================================

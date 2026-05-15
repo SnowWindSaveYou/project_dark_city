@@ -100,6 +100,11 @@ var _debug_panel: DebugPanel = null
 var _settings_overlay: Control = null
 
 # ---------------------------------------------------------------------------
+# 天气粒子
+# ---------------------------------------------------------------------------
+var _weather_particles: WeatherParticles = null
+
+# ---------------------------------------------------------------------------
 # 场景节点
 # ---------------------------------------------------------------------------
 var _board_layer: Node3D = null
@@ -243,6 +248,16 @@ func _setup_scene_tree() -> void:
 	ui_layer.layer = 10
 	add_child(ui_layer)
 	_ui_layer = ui_layer
+
+	# 天气粒子层 (layer=5: 位于 UI 层之下，渲染在界面背后)
+	var weather_layer: CanvasLayer = CanvasLayer.new()
+	weather_layer.name = "WeatherLayer"
+	weather_layer.layer = 5
+	add_child(weather_layer)
+
+	_weather_particles = WeatherParticles.new()
+	_weather_particles.name = "WeatherParticles"
+	weather_layer.add_child(_weather_particles)
 
 	# VFX 放在独立的高层 CanvasLayer, 确保屏闪/横幅覆盖所有 UI
 	var vfx_layer: CanvasLayer = CanvasLayer.new()
@@ -707,8 +722,14 @@ func _process(dt: float) -> void:
 
 	# 背景氛围过渡
 	# 当天翻牌数驱动氛围 (匹配 Lua: dailyRevealed = cardsRevealed - dayStartRevealed)
-	var daily_revealed: int = GameData.cards_revealed - GameData.day_start_revealed
-	_bg_transition_target = minf(float(daily_revealed) / 8.0, 1.0)
+	# 暗面世界时 target 由进出流程控制, 此处仅更新明面时的值
+	if not dark_world.active:
+		var daily_revealed: int = GameData.cards_revealed - GameData.day_start_revealed
+		_bg_transition_target = minf(float(daily_revealed) / 8.0, 1.0)
+		# 明面 BGM: 固定使用 day_light, 不区分昼夜氛围
+		# (play_bgm 内部已跳过相同 key / 已过渡中的 key, 每帧调用安全)
+		if GameData.game_phase == "playing" and not dark_world_flow.is_dark_transitioning:
+			AudioManager.play_bgm("day_light")
 	_bg_transition = move_toward(_bg_transition, _bg_transition_target, 2.0 * dt)
 
 	# 3D 相机平移 (平滑跟随 _camera_offset)

@@ -77,6 +77,12 @@ func _on_deal_complete() -> void:
 	# 安全区光晕: 发牌完成后显式激活 (匹配 Lua showSafeGlow 逻辑)
 	m.board_visual.show_safe_glows()
 
+	# 天气粒子 + 环境音 (匹配 Lua Weather.updateFX / AudioManager.playAmbient)
+	var weather_type: Weather.Type = Weather.get_weather(m.day_count)
+	if m._weather_particles:
+		m._weather_particles.set_weather(weather_type)
+	AudioManager.play_ambient(Weather.get_ambient_key(weather_type))
+
 	# Token 出现在 "家"
 	var home_row: int = m.board.home_row
 	var home_col: int = m.board.home_col
@@ -226,6 +232,9 @@ func advance_day() -> void:
 	GameData.modify_resource("money", 10)
 
 	AudioManager.play_sfx("day_transition")
+	AudioManager.stop_ambient()          # 与 Lua advanceDay() 对齐：日间过渡前停止雨声/风声
+	if m._weather_particles:
+		m._weather_particles.reset()     # 清除残留粒子，避免雨滴飘过日期过渡动画
 	GameData.set_demo_state("dealing")
 	m._camera_button.hide_button()
 	m.token.visible = false
@@ -245,10 +254,22 @@ func advance_day() -> void:
 
 	# 收牌前关闭安全区光晕
 	m.board_visual.hide_safe_glows()
-	# 收牌动画 → 日期过渡
-	m.board_visual.play_undeal_animation(func() -> void:
-		m._date_transition.play(m.day_count)
-	)
+
+	# 夜谈事件 → 结束后再收牌 → 日期过渡
+	var do_undeal := func() -> void:
+		m.board_visual.play_undeal_animation(func() -> void:
+			m._date_transition.play(m.day_count)
+		)
+
+	var evening_event = story_event_mgr.query_evening_event()
+	if evening_event != null:
+		evening_event = story_event_mgr.trigger_evening_event(evening_event)
+		event_dialogue_requested.emit(evening_event, func(chosen_id: String) -> void:
+			story_event_mgr.on_evening_event_complete(evening_event, chosen_id)
+			do_undeal.call()
+		)
+	else:
+		do_undeal.call()
 
 # ---------------------------------------------------------------------------
 # 日期过渡完成 → 晨间事件 → 里程碑链 → 开始新一天 (Phase 5)
@@ -271,6 +292,32 @@ func on_date_transition_complete() -> void:
 func _try_morning_event() -> void:
 	var event = story_event_mgr.query_morning_event()
 	print("[GameFlow] _try_morning_event: event=%s" % ("null" if event == null else event.get("id", "?")))
+
+	# 第6天: 晨间事件结束后强制进入暗面
+	if m.day_count == 6:
+		var after_morning_day6 := func() -> void:
+			print("[GameFlow] Day 6: forcing dark world entry")
+			m._vfx.action_banner("暗面异动……", Color(0.7, 0.3, 0.9), 1.2)
+			# 短暂延迟后进入暗面 (棋盘中心格)
+			var tw: Tween = m.create_tween()
+			tw.tween_interval(0.8)
+			tw.tween_callback(func() -> void:
+				var rift_row: int = ceili(Board.ROWS / 2.0)
+				var rift_col: int = ceili(Board.COLS / 2.0)
+				m.dark_world_flow.enter_dark_world(rift_row, rift_col)
+			)
+
+		if event != null:
+			event = story_event_mgr.trigger_morning_event(event)
+			event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
+				story_event_mgr.on_morning_event_complete(event, chosen_id)
+				after_morning_day6.call()
+			)
+		else:
+			after_morning_day6.call()
+		return
+
+	# 其余天: 正常走里程碑链
 	if event != null:
 		event = story_event_mgr.trigger_morning_event(event)
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
@@ -446,6 +493,11 @@ func restart_game() -> void:
 	MilestoneManager.reset()
 	npc_manager.reset()
 	story_event_mgr.reset()
+
+	# 重置天气粒子 + 停止环境音 (匹配 Lua: Weather.resetFX)
+	if m._weather_particles:
+		m._weather_particles.reset()
+	AudioManager.stop_ambient()
 
 	# 重置氛围 (匹配 Lua: updateSceneAtmosphere(0))
 	m._apply_atmosphere(0.0)

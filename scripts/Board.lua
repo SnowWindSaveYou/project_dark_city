@@ -369,6 +369,8 @@ function M.generateDarkCards(board, layerData, darkLocations, darkConfig)
                 card.darkLabel    = typeInfo.label
                 card.darkCollected = false
                 card.isDark       = true        -- 标记为暗面卡牌
+                -- 吃豆人暗币: ~45% 的 normal 格有一枚暗币可收集
+                card.darkDot      = (darkType == "normal") and (math.random() < 0.45) or false
 
                 -- 恢复已收集状态
                 if layerData.collected and layerData.collected[key] then
@@ -377,6 +379,10 @@ function M.generateDarkCards(board, layerData, darkLocations, darkConfig)
                     card.darkName  = "空走廊"
                     card.darkIcon  = "🌑"
                     card.darkLabel = "暗巷"
+                end
+                -- 恢复暗币已收集状态
+                if layerData.dots and layerData.dots[key] then
+                    card.darkDot = false
                 end
 
                 -- 初始位置在牌堆 (世界坐标)

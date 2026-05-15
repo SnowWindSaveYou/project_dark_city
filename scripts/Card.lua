@@ -13,6 +13,11 @@ local M = {}
 local techDiff      = nil  -- 不透明
 local techDiffAlpha = nil  -- 透明 (发牌淡入/淡出时用)
 
+-- PNG 插画卡牌的光照衰减系数: 抵消高亮度光照对浅色插画的过曝
+-- 公式: texture * CARD_DIFF * (ambient + brightness * NdotL)
+-- 1.0 = 全受光; 0.55 ≈ ambient(0.70) + brightness(2.8)*0.72 降到合理范围
+local CARD_DIFF = 0.55
+
 -- ---------------------------------------------------------------------------
 -- 常量: 2D 逻辑 (保留兼容, 纹理用)
 -- ---------------------------------------------------------------------------
@@ -262,14 +267,14 @@ function M.createNode(card, parentNode, CardTextures)
     end
     local tex
     if card.isDark then
-        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
+        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName, card.darkDot)
     elseif card.faceUp then
         tex = CardTextures.getEventTexture(card.location, card.type)
     else
         tex = CardTextures.getLocationTexture(card.location)
     end
     mat:SetTexture(TU_DIFFUSE, tex)
-    mat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
+    mat:SetShaderParameter("MatDiffColor", Variant(Color(CARD_DIFF, CARD_DIFF, CARD_DIFF, card.alpha)))
     geom:SetMaterial(mat)
 
     card.node3d = node
@@ -294,7 +299,7 @@ function M.createNode(card, parentNode, CardTextures)
         ovGeom:Commit()
         local ovMat = Material:new()
         ovMat:SetTechnique(0, techDiffAlpha)
-        ovMat:SetShaderParameter("MatDiffColor", Variant(Color(1, 1, 1, card.alpha)))
+        ovMat:SetShaderParameter("MatDiffColor", Variant(Color(CARD_DIFF, CARD_DIFF, CARD_DIFF, card.alpha)))
         ovMat.renderOrder = 128  -- 与主体同级，依靠 Y+0.001 偏移防 z-fighting
         ovGeom:SetMaterial(ovMat)
         ov:SetEnabled(false)  -- 初始隐藏，updateTexture 时按需显示
@@ -370,12 +375,12 @@ function M.syncNode(card)
             card.material3d:SetTechnique(0, techDiff)
         end
         card.material3d:SetShaderParameter("MatDiffColor",
-            Variant(Color(1, 1, 1, card.alpha)))
+            Variant(Color(CARD_DIFF, CARD_DIFF, CARD_DIFF, card.alpha)))
     end
     -- overlay alpha 同步（始终用透明 technique，alpha 跟随主体）
     if card.overlayMat and card.overlayNode and card.overlayNode:IsEnabled() then
         card.overlayMat:SetShaderParameter("MatDiffColor",
-            Variant(Color(1, 1, 1, card.alpha)))
+            Variant(Color(CARD_DIFF, CARD_DIFF, CARD_DIFF, card.alpha)))
     end
 
     -- 侦查/揭示图标: 只要卡牌可见就显示 (不论正反面, 不论是否翻转中)
@@ -459,7 +464,7 @@ function M.updateTexture(card, CardTextures)
     local overlay = nil
     if card.isDark then
         -- 暗面卡牌: 全明牌, 始终使用暗面纹理（NanoVG 绘制，无 overlay）
-        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName)
+        tex = CardTextures.getDarkCardTexture(card.darkType or "normal", card.darkName, card.darkDot)
     elseif card.faceUp then
         -- 使用 originalType 查图: card.type 可能被运行时改为 "safe" (地标光环/灵感不足)
         -- 但插画应显示原始事件类型的地点专属图

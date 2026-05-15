@@ -22,6 +22,7 @@ var _bgm_player_a: AudioStreamPlayer = null
 var _bgm_player_b: AudioStreamPlayer = null
 var _active_bgm: AudioStreamPlayer = null
 var _current_bgm_key: String = ""
+var _next_bgm_key: String = ""     # 交叉淡入中的目标曲目 key (用于 skip 判断)
 var _bgm_volume: float = 0.3
 var _bgm_fading: bool = false
 var _fade_timer: float = 0.0
@@ -31,6 +32,15 @@ var _fade_in_player: AudioStreamPlayer = null
 # ─── SFX ──────────────────────────────────────────────
 var _sfx_pool: Array[AudioStreamPlayer] = []
 var _sfx_volume: float = 0.5
+
+# ─── Ambient (循环环境音，如雨声/风声) ────────────────
+var _ambient_player: AudioStreamPlayer = null
+var _current_ambient_key: String = ""
+var _ambient_volume: float = 0.25
+var _ambient_fading: bool = false
+var _ambient_fade_timer: float = 0.0
+var _ambient_fade_target: float = 0.0
+const AMBIENT_FADE_TIME: float = 1.2
 
 # ─── Combo ────────────────────────────────────────────
 var _combo_level: int = 0
@@ -180,13 +190,21 @@ func _setup_sfx_pool() -> void:
 		add_child(player)
 		_sfx_pool.append(player)
 
+	# Ambient 播放器 (独立节点，循环播放)
+	_ambient_player = AudioStreamPlayer.new()
+	_ambient_player.bus = "SFX"
+	_ambient_player.volume_db = linear_to_db(0.0)
+	add_child(_ambient_player)
+
 
 # ─── BGM 接口 ─────────────────────────────────────────
 
 ## 播放 BGM (通过 key 或直接路径)
 func play_bgm(key_or_path: String, loop: bool = true) -> void:
-	if key_or_path == _current_bgm_key and _active_bgm != null and _active_bgm.playing:
-		return  # 同一曲目不重复播放
+	# 已在播放该曲目, 或已在向该曲目交叉淡入中 → 忽略
+	# (防止 _process 每帧调用在淡入期间反复打断, 导致音乐静音)
+	if key_or_path == _current_bgm_key or key_or_path == _next_bgm_key:
+		return
 
 	var path: String = bgm_map.get(key_or_path, key_or_path)
 	var stream := _load_stream(path)
@@ -279,6 +297,65 @@ func reset_combo() -> void:
 	_combo_level = 0
 
 
+# ─── Ambient 接口 ──────────────────────────────────────
+
+## 播放循环环境音 (key 为空字符串时等同于 stop_ambient)
+func play_ambient(key: String) -> void:
+	if key == _current_ambient_key and _ambient_player != null and _ambient_player.playing:
+		return  # 已在播放同一音效，不重复触发
+
+	if key.is_empty():
+		stop_ambient()
+		return
+
+	var path: String = sfx_map.get(key, key)
+	var stream := _load_stream(path)
+	if stream == null:
+		# 静默忽略（音效文件可能尚未制作）
+		_current_ambient_key = ""
+		return
+
+	if _ambient_player != null:
+		# 停止旧音轨（直接切换；ambient 通常是背景环境音，无需交叉淡入淡出）
+		if _ambient_player.playing:
+			_ambient_player.stop()
+
+		# 确保流支持循环（必须 duplicate() 避免污染 ResourceCache 共享实例）
+		stream = stream.duplicate() as AudioStream
+		if stream is AudioStreamOggVorbis:
+			(stream as AudioStreamOggVorbis).loop = true
+		elif stream is AudioStreamMP3:
+			(stream as AudioStreamMP3).loop = true
+
+		_ambient_player.stream = stream
+		_ambient_player.volume_db = linear_to_db(0.0)
+		_ambient_player.play()
+		# 淡入到目标音量
+		_ambient_fading = true
+		_ambient_fade_timer = 0.0
+		_ambient_fade_target = _ambient_volume
+
+	_current_ambient_key = key
+
+
+## 停止循环环境音 (带淡出)
+func stop_ambient(instant: bool = false) -> void:
+	if _ambient_player == null or not _ambient_player.playing:
+		_current_ambient_key = ""
+		return
+
+	if instant:
+		_ambient_player.stop()
+		_current_ambient_key = ""
+		return
+
+	# 淡出
+	_ambient_fading = true
+	_ambient_fade_timer = 0.0
+	_ambient_fade_target = 0.0
+	_current_ambient_key = ""
+
+
 # ─── 内部实现 ─────────────────────────────────────────
 
 func _process(delta: float) -> void:
@@ -287,6 +364,21 @@ func _process(delta: float) -> void:
 		_combo_timer -= delta
 		if _combo_timer <= 0.0:
 			_combo_level = 0
+
+	# Ambient 淡入/淡出
+	if _ambient_fading and _ambient_player != null:
+		_ambient_fade_timer += delta
+		var t: float = clampf(_ambient_fade_timer / AMBIENT_FADE_TIME, 0.0, 1.0)
+		var cur_vol: float = lerpf(
+			db_to_linear(_ambient_player.volume_db),
+			_ambient_fade_target,
+			t
+		)
+		_ambient_player.volume_db = linear_to_db(cur_vol)
+		if t >= 1.0:
+			_ambient_fading = false
+			if _ambient_fade_target <= 0.0 and _ambient_player.playing:
+				_ambient_player.stop()
 
 	# BGM 交叉淡入淡出
 	if _bgm_fading:
@@ -307,6 +399,7 @@ func _process(delta: float) -> void:
 				_active_bgm = _fade_in_player
 			_fade_out_player = null
 			_fade_in_player = null
+			_next_bgm_key = ""  # 交叉完成, 清空过渡目标标记
 
 
 func _start_crossfade(stream: AudioStream, loop: bool) -> void:
@@ -325,6 +418,8 @@ func _start_crossfade(stream: AudioStream, loop: bool) -> void:
 	_fade_in_player = next_player
 	_bgm_fading = true
 	_fade_timer = 0.0
+	# _next_bgm_key 已在 play_bgm 末尾通过 _current_bgm_key 更新, 此处保持同步
+	_next_bgm_key = _current_bgm_key
 
 
 func _get_free_sfx_player() -> AudioStreamPlayer:

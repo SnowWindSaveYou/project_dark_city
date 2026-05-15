@@ -16,6 +16,30 @@ local M = {}
 
 local morningData_ = require "data.morning_events"
 
+-- ---------------------------------------------------------------------------
+-- 每日中段事件 (daily_goal 触发，从 Lua 模块加载)
+-- ---------------------------------------------------------------------------
+
+local midDayData_ = require "data.mid_day_events"
+
+---@type table<string, table[]>
+local midDayByHook_ = {}
+local midDayIndexed_ = false
+
+local function loadMidDayEvents()
+    if midDayIndexed_ then return end
+    local events = midDayData_.events or {}
+    for _, evt in ipairs(events) do
+        local hook = evt.hookId
+        if hook then
+            if not midDayByHook_[hook] then midDayByHook_[hook] = {} end
+            midDayByHook_[hook][#midDayByHook_[hook] + 1] = evt
+        end
+    end
+    midDayIndexed_ = true
+    print(string.format("[StoryEventManager] Mid-day events indexed: %d total", #events))
+end
+
 ---@type table[]
 local morningEvents_ = morningData_.events or {}
 
@@ -217,9 +241,198 @@ function M.triggerEvent(event, sm, resourceBar, onComplete, ctx)
     DialogueSystem.start(event.dialogue, nil, onDialogueComplete, onChoiceSelected)
 end
 
+-- ---------------------------------------------------------------------------
+-- 每日夜谈事件 (一天结束时触发, 从 Lua 模块加载)
+-- ---------------------------------------------------------------------------
+
+local eveningData_ = require "data.evening_events"
+
+---@type table[]
+local eveningEvents_ = eveningData_.events or {}
+
+--- 查询当前可触发的夜谈事件
+---@param sm table StoryManager 实例
+---@param ctx table 上下文 { dayCount, weather }
+---@return table|nil event 匹配的事件, nil 表示无匹配
+function M.queryEveningEvent(sm, ctx)
+    local candidates = {}
+    for _, evt in ipairs(eveningEvents_) do
+        if StoryManager.checkCondition(sm, evt.condition, ctx) then
+            candidates[#candidates + 1] = evt
+        end
+    end
+
+    if #candidates == 0 then return nil end
+
+    table.sort(candidates, function(a, b) return a.priority < b.priority end)
+
+    local bestPriority = candidates[1].priority
+    local topCandidates = {}
+    for _, evt in ipairs(candidates) do
+        if evt.priority == bestPriority then
+            topCandidates[#topCandidates + 1] = evt
+        else
+            break
+        end
+    end
+
+    local pick = topCandidates[math.random(1, #topCandidates)]
+    print(string.format("[StoryEventManager] Evening event matched: %s (priority=%d)",
+        pick.id, pick.priority))
+    return pick
+end
+
+--- 尝试触发每日夜谈事件
+--- 玩家点击结束一天时调用（在 undeal 动画之前）
+--- 如果有匹配的事件, 启动 DialogueSystem 并在完成后调用 onComplete
+--- 如果无匹配, 立即调用 onComplete
+---@param sm table StoryManager 实例
+---@param ctx table 上下文 { dayCount, weather }
+---@param onComplete function|nil 对话完成后回调
+---@return boolean triggered 是否触发了对话
+function M.tryEveningEvent(sm, ctx, onComplete)
+    local event = M.queryEveningEvent(sm, ctx)
+    if not event then
+        if onComplete then onComplete() end
+        return false
+    end
+
+    print(string.format("[StoryEventManager] Triggering evening event: %s", event.id))
+
+    -- 设置 onceFlag (防止重复触发)
+    if event.onceFlag then
+        StoryManager.setFlag(sm, event.onceFlag)
+    end
+
+    -- 选择回调
+    local onChoiceSelected = nil
+    if event.choiceEffects then
+        onChoiceSelected = function(index, choiceData)
+            local choiceId = choiceData and choiceData.choiceId
+            if choiceId and event.choiceEffects[choiceId] then
+                local eff = event.choiceEffects[choiceId]
+                print(string.format("[StoryEventManager] Evening choice: %s → %s", event.id, choiceId))
+                StoryManager.applyChoiceEffects(sm, eff, nil)
+            end
+        end
+    end
+
+    local onDialogueComplete = function()
+        if event.fragment then
+            local isNew = StoryManager.addFragment(sm, event.fragment)
+            if isNew then
+                print(string.format("[StoryEventManager] Fragment from evening: %s → %s",
+                    event.id, event.fragment))
+            end
+        end
+        if onComplete then onComplete() end
+    end
+
+    DialogueSystem.start(event.dialogue, nil, onDialogueComplete, onChoiceSelected)
+    return true
+end
+
+-- ---------------------------------------------------------------------------
+-- 每日中段事件: daily_goal 触发
+-- ---------------------------------------------------------------------------
+
+--- 查询当日任务完成时可触发的中段剧情事件
+--- 优先匹配地点专属 hookId, 无匹配时降级到通用兜底 hookId
+---@param location string  完成任务的地点 (如 "hospital", "park")
+---@param sm table         StoryManager 实例
+---@param ctx table        上下文 { dayCount, weather }
+---@return table|nil       匹配的事件, nil 表示无需触发
+function M.queryMidEvent(location, sm, ctx)
+    loadMidDayEvents()
+
+    -- 内部查询函数: 从指定 hookId 池里找优先级最高的匹配事件
+    local function pickFromHook(hookId)
+        local pool = midDayByHook_[hookId]
+        if not pool then return nil end
+
+        local candidates = {}
+        for _, evt in ipairs(pool) do
+            if StoryManager.checkCondition(sm, evt.condition, ctx) then
+                candidates[#candidates + 1] = evt
+            end
+        end
+        if #candidates == 0 then return nil end
+
+        table.sort(candidates, function(a, b) return a.priority < b.priority end)
+        local best = candidates[1].priority
+        local top = {}
+        for _, evt in ipairs(candidates) do
+            if evt.priority == best then top[#top + 1] = evt else break end
+        end
+        return top[math.random(1, #top)]
+    end
+
+    -- 1. 地点专属
+    local specific = pickFromHook("daily_goal_" .. location)
+    if specific then
+        print(string.format("[StoryEventManager] Mid-day event (specific): %s (location=%s)", specific.id, location))
+        return specific
+    end
+
+    -- 2. 通用兜底
+    local fallback = pickFromHook("daily_goal_any")
+    if fallback then
+        print(string.format("[StoryEventManager] Mid-day event (fallback): %s", fallback.id))
+        return fallback
+    end
+
+    return nil
+end
+
+--- 尝试触发每日中段事件
+--- 完成当日任务（CardManager.checkArrival 返回 true）后调用
+---@param location string         完成任务的地点
+---@param sm table                StoryManager 实例
+---@param ctx table               上下文 { dayCount, weather, resourceBar }
+---@param onComplete function|nil 对话完成或无事件时的回调
+---@return boolean triggered      是否触发了对话
+function M.tryMidEvent(location, sm, ctx, onComplete)
+    local event = M.queryMidEvent(location, sm, ctx)
+    if not event then
+        if onComplete then onComplete() end
+        return false
+    end
+
+    print(string.format("[StoryEventManager] Triggering mid-day event: %s", event.id))
+
+    -- 设置 onceFlag
+    if event.onceFlag then
+        StoryManager.setFlag(sm, event.onceFlag)
+    end
+
+    -- 选择回调
+    local onChoiceSelected = nil
+    if event.choiceEffects then
+        onChoiceSelected = function(index, choiceData)
+            local choiceId = choiceData and choiceData.choiceId
+            if choiceId and event.choiceEffects[choiceId] then
+                StoryManager.applyChoiceEffects(sm, event.choiceEffects[choiceId], ctx.resourceBar)
+            end
+        end
+    end
+
+    local onDialogueComplete = function()
+        if event.fragment then
+            StoryManager.addFragment(sm, event.fragment)
+        end
+        if onComplete then onComplete() end
+    end
+
+    DialogueSystem.start(event.dialogue, nil, onDialogueComplete, onChoiceSelected)
+    return true
+end
+
 --- 重置状态 (游戏重启时调用)
 function M.reset()
     -- morningEvents_ 从 require 加载, 无需清空
+    -- 重置中段事件索引，使下一局重新计算条件
+    midDayByHook_ = {}
+    midDayIndexed_ = false
     print("[StoryEventManager] Reset")
 end
 

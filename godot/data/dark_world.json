@@ -171,6 +171,7 @@
 				"id": "faceless",
 				"name": "无脸商人",
 				"tex": "res://assets/image/怪物_无脸商人_20260426071011.png",
+				"bind_to_card": "shop",
 				"dialogue": [
 					{ "speaker": "无脸商人", "text": "……" },
 					{ "speaker": "无脸商人", "text": "只认钱。不问来历。" },

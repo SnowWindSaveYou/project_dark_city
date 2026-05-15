@@ -23,6 +23,9 @@ var _saved_token_col: int = 0
 var _baiye_following: bool = false
 ## 保存的现实 NPC 快照 (进入暗面时保存, 退出时恢复)
 var _saved_real_npcs: Dictionary = {}
+## 暗面过渡中标志: enter/exit 动画期间为 true
+## main.gd _process 用此标志屏蔽明面 BGM 自动切换, 避免覆盖 dark_world BGM
+var is_dark_transitioning: bool = false
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -46,7 +49,10 @@ func enter_dark_world(rift_row: int, rift_col: int) -> void:
 		return
 
 	GameData.set_demo_state("transition")
+	is_dark_transitioning = true   # 屏蔽 main.gd _process 的明面 BGM 自动切换
 	AudioManager.play_sfx("dark_world_enter")
+	AudioManager.play_bgm("dark_world")
+	AudioManager.play_ambient("dark_ambient")
 
 	# 判断白夜是否跟随 (trust>=3 且 available)
 	_baiye_following = m._baiye != null and m._baiye.should_show()
@@ -139,12 +145,13 @@ func _generate_dark_board() -> void:
 		# 清除现实 NPC 数据，注入共享 manager 给暗面使用
 		m.game_flow.npc_manager.clear()
 		m.dark_world._npc_manager = m.game_flow.npc_manager
-		m.dark_world.generate_overlay_data(layer_idx)
+		m.dark_world.generate_overlay_data(layer_idx, m.board)
 	else:
 		# 层已生成, 复用已有数据重建 Board (确保 npc_manager 注入)
+		# board=null: 位置已由首次生成确定，无需再做 bind_to_card 定位
 		m.game_flow.npc_manager.clear()
 		m.dark_world._npc_manager = m.game_flow.npc_manager
-		m.dark_world.generate_npcs(layer_idx, m.game_flow.npc_manager)
+		m.dark_world.generate_npcs(layer_idx, m.game_flow.npc_manager, null)
 		m.board = Board.new()
 		var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
 		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
@@ -164,6 +171,7 @@ func _generate_dark_board() -> void:
 			m.board_visual.update_dark_card_visual(r, c)
 
 func _on_dark_deal_complete() -> void:
+	is_dark_transitioning = false  # 进入完成, BGM 已稳定, 解除屏蔽
 	GameData.set_demo_state("dark_world")
 
 	# Token 出现在玩家当前位置 (首次=入口, 换层后=上次位置)
@@ -627,7 +635,17 @@ func on_dark_exit_requested() -> void:
 		)
 
 	GameData.set_demo_state("transition")
+	is_dark_transitioning = true   # 屏蔽 main.gd _process, 避免退出瞬间覆盖恢复的日间 BGM
 	AudioManager.play_sfx("dark_world_exit")
+	AudioManager.stop_ambient()
+	# BGM 根据当前氛围值恢复 (与 Lua savedBgTransition 逻辑对齐)
+	var daily_rev: int = GameData.cards_revealed - GameData.day_start_revealed
+	var restore_target: float = minf(float(daily_rev) / 8.0, 1.0)
+	if restore_target > 0.5:
+		AudioManager.play_bgm("day_dark")
+	else:
+		AudioManager.play_bgm("day_light")
+	is_dark_transitioning = false  # BGM 已提交给淡入淡出系统, 解除屏蔽
 	m.dark_world.begin_exit()
 	_baiye_following = false
 

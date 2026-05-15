@@ -1,123 +1,172 @@
 -- ============================================================================
--- HandPanel.lua - 底部笔记本 (日程卡 + 传闻卡)
--- 整本笔记本从屏幕底部滑入/滑出，折叠时仅露出标签栏
--- 米黄纸底 + 横线 + 牛皮书脊 + 传闻便签
+-- HandPanel.lua - 左侧笔记本 (日程 + 传闻 + 道具)
+-- 笔记本从屏幕左侧水平弹入，折叠时轻微倾斜露出便签角
+-- 米黄纸底 + 横线 + 牛皮书脊 + 多 Tab 便签贴
 -- ============================================================================
 
-local Tween = require "lib.Tween"
-local Theme = require "Theme"
-local CardManager = require "CardManager"
-local ShopPopup   = require "ShopPopup"
-local ItemIcons   = require "ItemIcons"
+local Tween        = require "lib.Tween"
+local Theme        = require "Theme"
+local CardManager  = require "CardManager"
+local ShopPopup    = require "ShopPopup"
+local ItemIcons    = require "ItemIcons"
 local AudioManager = require "AudioManager"
+local ResourceBar  = require "ResourceBar"
 
 local M = {}
 
 -- ---------------------------------------------------------------------------
 -- 常量
 -- ---------------------------------------------------------------------------
-local TAG = "handpanel"
+local TAG          = "handpanel"
 local TAG_SHOWCASE = "handpanel_showcase"
 
 -- 笔记本尺寸
-local SPINE_W       = 10        -- 书脊宽度
-local TAB_H         = 28        -- 标签栏高度
-local BASE_BODY_H   = 140       -- 基础内容区高度 (3条日程)
-local LINE_SPACING  = 18        -- 横线间距
-local MARGIN_BOTTOM = 8         -- 距屏幕底部
-local MARGIN_X      = 20        -- 左右边距
-local MAX_W         = 340       -- 最大宽度
-local PAGE_PAD      = 12        -- 页面内边距
-local CORNER_R      = 4         -- 纸张圆角
+local PANEL_W      = 200          -- 笔记本宽度（窄一点更像笔记本）
+local MARGIN_TOP   = 56           -- 上边距：ResourceBar 约 44px，再留 12px 间隙
+local MARGIN_BOT   = 20           -- 下边距
+local SPINE_W      = 14           -- 书脊宽度
+local CORNER_R     = 5            -- 纸张圆角
+local PAGE_PAD     = 10           -- 页面内边距
+local LINE_SPACING = 18           -- 横线间距
+
+-- 折叠/展开位置
+local EXPANDED_X   = 6            -- 展开：左边缘距屏幕左侧
+local PEEK_W       = 6            -- 折叠时露出的笔记本主体宽度
+local HIDDEN_EXTRA = 50           -- 隐藏时额外移出屏幕的量
+
+-- 折叠时倾斜角度（顺时针，弧度）
+local TILT_COLLAPSED = 0.12       -- 约 6.9°
+
+-- 便签贴：从笔记本右边缘伸出，左侧 OVERLAP 像素与笔记本重叠
+local TAB_LABEL_W   = 36          -- 便签总宽
+local TAB_LABEL_H   = 48          -- 便签高
+local TAB_LABEL_GAP = 8           -- 便签间距
+local TAB_LABEL_RADIUS = 3        -- 便签圆角
+local TAB_OVERLAP   = 10          -- 便签与笔记本右边缘重叠像素
+
+-- Tab 配置
+local NUM_TABS  = 3
+local TAB_NAMES = { "日程", "道具", "线索" }
+-- 便签颜色 RGB
+local TAB_BG_COLORS = {
+    { 245, 228, 148 },   -- 暖黄
+    { 180, 210, 240 },   -- 淡蓝
+    { 180, 228, 185 },   -- 淡绿
+}
 
 -- 日程条目
-local ITEM_H        = 28        -- 每条日程行高
-local CHECK_SIZE    = 12        -- 勾选框尺寸
+local ITEM_H       = 26           -- 每条日程行高
+local CHECK_SIZE   = 11           -- 勾选框尺寸
 
--- 传闻便签
-local NOTE_W        = 78
-local NOTE_H        = 44
+-- 传闻便签（内嵌在 Tab1 下半区）
+local NOTE_W       = 84
+local NOTE_H       = 46
 
--- 道具工具栏
-local TOOLBAR_H     = 32        -- 工具栏高度
-local TOOLBAR_ICON  = 24        -- 图标区尺寸
-local TOOLBAR_GAP   = 6         -- 图标间距
-
--- 结束今天按钮
-local BTN_H         = 26
-local BTN_MARGIN    = 6
-
--- ---------------------------------------------------------------------------
--- 动态高度 (根据日程数量调整)
--- ---------------------------------------------------------------------------
-
---- 工具栏实际高度 (有消耗品才占空间)
-local function getToolbarH()
-    local items = ShopPopup.getConsumableOrder()
-    if #items == 0 then return 0 end
-    return TOOLBAR_H
-end
-
---- 内容区高度：超过3条日程时按条目数扩展 + 工具栏 + 结束按钮
-local function getBodyH()
-    local count = #CardManager.getSchedules()
-    local base = BASE_BODY_H
-    if count > 3 then base = BASE_BODY_H + (count - 3) * ITEM_H end
-    local toolbar = getToolbarH()
-    -- 有工具栏时，需要额外空间放"结束今天"按钮，否则按钮被挤到溢出区外
-    local btnSpace = (toolbar > 0) and (BTN_H + BTN_MARGIN * 2) or 0
-    return base + toolbar + btnSpace
-end
-
---- 笔记本总高
-local function getFullH()
-    return TAB_H + getBodyH()
-end
+-- 道具图标
+local ICON_SIZE    = 40
+local ICON_GAP     = 8
+local ICONS_PER_ROW = 3
 
 -- ---------------------------------------------------------------------------
 -- 状态
 -- ---------------------------------------------------------------------------
 local state = {
-    visible  = false,
-    expanded = false,
-    showcasing = false,  -- true: 展开展示中 (先展开→停留→自动折叠)
-    panelY   = 0,       -- 面板顶部 Y (动画驱动)
-    alpha    = 0,
-    hoverIndex = 0,
-    hoverEndDay = false,    -- 结束今天按钮 hover
-    hoverToolbar = nil,     -- 工具栏 hover 的 consumable key
-    rumorPage = 1,          -- 当前显示的传闻索引 (1-based，循环翻页)
+    visible        = false,
+    expanded       = false,
+    showcasing     = false,
+    panelX         = -(PANEL_W + (TAB_LABEL_W - TAB_OVERLAP) + HIDDEN_EXTRA),
+    panelAngle     = TILT_COLLAPSED,
+    alpha          = 0,
+    activeTab      = 1,
+    hoverTab       = 0,
+    hoverIndex     = 0,
+    hoverItem      = nil,
+    hoverCloseBtn   = false,   -- hover 收起按钮
+    hoverEndDayBtn  = false,   -- hover 结束今天按钮
+    rumorPage       = 1,
+    wasAllDone      = false,   -- 上帧是否全部完成（用于过渡检测）
 }
 
--- 缓存 logicalH 用于延迟回调
-local storedLogicalH = 0
+local currentGameTime = 0     -- M.draw 每帧写入，供子函数读取动效时间
 
--- 外部注入的回调
-local onEndDayCallback = nil
-local onUseExorcismCallback = nil  -- 驱魔香特殊回调 (F4)
+-- 缓存 logicalH
+local storedLogicalH = 800
+
+-- 外部回调
+local onUseExorcismCallback = nil
+local onAdvanceDayCallback  = nil
 
 -- ---------------------------------------------------------------------------
--- 布局
+-- 布局计算
 -- ---------------------------------------------------------------------------
 
---- 笔记本总是 getFullH() 高度；折叠时大部分滑到屏幕下方
---- 展开时底部溢出屏幕，营造笔记本延伸到屏幕外的效果
-local OVERFLOW = 24  -- 底部溢出屏幕的量
-
-local function getTargetY(logicalH)
-    if state.expanded then
-        -- 底部有一部分在屏幕外，像真实笔记本没完全拉出来
-        return logicalH - getFullH() + OVERFLOW
-    else
-        -- 仅标签栏露出
-        return logicalH - TAB_H - MARGIN_BOTTOM
-    end
+local function getPanelH(logicalH)
+    -- 限制最大高度：宽高比不超过 0.62（竖式笔记本比例），且不小于 320px
+    local maxH = math.floor(PANEL_W / 0.62)   -- ≈ 323px
+    local rawH = logicalH - MARGIN_TOP - MARGIN_BOT
+    return math.max(320, math.min(rawH, maxH))
 end
 
-local function getPanelRect(logicalW)
-    local panelW = math.min(logicalW - MARGIN_X * 2, MAX_W)
-    local panelX = (logicalW - panelW) / 2
-    return panelX, state.panelY, panelW, getFullH()
+--- 返回笔记本主体矩形（不含便签贴）
+local function getPanelRect(logicalH)
+    local pw = PANEL_W
+    local ph = getPanelH(logicalH)
+    local px = state.panelX
+    local py = MARGIN_TOP
+    return px, py, pw, ph
+end
+
+--- 展开目标 X
+local function expandedX()
+    return EXPANDED_X
+end
+
+--- 折叠目标 X（只有 PEEK_W 露在屏幕内，其余滑出）
+local function collapsedX()
+    return -(PANEL_W - PEEK_W)
+end
+
+--- 隐藏目标 X（完全移出屏幕）
+local function hiddenX()
+    return -(PANEL_W + (TAB_LABEL_W - TAB_OVERLAP) + HIDDEN_EXTRA)
+end
+
+--- 目标 X（根据当前 visible/expanded 状态）
+local function getTargetX()
+    if not state.visible then return hiddenX() end
+    if state.expanded   then return expandedX() end
+    return collapsedX()
+end
+
+--- 目标倾角
+local function getTargetAngle()
+    if state.expanded then return 0 end
+    return TILT_COLLAPSED
+end
+
+-- ---------------------------------------------------------------------------
+-- 便签贴屏幕坐标（Pass2，不受旋转影响）
+-- ---------------------------------------------------------------------------
+local function getTabLabelRect(logicalH, tabIdx)
+    -- 便签贴左侧 TAB_OVERLAP 像素与笔记本右边缘重叠，其余部分伸出去
+    local lx = state.panelX + PANEL_W - TAB_OVERLAP
+    local totalH = NUM_TABS * TAB_LABEL_H + (NUM_TABS - 1) * TAB_LABEL_GAP
+    local startY = MARGIN_TOP + (getPanelH(logicalH) - totalH) / 2
+    local ly = startY + (tabIdx - 1) * (TAB_LABEL_H + TAB_LABEL_GAP)
+    return lx, ly, TAB_LABEL_W, TAB_LABEL_H
+end
+
+-- ---------------------------------------------------------------------------
+-- 动画驱动
+-- ---------------------------------------------------------------------------
+
+local function animateTo(targetX, targetAngle, easing, duration, onComplete)
+    Tween.cancelTag(TAG)
+    Tween.to(state, { panelX = targetX, panelAngle = targetAngle, alpha = 1 }, duration, {
+        easing = easing,
+        tag = TAG,
+        onComplete = onComplete,
+    })
 end
 
 -- ---------------------------------------------------------------------------
@@ -130,60 +179,37 @@ function M.show(logicalH, opts)
     local showcase = opts.showcase or false
 
     storedLogicalH = logicalH or 800
-
-    state.visible = true
-    state.alpha   = 0
-    state.panelY  = storedLogicalH + 20  -- 从屏幕下方滑入
+    state.visible  = true
+    state.alpha    = 0
+    state.panelX   = hiddenX()
 
     if showcase then
-        -- SHOWCASE: 先展开滑入 → 停留 2 秒 → 自动折叠
         state.expanded   = true
         state.showcasing = true
 
-        local expandedY = getTargetY(storedLogicalH)
-        Tween.to(state, { panelY = expandedY, alpha = 1 }, 0.5, {
-            easing = Tween.Easing.easeOutBack,
-            tag = TAG,
-            onComplete = function()
-                -- 滑入完成后，延迟 2 秒再折叠
-                local delay = { t = 0 }
-                Tween.to(delay, { t = 1 }, 2.0, {
-                    tag = TAG_SHOWCASE,
-                    onComplete = function()
-                        if state.showcasing then
-                            M.finishShowcase()
-                        end
-                    end
-                })
-            end
-        })
+        animateTo(expandedX(), 0, Tween.Easing.easeOutBack, 0.5, function()
+            local delay = { t = 0 }
+            Tween.to(delay, { t = 1 }, 2.0, {
+                tag = TAG_SHOWCASE,
+                onComplete = function()
+                    if state.showcasing then M.finishShowcase() end
+                end
+            })
+        end)
     else
-        -- 普通模式: 折叠状态滑入
         state.expanded   = false
         state.showcasing = false
-
-        local targetY = getTargetY(storedLogicalH)
-        Tween.to(state, { panelY = targetY, alpha = 1 }, 0.45, {
-            easing = Tween.Easing.easeOutBack,
-            tag = TAG,
-        })
+        animateTo(collapsedX(), TILT_COLLAPSED, Tween.Easing.easeOutBack, 0.45)
     end
 end
 
---- 结束 showcase: 取消定时器，立即折叠
 function M.finishShowcase()
     if not state.showcasing then return end
     state.showcasing = false
     state.expanded   = false
-
     Tween.cancelTag(TAG_SHOWCASE)
     Tween.cancelTag(TAG)
-
-    local targetY = getTargetY(storedLogicalH)
-    Tween.to(state, { panelY = targetY }, 0.4, {
-        easing = Tween.Easing.easeInOutQuad,
-        tag = TAG,
-    })
+    animateTo(collapsedX(), TILT_COLLAPSED, Tween.Easing.easeInOutQuad, 0.4)
 end
 
 function M.hide()
@@ -191,8 +217,7 @@ function M.hide()
     Tween.cancelTag(TAG)
     Tween.cancelTag(TAG_SHOWCASE)
     state.showcasing = false
-    -- 整本滑出屏幕
-    Tween.to(state, { panelY = state.panelY + getFullH() + 30, alpha = 0 }, 0.3, {
+    Tween.to(state, { panelX = hiddenX(), panelAngle = TILT_COLLAPSED, alpha = 0 }, 0.3, {
         easing = Tween.Easing.easeInQuad,
         tag = TAG,
         onComplete = function()
@@ -204,802 +229,60 @@ end
 
 function M.toggle(logicalH)
     state.expanded = not state.expanded
-    local targetY = getTargetY(logicalH)
-    Tween.to(state, { panelY = targetY }, 0.35, {
-        easing = state.expanded and Tween.Easing.easeOutBack or Tween.Easing.easeInOutQuad,
-        tag = TAG,
+    local tx = getTargetX()
+    local ta = getTargetAngle()
+    local ease = state.expanded
+        and Tween.Easing.easeOutBack
+        or  Tween.Easing.easeInOutQuad
+    Tween.cancelTag(TAG)
+    Tween.to(state, { panelX = tx, panelAngle = ta }, 0.35, {
+        easing = ease, tag = TAG
     })
 end
 
-function M.isActive()
-    return state.visible
-end
+function M.isActive()   return state.visible end
+function M.isExpanded() return state.visible and state.expanded end
 
-function M.isExpanded()
-    return state.visible and state.expanded
-end
-
---- 注入"结束今天"回调 (由 main.lua 调用)
-function M.setEndDayCallback(fn)
-    onEndDayCallback = fn
-end
-
---- 注入"使用驱魔香"回调 (由 main.lua 调用, F4)
+--- 注入"使用驱魔香"回调（由 main.lua 调用）
 function M.setUseExorcismCallback(fn)
     onUseExorcismCallback = fn
 end
 
---- 获取"结束今天"按钮的矩形区域 (在溢出区域上方，保证可见)
-local function getEndDayBtnRect(px, py, pw)
-    local btnW = pw - SPINE_W - PAGE_PAD * 2
-    local btnX = px + SPINE_W + PAGE_PAD
-    local btnY = py + TAB_H + getBodyH() - OVERFLOW - BTN_H - BTN_MARGIN
-    return btnX, btnY, btnW, BTN_H
+--- 注入"结束今天"回调（由 main.lua 调用）
+function M.setAdvanceDayCallback(fn)
+    onAdvanceDayCallback = fn
 end
 
---- 获取工具栏 Y 位置 (结束今天按钮上方)
-local function getToolbarY(py)
-    local _, btnY, _, _ = getEndDayBtnRect(0, py, 200) -- px/pw 不影响 Y
-    return btnY - getToolbarH()
-end
+--- 每帧更新：检测"全部完成"过渡，自动展开日程页
+function M.update(dt, logicalH)
+    if not state.visible then return end
 
---- 获取工具栏中某个图标的矩形 (用于碰撞检测)
-local function getToolbarItemRect(px, py, pw, idx, totalCount)
-    local toolbarY = getToolbarY(py)
-    local contentW = pw - SPINE_W - PAGE_PAD * 2
-    local totalItemW = totalCount * TOOLBAR_ICON + (totalCount - 1) * TOOLBAR_GAP
-    local startX = px + SPINE_W + PAGE_PAD + (contentW - totalItemW) / 2
-    local ix = startX + (idx - 1) * (TOOLBAR_ICON + TOOLBAR_GAP)
-    local iy = toolbarY + (TOOLBAR_H - TOOLBAR_ICON) / 2
-    return ix, iy, TOOLBAR_ICON, TOOLBAR_ICON
-end
-
--- ---------------------------------------------------------------------------
--- 交互
--- ---------------------------------------------------------------------------
-
-function M.handleClick(lx, ly, logicalW, logicalH)
-    if not state.visible or state.alpha < 0.1 then return false end
-
-    local px, py, pw, _ = getPanelRect(logicalW)
-
-    -- 点击不在面板范围内 → 不消费，让事件穿透到棋盘
-    -- (玩家可以一边看任务一边点棋盘移动)
-    if lx < px or lx > px + pw or ly < py or ly > py + getFullH() then
-        return false
-    end
-
-    -- 点击标签栏区域 → 折叠/展开
-    if ly < py + TAB_H then
-        if state.showcasing then
-            -- showcase 期间点标签栏 = "我看过了"，立即折叠
-            M.finishShowcase()
-            return true
-        end
-        M.toggle(logicalH)
-        return true
-    end
-
-    -- showcase 期间阻止面板内其他交互 (防误触)
-    if state.showcasing then
-        return true
-    end
-
-    -- 折叠状态下标签栏以下不可能被点到（在屏幕外），直接返回
-    if not state.expanded then
-        return false
-    end
-
-    -- 展开状态下点击道具工具栏
-    local consumables = ShopPopup.getConsumableOrder()
-    if #consumables > 0 then
-        for idx, entry in ipairs(consumables) do
-            local ix, iy, iw, ih = getToolbarItemRect(px, py, pw, idx, #consumables)
-            if lx >= ix and lx <= ix + iw and ly >= iy and ly <= iy + ih then
-                if entry.key == "exorcism" then
-                    -- 驱魔香：调用外部回调 (F4)
-                    if onUseExorcismCallback then
-                        onUseExorcismCallback()
-                    end
-                else
-                    -- 普通消耗品：直接使用
-                    local ok = ShopPopup.useConsumable(entry.key)
-                    if ok then
-                        AudioManager.playItemUse(entry.key)
-                        local VFX = require "lib.VFX"
-                        local t = Theme.current
-                        VFX.spawnBanner(entry.info.icon .. " 使用了" .. entry.info.label,
-                            t.safe.r, t.safe.g, t.safe.b, 18, 0.7)
-                    end
-                end
-                return true
-            end
-        end
-    end
-
-    -- 展开状态下点击"结束今天"按钮
-    if onEndDayCallback then
-        local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
-        if lx >= bx and lx <= bx + bw and ly >= by and ly <= by + bh then
-            onEndDayCallback()
-            return true
-        end
-    end
-
-    -- 展开状态下点击传闻便签 → 翻页
-    local rumors = CardManager.getRumors()
-    if #rumors > 1 then
-        local schedCount = #CardManager.getSchedules()
-        local schedH = BASE_BODY_H
-        if schedCount > 3 then schedH = BASE_BODY_H + (schedCount - 3) * ITEM_H end
-        local noteX = px + pw - NOTE_W - PAGE_PAD + 2
-        local noteBaseY = py + TAB_H + (schedH - NOTE_H) / 2
-        -- 点击区域比便签稍大一些，方便点击
-        local hitPad = 4
-        if lx >= noteX - hitPad and lx <= noteX + NOTE_W + hitPad
-            and ly >= noteBaseY - hitPad and ly <= noteBaseY + NOTE_H + hitPad + 10 then
-            state.rumorPage = state.rumorPage + 1
-            if state.rumorPage > #rumors then
-                state.rumorPage = 1  -- 循环回第一条
-            end
-            return true
-        end
-    end
-
-    -- 展开状态下点击日程条目
     local schedules = CardManager.getSchedules()
-    local contentX = px + SPINE_W + PAGE_PAD
-    local contentY = py + TAB_H + 4
+    if #schedules == 0 then return end
 
-    for i, sched in ipairs(schedules) do
-        local itemY = contentY + (i - 1) * ITEM_H
-        if ly >= itemY and ly <= itemY + ITEM_H and lx >= contentX and lx <= px + pw - PAGE_PAD then
-            if sched.status == "pending" then
-                local ok, reason = CardManager.deferSchedule(i)
-                if not ok then
-                    print("[HandPanel] Cannot defer: " .. tostring(reason))
-                end
-            elseif sched.status == "deferred" then
-                CardManager.undeferSchedule(i)
-            end
-            return true
+    local allDone = true
+    for _, s in ipairs(schedules) do
+        if s.status == "pending" then allDone = false; break end
+    end
+    local su2, sm2 = ResourceBar.getSteps()
+    local stepsExhausted2 = sm2 > 0 and su2 >= sm2
+    local canAdvance = allDone or stepsExhausted2
+
+    if canAdvance and not state.wasAllDone then
+        -- 刚刚达成进入下一天条件：自动展开笔记本并切换到日程 tab
+        state.activeTab = 1
+        if not state.expanded then
+            state.expanded = true
+            local tx = getTargetX()
+            local ta = getTargetAngle()
+            Tween.cancelTag(TAG)
+            Tween.to(state, { panelX = tx, panelAngle = ta }, 0.35, {
+                easing = Tween.Easing.easeOutBack, tag = TAG
+            })
         end
     end
 
-    return true  -- 面板内其他区域也消费（防止穿透到棋盘）
-end
-
-function M.updateHover(lx, ly, dt, logicalW, logicalH)
-    if not state.visible or state.alpha < 0.1 or not state.expanded then
-        state.hoverIndex = 0
-        state.hoverEndDay = false
-        state.hoverToolbar = nil
-        return
-    end
-
-    -- showcase 期间抑制 hover (不显示可交互高亮)
-    if state.showcasing then
-        state.hoverIndex = 0
-        state.hoverEndDay = false
-        state.hoverToolbar = nil
-        return
-    end
-
-    local px, py, pw, _ = getPanelRect(logicalW)
-
-    -- "结束今天"按钮 hover
-    state.hoverEndDay = false
-    if onEndDayCallback then
-        local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
-        if lx >= bx and lx <= bx + bw and ly >= by and ly <= by + bh then
-            state.hoverEndDay = true
-        end
-    end
-
-    -- 工具栏 hover
-    state.hoverToolbar = nil
-    local consumables = ShopPopup.getConsumableOrder()
-    for idx, entry in ipairs(consumables) do
-        local ix, iy, iw, ih = getToolbarItemRect(px, py, pw, idx, #consumables)
-        if lx >= ix and lx <= ix + iw and ly >= iy and ly <= iy + ih then
-            state.hoverToolbar = entry.key
-            break
-        end
-    end
-
-    -- 日程条目 hover
-    local schedules = CardManager.getSchedules()
-    local contentX = px + SPINE_W + PAGE_PAD
-    local contentY = py + TAB_H + 4
-    state.hoverIndex = 0
-
-    for i = 1, #schedules do
-        local itemY = contentY + (i - 1) * ITEM_H
-        if ly >= itemY and ly <= itemY + ITEM_H and lx >= contentX and lx <= px + pw - PAGE_PAD then
-            state.hoverIndex = i
-            break
-        end
-    end
-end
-
--- ---------------------------------------------------------------------------
--- 渲染
--- ---------------------------------------------------------------------------
-
-function M.draw(vg, logicalW, logicalH, gameTime)
-    if not state.visible or state.alpha < 0.05 then return end
-
-    local t = Theme.current
-    nvgSave(vg)
-    nvgGlobalAlpha(vg, state.alpha)
-
-    local px, py, pw, ph = getPanelRect(logicalW)
-
-    -- 裁剪到屏幕可见区域（折叠时内容在屏幕外不需要绘制）
-    nvgIntersectScissor(vg, 0, 0, logicalW, logicalH)
-
-    -- === 纸张阴影 ===
-    local shadowPaint = nvgBoxGradient(vg,
-        px + 2, py + 3, pw, ph, CORNER_R, 10,
-        nvgRGBA(60, 40, 20, math.floor(45 * state.alpha)),
-        nvgRGBA(0, 0, 0, 0))
-    nvgBeginPath(vg)
-    nvgRect(vg, px - 10, py - 6, pw + 20, ph + 20)
-    nvgFillPaint(vg, shadowPaint)
-    nvgFill(vg)
-
-    -- === 纸张主体 ===
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, px, py, pw, ph, CORNER_R)
-    nvgFillColor(vg, Theme.rgba(t.notebookPaper))
-    nvgFill(vg)
-
-    -- === 纸张边框 ===
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, px, py, pw, ph, CORNER_R)
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 140))
-    nvgStrokeWidth(vg, 1.0)
-    nvgStroke(vg)
-
-    -- === 左侧书脊 ===
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, px, py, SPINE_W, ph, CORNER_R)
-    nvgFillColor(vg, Theme.rgba(t.notebookSpine))
-    nvgFill(vg)
-    -- 书脊高光线
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, px + SPINE_W - 1.5, py + 2)
-    nvgLineTo(vg, px + SPINE_W - 1.5, py + ph - 2)
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookSpineH, 120))
-    nvgStrokeWidth(vg, 1.0)
-    nvgStroke(vg)
-    -- 书脊装饰线 (模拟缝线)
-    for sy = py + 14, py + ph - 10, 16 do
-        nvgBeginPath(vg)
-        nvgMoveTo(vg, px + 3, sy)
-        nvgLineTo(vg, px + 3, sy + 6)
-        nvgStrokeColor(vg, Theme.rgbaA(t.notebookSpineH, 70))
-        nvgStrokeWidth(vg, 1.2)
-        nvgStroke(vg)
-    end
-
-    -- === 标签栏 ===
-    M.drawTabBar(vg, px, py, pw, t, gameTime)
-
-    -- === 内容区 (横线 + 日程 + 传闻) ===
-    -- 使用 scissor 防止内容溢出到标签栏
-    nvgSave(vg)
-    nvgIntersectScissor(vg, px + SPINE_W, py + TAB_H, pw - SPINE_W, getBodyH())
-
-    M.drawLines(vg, px, py, pw, ph, t)
-    M.drawScheduleItems(vg, px, py, pw, t, gameTime)
-    M.drawRumorNote(vg, px, py, pw, t, gameTime)
-    M.drawToolbar(vg, px, py, pw, t, gameTime)
-    M.drawEndDayBtn(vg, px, py, pw, t)
-
-    nvgRestore(vg)
-
-    nvgRestore(vg)
-end
-
--- ---------------------------------------------------------------------------
--- 标签栏
--- ---------------------------------------------------------------------------
-
-function M.drawTabBar(vg, px, py, pw, t, gameTime)
-    local completed, total = CardManager.getProgress()
-    local rumors = CardManager.getRumors()
-
-    -- 标签底色
-    nvgBeginPath(vg)
-    nvgRoundedRect(vg, px + SPINE_W, py, pw - SPINE_W, TAB_H, CORNER_R)
-    nvgFillColor(vg, Theme.rgbaA(t.notebookTab, 180))
-    nvgFill(vg)
-
-    -- 底部分隔线
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, px + SPINE_W + 6, py + TAB_H - 0.5)
-    nvgLineTo(vg, px + pw - 6, py + TAB_H - 0.5)
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 100))
-    nvgStrokeWidth(vg, 0.8)
-    nvgStroke(vg)
-
-    nvgFontFace(vg, "sans")
-    local tabCY = py + TAB_H / 2
-
-    -- 左: 日程
-    nvgFontSize(vg, 12)
-    nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgba(t.schedule))
-    local afterIcon = nvgText(vg, px + SPINE_W + 10, tabCY, "📋", nil)
-    nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
-    nvgText(vg, afterIcon + 3, tabCY,
-        string.format("日程 %d/%d", completed, total), nil)
-
-    -- 右: 传闻 (多条时显示页码)
-    nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 200))
-    if #rumors > 1 then
-        local page = math.max(1, math.min(state.rumorPage, #rumors))
-        nvgText(vg, px + pw - 28, tabCY,
-            string.format("传闻 %d/%d", page, #rumors), nil)
-    else
-        nvgText(vg, px + pw - 28, tabCY, string.format("传闻 %d", #rumors), nil)
-    end
-    nvgFillColor(vg, Theme.rgba(t.rumor))
-    nvgText(vg, px + pw - 10, tabCY, "📰", nil)
-
-    -- 中间: 拉手 (三条短横线，像笔记本的拉片)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    local handleX = px + pw / 2
-    local handleY = tabCY
-    for i = -1, 1 do
-        nvgBeginPath(vg)
-        nvgMoveTo(vg, handleX - 8, handleY + i * 3.5)
-        nvgLineTo(vg, handleX + 8, handleY + i * 3.5)
-        nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 120))
-        nvgStrokeWidth(vg, 1.2)
-        nvgStroke(vg)
-    end
-end
-
--- ---------------------------------------------------------------------------
--- 横线
--- ---------------------------------------------------------------------------
-
-function M.drawLines(vg, px, py, pw, ph, t)
-    local startX = px + SPINE_W + 6
-    local endX   = px + pw - 6
-    local y = py + TAB_H + LINE_SPACING * 0.5
-
-    while y < py + ph - 4 do
-        nvgBeginPath(vg)
-        nvgMoveTo(vg, startX, y)
-        nvgLineTo(vg, endX, y)
-        nvgStrokeColor(vg, Theme.rgbaA(t.notebookLine, 70))
-        nvgStrokeWidth(vg, 0.5)
-        nvgStroke(vg)
-        y = y + LINE_SPACING
-    end
-
-    -- 红色左边距竖线
-    local marginX = px + SPINE_W + PAGE_PAD + CHECK_SIZE + 8
-    nvgBeginPath(vg)
-    nvgMoveTo(vg, marginX, py + TAB_H + 2)
-    nvgLineTo(vg, marginX, py + ph - 4)
-    nvgStrokeColor(vg, nvgRGBA(210, 120, 120, 45))
-    nvgStrokeWidth(vg, 0.8)
-    nvgStroke(vg)
-end
-
--- ---------------------------------------------------------------------------
--- 日程条目
--- ---------------------------------------------------------------------------
-
-function M.drawScheduleItems(vg, px, py, pw, t, gameTime)
-    local schedules = CardManager.getSchedules()
-    local contentX = px + SPINE_W + PAGE_PAD
-    local contentY = py + TAB_H + 4
-    -- 奖励标签右边界：留出传闻便签的空间
-    local rewardRightX = px + pw - PAGE_PAD - NOTE_W - 8
-
-    nvgFontFace(vg, "sans")
-
-    for i, sched in ipairs(schedules) do
-        local itemY = contentY + (i - 1) * ITEM_H
-        local centerY = itemY + ITEM_H / 2
-        local isHovered = (state.hoverIndex == i and (sched.status == "pending" or sched.status == "deferred"))
-
-        -- hover 高亮
-        if isHovered then
-            nvgBeginPath(vg)
-            nvgRoundedRect(vg, contentX - 2, itemY + 2,
-                pw - SPINE_W - PAGE_PAD * 2 + 4, ITEM_H - 4, 3)
-            nvgFillColor(vg, nvgRGBA(75, 163, 227, 18))
-            nvgFill(vg)
-        end
-
-        -- 勾选框
-        local checkX = contentX
-        local checkY = centerY - CHECK_SIZE / 2
-        nvgBeginPath(vg)
-        nvgRoundedRect(vg, checkX, checkY, CHECK_SIZE, CHECK_SIZE, 2)
-        nvgStrokeWidth(vg, 1.0)
-
-        if sched.status == "completed" then
-            nvgFillColor(vg, Theme.rgbaA(t.completed, 180))
-            nvgFill(vg)
-            nvgStrokeColor(vg, Theme.rgbaA(t.completed, 220))
-            nvgStroke(vg)
-            -- 勾号
-            nvgBeginPath(vg)
-            nvgMoveTo(vg, checkX + 2.5, centerY)
-            nvgLineTo(vg, checkX + CHECK_SIZE * 0.4, centerY + 3)
-            nvgLineTo(vg, checkX + CHECK_SIZE - 2, centerY - 3.5)
-            nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 240))
-            nvgStrokeWidth(vg, 1.5)
-            nvgStroke(vg)
-        elseif sched.status == "deferred" then
-            nvgStrokeColor(vg, Theme.rgbaA(t.deferred, 120))
-            nvgStroke(vg)
-            nvgFontSize(vg, 10)
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-            nvgFillColor(vg, Theme.rgbaA(t.deferred, 160))
-            nvgText(vg, checkX + CHECK_SIZE / 2, centerY, "↗", nil)
-        else
-            nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 140))
-            nvgStroke(vg)
-        end
-
-        -- 地点图标
-        local textStartX = contentX + CHECK_SIZE + 10
-        nvgFontSize(vg, 14)
-        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgba(t.textPrimary))
-        local afterEmoji = nvgText(vg, textStartX, centerY, sched.icon, nil)
-
-        -- 日程描述
-        nvgFontSize(vg, 12)
-        if sched.status == "completed" then
-            nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
-            local textEndX = nvgText(vg, afterEmoji + 4, centerY, sched.label, nil)
-            -- 删除线
-            nvgBeginPath(vg)
-            nvgMoveTo(vg, afterEmoji + 3, centerY)
-            nvgLineTo(vg, textEndX + 1, centerY)
-            nvgStrokeColor(vg, Theme.rgbaA(t.textSecondary, 100))
-            nvgStrokeWidth(vg, 0.8)
-            nvgStroke(vg)
-        elseif sched.status == "deferred" then
-            nvgFillColor(vg, Theme.rgbaA(t.deferred, 160))
-            nvgText(vg, afterEmoji + 4, centerY, sched.label .. " (明天)", nil)
-        else
-            nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 220))
-            nvgText(vg, afterEmoji + 4, centerY, sched.label, nil)
-        end
-
-        -- 奖励标记 (在便签左侧，不会被挡住)
-        if sched.status ~= "deferred" then
-            nvgFontSize(vg, 9)
-            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-            local resLabel = sched.reward[1] == "money" and "💰"
-                or sched.reward[1] == "san" and "🧠"
-                or sched.reward[1] == "order" and "⚖️"
-                or "?"
-            nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
-            nvgText(vg, rewardRightX, centerY,
-                resLabel .. "+" .. sched.reward[2], nil)
-        end
-
-        -- hover 提示
-        if isHovered then
-            nvgFontSize(vg, 9)
-            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
-            if sched.status == "deferred" then
-                nvgFillColor(vg, Theme.rgbaA(t.deferred, 160))
-                nvgText(vg, rewardRightX - 40, centerY, "点击取消", nil)
-            else
-                nvgFillColor(vg, Theme.rgbaA(t.schedule, 160))
-                nvgText(vg, rewardRightX - 40, centerY, "点击推迟", nil)
-            end
-        end
-    end
-end
-
--- ---------------------------------------------------------------------------
--- 传闻便签 (贴在笔记本右侧，与日程列表错开)
--- ---------------------------------------------------------------------------
-
-function M.drawRumorNote(vg, px, py, pw, t, gameTime)
-    local rumors = CardManager.getRumors()
-    if #rumors == 0 then return end
-
-    -- 保证 rumorPage 在有效范围内
-    if state.rumorPage > #rumors then state.rumorPage = 1 end
-    if state.rumorPage < 1 then state.rumorPage = #rumors end
-
-    -- 日程区高度（不含工具栏）
-    local count = #CardManager.getSchedules()
-    local schedH = BASE_BODY_H
-    if count > 3 then schedH = BASE_BODY_H + (count - 3) * ITEM_H end
-
-    -- 便签基准位置：右侧，垂直居中于日程区
-    local noteX = px + pw - NOTE_W - PAGE_PAD + 2
-    local noteBaseY = py + TAB_H + (schedH - NOTE_H) / 2
-
-    -- 多条时：底层画 1-2 张偏移便签暗示还有更多，颜色取自对应传闻
-    if #rumors > 1 then
-        local maxLayer = math.min(#rumors - 1, 2)
-        for layer = maxLayer, 1, -1 do
-            -- 取当前页之后的传闻（循环取）
-            local peekIdx = ((state.rumorPage - 1 + layer) % #rumors) + 1
-            local peekRumor = rumors[peekIdx]
-
-            local stackOff = layer * 4
-            -- 各层角度：用 peekIdx 做种子产生不同方向
-            local rotDeg = (1.5 + layer * 1.8) * ((peekIdx % 2 == 0) and -1 or 1)
-
-            nvgSave(vg)
-            nvgTranslate(vg, noteX + NOTE_W / 2 + stackOff, noteBaseY + NOTE_H / 2 + stackOff)
-            nvgRotate(vg, rotDeg * math.pi / 180)
-            nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
-            nvgGlobalAlpha(vg, state.alpha * (0.4 - (layer - 1) * 0.12))
-
-            -- 底色跟随传闻安全/危险
-            local bgColor = peekRumor.isSafe
-                and nvgRGBA(218, 236, 218, 210)
-                or  nvgRGBA(240, 224, 210, 210)
-            nvgBeginPath(vg)
-            nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-            nvgFillColor(vg, bgColor)
-            nvgFill(vg)
-            nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 50))
-            nvgStrokeWidth(vg, 0.6)
-            nvgStroke(vg)
-
-            nvgRestore(vg)
-        end
-    end
-
-    -- 顶层：绘制当前页传闻
-    local rumor = rumors[state.rumorPage]
-    local rotDeg = 2.0
-
-    nvgSave(vg)
-    nvgTranslate(vg, noteX + NOTE_W / 2, noteBaseY + NOTE_H / 2)
-    nvgRotate(vg, rotDeg * math.pi / 180)
-    nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
-    nvgGlobalAlpha(vg, state.alpha)
-
-    -- 阴影
-    nvgBeginPath(vg)
-    nvgRect(vg, 2, 2, NOTE_W, NOTE_H)
-    nvgFillColor(vg, nvgRGBA(80, 60, 40, 25))
-    nvgFill(vg)
-
-    -- 底色
-    local noteColor = rumor.isSafe
-        and nvgRGBA(228, 242, 228, 240)
-        or  nvgRGBA(248, 232, 218, 240)
-    nvgBeginPath(vg)
-    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-    nvgFillColor(vg, noteColor)
-    nvgFill(vg)
-
-    -- 边框
-    nvgBeginPath(vg)
-    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
-    nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 70))
-    nvgStrokeWidth(vg, 0.8)
-    nvgStroke(vg)
-
-    -- 胶带
-    nvgBeginPath(vg)
-    nvgRect(vg, NOTE_W / 2 - 16, -3, 32, 7)
-    nvgFillColor(vg, nvgRGBA(210, 205, 190, 80))
-    nvgFill(vg)
-
-    -- 图标 + 状态
-    nvgFontFace(vg, "sans")
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-
-    nvgFontSize(vg, 15)
-    nvgFillColor(vg, Theme.rgba(t.textPrimary))
-    nvgText(vg, NOTE_W / 2, 12, rumor.icon, nil)
-
-    nvgFontSize(vg, 10)
-    local sc = rumor.isSafe and t.safe or t.danger
-    nvgFillColor(vg, Theme.rgba(sc))
-    nvgText(vg, NOTE_W / 2, 26, rumor.isSafe and "✓ 安全" or "⚠ 危险", nil)
-
-    -- 传闻文字
-    nvgFontSize(vg, 7.5)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 180))
-    nvgText(vg, NOTE_W / 2, 38, rumor.text, nil)
-
-    -- 多条传闻时：底部页码指示器
-    if #rumors > 1 then
-        nvgFontSize(vg, 7)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 150))
-        nvgText(vg, NOTE_W / 2, NOTE_H + 6,
-            string.format("▶ %d/%d", state.rumorPage, #rumors), nil)
-    end
-
-    nvgRestore(vg)
-end
-
--- ---------------------------------------------------------------------------
--- 道具工具栏 (日程区下方，横排小图标)
--- ---------------------------------------------------------------------------
-
-function M.drawToolbar(vg, px, py, pw, t, gameTime)
-    local consumables = ShopPopup.getConsumableOrder()
-    if #consumables == 0 then return end
-
-    local toolbarY = getToolbarY(py)
-
-    -- 虚线分隔 (工具栏上方)
-    local dashX = px + SPINE_W + PAGE_PAD
-    local dashEndX = px + pw - PAGE_PAD
-    local dashLineY = toolbarY + 2
-    nvgBeginPath(vg)
-    local dx = dashX
-    while dx < dashEndX do
-        nvgMoveTo(vg, dx, dashLineY)
-        nvgLineTo(vg, math.min(dx + 3, dashEndX), dashLineY)
-        dx = dx + 7
-    end
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 60))
-    nvgStrokeWidth(vg, 0.5)
-    nvgStroke(vg)
-
-    -- "背包" 小标签
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 8)
-    nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 120))
-    nvgText(vg, dashX, dashLineY + 2, "🎒 道具", nil)
-
-    -- 图标列表
-    local count = #consumables
-    for idx, entry in ipairs(consumables) do
-        local ix, iy, iw, ih = getToolbarItemRect(px, py, pw, idx, count)
-        local isHovered = (state.hoverToolbar == entry.key)
-        local cx = ix + iw / 2
-        local cy = iy + ih / 2
-
-        -- hover 底色
-        if isHovered then
-            nvgBeginPath(vg)
-            nvgRoundedRect(vg, ix - 2, iy - 2, iw + 4, ih + 4, 4)
-            nvgFillColor(vg, nvgRGBA(75, 163, 227, 30))
-            nvgFill(vg)
-        end
-
-        -- 图标背景圆
-        nvgBeginPath(vg)
-        nvgCircle(vg, cx, cy, iw / 2)
-        local bgAlpha = isHovered and 50 or 30
-        nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, bgAlpha))
-        nvgFill(vg)
-
-        -- 图标 — 有纹理图标时使用纹理，否则 fallback emoji
-        if entry.info.iconKey and ItemIcons.drawCircle(vg, entry.info.iconKey, cx, cy, iw / 2 - 1) then
-            -- 纹理绘制成功
-        else
-            nvgFontFace(vg, "sans")
-            nvgFontSize(vg, 14)
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-            nvgFillColor(vg, Theme.rgba(t.textPrimary))
-            nvgText(vg, cx, cy, entry.info.icon, nil)
-        end
-
-        -- 数量角标
-        if entry.count > 1 then
-            local badgeX = ix + iw - 1
-            local badgeY = iy + 2
-            nvgBeginPath(vg)
-            nvgCircle(vg, badgeX, badgeY, 5)
-            nvgFillColor(vg, Theme.rgbaA(t.info, 200))
-            nvgFill(vg)
-            nvgFontSize(vg, 7)
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
-            nvgText(vg, badgeX, badgeY, tostring(entry.count), nil)
-        end
-
-        -- hover 时显示效果提示
-        if isHovered then
-            -- 构建效果文本
-            local resNames = { san = "理智", order = "秩序", film = "胶卷" }
-            local parts = {}
-            for _, eff in ipairs(entry.info.effects) do
-                local rn = resNames[eff[1]] or eff[1]
-                if eff[1] == "exorcism" then
-                    parts[#parts + 1] = "驱除当前怪物"
-                else
-                    local sign = eff[2] > 0 and "+" or ""
-                    parts[#parts + 1] = rn .. sign .. eff[2]
-                end
-            end
-            local tip = entry.info.label .. ": " .. table.concat(parts, ", ")
-
-            -- 气泡背景 (笔记本纸色 + 边框)
-            nvgFontFace(vg, "sans")
-            nvgFontSize(vg, 9)
-            local tw = nvgTextBounds(vg, 0, 0, tip, nil)
-            local tipX = cx
-            local tipY = iy - 4
-            local padX, padY = 6, 3
-            local bx = tipX - tw / 2 - padX
-            local by = tipY - 9 - padY
-            local bw = tw + padX * 2
-            local bh = 10 + padY * 2
-            -- 阴影
-            nvgBeginPath(vg)
-            nvgRoundedRect(vg, bx + 1, by + 1, bw, bh, 3)
-            nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, 40))
-            nvgFill(vg)
-            -- 填充
-            nvgBeginPath(vg)
-            nvgRoundedRect(vg, bx, by, bw, bh, 3)
-            nvgFillColor(vg, Theme.rgbaA(t.notebookPaper, 245))
-            nvgFill(vg)
-            -- 边框
-            nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 120))
-            nvgStrokeWidth(vg, 0.5)
-            nvgStroke(vg)
-
-            -- 文字
-            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_BOTTOM)
-            nvgFillColor(vg, Theme.rgba(t.textPrimary))
-            nvgText(vg, tipX, tipY, tip, nil)
-        end
-    end
-end
-
--- ---------------------------------------------------------------------------
--- "结束今天"按钮 (笔记本底部，像手写的一行字)
--- ---------------------------------------------------------------------------
-
-function M.drawEndDayBtn(vg, px, py, pw, t)
-    if not onEndDayCallback then return end
-
-    local bx, by, bw, bh = getEndDayBtnRect(px, py, pw)
-    local centerY = by + bh / 2
-
-    -- hover 底色
-    if state.hoverEndDay then
-        nvgBeginPath(vg)
-        nvgRoundedRect(vg, bx, by, bw, bh, 3)
-        nvgFillColor(vg, nvgRGBA(180, 120, 80, 25))
-        nvgFill(vg)
-    end
-
-    -- 虚线分隔
-    local dashX = bx + 4
-    local dashEndX = bx + bw - 4
-    local dashY = by - 1
-    nvgBeginPath(vg)
-    local dx = dashX
-    while dx < dashEndX do
-        nvgMoveTo(vg, dx, dashY)
-        nvgLineTo(vg, math.min(dx + 4, dashEndX), dashY)
-        dx = dx + 8
-    end
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 80))
-    nvgStrokeWidth(vg, 0.6)
-    nvgStroke(vg)
-
-    -- 文字：像手写的笔记
-    nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 12)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-
-    local alpha = state.hoverEndDay and 240 or 160
-    nvgFillColor(vg, nvgRGBA(140, 90, 50, alpha))
-    nvgText(vg, bx + bw / 2, centerY, "☾ 结束今天，回家休息", nil)
+    state.wasAllDone = canAdvance
 end
 
 --- 重置
@@ -1010,9 +293,971 @@ function M.reset()
     state.expanded   = false
     state.showcasing = false
     state.alpha      = 0
+    state.panelX     = hiddenX()
+    state.panelAngle = TILT_COLLAPSED
     state.hoverIndex = 0
-    state.hoverEndDay = false
-    state.hoverToolbar = nil
+    state.hoverTab   = 0
+    state.hoverItem  = nil
+    state.wasAllDone = false
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染：笔记本主体
+-- ---------------------------------------------------------------------------
+
+local function drawNotebookBody(vg, px, py, pw, ph, t)
+    -- 阴影
+    local shadowPaint = nvgBoxGradient(vg,
+        px + 3, py + 4, pw, ph, CORNER_R, 12,
+        nvgRGBA(60, 40, 20, 50), nvgRGBA(0, 0, 0, 0))
+    nvgBeginPath(vg)
+    nvgRect(vg, px - 8, py - 8, pw + 20, ph + 20)
+    nvgFillPaint(vg, shadowPaint)
+    nvgFill(vg)
+
+    -- 纸张主体
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, px, py, pw, ph, CORNER_R)
+    nvgFillColor(vg, Theme.rgba(t.notebookPaper))
+    nvgFill(vg)
+
+    -- 边框
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, px, py, pw, ph, CORNER_R)
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 130))
+    nvgStrokeWidth(vg, 1.0)
+    nvgStroke(vg)
+
+    -- 书脊
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, px, py, SPINE_W, ph, CORNER_R)
+    nvgFillColor(vg, Theme.rgba(t.notebookSpine))
+    nvgFill(vg)
+    -- 书脊高光线
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, px + SPINE_W - 1.5, py + 2)
+    nvgLineTo(vg, px + SPINE_W - 1.5, py + ph - 2)
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookSpineH, 110))
+    nvgStrokeWidth(vg, 1.0)
+    nvgStroke(vg)
+    -- 书脊缝线点
+    for sy = py + 14, py + ph - 12, 16 do
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, px + 4, sy)
+        nvgLineTo(vg, px + 4, sy + 6)
+        nvgStrokeColor(vg, Theme.rgbaA(t.notebookSpineH, 65))
+        nvgStrokeWidth(vg, 1.2)
+        nvgStroke(vg)
+    end
+
+    -- 横线
+    local lx0 = px + SPINE_W + 6
+    local lx1 = px + pw - 6
+    local ly  = py + LINE_SPACING * 1.2
+    while ly < py + ph - 4 do
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, lx0, ly)
+        nvgLineTo(vg, lx1, ly)
+        nvgStrokeColor(vg, Theme.rgbaA(t.notebookLine, 60))
+        nvgStrokeWidth(vg, 0.5)
+        nvgStroke(vg)
+        ly = ly + LINE_SPACING
+    end
+
+    -- 红色左边距竖线
+    local marginX = px + SPINE_W + PAGE_PAD + CHECK_SIZE + 8
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, marginX, py + 4)
+    nvgLineTo(vg, marginX, py + ph - 4)
+    nvgStrokeColor(vg, nvgRGBA(210, 120, 120, 40))
+    nvgStrokeWidth(vg, 0.7)
+    nvgStroke(vg)
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染：页眉
+-- ---------------------------------------------------------------------------
+
+local function drawPageHeader(vg, px, py, pw, ph, t)
+    local tabName = TAB_NAMES[state.activeTab]
+    local cx = px + SPINE_W + (pw - SPINE_W) / 2
+    local headerY = py + 14
+
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 11)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
+    nvgText(vg, cx, headerY, "— " .. tabName .. " —", nil)
+
+    -- 页眉下分隔线
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, px + SPINE_W + 10, headerY + 8)
+    nvgLineTo(vg, px + pw - 10, headerY + 8)
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 70))
+    nvgStrokeWidth(vg, 0.6)
+    nvgStroke(vg)
+
+    -- 收起箭头（仅展开时显示）：右上角，点击可折叠
+    if state.expanded then
+        local btnX = px + pw - 9
+        local btnY = py + 7
+        local btnR = 7
+        -- 圆形底
+        nvgBeginPath(vg)
+        nvgCircle(vg, btnX, btnY, btnR)
+        nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, state.hoverCloseBtn and 55 or 28))
+        nvgFill(vg)
+        -- 箭头 ‹（向左表示收起）
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, state.hoverCloseBtn and 220 or 140))
+        nvgText(vg, btnX, btnY + 1, "‹", nil)
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染：Tab1 日程 + 传闻
+-- ---------------------------------------------------------------------------
+
+local function drawSchedules(vg, px, py, pw, ph, t)
+    local schedules = CardManager.getSchedules()
+    local contentX = px + SPINE_W + PAGE_PAD
+    local contentY = py + 28     -- 页眉下方
+
+    -- 可用内容高度（留出传闻区域；结束今天用叠加样式，不额外占位）
+    local rumorAreaH = NOTE_H + 24
+    local schedAreaH = ph - 28 - rumorAreaH - 4
+    local maxVisible = math.floor(schedAreaH / ITEM_H)
+
+    nvgFontFace(vg, "sans")
+
+    for i = 1, math.min(#schedules, maxVisible) do
+        local sched = schedules[i]
+        local itemY  = contentY + (i - 1) * ITEM_H
+        local centerY = itemY + ITEM_H / 2
+        local isHovered = (state.hoverIndex == i
+            and (sched.status == "pending" or sched.status == "deferred"))
+
+        -- hover 高亮
+        if isHovered then
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, contentX - 2, itemY + 2,
+                pw - SPINE_W - PAGE_PAD * 2 + 4 - 2, ITEM_H - 4, 3)
+            nvgFillColor(vg, nvgRGBA(75, 163, 227, 18))
+            nvgFill(vg)
+        end
+
+        -- 勾选框
+        local ckX = contentX
+        local ckY = centerY - CHECK_SIZE / 2
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, ckX, ckY, CHECK_SIZE, CHECK_SIZE, 2)
+        nvgStrokeWidth(vg, 1.0)
+
+        if sched.status == "completed" then
+            nvgFillColor(vg, Theme.rgbaA(t.completed, 180))
+            nvgFill(vg)
+            nvgStrokeColor(vg, Theme.rgbaA(t.completed, 220))
+            nvgStroke(vg)
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, ckX + 2.5, centerY)
+            nvgLineTo(vg, ckX + CHECK_SIZE * 0.42, centerY + 3)
+            nvgLineTo(vg, ckX + CHECK_SIZE - 2, centerY - 3.5)
+            nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 240))
+            nvgStrokeWidth(vg, 1.5)
+            nvgStroke(vg)
+        elseif sched.status == "deferred" then
+            nvgStrokeColor(vg, Theme.rgbaA(t.deferred, 120))
+            nvgStroke(vg)
+            nvgFontSize(vg, 9)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgbaA(t.deferred, 160))
+            nvgText(vg, ckX + CHECK_SIZE / 2, centerY, "↗", nil)
+        else
+            nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 140))
+            nvgStroke(vg)
+        end
+
+        -- 地点图标 + 文字
+        local textX = contentX + CHECK_SIZE + 6
+        nvgFontSize(vg, 13)
+        nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgba(t.textPrimary))
+        local afterEmoji = nvgText(vg, textX, centerY, sched.icon, nil)
+
+        nvgFontSize(vg, 11)
+        if sched.status == "completed" then
+            nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 130))
+            local textEndX = nvgText(vg, afterEmoji + 3, centerY, sched.label, nil)
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, afterEmoji + 2, centerY)
+            nvgLineTo(vg, textEndX, centerY)
+            nvgStrokeColor(vg, Theme.rgbaA(t.textSecondary, 100))
+            nvgStrokeWidth(vg, 0.8)
+            nvgStroke(vg)
+        elseif sched.status == "deferred" then
+            nvgFillColor(vg, Theme.rgbaA(t.deferred, 160))
+            nvgText(vg, afterEmoji + 3, centerY, sched.label, nil)
+        else
+            nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 220))
+            nvgText(vg, afterEmoji + 3, centerY, sched.label, nil)
+        end
+
+        -- 奖励角标（右对齐）
+        if sched.status ~= "deferred" then
+            local resLabel = sched.reward[1] == "money" and "💰"
+                or sched.reward[1] == "san" and "🧠"
+                or sched.reward[1] == "order" and "⚖️"
+                or "?"
+            nvgFontSize(vg, 9)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 120))
+            nvgText(vg, px + pw - PAGE_PAD - 2, centerY,
+                resLabel .. "+" .. sched.reward[2], nil)
+        end
+    end
+
+    -- 超出显示数量时的省略提示
+    if #schedules > maxVisible then
+        local moreY = contentY + maxVisible * ITEM_H + 4
+        nvgFontSize(vg, 9)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 110))
+        nvgText(vg, px + SPINE_W + (pw - SPINE_W) / 2, moreY,
+            string.format("还有 %d 条…", #schedules - maxVisible), nil)
+    end
+
+    -- ---- 结束今天（页脚分隔线 + 文字，日程全部完成 OR 步数耗尽时显示）----
+    local hasPending = false
+    local pendingCount = 0
+    for _, s in ipairs(schedules) do
+        if s.status == "pending" then
+            hasPending = true
+            pendingCount = pendingCount + 1
+        end
+    end
+    local su, sm = ResourceBar.getSteps()
+    local stepsExhausted = sm > 0 and su >= sm  -- 有步数上限且已耗尽
+
+    -- footer 定位：贴近最后一条日程下方（至多距传闻上沿 30px）
+    local lastIdx = math.min(#schedules, maxVisible)
+    local noteY   = py + ph - NOTE_H - 14
+    local rawFooterY = contentY + lastIdx * ITEM_H + 14
+    local footerY = math.min(rawFooterY, noteY - 30)
+    local footerX = px + SPINE_W + PAGE_PAD
+    local footerW = pw - SPINE_W - PAGE_PAD * 2
+    local isHov   = state.hoverEndDayBtn
+
+    if not hasPending or stepsExhausted then
+        -- 全部完成 OR 步数耗尽：琥珀分隔线 + 呼吸光效文字
+        local pulse     = 0.72 + 0.28 * math.sin(currentGameTime * 2.6)
+        local lineAlpha = isHov and 200 or math.floor(90 * pulse + 40)
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, footerX + 8, footerY)
+        nvgLineTo(vg, footerX + footerW - 8, footerY)
+        nvgStrokeColor(vg, nvgRGBA(210, 160, 60, lineAlpha))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
+
+        -- 箭头随时间轻微右移（邀请点击感）
+        local arrowNudge = isHov and 3 or (1.5 * math.sin(currentGameTime * 2.0))
+        local wc = t.warning
+        local textAlpha = isHov and 255 or math.floor(170 * pulse + 55)
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(wc.r, wc.g, wc.b, textAlpha))
+        nvgText(vg, footerX + footerW / 2 + arrowNudge, footerY + 9, "结束今天 →", nil)
+    else
+        -- 有未完成项：极低调灰色小字，不抢注意力
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 9)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(160, 148, 130, 60))
+        nvgText(vg, footerX + footerW / 2, footerY + 9,
+            string.format("还有 %d 项待完成", pendingCount), nil)
+    end
+end
+
+local function drawRumorsInline(vg, px, py, pw, ph, t)
+    local rumors = CardManager.getRumors()
+    if #rumors == 0 then
+        -- 占位提示
+        local cx = px + SPINE_W + (pw - SPINE_W) / 2
+        local cy = py + ph - NOTE_H / 2 - 14
+        nvgFontFace(vg, "sans")
+        nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 80))
+        nvgText(vg, cx, cy, "暂无传闻", nil)
+        return
+    end
+
+    -- 保证页码在范围内
+    if state.rumorPage > #rumors then state.rumorPage = 1 end
+    if state.rumorPage < 1 then state.rumorPage = #rumors end
+
+    local rumor = rumors[state.rumorPage]
+
+    -- 便签区域，位于 Tab1 下半部分
+    local noteX = px + SPINE_W + (pw - SPINE_W - NOTE_W) / 2
+    local noteY = py + ph - NOTE_H - 14
+
+    -- 多条时：底层偏移便签
+    if #rumors > 1 then
+        local maxLayer = math.min(#rumors - 1, 2)
+        for layer = maxLayer, 1, -1 do
+            local peekIdx = ((state.rumorPage - 1 + layer) % #rumors) + 1
+            local peekRumor = rumors[peekIdx]
+            local stackOff = layer * 3
+            local rotDeg = (1.5 + layer * 1.6) * ((peekIdx % 2 == 0) and -1 or 1)
+
+            nvgSave(vg)
+            nvgTranslate(vg, noteX + NOTE_W / 2 + stackOff, noteY + NOTE_H / 2 + stackOff)
+            nvgRotate(vg, rotDeg * math.pi / 180)
+            nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+            nvgGlobalAlpha(vg, state.alpha * (0.35 - (layer - 1) * 0.1))
+            local bgC = peekRumor.isSafe
+                and nvgRGBA(218, 240, 218, 220)
+                or  nvgRGBA(242, 224, 210, 220)
+            nvgBeginPath(vg)
+            nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+            nvgFillColor(vg, bgC)
+            nvgFill(vg)
+            nvgRestore(vg)
+        end
+    end
+
+    -- 顶层便签
+    nvgSave(vg)
+    nvgTranslate(vg, noteX + NOTE_W / 2, noteY + NOTE_H / 2)
+    nvgRotate(vg, 1.8 * math.pi / 180)
+    nvgTranslate(vg, -NOTE_W / 2, -NOTE_H / 2)
+
+    -- 阴影
+    nvgBeginPath(vg)
+    nvgRect(vg, 2, 2, NOTE_W, NOTE_H)
+    nvgFillColor(vg, nvgRGBA(80, 60, 40, 20))
+    nvgFill(vg)
+
+    -- 底色
+    local noteColor = rumor.isSafe
+        and nvgRGBA(228, 244, 228, 245)
+        or  nvgRGBA(250, 232, 218, 245)
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+    nvgFillColor(vg, noteColor)
+    nvgFill(vg)
+    nvgBeginPath(vg)
+    nvgRect(vg, 0, 0, NOTE_W, NOTE_H)
+    nvgStrokeColor(vg, nvgRGBA(180, 165, 140, 60))
+    nvgStrokeWidth(vg, 0.7)
+    nvgStroke(vg)
+
+    -- 胶带
+    nvgBeginPath(vg)
+    nvgRect(vg, NOTE_W / 2 - 14, -3, 28, 6)
+    nvgFillColor(vg, nvgRGBA(210, 205, 190, 75))
+    nvgFill(vg)
+
+    nvgFontFace(vg, "sans")
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+
+    nvgFontSize(vg, 14)
+    nvgFillColor(vg, Theme.rgba(t.textPrimary))
+    nvgText(vg, NOTE_W / 2, 11, rumor.icon, nil)
+
+    nvgFontSize(vg, 9)
+    local sc = rumor.isSafe and t.safe or t.danger
+    nvgFillColor(vg, Theme.rgba(sc))
+    nvgText(vg, NOTE_W / 2, 24, rumor.isSafe and "✓ 安全" or "⚠ 危险", nil)
+
+    nvgFontSize(vg, 7.5)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 170))
+    nvgText(vg, NOTE_W / 2, 37, rumor.text, nil)
+
+    if #rumors > 1 then
+        nvgFontSize(vg, 7)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
+        nvgText(vg, NOTE_W / 2, NOTE_H + 7,
+            string.format("▶ %d/%d", state.rumorPage, #rumors), nil)
+    end
+
+    nvgRestore(vg)
+end
+
+local function drawTab1(vg, px, py, pw, ph, t)
+    drawSchedules(vg, px, py, pw, ph, t)
+    drawRumorsInline(vg, px, py, pw, ph, t)
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染：Tab2 道具
+-- ---------------------------------------------------------------------------
+
+local function drawTab2(vg, px, py, pw, ph, t)
+    local consumables = ShopPopup.getConsumableOrder()
+    local contentX = px + SPINE_W + PAGE_PAD
+    local contentY = py + 28
+    local contentW = pw - SPINE_W - PAGE_PAD * 2
+
+    nvgFontFace(vg, "sans")
+
+    if #consumables == 0 then
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 100))
+        nvgText(vg, px + SPINE_W + contentW / 2, contentY + 30, "背包空空如也", nil)
+        return
+    end
+
+    -- 图标网格
+    local col = 0
+    local row = 0
+    for idx, entry in ipairs(consumables) do
+        local ix = contentX + col * (ICON_SIZE + ICON_GAP)
+        local iy = contentY + row * (ICON_SIZE + ICON_GAP + 14)
+        local cx = ix + ICON_SIZE / 2
+        local cy = iy + ICON_SIZE / 2
+        local isHovered = (state.hoverItem == entry.key)
+
+        -- hover 光晕
+        if isHovered then
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, ix - 3, iy - 3, ICON_SIZE + 6, ICON_SIZE + 6, 6)
+            nvgFillColor(vg, nvgRGBA(75, 163, 227, 28))
+            nvgFill(vg)
+        end
+
+        -- 图标底圆
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, ix, iy, ICON_SIZE, ICON_SIZE, 6)
+        nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, isHovered and 50 or 28))
+        nvgFill(vg)
+        nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, isHovered and 120 or 70))
+        nvgStrokeWidth(vg, 0.8)
+        nvgStroke(vg)
+
+        -- 图标
+        if entry.info.iconKey and ItemIcons.drawCircle(vg, entry.info.iconKey, cx, cy, ICON_SIZE / 2 - 2) then
+            -- 纹理成功
+        else
+            nvgFontSize(vg, 20)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgba(t.textPrimary))
+            nvgText(vg, cx, cy, entry.info.icon, nil)
+        end
+
+        -- 数量角标
+        if entry.count > 1 then
+            local bx = ix + ICON_SIZE - 2
+            local by = iy + 2
+            nvgBeginPath(vg)
+            nvgCircle(vg, bx, by, 6)
+            nvgFillColor(vg, Theme.rgbaA(t.info, 210))
+            nvgFill(vg)
+            nvgFontSize(vg, 7)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(255, 255, 255, 240))
+            nvgText(vg, bx, by, tostring(entry.count), nil)
+        end
+
+        -- 名称标签
+        nvgFontSize(vg, 9)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_TOP)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 160))
+        nvgText(vg, cx, iy + ICON_SIZE + 2, entry.info.label, nil)
+
+        -- hover tooltip
+        if isHovered then
+            local resNames = { san = "理智", order = "秩序", film = "胶卷" }
+            local parts = {}
+            for _, eff in ipairs(entry.info.effects) do
+                if eff[1] == "exorcism" then
+                    parts[#parts + 1] = "驱除怪物"
+                else
+                    local rn = resNames[eff[1]] or eff[1]
+                    local sign = eff[2] > 0 and "+" or ""
+                    parts[#parts + 1] = rn .. sign .. eff[2]
+                end
+            end
+            local tip = table.concat(parts, " / ")
+            nvgFontSize(vg, 9)
+            local tw = nvgTextBounds(vg, 0, 0, tip, nil)
+            local tipCX = cx
+            local tipY  = iy - 6
+            local padX, padY = 5, 3
+            local bw2 = tw + padX * 2
+            local bh2 = 10 + padY * 2
+            local bx2 = tipCX - bw2 / 2
+            local by2 = tipY - bh2
+            -- 阴影
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx2 + 1, by2 + 1, bw2, bh2, 3)
+            nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, 35))
+            nvgFill(vg)
+            -- 填充
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, bx2, by2, bw2, bh2, 3)
+            nvgFillColor(vg, Theme.rgbaA(t.notebookPaper, 248))
+            nvgFill(vg)
+            nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 110))
+            nvgStrokeWidth(vg, 0.5)
+            nvgStroke(vg)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, Theme.rgba(t.textPrimary))
+            nvgText(vg, tipCX, by2 + bh2 / 2, tip, nil)
+        end
+
+        col = col + 1
+        if col >= ICONS_PER_ROW then
+            col = 0
+            row = row + 1
+        end
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染：Tab3 线索（占位）
+-- ---------------------------------------------------------------------------
+
+local function drawTab3(vg, px, py, pw, ph, t)
+    local cx = px + SPINE_W + (pw - SPINE_W) / 2
+    local cy = py + ph / 2
+
+    -- 占位图标
+    nvgFontFace(vg, "sans")
+    nvgFontSize(vg, 28)
+    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 70))
+    nvgText(vg, cx, cy - 16, "🔍", nil)
+
+    nvgFontSize(vg, 11)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 90))
+    nvgText(vg, cx, cy + 14, "线索系统开发中…", nil)
+
+    -- 装饰线
+    nvgBeginPath(vg)
+    nvgMoveTo(vg, cx - 40, cy + 28)
+    nvgLineTo(vg, cx + 40, cy + 28)
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 50))
+    nvgStrokeWidth(vg, 0.5)
+    nvgStroke(vg)
+end
+
+-- ---------------------------------------------------------------------------
+-- 渲染：便签贴（Pass2，屏幕空间，不受旋转影响）
+-- ---------------------------------------------------------------------------
+
+-- activeOnly: true=只画当前激活tab, false=只画非激活tab, nil=全画
+local function drawTabLabels(vg, logicalH, t, activeOnly)
+    nvgFontFace(vg, "sans")
+
+    for i = 1, NUM_TABS do
+        local isActive = (state.activeTab == i)
+        if activeOnly == true  and not isActive then goto continue end
+        if activeOnly == false and     isActive then goto continue end
+        local lx, ly, lw, lh = getTabLabelRect(logicalH, i)
+        local isHovered = (state.hoverTab == i)
+        local c = TAB_BG_COLORS[i]
+
+        -- 可见部分起始 x（TAB_OVERLAP 那段叠在笔记本下面）
+        local visX = lx + TAB_OVERLAP  -- 便签露出来的左边缘
+        local visW = lw - TAB_OVERLAP  -- 露出宽度
+
+        -- 展开时激活 tab 向右偏移 2px，视觉上更突出
+        local nudge = (isActive and state.expanded) and 2 or 0
+
+        -- ---- 阴影（仅露出部分投影）----
+        if isActive or isHovered then
+            nvgBeginPath(vg)
+            nvgRoundedRectVarying(vg, visX + nudge + 2, ly + 2,
+                visW, lh, 0, TAB_LABEL_RADIUS, TAB_LABEL_RADIUS, 0)
+            nvgFillColor(vg, nvgRGBA(60, 45, 30, isActive and 40 or 20))
+            nvgFill(vg)
+        end
+
+        -- ---- 便签主体（左直角 + 右圆角）----
+        local br = isActive and 1.0 or (isHovered and 0.93 or 0.80)
+        local r  = math.floor(c[1] * br)
+        local g  = math.floor(c[2] * br)
+        local b  = math.floor(c[3] * br)
+        local bgAlpha = isActive and 250 or (isHovered and 220 or 190)
+
+        -- 全宽矩形（含重叠部分）：左直角
+        nvgBeginPath(vg)
+        nvgRoundedRectVarying(vg, lx + nudge, ly, lw, lh,
+            0, TAB_LABEL_RADIUS, TAB_LABEL_RADIUS, 0)
+        nvgFillColor(vg, nvgRGBA(r, g, b, bgAlpha))
+        nvgFill(vg)
+
+        -- ---- 左侧暗色竖线（在 visX 处，暗示便签插入笔记本边缘）----
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, visX + nudge, ly + 3)
+        nvgLineTo(vg, visX + nudge, ly + lh - 3)
+        nvgStrokeColor(vg, nvgRGBA(
+            math.floor(c[1] * 0.55),
+            math.floor(c[2] * 0.55),
+            math.floor(c[3] * 0.55),
+            isActive and 160 or 90))
+        nvgStrokeWidth(vg, 1.0)
+        nvgStroke(vg)
+
+        -- ---- 右侧/上下边框（只画露出部分的三条边）----
+        nvgBeginPath(vg)
+        -- 上边
+        nvgMoveTo(vg, visX + nudge, ly)
+        nvgLineTo(vg, lx + nudge + lw - TAB_LABEL_RADIUS, ly)
+        nvgArcTo(vg, lx + nudge + lw, ly, lx + nudge + lw, ly + TAB_LABEL_RADIUS, TAB_LABEL_RADIUS)
+        -- 右边
+        nvgLineTo(vg, lx + nudge + lw, ly + lh - TAB_LABEL_RADIUS)
+        nvgArcTo(vg, lx + nudge + lw, ly + lh, lx + nudge + lw - TAB_LABEL_RADIUS, ly + lh, TAB_LABEL_RADIUS)
+        -- 下边
+        nvgLineTo(vg, visX + nudge, ly + lh)
+        nvgStrokeColor(vg, nvgRGBA(
+            math.floor(c[1] * 0.68),
+            math.floor(c[2] * 0.68),
+            math.floor(c[3] * 0.68),
+            isActive and 190 or 110))
+        nvgStrokeWidth(vg, isActive and 1.2 or 0.8)
+        nvgStroke(vg)
+
+        -- ---- 激活时右上角折角 ----
+        if isActive then
+            local fold = 5
+            local fx = lx + nudge + lw - fold
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, fx, ly)
+            nvgLineTo(vg, lx + nudge + lw, ly + fold)
+            nvgLineTo(vg, fx, ly + fold)
+            nvgFillColor(vg, nvgRGBA(
+                math.floor(c[1] * 0.78),
+                math.floor(c[2] * 0.78),
+                math.floor(c[3] * 0.78), 150))
+            nvgFill(vg)
+        end
+
+        -- ---- 展开时，激活 tab 左边渐变覆盖（融入笔记本纸色）----
+        if isActive and state.expanded then
+            local grad = nvgLinearGradient(vg,
+                lx + nudge, ly,
+                visX + nudge, ly,
+                Theme.rgba(t.notebookPaper),
+                nvgRGBA(r, g, b, 0))
+            nvgBeginPath(vg)
+            nvgRect(vg, lx + nudge, ly, TAB_OVERLAP, lh)
+            nvgFillPaint(vg, grad)
+            nvgFill(vg)
+        end
+
+        -- ---- 文字 ----
+        nvgFontSize(vg, 10)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, nvgRGBA(55, 45, 35, isActive and 235 or 155))
+        -- 文字居中在露出区域
+        nvgText(vg, visX + nudge + (visW) / 2, ly + lh / 2, TAB_NAMES[i], nil)
+        ::continue::
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- 主渲染入口
+-- ---------------------------------------------------------------------------
+
+function M.draw(vg, logicalW, logicalH, gameTime)
+    if not state.visible or state.alpha < 0.05 then return end
+
+    currentGameTime = gameTime or 0
+
+    local t = Theme.current
+    nvgSave(vg)
+    nvgGlobalAlpha(vg, state.alpha)
+
+    local px, py, pw, ph = getPanelRect(logicalH)
+
+    -- 裁剪到屏幕内
+    nvgIntersectScissor(vg, 0, 0, logicalW, logicalH)
+
+    -- ============ Pass 1：倾斜笔记本主体 ============
+    -- 旋转轴心：面板右上角 (px+pw, py)
+    local pivotX = px + pw
+    local pivotY = py
+
+    nvgSave(vg)
+    nvgTranslate(vg, pivotX, pivotY)
+    nvgRotate(vg, state.panelAngle)
+    nvgTranslate(vg, -pivotX, -pivotY)
+
+    -- 非激活便签先画，位于笔记本主体后面
+    drawTabLabels(vg, logicalH, t, false)
+
+    drawNotebookBody(vg, px, py, pw, ph, t)
+    drawPageHeader(vg, px, py, pw, ph, t)
+
+    -- 内容区 scissor
+    nvgSave(vg)
+    nvgIntersectScissor(vg, px + SPINE_W, py + 20, pw - SPINE_W, ph - 24)
+
+    if state.activeTab == 1 then
+        drawTab1(vg, px, py, pw, ph, t)
+    elseif state.activeTab == 2 then
+        drawTab2(vg, px, py, pw, ph, t)
+    else
+        drawTab3(vg, px, py, pw, ph, t)
+    end
+
+    nvgRestore(vg)  -- scissor
+
+    -- 激活便签最后画，位于笔记本主体前面（当前页效果）
+    drawTabLabels(vg, logicalH, t, true)
+
+    nvgRestore(vg)  -- tilt transform
+
+    nvgRestore(vg)  -- globalAlpha
+end
+
+-- ---------------------------------------------------------------------------
+-- 交互：点击
+-- ---------------------------------------------------------------------------
+
+function M.handleClick(lx, ly, logicalW, logicalH)
+    if not state.visible or state.alpha < 0.1 then return false end
+
+    -- 先检查便签贴（屏幕坐标，无需逆变换）
+    for i = 1, NUM_TABS do
+        local tlx, tly, tlw, tlh = getTabLabelRect(logicalH, i)
+        if lx >= tlx and lx <= tlx + tlw and ly >= tly and ly <= tly + tlh then
+            if state.activeTab == i and state.expanded then
+                -- 点当前激活便签 → 收起
+                M.toggle(logicalH)
+            else
+                state.activeTab = i
+                if not state.expanded then
+                    -- 折叠时点便签 → 展开
+                    M.toggle(logicalH)
+                end
+            end
+            return true
+        end
+    end
+
+    local px, py, pw, ph = getPanelRect(logicalH)
+
+    -- 点击在面板 X 范围外 → 穿透
+    if lx < px or lx > px + pw + TAB_LABEL_W then
+        return false
+    end
+
+    -- showcase 期间点击主体 → 折叠
+    if state.showcasing then
+        M.finishShowcase()
+        return true
+    end
+
+    -- 点击在折叠时露出的区域（或整个展开面板）→ 切换
+    if not state.expanded then
+        -- 折叠状态：点击主体任意处展开
+        if lx >= px and lx <= px + pw and ly >= py and ly <= py + ph then
+            M.toggle(logicalH)
+            return true
+        end
+        return false
+    end
+
+    -- 展开状态 ——
+
+    -- 点击在面板 Y 范围外（上下空白区域）→ 收起
+    if ly < py or ly > py + ph then
+        M.toggle(logicalH)
+        return true
+    end
+
+    -- 关闭按钮（右上角圆形区域）→ 收起
+    local closeBtnX = px + pw - 9
+    local closeBtnY = py + 7
+    local closeBtnR = 10   -- 点击半径略大于绘制半径
+    local dx = lx - closeBtnX
+    local dy = ly - closeBtnY
+    if dx * dx + dy * dy <= closeBtnR * closeBtnR then
+        M.toggle(logicalH)
+        return true
+    end
+
+    -- Tab1：传闻便签点击翻页
+    if state.activeTab == 1 then
+        local rumors = CardManager.getRumors()
+        if #rumors > 1 then
+            -- 传闻便签位于 Tab1 下半区中央
+            local noteX = px + SPINE_W + (pw - SPINE_W - NOTE_W) / 2
+            local noteY = py + ph - NOTE_H - 14
+            local hitPad = 8
+            if lx >= noteX - hitPad and lx <= noteX + NOTE_W + hitPad
+                and ly >= noteY - hitPad and ly <= noteY + NOTE_H + hitPad + 10 then
+                state.rumorPage = state.rumorPage + 1
+                if state.rumorPage > #rumors then state.rumorPage = 1 end
+                return true
+            end
+        end
+
+        -- 日程条目
+        local schedules = CardManager.getSchedules()
+        local contentX  = px + SPINE_W + PAGE_PAD
+        local contentY  = py + 28
+        for i, sched in ipairs(schedules) do
+            local itemY = contentY + (i - 1) * ITEM_H
+            if ly >= itemY and ly <= itemY + ITEM_H
+                and lx >= contentX and lx <= px + pw - PAGE_PAD then
+                if sched.status == "pending" then
+                    local ok, reason = CardManager.deferSchedule(i)
+                    if not ok then
+                        print("[HandPanel] Cannot defer: " .. tostring(reason))
+                    end
+                elseif sched.status == "deferred" then
+                    CardManager.undeferSchedule(i)
+                end
+                return true
+            end
+        end
+
+        -- 结束今天按钮点击
+        local schedules2 = schedules  -- 上面已声明
+        local lastIdx2   = math.min(#schedules2, math.floor((ph - 28 - (NOTE_H + 24) - 4) / ITEM_H))
+        local noteY2     = py + ph - NOTE_H - 14
+        local footerY2   = math.min(py + 28 + lastIdx2 * ITEM_H + 14, noteY2 - 30)
+        local ebtnX2     = px + SPINE_W + PAGE_PAD
+        local ebtnW2     = pw - SPINE_W - PAGE_PAD * 2
+        if lx >= ebtnX2 and lx <= ebtnX2 + ebtnW2
+            and ly >= footerY2 and ly <= footerY2 + 18 then
+            local hasPending = false
+            for _, s in ipairs(schedules) do
+                if s.status == "pending" then hasPending = true; break end
+            end
+            local suC, smC = ResourceBar.getSteps()
+            local stepsExhaustedC = smC > 0 and suC >= smC
+            if (not hasPending or stepsExhaustedC) and onAdvanceDayCallback then
+                onAdvanceDayCallback()
+            end
+            return true
+        end
+    end
+
+    -- Tab2：道具点击
+    if state.activeTab == 2 then
+        local consumables = ShopPopup.getConsumableOrder()
+        local contentX    = px + SPINE_W + PAGE_PAD
+        local contentY    = py + 28
+        local col = 0
+        local row = 0
+        for _, entry in ipairs(consumables) do
+            local ix = contentX + col * (ICON_SIZE + ICON_GAP)
+            local iy = contentY + row * (ICON_SIZE + ICON_GAP + 14)
+            if lx >= ix and lx <= ix + ICON_SIZE and ly >= iy and ly <= iy + ICON_SIZE then
+                if entry.key == "exorcism" then
+                    if onUseExorcismCallback then onUseExorcismCallback() end
+                else
+                    local ok = ShopPopup.useConsumable(entry.key)
+                    if ok then
+                        AudioManager.playItemUse(entry.key)
+                        local VFX = require "lib.VFX"
+                        local tc = Theme.current
+                        VFX.spawnBanner(entry.info.icon .. " 使用了" .. entry.info.label,
+                            tc.safe.r, tc.safe.g, tc.safe.b, 18, 0.7)
+                    end
+                end
+                return true
+            end
+            col = col + 1
+            if col >= ICONS_PER_ROW then col = 0; row = row + 1 end
+        end
+    end
+
+    return true  -- 面板内其余区域消费事件
+end
+
+-- ---------------------------------------------------------------------------
+-- 交互：hover
+-- ---------------------------------------------------------------------------
+
+function M.updateHover(lx, ly, dt, logicalW, logicalH)
+    state.hoverTab      = 0
+    state.hoverIndex    = 0
+    state.hoverItem     = nil
+    state.hoverCloseBtn    = false
+    state.hoverEndDayBtn   = false
+
+    if not state.visible or state.alpha < 0.1 then return end
+
+    -- 便签贴 hover（始终检测）
+    for i = 1, NUM_TABS do
+        local tlx, tly, tlw, tlh = getTabLabelRect(logicalH, i)
+        if lx >= tlx and lx <= tlx + tlw and ly >= tly and ly <= tly + tlh then
+            state.hoverTab = i
+            return
+        end
+    end
+
+    if not state.expanded or state.showcasing then return end
+
+    local px, py, pw, ph = getPanelRect(logicalH)
+    if lx < px or lx > px + pw or ly < py or ly > py + ph then return end
+
+    -- 关闭按钮 hover
+    local cbx = px + pw - 9
+    local cby = py + 7
+    local cdx = lx - cbx
+    local cdy = ly - cby
+    if cdx * cdx + cdy * cdy <= 100 then
+        state.hoverCloseBtn = true
+        return
+    end
+
+    -- Tab1：日程 hover
+    if state.activeTab == 1 then
+        local schedules = CardManager.getSchedules()
+        local contentX  = px + SPINE_W + PAGE_PAD
+        local contentY  = py + 28
+        for i, sched in ipairs(schedules) do
+            local itemY = contentY + (i - 1) * ITEM_H
+            if ly >= itemY and ly <= itemY + ITEM_H
+                and lx >= contentX and lx <= px + pw - PAGE_PAD then
+                if sched.status == "pending" or sched.status == "deferred" then
+                    state.hoverIndex = i
+                end
+                return
+            end
+        end
+
+        -- 结束今天按钮 hover
+        local schedHover   = CardManager.getSchedules()
+        local lastIdxH     = math.min(#schedHover, math.floor((ph - 28 - (NOTE_H + 24) - 4) / ITEM_H))
+        local noteYH       = py + ph - NOTE_H - 14
+        local footerY      = math.min(py + 28 + lastIdxH * ITEM_H + 14, noteYH - 30)
+        local ebtnX        = px + SPINE_W + PAGE_PAD
+        local ebtnW        = pw - SPINE_W - PAGE_PAD * 2
+        if lx >= ebtnX and lx <= ebtnX + ebtnW and ly >= footerY and ly <= footerY + 18 then
+            state.hoverEndDayBtn = true
+            return
+        end
+    end
+
+    -- Tab2：道具 hover
+    if state.activeTab == 2 then
+        local consumables = ShopPopup.getConsumableOrder()
+        local contentX    = px + SPINE_W + PAGE_PAD
+        local contentY    = py + 28
+        local col = 0
+        local row = 0
+        for _, entry in ipairs(consumables) do
+            local ix = contentX + col * (ICON_SIZE + ICON_GAP)
+            local iy = contentY + row * (ICON_SIZE + ICON_GAP + 14)
+            if lx >= ix and lx <= ix + ICON_SIZE and ly >= iy and ly <= iy + ICON_SIZE then
+                state.hoverItem = entry.key
+                return
+            end
+            col = col + 1
+            if col >= ICONS_PER_ROW then col = 0; row = row + 1 end
+        end
+    end
 end
 
 return M
