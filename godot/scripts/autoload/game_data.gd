@@ -8,6 +8,7 @@ extends Node
 signal resource_changed(key: String, old_value: int, new_value: int)
 signal game_phase_changed(old_phase: String, new_phase: String)
 signal demo_state_changed(old_state: String, new_state: String)
+signal item_changed(key: String, new_count: int)  # 道具栏增减时发出
 
 # ---------------------------------------------------------------------------
 # 数据表从 game_config.json 读取
@@ -170,6 +171,7 @@ func check_victory() -> bool:
 
 func add_item(item_key: String, count: int = 1) -> void:
 	inventory[item_key] = inventory.get(item_key, 0) + count
+	item_changed.emit(item_key, inventory[item_key])
 
 func remove_item(item_key: String, count: int = 1) -> bool:
 	var current: int = inventory.get(item_key, 0)
@@ -178,6 +180,7 @@ func remove_item(item_key: String, count: int = 1) -> bool:
 	inventory[item_key] = current - count
 	if inventory[item_key] <= 0:
 		inventory.erase(item_key)
+	item_changed.emit(item_key, inventory.get(item_key, 0))
 	return true
 
 func get_item_count(item_key: String) -> int:

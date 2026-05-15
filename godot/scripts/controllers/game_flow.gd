@@ -116,6 +116,7 @@ func _on_deal_complete() -> void:
 	if m._hand_panel:
 		m._hand_panel.setup(m.card_manager, m.consumable_controller)
 		m._hand_panel.show_panel()
+		m._hand_panel.refresh()   # show_panel 若已显示则跳过内部 refresh，需显式调用
 
 	# Phase 5: 发牌完成后生成当日 NPC
 	_spawn_daily_npcs()

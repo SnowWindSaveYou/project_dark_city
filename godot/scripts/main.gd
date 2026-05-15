@@ -474,10 +474,16 @@ func _connect_signals() -> void:
 	# 商店 (需区分普通/暗面)
 	_shop_popup.shop_closed.connect(_on_shop_closed)
 
+	# 道具栏变更 → 刷新手牌面板道具页
+	GameData.item_changed.connect(func(_key: String, _cnt: int) -> void:
+		if _hand_panel and _hand_panel.is_active():
+			_hand_panel.refresh())
+
 	# 手牌面板
 	_hand_panel.end_day_pressed.connect(func(): game_flow.advance_day())
-	_hand_panel.schedule_toggled.connect(
-		func(idx: int): card_manager.toggle_defer(idx))
+	_hand_panel.schedule_toggled.connect(func(idx: int) -> void:
+		card_manager.toggle_defer(idx)
+		_hand_panel.refresh())
 	_hand_panel.use_exorcism_pressed.connect(
 		func(): card_interaction.handle_inventory_exorcism())
 	_hand_panel.open_clue_log.connect(func(): _clue_log.open())

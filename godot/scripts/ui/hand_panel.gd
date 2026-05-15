@@ -75,7 +75,9 @@ const TAB_NAMES: Array[String] = ["日程", "道具", "线索"]
 
 @onready var _items_page: ScrollContainer = $NotebookRoot/ItemsPage
 @onready var _items_vbox: VBoxContainer   = $NotebookRoot/ItemsPage/ItemsVBox
-@onready var _clue_page: VBoxContainer   = $NotebookRoot/CluePage
+@onready var _clue_page: Control          = $NotebookRoot/CluePage
+@onready var _clue_vbox: VBoxContainer    = $NotebookRoot/CluePage/ClueScroll/ClueVBox
+@onready var _clue_empty_label: Label     = $NotebookRoot/CluePage/ClueEmptyLabel
 
 @onready var _tabs_container: Control = $NotebookRoot/TabsContainer
 @onready var _tab_btns: Array[Button] = []   # 在 _ready 中填充
@@ -188,12 +190,9 @@ func _apply_styles() -> void:
 	_note_page_label.add_theme_font_size_override("font_size", 21)
 	_note_page_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.55))
 
-	# ClueIcon / ClueText 样式
-	var clue_icon: Label = $NotebookRoot/CluePage/ClueIcon
-	var clue_text: Label = $NotebookRoot/CluePage/ClueText
-	clue_icon.add_theme_font_size_override("font_size", 84)
-	clue_text.add_theme_font_size_override("font_size", 33)
-	clue_text.add_theme_color_override("font_color", Color(t.text_secondary, 0.35))
+	# 线索空状态标签样式
+	_clue_empty_label.add_theme_font_size_override("font_size", 33)
+	_clue_empty_label.add_theme_color_override("font_color", Color(t.text_secondary, 0.35))
 
 	# 便签按钮样式
 	_style_tab_buttons()
@@ -226,15 +225,24 @@ func _style_tab_buttons() -> void:
 		sb_pressed.set_border_width_all(1)
 		sb_pressed.border_width_left = 0
 
-		# Hover 态
+		# Hover 态（背景更亮、左侧加粗线暗示，文字颜色保持不变）
 		var sb_hover := StyleBoxFlat.new()
-		sb_hover.bg_color = Color(col.r * 0.95, col.g * 0.95, col.b * 0.95, 0.86)
+		sb_hover.bg_color = Color(
+			minf(col.r * 1.12 + 0.06, 1.0),
+			minf(col.g * 1.12 + 0.06, 1.0),
+			minf(col.b * 1.12 + 0.06, 1.0),
+			0.92)
 		sb_hover.set_corner_radius_all(0)
 		sb_hover.corner_radius_top_right = int(TAB_RADIUS)
 		sb_hover.corner_radius_bottom_right = int(TAB_RADIUS)
-		sb_hover.border_color = Color(col.r * 0.68, col.g * 0.68, col.b * 0.68, 0.55)
-		sb_hover.set_border_width_all(1)
+		sb_hover.border_color = Color(col.r * 0.68, col.g * 0.68, col.b * 0.68, 0.72)
+		sb_hover.set_border_width_all(2)
 		sb_hover.border_width_left = 0
+		sb_hover.shadow_color = Color(col.r * 0.5, col.g * 0.5, col.b * 0.5, 0.25)
+		sb_hover.shadow_size = 4
+		sb_hover.shadow_offset = Vector2(2, 0)
+
+		var text_dark: Color = Color(0.22, 0.18, 0.14, 0.92)
 
 		btn.flat = false   # flat=true 会屏蔽所有 StyleBox 覆盖，必须关闭
 		btn.add_theme_stylebox_override("normal", sb_normal)
@@ -242,7 +250,11 @@ func _style_tab_buttons() -> void:
 		btn.add_theme_stylebox_override("hover", sb_hover)
 		btn.add_theme_stylebox_override("focus", sb_normal)
 		btn.add_theme_font_size_override("font_size", 30)
-		btn.add_theme_color_override("font_color", Color(0.22, 0.18, 0.14, 0.92))
+		btn.add_theme_color_override("font_color", text_dark)
+		# 明确覆盖 hover/pressed 文字颜色，防止 Godot 默认主题把 hover 文字变白
+		btn.add_theme_color_override("font_hover_color", text_dark)
+		btn.add_theme_color_override("font_pressed_color", text_dark)
+		btn.add_theme_color_override("font_focus_color", text_dark)
 
 # ---------------------------------------------------------------------------
 # 布局：计算笔记本高度并调整所有子节点
@@ -603,6 +615,7 @@ func refresh() -> void:
 	_refresh_schedules()
 	_refresh_rumors()
 	_refresh_items()
+	_refresh_clues()
 
 func _refresh_schedules() -> void:
 	# 清除旧行
@@ -672,6 +685,84 @@ func _refresh_items() -> void:
 		_items_vbox.add_child(btn)
 		btn.set_entry(entry)
 		btn.item_used.connect(func(key: String) -> void: _on_item_used(key))
+
+func _refresh_clues() -> void:
+	for child in _clue_vbox.get_children():
+		child.queue_free()
+
+	var clues: Array = StoryManager.get_all_clues() if has_node("/root/StoryManager") else []
+
+	_clue_empty_label.visible = clues.is_empty()
+
+	var t: Node = get_node("/root/GameTheme")
+	# 分类颜色映射
+	var category_colors: Dictionary = {
+		"物证": Color(0.82, 0.63, 0.24),
+		"人物": Color(0.45, 0.72, 0.55),
+		"地点": Color(0.42, 0.65, 0.87),
+		"异象": Color(0.68, 0.45, 0.82),
+	}
+
+	for clue: Dictionary in clues:
+		var info: Dictionary = clue.get("info", {})
+		var row: HBoxContainer = HBoxContainer.new()
+		row.custom_minimum_size = Vector2(0, 72)
+		row.add_theme_constant_override("separation", 12)
+
+		# 左侧图标
+		var icon_lbl: Label = Label.new()
+		icon_lbl.text = info.get("icon", "🔍")
+		icon_lbl.add_theme_font_size_override("font_size", 42)
+		icon_lbl.custom_minimum_size = Vector2(54, 54)
+		icon_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		icon_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(icon_lbl)
+
+		# 右侧文字
+		var text_vbox: VBoxContainer = VBoxContainer.new()
+		text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_vbox.add_theme_constant_override("separation", 4)
+
+		var name_lbl: Label = Label.new()
+		name_lbl.text = info.get("name", "未知线索")
+		name_lbl.add_theme_font_size_override("font_size", 27)
+		name_lbl.add_theme_color_override("font_color", Color(t.text_primary, 0.92))
+		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text_vbox.add_child(name_lbl)
+
+		var cat_str: String = info.get("category", "")
+		if not cat_str.is_empty():
+			var cat_lbl: Label = Label.new()
+			cat_lbl.text = "[%s]" % cat_str
+			cat_lbl.add_theme_font_size_override("font_size", 21)
+			var cat_color: Color = category_colors.get(cat_str, Color(t.text_secondary, 0.65))
+			cat_lbl.add_theme_color_override("font_color", cat_color)
+			text_vbox.add_child(cat_lbl)
+
+		var desc: String = info.get("desc", "")
+		if not desc.is_empty():
+			var desc_lbl: Label = Label.new()
+			desc_lbl.text = desc
+			desc_lbl.add_theme_font_size_override("font_size", 21)
+			desc_lbl.add_theme_color_override("font_color", Color(t.text_secondary, 0.65))
+			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			text_vbox.add_child(desc_lbl)
+
+		row.add_child(text_vbox)
+
+		# 底部分隔线（用 ColorRect 模拟）
+		var sep: ColorRect = ColorRect.new()
+		sep.color = Color(t.notebook_line, 0.18)
+		sep.custom_minimum_size = Vector2(0, 2)
+		sep.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		var wrapper: VBoxContainer = VBoxContainer.new()
+		wrapper.add_theme_constant_override("separation", 0)
+		wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		wrapper.add_child(row)
+		wrapper.add_child(sep)
+
+		_clue_vbox.add_child(wrapper)
 
 # ---------------------------------------------------------------------------
 # 事件处理
