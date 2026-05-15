@@ -60,11 +60,14 @@ var texture: Texture2D = null
 # ---------------------------------------------------------------------------
 
 func _init() -> void:
-	texture = load(TEXTURE_PATH) as Texture2D
-	if texture:
-		print("[Baiye] Loaded texture: %s" % TEXTURE_PATH)
+	if ResourceLoader.exists(TEXTURE_PATH):
+		texture = load(TEXTURE_PATH) as Texture2D
+		if texture:
+			print("[Baiye] Loaded texture: %s" % TEXTURE_PATH)
+		else:
+			push_warning("[Baiye] Texture exists but failed to cast: %s" % TEXTURE_PATH)
 	else:
-		push_warning("[Baiye] Failed to load texture: %s" % TEXTURE_PATH)
+		push_warning("[Baiye] Texture not imported yet (run editor to import): %s" % TEXTURE_PATH)
 
 # ---------------------------------------------------------------------------
 # 显示条件检查

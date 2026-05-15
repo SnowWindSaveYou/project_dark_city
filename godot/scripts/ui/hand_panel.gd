@@ -422,7 +422,7 @@ func _draw_footer() -> void:
 # ---------------------------------------------------------------------------
 
 ## 设置 CardManager 和 CardController 引用
-func setup(cm: Node, cc: Node) -> void:
+func setup(cm, cc) -> void:
 	pass  # Godot 版从 GameData autoload 读取，无需外部注入
 
 func set_use_exorcism_callback(fn: Callable) -> void:
