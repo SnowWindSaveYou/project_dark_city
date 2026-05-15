@@ -19,31 +19,32 @@ extends Node3D
 # ---------------------------------------------------------------------------
 const DRAG_THRESHOLD: float = 8.0
 const PAN_LIMIT: Vector2 = Vector2(2.5, 2.5)  # 世界坐标米
-const BG_BRIGHT: Color = Color(0.53, 0.76, 0.92)
-const BG_DARK: Color = Color(0.15, 0.12, 0.18)
+# 物语系列背景色：明面纯白、暗面深紫黑
+const BG_BRIGHT: Color = Color(0.97, 0.97, 0.97)   # 近纯白（SHAFT 风格空白背景）
+const BG_DARK: Color   = Color(0.06, 0.05, 0.10)   # 极深紫黑
 const TOKEN_CLICK_RADIUS: float = 32.0
 
 # 氛围参数 (明亮 → 暗黑, 由 _bg_transition 0→1 插值)
 const ATMO_BRIGHT: Dictionary = {
-	# 灯光
-	"light_color":    Color(1.00, 0.97, 0.88),   # 暖黄白阳光
-	"light_energy":   2.2,                        # 降低避免 bloom 叠加过曝
-	"ambient_color":  Color(0.38, 0.45, 0.58),   # 蓝灰天光
-	"ambient_energy": 0.65,
+	# 灯光 — 白背景下大幅压低，避免叠加过曝
+	"light_color":    Color(1.00, 0.97, 0.90),   # 暖白阳光
+	"light_energy":   1.4,                        # 从 2.2 降到 1.4
+	"ambient_color":  Color(0.72, 0.74, 0.80),   # 明亮冷白天光（配白背景）
+	"ambient_energy": 0.50,
 	# 背景/雾
 	"fog_enabled": false,
 	"fog_density": 0.0,
 	"fog_color":   Color(0.5, 0.6, 0.7),
 	"table_color": Color(0.25, 0.22, 0.20),
-	# Bloom — 轻柔日光散射
-	"glow_intensity":  0.45,
-	"glow_bloom":      0.01,
-	# 色彩调整 — 城市鲜活感
-	"adj_brightness":  0.94,
-	"adj_contrast":    1.04,
-	"adj_saturation":  1.15,
-	# Tonemap (white 保持默认 1.0, 避免整体过亮)
-	"tonemap_exposure": 1.0,
+	# Bloom — 白背景几乎关闭 glow，避免发白
+	"glow_intensity":  0.20,
+	"glow_bloom":      0.00,
+	# 色彩调整 — 物语系列偏平、去饱和的清冷感
+	"adj_brightness":  0.90,
+	"adj_contrast":    1.02,
+	"adj_saturation":  0.92,
+	# Tonemap — 降低 exposure 进一步压住高光
+	"tonemap_exposure": 0.82,
 	"tonemap_white":    1.0,
 }
 const ATMO_DARK: Dictionary = {
