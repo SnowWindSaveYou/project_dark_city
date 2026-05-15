@@ -153,25 +153,9 @@ func _ready() -> void:
 	_notebook.add_theme_stylebox_override("panel", nb_style)
 	_notebook.custom_minimum_size = Vector2(NB_W, NB_H)
 
-	# 拍立得卡样式（奶白色相纸）
-	var pol_style: StyleBoxFlat = StyleBoxFlat.new()
-	pol_style.bg_color = Color(0.992, 0.988, 0.965, 1.0)
-	pol_style.border_color = Color(0.824, 0.784, 0.725, 0.55)
-	pol_style.set_border_width_all(2)
-	pol_style.set_corner_radius_all(6)
-	pol_style.content_margin_left = 12
-	pol_style.content_margin_right = 12
-	pol_style.content_margin_top = 12
-	pol_style.content_margin_bottom = 0
-	# 软阴影（对应 Lua 版拍立得卡片 shadow）
-	pol_style.shadow_color = Color(0.0, 0.0, 0.0, 0.32)
-	pol_style.shadow_size = 14
-	pol_style.shadow_offset = Vector2(3.0, 5.0)
-	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
-
-	# 拍立得区：固定宽度 200px，不参与 HBox 扩展（size_flags=0）
-	_polaroid_area.custom_minimum_size = Vector2(200, 0)
+	# 拍立得区：横向固定不扩展，纵向填满 HBox；样式和尺寸在 _update_polaroid_layout() 中动态计算
 	_polaroid_area.size_flags_horizontal = 0
+	_polaroid_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	# 右侧文字区行间距
 	_right_vbox.add_theme_constant_override("separation", 16)
@@ -213,6 +197,9 @@ func _ready() -> void:
 				_style_confirm_button(true)
 				dismiss()
 	)
+
+	# 初始化拍立得尺寸（resize 通知还未到来，先用视口尺寸计算一次）
+	_update_polaroid_layout()
 
 # ---------------------------------------------------------------------------
 # 关联组件引用
@@ -750,6 +737,66 @@ func _draw_notebook_decor() -> void:
 		)
 		ly += line_spacing
 
+# ---------------------------------------------------------------------------
+# 拍立得动态尺寸计算（对齐 Lua 版比例）
+# Lua 原始比例：POL_W/POL_H = 122/187 = 0.652，底白边 = POL_BOTTOM/POL_H = 32/187 = 17.1%
+# ---------------------------------------------------------------------------
+func _update_polaroid_layout() -> void:
+	if not is_inside_tree() or _polaroid_card == null:
+		return
+
+	var vp: Vector2 = get_viewport_rect().size
+	var nb_h: float = minf(vp.y * 0.52, 600.0)
+
+	# HBox 可用高度 = 笔记本高 - 内容边距(top16+bottom20) - 确认按钮(52) - 分隔(12)
+	var hbox_h: float = maxf(nb_h - 100.0, 180.0)
+
+	# 拍立得高度：HBox 高的 88%（Lua 版约 93.5%，HBox 比 NB_H 略矮故留余量）
+	var pol_h: float = hbox_h * 0.88
+	# 拍立得宽度：保持 Lua 版比例 122/187 ≈ 0.652
+	var pol_w: float = pol_h * (122.0 / 187.0)
+
+	# 更新 PolaroidCard 大小（通过锚点偏移，锚在父容器中心）
+	_polaroid_card.offset_left   = -pol_w * 0.5
+	_polaroid_card.offset_right  =  pol_w * 0.5
+	_polaroid_card.offset_top    = -pol_h * 0.5
+	_polaroid_card.offset_bottom =  pol_h * 0.5
+	_polaroid_card.pivot_offset  = Vector2(pol_w * 0.5, pol_h * 0.5)
+
+	# 拍立得区域宽度：卡片宽 + 旋转余量（5° 时最大水平溢出 ≈ pol_h * sin5° ≈ pol_h * 0.044）
+	# 余量覆盖旋转溢出，确保不与右侧文字区重叠
+	var rot_margin: float = pol_h * 0.05 + 8.0
+	_polaroid_area.custom_minimum_size = Vector2(pol_w + rot_margin, 0.0)
+
+	# 拍立得边框内边距（Lua 版 POL_SIDE/POL_W = 9/122 ≈ 7.4%）
+	var margin_side: float = maxf(pol_w * 0.074, 8.0)
+	# 底部白边高度（Lua 版 POL_BOTTOM/POL_H = 32/187 ≈ 17.1%）
+	var bottom_h: float = maxf(pol_h * 0.171, 32.0)
+
+	# 更新拍立得卡样式（奶白色相纸，比例缩放边距）
+	var pol_style := StyleBoxFlat.new()
+	pol_style.bg_color          = Color(0.992, 0.988, 0.965, 1.0)
+	pol_style.border_color      = Color(0.824, 0.784, 0.725, 0.55)
+	pol_style.set_border_width_all(2)
+	pol_style.set_corner_radius_all(6)
+	pol_style.content_margin_left   = margin_side
+	pol_style.content_margin_right  = margin_side
+	pol_style.content_margin_top    = margin_side
+	pol_style.content_margin_bottom = 0.0
+	pol_style.shadow_color  = Color(0.0, 0.0, 0.0, 0.32)
+	pol_style.shadow_size   = 14
+	pol_style.shadow_offset = Vector2(3.0, 5.0)
+	_polaroid_card.add_theme_stylebox_override("panel", pol_style)
+
+	# 底部标签区高度 + 字号（按比例缩放）
+	_card_bottom.custom_minimum_size = Vector2(0.0, bottom_h)
+	var lbl_size: int = maxi(int(pol_h * 0.072), 22)
+	_type_label.add_theme_font_size_override("font_size", lbl_size)
+	_location_label.add_theme_font_size_override("font_size", lbl_size)
+
+	if _notebook_decor:
+		_notebook_decor.queue_redraw()
+
 func _on_resized() -> void:
 	if _notebook:
 		var vp: Vector2 = get_viewport_rect().size
@@ -757,6 +804,7 @@ func _on_resized() -> void:
 			minf(vp.x * 0.72, 1080),
 			minf(vp.y * 0.52, 600)
 		)
+		_update_polaroid_layout()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:

@@ -47,6 +47,10 @@ func _on_viewport_resized() -> void:
 func set_weather(weather_type: int) -> void:
 	_current_type = weather_type
 
+## 获取当前天气类型 (供外部读取, 如氛围系统)
+func get_weather_type() -> int:
+	return _current_type
+
 ## 重置所有粒子状态 (游戏重启时调用)
 func reset() -> void:
 	_particles.clear()

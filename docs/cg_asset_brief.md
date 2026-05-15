@@ -20,11 +20,13 @@
 | 白夜 chibi | `assets/image/白夜_chibi_20260506003802.png` | ✅ 已验证 |
 | 棠立绘·带刀版 | `assets/image/棠_立绘_刀_v1_20260515070049.png` | ✅ 可用 |
 | 棠立绘·基础版 | `assets/image/棠_立绘_v4_20260515065722.png` | ✅ 可用 |
+| 白夜·前世黑猫半妖 | `assets/image/白夜_前世_黑猫半妖_v1_20260515164435.png` | ✅ 可用 |
 
 **各角色参考使用规则**：
 - **苏柚**：所有出现苏柚的帧均以 `主角_京アニv3` 垫图
 - **白夜**：出现白夜（毛球形态）的帧均以 `白夜_chibi_20260506003802` 垫图
-- **棠**：闪回帧用 `棠_立绘_刀_v1` 垫图，但必须在 prompt 中强制指定过曝白色调（参考图本身白底，AI 不会自动添加过曝效果）
+- **棠**：闪回帧用 `棠_立绘_v4` 垫图（前世女主/苏柚前世），必须在 prompt 中强制指定过曝白色调
+- **白夜（前世）**：千年前闪回帧用 `白夜_前世_黑猫半妖_v1` 垫图（黑猫半妖人形，非毛球形态）
 
 ### A类背景底图进度
 
@@ -52,12 +54,12 @@
 | KEY-D1-01 | `keyframe_d1_wardrobe_eyes` | 🔍 待审 | `keyframe_d1_wardrobe_eyes_20260515162604.png` |
 | KEY-D1-02 | `keyframe_d1_blanket_indent` | 🔍 待审 | `keyframe_d1_blanket_indent_20260515162556.png` |
 | KEY-D2-01 | `keyframe_d2_hand_cupping_fluffball` | 🔍 待审 | `keyframe_d2_hand_cupping_fluffball_20260515162643.png` |
-| KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | 🔍 待审 | `keyframe_d2_flashback_tang_silhouette_20260515162643.png` |
+| KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | 🔍 待审 | `keyframe_d2_flashback_tang_silhouette_v2_20260515164836.png` |
 | KEY-D3-02 | `keyframe_d3_silent_follow` | ✅ 已验证 | `keyframe_d3_silent_follow_v3_20260515160624.png` |
 | KEY-D6-01 | `keyframe_d6_baiye_barrier` | 🔍 待审 | `keyframe_d6_baiye_barrier_20260515162839.png` |
 | KEY-D7-01 | `keyframe_d7_tang_revealed` | 🔍 待审 | `keyframe_d7_tang_revealed_20260515162732.png` |
 | KEY-D7-02 | `keyframe_d7_who_are_you_now` | 🔍 待审 | `keyframe_d7_who_are_you_now_20260515162744.png` |
-| KEY-D12-01 | `keyframe_d12_tang_leaves` | 🔍 待审 | `keyframe_d12_tang_leaves_20260515163014.png` |
+| KEY-D12-01 | `keyframe_d12_tang_leaves` | 🔍 待审 | `keyframe_d12_tang_leaves_v2_20260515164842.png` |
 | KEY-D14-01 | `keyframe_d14_enough` | 🔍 待审 | `keyframe_d14_enough_20260515162933.png` |
 | KEY-D14-02 | `keyframe_d14_sunlight` | 🔍 待审 | `keyframe_d14_sunlight_20260515162925.png` |
 

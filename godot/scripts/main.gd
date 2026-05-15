@@ -25,22 +25,59 @@ const TOKEN_CLICK_RADIUS: float = 32.0
 
 # 氛围参数 (明亮 → 暗黑, 由 _bg_transition 0→1 插值)
 const ATMO_BRIGHT: Dictionary = {
-	"light_energy": 2.8,
-	"ambient_color": Color(0.4, 0.45, 0.5),
-	"ambient_energy": 0.6,
+	# 灯光
+	"light_color":    Color(1.00, 0.97, 0.88),   # 暖黄白阳光
+	"light_energy":   2.8,
+	"ambient_color":  Color(0.38, 0.45, 0.58),   # 蓝灰天光
+	"ambient_energy": 0.65,
+	# 背景/雾
 	"fog_enabled": false,
 	"fog_density": 0.0,
-	"fog_color": Color(0.5, 0.6, 0.7),
+	"fog_color":   Color(0.5, 0.6, 0.7),
 	"table_color": Color(0.25, 0.22, 0.20),
+	# Bloom — 轻柔日光散射
+	"glow_intensity":        0.55,
+	"glow_bloom":            0.02,
+	"glow_hdr_threshold":    1.05,
+	"glow_hdr_scale":        2.0,
+	# 色彩调整 — 城市鲜活感
+	"adj_brightness":  1.0,
+	"adj_contrast":    1.05,
+	"adj_saturation":  1.18,
+	# Tonemap
+	"tonemap_exposure": 1.0,
+	"tonemap_white":    6.0,
 }
 const ATMO_DARK: Dictionary = {
-	"light_energy": 0.6,
-	"ambient_color": Color(0.15, 0.1, 0.25),
-	"ambient_energy": 0.25,
+	# 灯光
+	"light_color":    Color(0.62, 0.65, 0.90),   # 冷蓝紫幽光
+	"light_energy":   0.55,
+	"ambient_color":  Color(0.12, 0.08, 0.22),   # 深紫环境
+	"ambient_energy": 0.30,
+	# 背景/雾
 	"fog_enabled": true,
 	"fog_density": 0.04,
-	"fog_color": Color(0.08, 0.06, 0.12),
-	"table_color": Color(0.12, 0.10, 0.14),
+	"fog_color":   Color(0.08, 0.06, 0.12),
+	"table_color": Color(0.10, 0.08, 0.14),
+	# Bloom — 暗面元素发光渗出
+	"glow_intensity":        1.10,
+	"glow_bloom":            0.08,
+	"glow_hdr_threshold":    0.72,
+	"glow_hdr_scale":        2.8,
+	# 色彩调整 — 压抑去饱和
+	"adj_brightness":  0.88,
+	"adj_contrast":    1.18,
+	"adj_saturation":  0.58,
+	# Tonemap
+	"tonemap_exposure": 0.80,
+	"tonemap_white":    4.5,
+}
+# 雷暴天气叠加偏移 (在当前氛围基础上额外施加)
+const ATMO_STORMY_OFFSET: Dictionary = {
+	"adj_brightness":  -0.07,
+	"adj_contrast":    +0.08,
+	"adj_saturation":  -0.15,
+	"light_energy":    -0.35,
 }
 
 # ---------------------------------------------------------------------------
@@ -376,6 +413,7 @@ func _setup_3d_scene() -> void:
 	# Lua: SetDirection(0.5, -1.0, 0.6) → 光从右前上方照向左后下方
 	# pitch ≈ -50°, yaw ≈ atan2(0.5,0.6) ≈ 40°, 阴影落在角色身后偏左
 	_dir_light.rotation_degrees = Vector3(-50, 40, 0)
+	_dir_light.light_color  = ATMO_BRIGHT["light_color"]
 	_dir_light.light_energy = ATMO_BRIGHT["light_energy"]
 	_dir_light.shadow_enabled = false  # chibi 已有 blob shadow，不需要实时投影
 	add_child(_dir_light)
@@ -385,10 +423,26 @@ func _setup_3d_scene() -> void:
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = BG_BRIGHT
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_color = ATMO_BRIGHT["ambient_color"]
+	_env.ambient_light_color  = ATMO_BRIGHT["ambient_color"]
 	_env.ambient_light_energy = ATMO_BRIGHT["ambient_energy"]
-	_env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	_env.fog_enabled = false  # 由 _apply_atmosphere() 动态控制
+	# Tonemap
+	_env.tonemap_mode     = Environment.TONE_MAPPER_ACES
+	_env.tonemap_exposure = ATMO_BRIGHT["tonemap_exposure"]
+	_env.tonemap_white    = ATMO_BRIGHT["tonemap_white"]
+	# Glow (Bloom)
+	_env.glow_enabled       = true
+	_env.glow_normalized    = false
+	_env.glow_intensity     = ATMO_BRIGHT["glow_intensity"]
+	_env.glow_bloom         = ATMO_BRIGHT["glow_bloom"]
+	_env.glow_hdr_bleed_threshold = ATMO_BRIGHT["glow_hdr_threshold"]
+	_env.glow_hdr_bleed_scale     = ATMO_BRIGHT["glow_hdr_scale"]
+	# Color Adjustment
+	_env.adjustment_enabled    = true
+	_env.adjustment_brightness = ATMO_BRIGHT["adj_brightness"]
+	_env.adjustment_contrast   = ATMO_BRIGHT["adj_contrast"]
+	_env.adjustment_saturation = ATMO_BRIGHT["adj_saturation"]
+	# Fog (由 _apply_atmosphere() 动态控制)
+	_env.fog_enabled = false
 
 	_world_env = WorldEnvironment.new()
 	_world_env.name = "WorldEnv"
@@ -926,17 +980,60 @@ func _update_card_hover(dt: float) -> void:
 func _apply_atmosphere(t: float) -> void:
 	if not _env:
 		return
+
+	# 雷暴天气偏移系数 (0=无雷暴, 1=完整偏移)
+	var stormy_t: float = 0.0
+	if _weather_particles:
+		var wt: int = _weather_particles.get_weather_type()
+		if wt == Weather.Type.STORMY:
+			stormy_t = 1.0
+		elif wt == Weather.Type.RAINY:
+			stormy_t = 0.4   # 雨天轻微压暗
+
 	# 背景色
 	_env.background_color = BG_BRIGHT.lerp(BG_DARK, t)
+
 	# 主光源
 	if _dir_light:
-		_dir_light.light_energy = lerpf(
+		_dir_light.light_color = ATMO_BRIGHT["light_color"].lerp(
+			ATMO_DARK["light_color"], t)
+		var base_energy: float = lerpf(
 			ATMO_BRIGHT["light_energy"], ATMO_DARK["light_energy"], t)
+		_dir_light.light_energy = base_energy + ATMO_STORMY_OFFSET["light_energy"] * stormy_t
+
 	# 环境光
 	_env.ambient_light_color = ATMO_BRIGHT["ambient_color"].lerp(
 		ATMO_DARK["ambient_color"], t)
 	_env.ambient_light_energy = lerpf(
 		ATMO_BRIGHT["ambient_energy"], ATMO_DARK["ambient_energy"], t)
+
+	# Tonemap
+	_env.tonemap_exposure = lerpf(
+		ATMO_BRIGHT["tonemap_exposure"], ATMO_DARK["tonemap_exposure"], t)
+	_env.tonemap_white = lerpf(
+		ATMO_BRIGHT["tonemap_white"], ATMO_DARK["tonemap_white"], t)
+
+	# Glow (Bloom)
+	_env.glow_intensity = lerpf(
+		ATMO_BRIGHT["glow_intensity"], ATMO_DARK["glow_intensity"], t)
+	_env.glow_bloom = lerpf(
+		ATMO_BRIGHT["glow_bloom"], ATMO_DARK["glow_bloom"], t)
+	_env.glow_hdr_bleed_threshold = lerpf(
+		ATMO_BRIGHT["glow_hdr_threshold"], ATMO_DARK["glow_hdr_threshold"], t)
+	_env.glow_hdr_bleed_scale = lerpf(
+		ATMO_BRIGHT["glow_hdr_scale"], ATMO_DARK["glow_hdr_scale"], t)
+
+	# 色彩调整 (叠加雷暴偏移)
+	_env.adjustment_brightness = lerpf(
+		ATMO_BRIGHT["adj_brightness"], ATMO_DARK["adj_brightness"], t) \
+		+ ATMO_STORMY_OFFSET["adj_brightness"] * stormy_t
+	_env.adjustment_contrast = lerpf(
+		ATMO_BRIGHT["adj_contrast"], ATMO_DARK["adj_contrast"], t) \
+		+ ATMO_STORMY_OFFSET["adj_contrast"] * stormy_t
+	_env.adjustment_saturation = lerpf(
+		ATMO_BRIGHT["adj_saturation"], ATMO_DARK["adj_saturation"], t) \
+		+ ATMO_STORMY_OFFSET["adj_saturation"] * stormy_t
+
 	# 雾效 (超过阈值才启用, 避免低值时多余开销)
 	var fog_t: float = clampf((t - 0.3) / 0.7, 0.0, 1.0)  # 30% 后才开始出雾
 	_env.fog_enabled = fog_t > 0.01
@@ -944,6 +1041,7 @@ func _apply_atmosphere(t: float) -> void:
 		_env.fog_density = lerpf(0.0, ATMO_DARK["fog_density"], fog_t)
 		_env.fog_light_color = ATMO_BRIGHT["fog_color"].lerp(
 			ATMO_DARK["fog_color"], fog_t)
+
 	# 桌面颜色
 	if _table_mat:
 		_table_mat.albedo_color = ATMO_BRIGHT["table_color"].lerp(
