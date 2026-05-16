@@ -92,7 +92,7 @@ func _process(_dt: float) -> void:
 		queue_redraw()
 
 	# 需要渲染时才 queue_redraw
-	if ds.is_active() or ds.overlay_alpha > 0.01 or ds.bg_image_alpha > 0.01:
+	if ds.is_active() or ds.overlay_alpha > 0.01 or ds.bg_image_alpha > 0.01 or ds.bg_next_alpha > 0.01:
 		queue_redraw()
 
 func _gui_input(event: InputEvent) -> void:
@@ -132,18 +132,18 @@ func _draw() -> void:
 		return
 	var ds: DialogueSystem = m._dialogue_system
 	# 注意：bg_image_alpha 也需要参与判断，避免背景图被提前 return 遮住
-	if ds.overlay_alpha < 0.01 and ds.box_alpha < 0.01 and ds.bg_image_alpha < 0.01:
+	if ds.overlay_alpha < 0.01 and ds.box_alpha < 0.01 and ds.bg_image_alpha < 0.01 and ds.bg_next_alpha < 0.01:
 		return
 
 	var vp: Vector2 = get_viewport_rect().size
 
 	# --- 背景图（在遮罩之前，覆盖整个视口，保持宽高比裁切填满）---
+	# 先画旧图（bg_image_alpha），再叠加新图（bg_next_alpha），实现无黑帧 crossfade
 	if ds.bg_image_alpha > 0.01:
 		var bg_tex: Texture2D = ds.get_bg_texture()
 		if bg_tex != null:
 			var tex_w: float = bg_tex.get_width() as float
 			var tex_h: float = bg_tex.get_height() as float
-			# Cover 模式：等比缩放至短边贴合视口，居中裁切
 			var scale: float = maxf(vp.x / tex_w, vp.y / tex_h)
 			var draw_w: float = tex_w * scale
 			var draw_h: float = tex_h * scale
@@ -153,6 +153,19 @@ func _draw() -> void:
 				Rect2(draw_x, draw_y, draw_w, draw_h),
 				false,
 				Color(1, 1, 1, ds.bg_image_alpha))
+	if ds.bg_next_alpha > 0.01 and ds._bg_tex_next != null:
+		var nt: Texture2D = ds._bg_tex_next
+		var tex_w: float = nt.get_width() as float
+		var tex_h: float = nt.get_height() as float
+		var scale: float = maxf(vp.x / tex_w, vp.y / tex_h)
+		var draw_w: float = tex_w * scale
+		var draw_h: float = tex_h * scale
+		var draw_x: float = (vp.x - draw_w) * 0.5
+		var draw_y: float = (vp.y - draw_h) * 0.5
+		draw_texture_rect(nt,
+			Rect2(draw_x, draw_y, draw_w, draw_h),
+			false,
+			Color(1, 1, 1, ds.bg_next_alpha))
 
 	if ds.box_alpha < 0.01:
 		return

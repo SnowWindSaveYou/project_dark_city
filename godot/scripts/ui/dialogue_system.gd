@@ -74,6 +74,9 @@ var _portrait_tex: Texture2D = null
 ## 背景图
 var bg_image_path: String = ""
 var _bg_tex: Texture2D = null
+## 行级背景切换：crossfade 用第二层（新图），alpha 从 0→1，旧图同步 1→0
+var _bg_tex_next: Texture2D = null
+var bg_next_alpha: float = 0.0
 ## 行级背景切换：_load_line 检测到新路径时置为非空，main.gd 消费后清空
 var bg_pending_path: String = ""
 

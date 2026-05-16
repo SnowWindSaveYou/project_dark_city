@@ -1143,15 +1143,28 @@ func _tween_dialogue_exit() -> void:
 	var tw_cb: Tween = create_tween()
 	tw_cb.tween_callback(_dialogue_system.on_exit_complete).set_delay(0.35)
 
-## 行级背景 cross-fade：淡出当前背景 → 换贴图 → 淡入新背景
+## 行级背景 cross-fade：新图叠加淡入，旧图同步淡出，全程无黑帧
 func _tween_dialogue_bg_switch(new_path: String) -> void:
+	# 准备新图层
+	_dialogue_system._bg_tex_next = load(new_path) as Texture2D
+	_dialogue_system.bg_next_alpha = 0.0
+
+	var DURATION: float = 0.35
 	var tw: Tween = create_tween()
-	tw.tween_property(_dialogue_system, "bg_image_alpha", 0.0, 0.25)
+	tw.set_parallel(true)
+	# 新图淡入
+	tw.tween_property(_dialogue_system, "bg_next_alpha", 1.0, DURATION)
+	# 旧图淡出
+	tw.tween_property(_dialogue_system, "bg_image_alpha", 0.0, DURATION)
+	tw.set_parallel(false)
+	# 完成后：新图提升为当前图，清空 next 层
 	tw.tween_callback(func() -> void:
 		_dialogue_system.bg_image_path = new_path
-		_dialogue_system._bg_tex = load(new_path) as Texture2D
+		_dialogue_system._bg_tex = _dialogue_system._bg_tex_next
+		_dialogue_system.bg_image_alpha = 1.0
+		_dialogue_system._bg_tex_next = null
+		_dialogue_system.bg_next_alpha = 0.0
 	)
-	tw.tween_property(_dialogue_system, "bg_image_alpha", 1.0, 0.35)
 
 # ---------------------------------------------------------------------------
 # 气泡对话 tween 管理
