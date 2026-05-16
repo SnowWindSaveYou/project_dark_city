@@ -87,9 +87,11 @@ var _btns_alpha:      float = 0.0
 var _scan_y:     float = 0.0
 var _scan_alpha: float = 0.0
 
-## 标题逐字可见度（4个Label）
+## 标题逐字可见度（每个字一个 Label）
 var _title_chars: Array[Label] = []
 var _title_char_alpha: Array[float] = []
+## 标题逐字容器（HBoxContainer，需单独清理）
+var _title_hbox: HBoxContainer = null
 
 ## 统计数据
 var _stats: Dictionary = {
@@ -214,14 +216,15 @@ func dismiss() -> void:
 	tw.set_parallel(true)
 	tw.tween_property(_overlay, "color:a", 0.0, 0.35)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	for ch in _title_chars:
-		tw.tween_property(ch, "modulate:a", 0.0, 0.25).set_ease(Tween.EASE_IN)
+	if _title_hbox != null:
+		tw.tween_property(_title_hbox, "modulate:a", 0.0, 0.25).set_ease(Tween.EASE_IN)
 	tw.set_parallel(false)
 	tw.tween_callback(_on_dismiss_done)
 
 func _on_dismiss_done() -> void:
-	for ch in _title_chars:
-		ch.queue_free()
+	if _title_hbox != null:
+		_title_hbox.queue_free()
+		_title_hbox = null
 	_title_chars.clear()
 	_title_char_alpha.clear()
 	_phase = Phase.NONE
@@ -293,18 +296,19 @@ func _start_enter_sequence() -> void:
 
 func _build_title_chars(text: String) -> void:
 	# 清理旧的
-	for ch in _title_chars:
-		ch.queue_free()
+	if _title_hbox != null:
+		_title_hbox.queue_free()
+		_title_hbox = null
 	_title_chars.clear()
 	_title_char_alpha.clear()
 
 	# 在 TitleLabel 同位置叠加逐字 Label
-	# 用 HBoxContainer 替代占位 Label
 	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	hbox.add_theme_constant_override("separation", 2)
 	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_title_label.add_sibling(hbox)
+	_title_hbox = hbox
 
 	for ch in text:
 		var lbl: Label = Label.new()
@@ -316,13 +320,9 @@ func _build_title_chars(text: String) -> void:
 		_title_chars.append(lbl)
 		_title_char_alpha.append(0.0)
 
-	# 记录 hbox 引用以便清理
-	_title_chars.append(hbox as Label)  # 用基类存（hbox 不是 Label 但可 queue_free）
-
 func _begin_title_reveal() -> void:
 	# 逐字延迟 0.06s 瞬切（与主菜单 _start_char_reveal 一致）
-	var char_count: int = _title_chars.size() - 1  # 最后一项是 hbox
-	for i in range(char_count):
+	for i in range(_title_chars.size()):
 		var lbl: Label = _title_chars[i]
 		var t: Tween = create_tween()
 		t.tween_interval(i * 0.06)
