@@ -31,8 +31,7 @@ const FLOAT_FREQ_X: float = 1.1     # X 轴浮动频率
 const FLOAT_AMP_X: float = 2.0      # X 轴浮动幅度 (像素)
 const BREATHE_AMP: float = 0.035    # 呼吸缩放幅度
 
-## 显示条件
-const MIN_TRUST_TO_FOLLOW: int = 3  # trust >= 3 才跟随
+## 显示条件（已移除 trust 门槛，白夜从一开始就跟随）
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -73,9 +72,9 @@ func _init() -> void:
 # 显示条件检查
 # ---------------------------------------------------------------------------
 
-## 是否应该显示白夜
+## 是否应该显示白夜（无 trust 门槛，沉睡时除外）
 func should_show() -> bool:
-	return StoryManager.baiye_trust >= MIN_TRUST_TO_FOLLOW and StoryManager.is_baiye_available()
+	return StoryManager.is_baiye_available()
 
 # ---------------------------------------------------------------------------
 # 显示 / 隐藏

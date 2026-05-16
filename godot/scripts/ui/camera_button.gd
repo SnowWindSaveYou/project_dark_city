@@ -19,15 +19,16 @@ signal exorcise_requested
 # ---------------------------------------------------------------------------
 const BUTTON_SIZE: float  = 132.0   # 点击判定半径的来源（不变，保持手感）
 const BTN_MARGIN_B: float =  56.0   # 底部边距
-const ICON_SIZE: float    =  76.0   # emoji 渲染尺寸
+const ICON_SIZE: float    =  76.0   # 保留旧名，现在仅供外部引用；图标尺寸由 _draw_camera_icon 内部控制
 const BRACKET_LEN: float  =  84.0
 const BRACKET_MARGIN: float = 60.0
 const SCAN_SPEED: float   = 180.0   # px/s
 
 # pill
-const PILL_W: float = 68.0
-const PILL_H: float = 24.0
-const PILL_GAP: float = 10.0   # 与 emoji 底部的间距（估算）
+const PILL_W: float  = 80.0
+const PILL_H: float  = 30.0
+const PILL_GAP: float = 4.0    # 与图标底部的间距
+const PILL_FONT_SIZE: int = 20  # 数字字号
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -230,7 +231,8 @@ func _draw() -> void:
 		glow_intensity = 0.55 + pulse * 0.25
 	else:
 		glow_intensity = 0.20 + _hover_t * 0.30
-	_draw_soft_glow(Vector2(cx, cy), ICON_SIZE * 0.5 * total_scale, 44.0, glow_color, glow_intensity)
+	# 图标机身宽 100px，半径 50；glow 从外缘 52 开始向外扩散
+	_draw_soft_glow(Vector2(cx, cy), 52.0 * total_scale, 44.0, glow_color, glow_intensity)
 
 	# ── 2. 相机图标（手绘，不依赖字体 emoji）
 	var icon_color: Color
@@ -257,8 +259,8 @@ func _draw() -> void:
 ## 图标正下方的小圆角标签
 ## cy 是图标中心 y；emoji 渲染后底部约在 cy + ICON_SIZE*0.72
 func _draw_film_pill(cx: float, cy: float, film: int, t: Object, font: Font) -> void:
-	# emoji 视觉底部（经验值，避免数学推导误差）
-	var icon_bottom: float = cy + ICON_SIZE * 0.68
+	# 图标机身底部：local y = body_y(4) + bh/2(34) = 38，screen = cy + 38
+	var icon_bottom: float = cy + 38.0
 	var pill_top: float = icon_bottom + PILL_GAP
 	var pill_rect: Rect2 = Rect2(cx - PILL_W / 2.0, pill_top, PILL_W, PILL_H)
 
@@ -280,24 +282,22 @@ func _draw_film_pill(cx: float, cy: float, film: int, t: Object, font: Font) -> 
 
 	# pill 内容：胶卷图标 + 数字
 	_ensure_film_texture()
-	var content_cx: float = cx
 	if _film_texture:
 		# 贴图在左，数字在右
-		var tex_size: float = 18.0
-		var tex_x: float = content_cx - 22.0
+		var tex_size: float = 22.0
+		var tex_x: float = cx - 26.0
 		var tex_y: float = pill_top + (PILL_H - tex_size) / 2.0
 		draw_texture_rect(_film_texture,
 			Rect2(tex_x, tex_y, tex_size, tex_size), false,
 			Color(text_col.r, text_col.g, text_col.b, film_alpha))
 		draw_string(font,
-			Vector2(tex_x + tex_size + 3.0, pill_top + PILL_H * 0.72),
-			str(film), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, text_col)
+			Vector2(tex_x + tex_size + 4.0, pill_top + PILL_H * 0.74),
+			str(film), HORIZONTAL_ALIGNMENT_LEFT, -1, PILL_FONT_SIZE, text_col)
 	else:
-		# fallback: emoji + 数字，居中
-		var label: String = "🎞 " + str(film)
+		# fallback: 数字居中（字体不含胶卷 emoji，只显示数字）
 		draw_string(font,
-			Vector2(cx - PILL_W / 2.0 + 6.0, pill_top + PILL_H * 0.72),
-			label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, text_col)
+			Vector2(cx, pill_top + PILL_H * 0.74),
+			str(film), HORIZONTAL_ALIGNMENT_CENTER, PILL_W, PILL_FONT_SIZE, text_col)
 
 # ---------------------------------------------------------------------------
 # 取景框
@@ -381,11 +381,12 @@ func _draw_soft_glow(center: Vector2, inner_r: float, expand: float,
 ## 手绘相机图标，坐标以 (0,0) 为中心（配合 draw_set_transform 使用）
 ## body_color: 机身/镜头内芯颜色；lens_ring: 镜头外环颜色
 func _draw_camera_icon(body_color: Color, lens_ring: Color) -> void:
+	# 所有尺寸为原始设计值 × 2，坐标以 (0,0) = 图标中心
 	# ---- 机身（圆角矩形）----
-	var bw: float = 50.0
-	var bh: float = 34.0
-	var br: float = 6.0
-	var body_y: float = 2.0   # 中心稍微偏下，给上方凸起留空间
+	var bw: float = 100.0
+	var bh: float =  68.0
+	var br: float =  12.0
+	var body_y: float = 4.0   # 中心稍偏下，给上方凸起留空间
 	var body_sb := StyleBoxFlat.new()
 	body_sb.bg_color = body_color
 	body_sb.corner_radius_top_left     = int(br)
@@ -396,12 +397,12 @@ func _draw_camera_icon(body_color: Color, lens_ring: Color) -> void:
 	draw_style_box(body_sb, Rect2(-bw / 2.0, body_y - bh / 2.0, bw, bh))
 
 	# ---- 取景器凸起（机身左上方）----
-	var bump_w: float = 16.0
-	var bump_h: float = 9.0
+	var bump_w: float = 32.0
+	var bump_h: float = 18.0
 	var bump_sb := StyleBoxFlat.new()
 	bump_sb.bg_color = body_color
-	bump_sb.corner_radius_top_left     = 4
-	bump_sb.corner_radius_top_right    = 4
+	bump_sb.corner_radius_top_left     = 8
+	bump_sb.corner_radius_top_right    = 8
 	bump_sb.corner_radius_bottom_left  = 0
 	bump_sb.corner_radius_bottom_right = 0
 	bump_sb.shadow_size = 0
@@ -409,17 +410,17 @@ func _draw_camera_icon(body_color: Color, lens_ring: Color) -> void:
 		body_y - bh / 2.0 - bump_h, bump_w, bump_h))
 
 	# ---- 闪光灯小点（机身右上角）----
-	draw_circle(Vector2(bw / 4.0, body_y - bh / 2.0 + 6.0), 4.0, lens_ring)
+	draw_circle(Vector2(bw / 4.0, body_y - bh / 2.0 + 12.0), 8.0, lens_ring)
 
 	# ---- 镜头外环（亮色）----
-	var lens_cy: float = body_y + 1.0
-	draw_circle(Vector2(0.0, lens_cy), 13.5, lens_ring)
+	var lens_cy: float = body_y + 2.0
+	draw_circle(Vector2(0.0, lens_cy), 27.0, lens_ring)
 
 	# ---- 镜头内芯（深色）----
-	draw_circle(Vector2(0.0, lens_cy), 8.5, body_color)
+	draw_circle(Vector2(0.0, lens_cy), 17.0, body_color)
 
 	# ---- 镜头高光（小白点）----
-	draw_circle(Vector2(-3.5, lens_cy - 3.5), 2.5,
+	draw_circle(Vector2(-7.0, lens_cy - 7.0), 5.0,
 		Color(1.0, 1.0, 1.0, body_color.a * 0.55))
 
 

@@ -230,7 +230,7 @@ function M.triggerDay1Tutorial(tokenWX, tokenWZ)
                         Tween.to(dialogDelay, { t = 1 }, 0.3, {
                             tag = "tutorial",
                             onComplete = function()
-                                DialogueSystem.show(DAY1_TUTORIAL_DIALOGUE, function()
+                                DialogueSystem.start(DAY1_TUTORIAL_DIALOGUE, nil, function()
                                     -- 对话结束 → 笔记本高亮提示
                                     HandPanel.highlightOnce()
                                 end)
