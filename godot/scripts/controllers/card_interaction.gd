@@ -317,7 +317,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		m._camera_button.show_button()
 
 		# 教程触发：怪物首遇 / 安全区首次踏入（气泡悬浮，不阻断流程）
-		var _bubble := m.get_player_bubble()
+		var _bubble: BubbleDialogue = m.get_player_bubble()
 		if _bubble:
 			if card_type == "monster" and not GameData.tutorial_flags.get("monster_seen", false):
 				GameData.tutorial_flags["monster_seen"] = true
@@ -441,7 +441,7 @@ func _show_rift_confirm(row: int, col: int) -> void:
 	var center: Vector2 = m.board_visual.get_card_center(row, col)
 	GameData.set_demo_state("rift_confirm")
 	# 裂隙首见教程
-	var _bubble := m.get_player_bubble()
+	var _bubble: BubbleDialogue = m.get_player_bubble()
 	if _bubble and not GameData.tutorial_flags.get("rift_seen", false):
 		GameData.tutorial_flags["rift_seen"] = true
 		_bubble.show_tutorial(
@@ -510,7 +510,7 @@ func _handle_camera_mode_click(card: Card, row: int, col: int) -> void:
 			m._vfx.action_banner("胶卷不足!", Color(0.86, 0.31, 0.31), 0.8)
 			return
 		# 相机驱除首见教程
-		var _bubble := m.get_player_bubble()
+		var _bubble: BubbleDialogue = m.get_player_bubble()
 		if _bubble and not GameData.tutorial_flags.get("camera_exorcise_seen", false):
 			GameData.tutorial_flags["camera_exorcise_seen"] = true
 			_bubble.show_tutorial(
