@@ -11,17 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_mainmenu")
 
-[node name="BgRect" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.07, 0.06, 0.12, 1.0)
-
-[node name="FloatingCards" type="Control" parent="."]
+[node name="DrawLayer" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -30,103 +20,131 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="GlowBg" type="Control" parent="."]
+[node name="BaiYeSprite" type="TextureRect" parent="."]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = -1
+anchor_left = 0.62
+anchor_top = 0.18
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
-[node name="TitleLabel" type="Label" parent="."]
+[node name="TitleBlock" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0
-anchor_top = 0.30
-anchor_right = 1.0
-anchor_bottom = 0.30
-offset_top = -65.0
-offset_bottom = 65.0
+anchor_top = 0.0
+anchor_right = 0.6
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_font_sizes/font_size = 96
-horizontal_alignment = 1
-vertical_alignment = 1
+
+[node name="TitleLarge" type="Label" parent="TitleBlock"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.22
+anchor_right = 1.0
+anchor_bottom = 0.22
+offset_left = 72.0
+offset_top = -56.0
+offset_bottom = 56.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 112
 text = "暗面都市"
 
-[node name="SubtitleLabel" type="Label" parent="."]
+[node name="TitleEn" type="Label" parent="TitleBlock"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0
-anchor_top = 0.44
+anchor_top = 0.36
 anchor_right = 1.0
-anchor_bottom = 0.44
-offset_top = -25.0
-offset_bottom = 25.0
+anchor_bottom = 0.36
+offset_left = 76.0
+offset_top = -18.0
+offset_bottom = 18.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_font_sizes/font_size = 30
-horizontal_alignment = 1
-vertical_alignment = 1
-text = "Dark Side City"
+theme_override_font_sizes/font_size = 20
+text = "DARK  SIDE  CITY"
 
-[node name="ButtonVBox" type="VBoxContainer" parent="."]
+[node name="CoordLabel" type="Label" parent="TitleBlock"]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.5
-anchor_top = 0.52
-anchor_right = 0.5
-anchor_bottom = 0.52
-offset_left = -240.0
-offset_top = 0.0
-offset_right = 240.0
-offset_bottom = 330.0
+anchor_left = 0.0
+anchor_top = 0.43
+anchor_right = 1.0
+anchor_bottom = 0.43
+offset_left = 76.0
+offset_top = -14.0
+offset_bottom = 14.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 20
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "31.2304°N  121.4737°E  /  DAY 0"
 
-[node name="BtnStart" type="Button" parent="ButtonVBox"]
+[node name="ButtonBlock" type="VBoxContainer" parent="TitleBlock"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.54
+anchor_right = 0.85
+anchor_bottom = 0.54
+offset_left = 72.0
+offset_top = 0.0
+offset_bottom = 256.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 2
+
+[node name="BtnStart" type="Button" parent="TitleBlock/ButtonBlock"]
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(460, 72)
-theme_override_font_sizes/font_size = 26
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
-text = "▶  开始游戏"
-
-[node name="BtnGallery" type="Button" parent="ButtonVBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(460, 60)
+custom_minimum_size = Vector2(0, 64)
 theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.06, 0.05, 0.10, 1.0)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
-text = "📖  结局图鉴"
+text = "开始游戏"
 
-[node name="BtnSettings" type="Button" parent="ButtonVBox"]
+[node name="BtnGallery" type="Button" parent="TitleBlock/ButtonBlock"]
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(460, 60)
-theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
-text = "⚙  设 置"
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.25, 0.22, 0.35, 1.0)
+theme_override_colors/font_hover_color = Color(0.06, 0.05, 0.10, 1.0)
+theme_override_colors/font_pressed_color = Color(0.06, 0.05, 0.10, 1.0)
+text = "结局图鉴"
 
-[node name="BtnQuit" type="Button" parent="ButtonVBox"]
+[node name="BtnSettings" type="Button" parent="TitleBlock/ButtonBlock"]
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(460, 60)
-theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
-text = "✕  退出游戏"
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.25, 0.22, 0.35, 1.0)
+theme_override_colors/font_hover_color = Color(0.06, 0.05, 0.10, 1.0)
+theme_override_colors/font_pressed_color = Color(0.06, 0.05, 0.10, 1.0)
+text = "设  置"
+
+[node name="BtnQuit" type="Button" parent="TitleBlock/ButtonBlock"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.38, 0.18, 0.18, 1.0)
+theme_override_colors/font_hover_color = Color(0.8, 0.15, 0.15, 1.0)
+theme_override_colors/font_pressed_color = Color(0.8, 0.15, 0.15, 1.0)
+text = "退出游戏"
 
 [node name="VersionLabel" type="Label" parent="."]
 layout_mode = 1
@@ -136,10 +154,10 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -110.0
-offset_top = -40.0
-offset_right = -10.0
+offset_top = -36.0
+offset_right = -14.0
 offset_bottom = -10.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 11
 text = "v0.1-dev"
