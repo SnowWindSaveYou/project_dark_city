@@ -46,8 +46,7 @@ theme_override_constants/separation = 0
 layout_mode = 2
 custom_minimum_size = Vector2(0, 476)
 size_flags_horizontal = 3
-size_flags_vertical = 1
-clip_contents = true
+size_flags_vertical = 3
 mouse_filter = 2
 
 [node name="BgFill" type="ColorRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
@@ -119,7 +118,6 @@ visible = false
 [node name="WhiteBottomMargin" type="MarginContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 mouse_filter = 2
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_bottom = 10

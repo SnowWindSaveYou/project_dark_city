@@ -481,7 +481,7 @@ func _setup_controllers() -> void:
 func _connect_signals() -> void:
 	# 标题 & 游戏结束
 	_title_screen.start_requested.connect(_on_title_start)
-	_game_over.restart_requested.connect(func(): game_flow.restart_game())
+	_game_over.return_to_menu_requested.connect(func(): pass)  # 场景切换由 game_over_scene 自己处理
 
 	# 日期过渡
 	_date_transition.transition_completed.connect(

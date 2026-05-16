@@ -1,6 +1,54 @@
-[gd_scene load_steps=2 format=3 uid="uid://dh7gamd1pvy18"]
+[gd_scene load_steps=12 format=3 uid="uid://dh7gamd1pvy18"]
 
 [ext_resource type="Script" uid="uid://bg5okx4t0lx7c" path="res://scripts/visual/game_over_scene.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_progress_bg"]
+bg_color = Color(0.14, 0.13, 0.20, 0.6)
+border_color = Color(0.22, 0.20, 0.32, 0.35)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_progress_fill"]
+bg_color = Color(0.5, 0.65, 0.9, 0.7)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_btn_focus"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_primary"]
+bg_color = Color(0.08, 0.06, 0.14, 1.0)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+content_margin_left = 32.0
+content_margin_right = 32.0
+content_margin_top = 16.0
+content_margin_bottom = 16.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_secondary"]
+bg_color = Color(0.0, 0.0, 0.0, 0.0)
+border_color = Color(0.22, 0.20, 0.32, 0.45)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+content_margin_left = 32.0
+content_margin_right = 32.0
+content_margin_top = 16.0
+content_margin_bottom = 16.0
 
 [node name="GameOver" type="Control"]
 layout_mode = 3
@@ -18,133 +66,144 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.06, 0.1, 0.18, 0)
+mouse_filter = 2
+color = Color(0.04, 0.03, 0.10, 0)
 
-[node name="GlowCircle" type="Control" parent="."]
+[node name="DrawLayer" type="Control" parent="."]
 layout_mode = 1
-anchor_left = 0.5
-anchor_top = 0.28
-anchor_right = 0.5
-anchor_bottom = 0.28
-offset_left = -90.0
-offset_top = -90.0
-offset_right = 90.0
-offset_bottom = 90.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TitleLabel" type="Label" parent="."]
+[node name="ContentBlock" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.28
-anchor_right = 1.0
-anchor_bottom = 0.28
-offset_top = -20.0
-offset_bottom = 20.0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -260.0
+offset_right = 320.0
+offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 36
+theme_override_constants/separation = 0
+mouse_filter = 2
+
+[node name="EndingIdRow" type="HBoxContainer" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 32)
+alignment = 1
+mouse_filter = 2
+theme_override_constants/separation = 20
+modulate = Color(1, 1, 1, 0)
+
+[node name="EndingIdLabel" type="Label" parent="ContentBlock/EndingIdRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.5, 0.46, 0.6, 0.55)
+text = "ENDING · DEFAULT"
+horizontal_alignment = 1
+
+[node name="DayLabel" type="Label" parent="ContentBlock/EndingIdRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.5, 0.46, 0.6, 0.6)
+text = "DAY 1"
+horizontal_alignment = 1
+
+[node name="TitleLabel" type="Label" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 100)
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 72
 text = "任务完成"
 horizontal_alignment = 1
 vertical_alignment = 1
+modulate = Color(1, 1, 1, 0)
 
-[node name="SubtitleLabel" type="Label" parent="."]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.36
-anchor_right = 1.0
-anchor_bottom = 0.36
-offset_top = -10.0
-offset_bottom = 10.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="SubtitleLabel" type="Label" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.28, 0.25, 0.38, 0.85)
+text = "你在暗面都市中幸存了下来。"
 horizontal_alignment = 1
+modulate = Color(1, 1, 1, 0)
+
+[node name="Spacer1" type="Control" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 28)
+mouse_filter = 2
+
+[node name="StatsRow" type="HBoxContainer" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+alignment = 1
+mouse_filter = 2
+theme_override_constants/separation = 0
+modulate = Color(1, 1, 1, 0)
+
+[node name="Spacer2" type="Control" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 28)
+mouse_filter = 2
+
+[node name="ProgressRow" type="HBoxContainer" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 22)
+alignment = 1
+mouse_filter = 2
+theme_override_constants/separation = 16
+modulate = Color(1, 1, 1, 0)
+
+[node name="ProgressLabel" type="Label" parent="ContentBlock/ProgressRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.5, 0.46, 0.6, 0.6)
+text = "已解锁结局  0 / 5"
 vertical_alignment = 1
 
-[node name="StatsGrid" type="GridContainer" parent="."]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_top = 0.44
-anchor_right = 0.5
-anchor_bottom = 0.44
-offset_left = -120.0
-offset_right = 120.0
-offset_bottom = 96.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="ProgressBar" type="ProgressBar" parent="ContentBlock/ProgressRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 6)
+size_flags_vertical = 4
+show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_progress_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_progress_fill")
+value = 0.0
+
+[node name="Spacer3" type="Control" parent="ContentBlock"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 28)
 mouse_filter = 2
-theme_override_constants/h_separation = 20
-theme_override_constants/v_separation = 4
-columns = 2
 
-[node name="DaysIcon" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(120, 24)
+[node name="ButtonRow" type="HBoxContainer" parent="ContentBlock"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "📅 存活天数"
-horizontal_alignment = 2
+alignment = 1
+mouse_filter = 2
+theme_override_constants/separation = 16
+modulate = Color(1, 1, 1, 0)
 
-[node name="DaysValue" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(60, 24)
+[node name="BtnMenu" type="Button" parent="ContentBlock/ButtonRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "1"
-
-[node name="CardsIcon" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(120, 24)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "🃏 翻开卡牌"
-horizontal_alignment = 2
-
-[node name="CardsValue" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(60, 24)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "0"
-
-[node name="MonstersIcon" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(120, 24)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "👻 驱除怪物"
-horizontal_alignment = 2
-
-[node name="MonstersValue" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(60, 24)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "0"
-
-[node name="FilmIcon" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(120, 24)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "📷 消耗胶卷"
-horizontal_alignment = 2
-
-[node name="FilmValue" type="Label" parent="StatsGrid"]
-custom_minimum_size = Vector2(60, 24)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "0"
-
-[node name="RestartButton" type="Button" parent="."]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_top = 0.72
-anchor_right = 0.5
-anchor_bottom = 0.72
-offset_left = -60.0
-offset_top = -19.0
-offset_right = 60.0
-offset_bottom = 19.0
-grow_horizontal = 2
-grow_vertical = 2
 focus_mode = 0
-theme_override_font_sizes/font_size = 15
-text = "重新开始"
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_primary")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_btn_focus")
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "返回主页"
+
+[node name="BtnGallery" type="Button" parent="ContentBlock/ButtonRow"]
+layout_mode = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_secondary")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_btn_focus")
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.04, 0.03, 0.08, 0.85)
+theme_override_colors/font_hover_color = Color(0.6, 0.8, 1.0, 0.9)
+text = "结局图鉴"

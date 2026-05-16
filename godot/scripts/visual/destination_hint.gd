@@ -342,7 +342,7 @@ func _process(delta: float) -> void:
 		_label_ghost1.position = Vector3(
 			g1_x + 0.008,        # 偏右
 			_base_y - 0.006,     # 偏下（像素级）
-			-0.001
+			0.001                # 正Z：比主文字更远离相机（在主文字后方）
 		)
 
 	# 重影2：轻微偏左上 + 更大相位差
@@ -351,5 +351,5 @@ func _process(delta: float) -> void:
 		_label_ghost2.position = Vector3(
 			g2_x - 0.007,        # 偏左
 			_base_y + 0.007,     # 偏上
-			-0.002
+			0.002                # 正Z：比ghost1更远离相机（最底层）
 		)
