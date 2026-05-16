@@ -21,13 +21,12 @@
 		"inspiration": -1
 	},
 
-	"monster_scaling": {
-		"base_san": 2,
-		"inspiration_base": 10,
-		"inspiration_step": 15,
-		"max_extra_damage": 3,
-		"health_damage_table": [0, -1, -2, -3]
-	},
+	"monster_damage_table": [
+		{ "insp_min": 0,  "san": -2, "health":  0 },
+		{ "insp_min": 25, "san": -3, "health": -1 },
+		{ "insp_min": 40, "san": -4, "health": -2 },
+		{ "insp_min": 55, "san": -5, "health": -3 }
+	],
 
 	"resource_icons": {
 		"san": "🧠",

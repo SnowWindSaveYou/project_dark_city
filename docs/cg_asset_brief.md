@@ -69,30 +69,30 @@
 | KEY-D1-02 | `keyframe_d1_blanket_indent` | ✅ 已验证 | `keyframe_d1_blanket_indent_v3_20260516015013.png` |
 | KEY-D2-01 | `keyframe_d2_hand_cupping_fluffball` | ✅ 已验证 | `keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png` |
 | KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | ✅ 已验证 | `edited_keyframe_d2_flashback_tang_silhouette_v6_clean_20260515180852.png` |
-| KEY-D3-01 | `keyframe_d3_ipad_frozen` | 🔍 待审 | `keyframe_d3_ipad_frozen_20260516063333.png` |
+| KEY-D3-01 | `keyframe_d3_ipad_frozen` | ✅ 已验证 | `keyframe_d3_ipad_frozen_20260516063333.png` |
 | KEY-D3-02 | `keyframe_d3_silent_follow` | ✅ 已验证 | `edited_keyframe_d3_silent_follow_final_20260516053229.png` |
-| KEY-D4-01 | `keyframe_d4_dark_shadow_stare` | 🔍 待审 | `keyframe_d4_dark_shadow_stare_20260516063420.png` |
-| KEY-D4-02 | `keyframe_d4_ramen_steam_eyes` | 🔍 待审 | `keyframe_d4_ramen_steam_eyes_20260516063511.png` |
-| KEY-D5-01 | `keyframe_d5_door_handle_unyielding` | 🔍 待审 | `keyframe_d5_door_handle_20260516063335.png` |
-| KEY-D5-02 | `keyframe_d5_bedside_truth` | 🔍 待审 | `keyframe_d5_bedside_truth_v3_20260516064851.png`（极低角仰视构图，BG参考） |
+| KEY-D4-01 | `keyframe_d4_dark_shadow_stare` | ✅ 已验证 | `keyframe_d4_dark_shadow_stare_20260516063420.png` |
+| KEY-D4-02 | `keyframe_d4_ramen_steam_eyes` | ✅ 已验证 | `keyframe_d4_ramen_steam_eyes_20260516063511.png` |
+| KEY-D5-01 | `keyframe_d5_door_handle_unyielding` | ✅ 已验证 | `keyframe_d5_door_handle_20260516063335.png` |
+| KEY-D5-02 | `keyframe_d5_bedside_truth` | ✅ 已验证 | `keyframe_d5_bedside_truth_v3_20260516064851.png` |
 | KEY-D6-01 | `keyframe_d6_baiye_barrier` | ✅ 已验证 | `keyframe_d6_baiye_barrier_v2_20260516061358.png` |
-| KEY-D6-02 | `keyframe_d6_curse_transfer` | 🔍 待审 | `keyframe_d6_curse_transfer_20260516063728.png`（棠_刀版+白夜前世垫图） |
-| KEY-D6-03 | `keyframe_d6_checking_warmth` | 🔍 待审 | `keyframe_d6_checking_warmth_20260516063529.png` |
+| KEY-D6-02 | `keyframe_d6_curse_transfer` | ✅ 已验证 | `keyframe_d6_curse_transfer_20260516063728.png` |
+| KEY-D6-03 | `keyframe_d6_checking_warmth` | ✅ 已验证 | `keyframe_d6_checking_warmth_20260516063529.png` |
 | KEY-D7-01 | `keyframe_d7_tang_revealed` | ✅ 已验证 | `edited_keyframe_d7_tang_revealed_v2_clean_20260515180916.png` |
 | KEY-D7-02 | `keyframe_d7_who_are_you_now` | ✅ 已验证 | `edited_keyframe_d7_who_are_you_now_v2_20260516053806.png` |
-| KEY-D8-01 | `keyframe_d8_mirror_hairstyle` | 🔍 待审 | `keyframe_d8_mirror_hairstyle_v2_20260516064848.png`（斜切镜框构图，镜中人占75%） |
-| KEY-D8-02 | `keyframe_d8_distance` | 🔍 待审 | `keyframe_d8_distance_v2_20260516064856.png`（一点透视长焦，距离即主角） |
-| KEY-D9-01 | `keyframe_d9_before_entering` | 🔍 待审 | `keyframe_d9_before_entering_v2_20260516064849.png`（极低角仰视，逆光暗面入口） |
-| KEY-D11-01 | `keyframe_d11_campfire_together` | 🔍 待审 | `keyframe_d11_campfire_together_20260516063730.png`（棠_刀版+白夜前世垫图） |
+| KEY-D8-01 | `keyframe_d8_mirror_hairstyle` | ✅ 已验证 | `keyframe_d8_mirror_hairstyle_v2_20260516064848.png` |
+| KEY-D8-02 | `keyframe_d8_distance` | ✅ 已验证 | `keyframe_d8_distance_v2_20260516064856.png` |
+| KEY-D9-01 | `keyframe_d9_before_entering` | ✅ 已验证 | `keyframe_d9_before_entering_v2_20260516064849.png` |
+| KEY-D11-01 | `keyframe_d11_campfire_together` | ✅ 已验证 | `keyframe_d11_campfire_together_20260516063730.png` |
 | KEY-D12-01 | `keyframe_d12_tang_leaves` | ✅ 已验证 | `edited_keyframe_d12_tang_leaves_v6_overexposed_20260515175236.png` |
-| KEY-D13-01 | `keyframe_d13_wrist_grip` | 🔍 待审 | `keyframe_d13_wrist_grip_v3_20260516070553.png`（白夜身形已淡成轮廓，指尖接触点记忆炸开，地面碎裂） |
-| KEY-D13-02 | `keyframe_d13_tear_in_bowl` | 🔍 待审 | `edited_keyframe_d13_tear_in_bowl_v3_20260516065359.png`（基于原版去除角色头部） |
+| KEY-D13-01 | `keyframe_d13_wrist_grip` | ✅ 已验证 | `keyframe_d13_wrist_grip_v12_20260516073338.png` |
+| KEY-D13-02 | `keyframe_d13_tear_in_bowl` | ✅ 已验证 | `edited_keyframe_d13_tear_in_bowl_v3_20260516065359.png` |
 | KEY-D14-01 | `keyframe_d14_enough` | ✅ 已验证 | `edited_keyframe_d14_enough_final_20260516051640.png` |
 | KEY-D14-02 | `keyframe_d14_sunlight` | ✅ 已验证 | `edited_keyframe_d14_sunlight_v5_20260516044711.png` |
-| KEY-END-A-01 | `keyframe_end_a_empty_apartment` | 🔍 待审 | `keyframe_end_a_empty_apartment_v2_20260516064339.png`（加客厅BG参考重生成） |
-| KEY-END-A-02 | `keyframe_end_a_golden_eyes_window` | 🔍 待审 | `keyframe_end_a_golden_eyes_window_20260516063419.png` |
-| KEY-END-B-01 | `keyframe_end_b_thunder_healed` | 🔍 待审 | `keyframe_end_b_thunder_healed_v3_20260516064849.png`（鸟瞰俯视构图，被窝圆鼓鼓） |
-| KEY-END-C-01 | `keyframe_end_c_stranger_face` | 🔍 待审 | `keyframe_end_c_stranger_face_v2_20260516064852.png`（左右分割，棠脸+白夜暗金眼） |
+| KEY-END-A-01 | `keyframe_end_a_empty_apartment` | ✅ 已验证 | `keyframe_end_a_empty_apartment_v2_20260516064339.png` |
+| KEY-END-A-02 | `keyframe_end_a_golden_eyes_window` | ✅ 已验证 | `keyframe_end_a_golden_eyes_window_20260516063419.png` |
+| KEY-END-B-01 | `keyframe_end_b_thunder_healed` | ✅ 已验证 | `keyframe_end_b_thunder_healed_v3_20260516064849.png` |
+| KEY-END-C-01 | `keyframe_end_c_stranger_face` | ✅ 已验证 | `keyframe_end_c_stranger_face_v2_20260516064852.png` |
 
 ### 已验证锚点帧
 
@@ -112,9 +112,9 @@
 
 ### 当前阶段
 
-**已完成**：演出方案确认、A类背景底图全部完成（8/8）✅、第二批关键情绪帧审核完毕（11/11 全部通过）✅  
-**当前**：B类过渡帧（13张⬜）/ C类剩余情绪帧（17张⬜）待生成  
-**下一步**：B类过渡帧优先（多数无角色，批量快）→ C类剩余情绪帧 → DialogueSystem 背景图代码接入
+**已完成**：演出方案确认、A类背景底图全部完成（8/8）✅、C类关键情绪帧全部完成（28/28）✅  
+**当前**：B类过渡帧（13张⬜）待生成  
+**下一步**：B类过渡帧批量生成（CUT-01/04/05/06/08/11/12/13/14 独立帧并行）→ 链式编辑（CUT-02/03/07/15）→ DialogueSystem 背景图代码接入
 
 ### 风格基准
 

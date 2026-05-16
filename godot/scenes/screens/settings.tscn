@@ -70,7 +70,7 @@ horizontal_alignment = 2
 
 [node name="BgmSlider" type="HSlider" parent="AnchorCenter/Panel/VBox/BgmRow"]
 layout_mode = 2
-custom_minimum_size = Vector2(440, 28)
+custom_minimum_size = Vector2(440, 36)
 min_value = 0.0
 max_value = 1.0
 step = 0.01
@@ -98,7 +98,7 @@ horizontal_alignment = 2
 
 [node name="SfxSlider" type="HSlider" parent="AnchorCenter/Panel/VBox/SfxRow"]
 layout_mode = 2
-custom_minimum_size = Vector2(440, 28)
+custom_minimum_size = Vector2(440, 36)
 min_value = 0.0
 max_value = 1.0
 step = 0.01

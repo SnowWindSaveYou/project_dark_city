@@ -103,6 +103,7 @@ var _token_shadow: MeshInstance3D = null
 # 3D 场景组件
 # ---------------------------------------------------------------------------
 var _camera_3d: Camera3D = null
+var _dir_light: DirectionalLight3D = null
 var _world_env: WorldEnvironment = null
 var _env: Environment = null
 var _table_mesh: MeshInstance3D = null
@@ -368,11 +369,36 @@ func _setup_3d_scene() -> void:
 	# 必须在 add_child 后调用 look_at, 否则 global_position 不可用
 	_camera_3d.look_at(Vector3(0, 0, -0.3), Vector3.UP)
 
-	# WorldEnvironment: 仅设置背景色，氛围过渡只依赖背景色变化
+	# DirectionalLight3D: 柔和顶光，模拟室内漫射光源
+	_dir_light = DirectionalLight3D.new()
+	_dir_light.name = "SunLight"
+	_dir_light.rotation_degrees = Vector3(-60, 30, 0)   # 偏顶光，阴影短而集中
+	_dir_light.light_color  = Color(1.0, 0.97, 0.93)    # 暖白
+	_dir_light.light_energy = 1.2
+	_dir_light.shadow_enabled = false
+	add_child(_dir_light)
+
+	# WorldEnvironment: 背景色 + 静态环境参数，氛围过渡只改背景色
 	_env = Environment.new()
-	_env.background_mode = Environment.BG_COLOR
+	_env.background_mode  = Environment.BG_COLOR
 	_env.background_color = BG_BRIGHT
+	# 环境光：跟随背景色，亮度适中
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_BG
+	_env.ambient_light_energy = 0.6
+	# Tonemap: ACES 略压曝光，避免高光过白
+	_env.tonemap_mode     = Environment.TONE_MAPPER_ACES
+	_env.tonemap_exposure = 0.85
+	_env.tonemap_white    = 1.0
+	# Glow: 极轻微发光，增加质感而不发白
+	_env.glow_enabled    = true
+	_env.glow_normalized = false
+	_env.glow_intensity  = 0.35
+	_env.glow_bloom      = 0.0
+	# 色调：物语系列清冷、去饱和感
+	_env.adjustment_enabled    = true
+	_env.adjustment_brightness = 0.92
+	_env.adjustment_contrast   = 1.04
+	_env.adjustment_saturation = 0.88
 	_env.fog_enabled = false
 
 	_world_env = WorldEnvironment.new()

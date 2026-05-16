@@ -107,21 +107,17 @@ func parse_real_world_card(card: Card) -> EventResult:
 				result.effects = {}
 				result.message = "护身符抵消了伤害!"
 			else:
-				# 怪物伤害缩放 (changelog #3)
-				var scaling: Dictionary = GameData.MONSTER_SCALING
-				if not scaling.is_empty():
+				# 怪物伤害：按灵感查表 (monster_damage_table in game_config.json)
+				var dmg_table: Array = GameData.MONSTER_DAMAGE_TABLE
+				if not dmg_table.is_empty():
 					var insp: int = GameData.get_resource("inspiration")
-					var base_san: int = absi(scaling.get("base_san", -2))
-					var insp_base: int = scaling.get("inspiration_base", 10)
-					var extra_step: int = scaling.get("inspiration_step", 15)
-					var extra_cap: int = scaling.get("max_extra_damage", 3)
-					var health_dmg_table: Array = scaling.get("health_damage_table", [0, -1, -2, -3])
-					var extra: int = mini(extra_cap, int(floor(float(max(insp - insp_base, 0)) / float(extra_step))))
-					var san_dmg: int = base_san + extra
-					var health_dmg: int = 0
-					if extra < health_dmg_table.size():
-						health_dmg = health_dmg_table[extra]
-					result.effects = { "san": -san_dmg }
+					# 找最后一个 insp_min <= 当前灵感的行
+					var matched: Dictionary = dmg_table[0]
+					for row in dmg_table:
+						if insp >= int(row.get("insp_min", 0)):
+							matched = row
+					result.effects = { "san": int(matched.get("san", -2)) }
+					var health_dmg: int = int(matched.get("health", 0))
 					if health_dmg != 0:
 						result.effects["health"] = health_dmg
 		

@@ -1800,7 +1800,7 @@ func _create_glow_ring_material(color: Color, is_landmark: bool) -> ShaderMateri
 	else:
 		mat.set_shader_parameter("border_width", 0.06)
 		mat.set_shader_parameter("glow_spread", 0.08)
-	mat.render_priority = -1  # 低于卡面图标(0)和Token(0), 避免遮挡玩家
+	mat.render_priority = 1  # 高于卡面(0), 保证在卡面之后渲染; blend_add 加法混合不会遮挡其他元素
 	return mat
 
 ## 为指定卡牌挂载方形发光边框 (landmark=4层金色华丽, home=3层柔白)

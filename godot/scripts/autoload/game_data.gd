@@ -18,7 +18,7 @@ var INITIAL_RESOURCES: Dictionary = {}
 var RESOURCE_MAX: Dictionary = {}
 var RESOURCE_ICONS: Dictionary = {}
 var LOCATION_SCARCITY: Dictionary = { "day_1_2": 3, "day_3_4": 2, "day_5_plus": 1 }
-var MONSTER_SCALING: Dictionary = {}
+var MONSTER_DAMAGE_TABLE: Array = []
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -62,7 +62,12 @@ func _load_game_config() -> void:
 		INITIAL_RESOURCES = { "san": 20, "order": 10, "money": 20, "film": 3, "health": 20, "inspiration": 10 }
 		RESOURCE_MAX = { "san": -1, "order": 10, "money": -1, "film": -1, "health": -1, "inspiration": -1 }
 		RESOURCE_ICONS = { "san": "🧠", "order": "⚖️", "money": "💰", "film": "📷", "health": "❤️", "inspiration": "✨" }
-		MONSTER_SCALING = { "base_san": 2, "inspiration_base": 10, "inspiration_step": 15, "max_extra_damage": 3, "health_damage_table": [0, -1, -2, -3] }
+		MONSTER_DAMAGE_TABLE = [
+			{ "insp_min": 0,  "san": -2, "health":  0 },
+			{ "insp_min": 25, "san": -3, "health": -1 },
+			{ "insp_min": 40, "san": -4, "health": -2 },
+			{ "insp_min": 55, "san": -5, "health": -3 },
+		]
 		return
 	var json: JSON = JSON.new()
 	var err: Error = json.parse(file.get_as_text())
@@ -84,18 +89,15 @@ func _load_game_config() -> void:
 		LOCATION_SCARCITY = {}
 		for k in raw_scarcity:
 			LOCATION_SCARCITY[k] = int(raw_scarcity[k])
-	var raw_monster: Dictionary = data.get("monster_scaling", {})
-	if not raw_monster.is_empty():
-		MONSTER_SCALING = {}
-		for k in raw_monster:
-			var v = raw_monster[k]
-			if v is Array:
-				var arr: Array = []
-				for item in v:
-					arr.append(int(item))
-				MONSTER_SCALING[k] = arr
-			else:
-				MONSTER_SCALING[k] = int(v)
+	var raw_table: Array = data.get("monster_damage_table", [])
+	if not raw_table.is_empty():
+		MONSTER_DAMAGE_TABLE = []
+		for row in raw_table:
+			MONSTER_DAMAGE_TABLE.append({
+				"insp_min": int(row.get("insp_min", 0)),
+				"san":      int(row.get("san", 0)),
+				"health":   int(row.get("health", 0)),
+			})
 	print("[GameData] Loaded game_config.json: max_days=%d, resources=%s" % [MAX_DAYS, str(INITIAL_RESOURCES)])
 
 func reset() -> void:

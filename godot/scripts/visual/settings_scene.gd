@@ -11,7 +11,7 @@ signal quit_requested
 # ---------------------------------------------------------------------------
 const C_TITLE:  Color = Color(0.04, 0.03, 0.08, 1.0)
 const C_COORD:  Color = Color(0.50, 0.46, 0.60, 0.60)
-const C_ACCENT: Color = Color(0.22, 0.18, 0.38, 1.0)   # 深紫，用于滑块填充
+const C_ACCENT: Color = Color(0.08, 0.06, 0.14, 1.0)   # 深近黑，与主菜单按钮主色一致
 
 # ---------------------------------------------------------------------------
 # 节点引用
@@ -90,21 +90,58 @@ func _apply_styles() -> void:
 
 
 func _apply_slider_style(slider: HSlider) -> void:
+	# 轨道背景：深灰色，足够粗（content_margin 控制视觉高度）
 	var track: StyleBoxFlat = StyleBoxFlat.new()
-	track.bg_color = Color(0.82, 0.81, 0.86, 1.0)   # 浅灰轨道
-	track.corner_radius_top_left    = 2
-	track.corner_radius_top_right   = 2
-	track.corner_radius_bottom_left = 2
-	track.corner_radius_bottom_right = 2
+	track.bg_color = Color(0.48, 0.46, 0.54, 1.0)
+	track.corner_radius_top_left    = 4
+	track.corner_radius_top_right   = 4
+	track.corner_radius_bottom_left = 4
+	track.corner_radius_bottom_right = 4
+	track.content_margin_top    = 5.0
+	track.content_margin_bottom = 5.0
 	slider.add_theme_stylebox_override("slider", track)
 
+	# 已填充区域：深紫强调色
 	var fill: StyleBoxFlat = StyleBoxFlat.new()
 	fill.bg_color = C_ACCENT
-	fill.corner_radius_top_left    = 2
-	fill.corner_radius_top_right   = 2
-	fill.corner_radius_bottom_left = 2
-	fill.corner_radius_bottom_right = 2
+	fill.corner_radius_top_left    = 4
+	fill.corner_radius_top_right   = 4
+	fill.corner_radius_bottom_left = 4
+	fill.corner_radius_bottom_right = 4
+	fill.content_margin_top    = 5.0
+	fill.content_margin_bottom = 5.0
 	slider.add_theme_stylebox_override("grabber_area", fill)
+
+	# 抓手：用程序化纹理画一个醒目的圆形
+	var grabber_img: Image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
+	grabber_img.fill(Color(0, 0, 0, 0))
+	var cx: int = 12
+	var cy: int = 12
+	var r: int = 10
+	for y in range(24):
+		for x in range(24):
+			var dx: int = x - cx
+			var dy: int = y - cy
+			if dx * dx + dy * dy <= r * r:
+				grabber_img.set_pixel(x, y, C_ACCENT)
+			elif dx * dx + dy * dy <= (r + 1) * (r + 1):
+				grabber_img.set_pixel(x, y, Color(1.0, 1.0, 1.0, 0.5))
+	var grabber_tex: ImageTexture = ImageTexture.create_from_image(grabber_img)
+	slider.add_theme_icon_override("grabber", grabber_tex)
+
+	# 悬停抓手：稍亮（与主菜单按钮 hover 色一致）
+	var grab_h_img: Image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
+	grab_h_img.fill(Color(0, 0, 0, 0))
+	for y in range(24):
+		for x in range(24):
+			var dx: int = x - cx
+			var dy: int = y - cy
+			if dx * dx + dy * dy <= r * r:
+				grab_h_img.set_pixel(x, y, Color(0.18, 0.12, 0.32, 1.0))
+			elif dx * dx + dy * dy <= (r + 1) * (r + 1):
+				grab_h_img.set_pixel(x, y, Color(1.0, 1.0, 1.0, 0.7))
+	var grab_h_tex: ImageTexture = ImageTexture.create_from_image(grab_h_img)
+	slider.add_theme_icon_override("grabber_highlight", grab_h_tex)
 
 
 func _apply_btn_quit(btn: Button) -> void:
