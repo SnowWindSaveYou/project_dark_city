@@ -87,6 +87,15 @@ var _glitch_frames: int     = 0
 # 标题颜色呼吸（周期 8s，缓慢在深色→偏紫之间来回）
 var _breath_time: float = 0.0
 
+# 扫描线（周期 6s，从标题区顶端扫到底部，持续动效）
+var _scan_y: float = 0.0          # 当前扫描线 Y（归一化 0→1 相对 TitleBlock 高度）
+var _scan_alpha: float = 0.0      # 扫描线透明度（入场后淡入）
+
+# 坐标噪声扰动（入场稳定后偶发，每隔 5~9s 抖动一次经纬度数字）
+var _coord_noise_timer: float  = 0.0
+var _coord_noise_interval: float = 6.0
+var _coord_noise_frames: int   = 0
+
 # 右侧城市层
 var _city_layer: Control = null
 var _buildings: Array[Dictionary] = []
@@ -341,43 +350,73 @@ func _load_baiye_sprite() -> void:
 # ---------------------------------------------------------------------------
 
 func _style_btn_primary(btn: Button) -> void:
+	# 深色填充 + 左侧亮竖条（3px）+ 无外框
 	var n: StyleBoxFlat = StyleBoxFlat.new()
-	n.bg_color = C_BTN_START_BG
+	n.bg_color = Color(0.08, 0.07, 0.13, 1.0)
+	n.border_width_left = 3
+	n.border_color = Color(0.82, 0.80, 0.90, 1.0)   # 左侧亮灰竖条
+	n.border_width_top = 0; n.border_width_right = 0; n.border_width_bottom = 0
 	n.corner_radius_top_left = 0; n.corner_radius_top_right = 0
 	n.corner_radius_bottom_left = 0; n.corner_radius_bottom_right = 0
-	n.content_margin_left = 28.0
+	n.content_margin_left  = 22.0
+	n.content_margin_right = 22.0
 	btn.add_theme_stylebox_override("normal", n)
-	btn.add_theme_color_override("font_color",         Color(0.97, 0.97, 0.97))
-	btn.add_theme_color_override("font_hover_color",   Color(1, 1, 1))
-	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1))
-	var h: StyleBoxFlat = n.duplicate(); h.bg_color = C_BTN_START_HOVER
-	btn.add_theme_stylebox_override("hover", h)
-	var p: StyleBoxFlat = n.duplicate(); p.bg_color = Color(0.28, 0.18, 0.48, 1.0)
-	btn.add_theme_stylebox_override("pressed", p)
+	btn.add_theme_color_override("font_color",         Color(0.95, 0.94, 0.98))
+	btn.add_theme_color_override("font_hover_color",   Color(1.0, 1.0, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(0.85, 0.82, 0.95))
+	var hov: StyleBoxFlat = n.duplicate()
+	hov.bg_color = Color(0.14, 0.11, 0.22, 1.0)
+	hov.border_color = Color(1.0, 1.0, 1.0, 1.0)    # hover：竖条全白
+	btn.add_theme_stylebox_override("hover", hov)
+	var prs: StyleBoxFlat = n.duplicate()
+	prs.bg_color = Color(0.20, 0.14, 0.34, 1.0)
+	btn.add_theme_stylebox_override("pressed", prs)
+	# 右侧箭头文字追加
+	if not btn.text.ends_with("  ▷"):
+		btn.text = btn.text + "  ▷"
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func _style_btn_secondary(btn: Button) -> void:
+	# 无填充 + 左侧暗竖条（2px）+ 底部细线分隔
 	var n: StyleBoxFlat = StyleBoxFlat.new()
-	n.bg_color = C_BTN_SEC_BG
-	n.border_color = C_BTN_SEC_BORDER
-	n.set_border_width_all(1)
+	n.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	n.border_width_left   = 2
+	n.border_width_bottom = 1
+	n.border_width_top = 0; n.border_width_right = 0
+	n.border_color = Color(0.40, 0.38, 0.50, 0.45)
 	n.corner_radius_top_left = 0; n.corner_radius_top_right = 0
 	n.corner_radius_bottom_left = 0; n.corner_radius_bottom_right = 0
-	n.content_margin_left = 28.0
+	n.content_margin_left  = 22.0
+	n.content_margin_right = 22.0
 	btn.add_theme_stylebox_override("normal", n)
-	var h: StyleBoxFlat = n.duplicate()
-	h.bg_color = C_BTN_SEC_HOVER_BG
-	h.border_color = Color(0.35, 0.30, 0.50, 0.75)
-	btn.add_theme_stylebox_override("hover", h)
-	var p: StyleBoxFlat = n.duplicate(); p.bg_color = Color(0.18, 0.14, 0.28, 0.12)
-	btn.add_theme_stylebox_override("pressed", p)
+	btn.add_theme_color_override("font_color",         Color(0.32, 0.29, 0.44, 0.90))
+	btn.add_theme_color_override("font_hover_color",   Color(0.10, 0.08, 0.18, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(0.08, 0.06, 0.14, 1.0))
+	var hov: StyleBoxFlat = n.duplicate()
+	hov.bg_color = Color(0.10, 0.09, 0.16, 0.10)
+	hov.border_color = Color(0.55, 0.52, 0.70, 0.85)  # hover：竖条明显变亮
+	btn.add_theme_stylebox_override("hover", hov)
+	var prs: StyleBoxFlat = n.duplicate()
+	prs.bg_color = Color(0.08, 0.07, 0.14, 0.14)
+	btn.add_theme_stylebox_override("pressed", prs)
+	# 右侧箭头
+	if not btn.text.ends_with("  ›"):
+		btn.text = btn.text + "  ›"
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func _style_btn_quit(btn: Button) -> void:
 	_style_btn_secondary(btn)
+	# 覆盖竖条为暗红色，底线保留
 	var n: StyleBoxFlat = btn.get_theme_stylebox("normal").duplicate() as StyleBoxFlat
-	n.border_color = Color(0.45, 0.14, 0.14, 0.35)
+	n.border_color = Color(0.52, 0.18, 0.18, 0.55)
 	btn.add_theme_stylebox_override("normal", n)
+	var hov: StyleBoxFlat = btn.get_theme_stylebox("hover").duplicate() as StyleBoxFlat
+	hov.border_color = Color(0.78, 0.22, 0.22, 0.90)
+	btn.add_theme_stylebox_override("hover", hov)
+	btn.add_theme_color_override("font_color",       Color(0.52, 0.22, 0.22, 0.85))
+	btn.add_theme_color_override("font_hover_color", Color(0.78, 0.18, 0.18, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +475,24 @@ func _draw_decorations() -> void:
 		_draw_layer.draw_string(font, Vector2(72.0, h * 0.14),
 			"暗面都市 / DARK SIDE CITY", HORIZONTAL_ALIGNMENT_LEFT,
 			-1, 11, Color(C_COORD.r, C_COORD.g, C_COORD.b, alpha))
+
+	# ── 扫描线（在 TitleBlock 范围内从上往下匀速扫过）
+	if _scan_alpha > 0.0 and _line_progress >= 1.0:
+		var tb_right: float = w * 0.56   # TitleBlock 右边界约 58%
+		var tb_top: float   = h * 0.06   # 扫描起点（稍高于标题）
+		var tb_bot: float   = h * 0.72   # 扫描终点（按钮组下方）
+		var sy: float = tb_top + (tb_bot - tb_top) * _scan_y
+		# 主光线（较亮，宽 1px）
+		var a_main: float = _scan_alpha * 0.28
+		_draw_layer.draw_line(
+			Vector2(72.0, sy), Vector2(tb_right, sy),
+			Color(C_LINE.r, C_LINE.g, C_LINE.b, a_main), 1.0)
+		# 光晕（更宽、更透明，扫描感）
+		for dy: int in [-2, -1, 1, 2]:
+			var a_glow: float = _scan_alpha * 0.06 * (3.0 - absf(float(dy))) / 3.0
+			_draw_layer.draw_line(
+				Vector2(72.0, sy + dy), Vector2(tb_right, sy + dy),
+				Color(C_LINE.r, C_LINE.g, C_LINE.b, a_glow), 1.0)
 
 	# 按钮 hover 划线
 	for btn: Button in [_btn_start, _btn_gallery, _btn_settings, _btn_quit]:
@@ -577,6 +634,27 @@ func _process(dt: float) -> void:
 				hbox.offset_left = 72.0
 				hbox.offset_top  = -64.0
 				_glitch_char_idx = -1
+
+	# ── 扫描线推进（入场完成后启动，周期 6s 循环）
+	if _enter_done:
+		_scan_alpha = move_toward(_scan_alpha, 1.0, dt * 0.8)
+		_scan_y = fmod(_scan_y + dt / 6.0, 1.0)
+
+	# ── 坐标噪声（每 ~6s 抖动经纬度数字 4 帧）
+	if _enter_done and not _coord_rolling:
+		_coord_noise_timer += dt
+		if _coord_noise_timer >= _coord_noise_interval:
+			_coord_noise_timer = 0.0
+			_coord_noise_interval = randf_range(5.0, 9.0)
+			_coord_noise_frames = 4
+		if _coord_noise_frames > 0:
+			_coord_noise_frames -= 1
+			var lat:  String = "%.4f" % (31.2304 + randf_range(-0.003, 0.003))
+			var lon:  String = "%.4f" % (121.4737 + randf_range(-0.003, 0.003))
+			if _coord_noise_frames == 0:
+				_coord_label.text = "31.2304°N  121.4737°E  /  DAY 0"
+			else:
+				_coord_label.text = "%s°N  %s°E  /  DAY 0" % [lat, lon]
 
 	_draw_layer.queue_redraw()
 	if _city_layer:
