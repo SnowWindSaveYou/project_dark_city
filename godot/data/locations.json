@@ -147,9 +147,9 @@
 				"cost_res": "san",
 				"cost_amt": 2,
 				"gain_res": "health",
-				"gain_amt": 2,
+				"gain_amt": 3,
 				"trigger_chance": 0.3,
-				"prompt": "公园的清新空气让你想锻炼一下，消耗2点理智恢复2点健康？"
+				"prompt": "公园的清新空气让你想锻炼一下，消耗2点理智恢复3点健康？"
 			},
 			"dark_display": {
 				"safe":    { "icon": "🌳", "label": "寂静长椅",   "image_path": "" },
@@ -267,9 +267,9 @@
 				"cost_res": "health",
 				"cost_amt": 2,
 				"gain_res": "san",
-				"gain_amt": 2,
+				"gain_amt": 3,
 				"trigger_chance": 0.3,
-				"prompt": "医生建议你做一次心理疏导，消耗2点健康恢复2点理智？"
+				"prompt": "医生建议你做一次心理疏导，消耗2点健康恢复3点理智？"
 			},
 			"dark_display": {
 				"safe":    { "icon": "🏥", "label": "空病房",     "image_path": "" },
@@ -423,9 +423,9 @@
 				"cost_res": "san",
 				"cost_amt": 2,
 				"gain_res": "health",
-				"gain_amt": 2,
+				"gain_amt": 3,
 				"trigger_chance": 0.3,
-				"prompt": "高强度训练可以增强体质，消耗2点理智恢复2点健康？"
+				"prompt": "高强度训练可以增强体质，消耗2点理智恢复3点健康？"
 			},
 			"dark_display": {
 				"safe":    { "icon": "🏋️", "label": "空旷训练场", "image_path": "" },

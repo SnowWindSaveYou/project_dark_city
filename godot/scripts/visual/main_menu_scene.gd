@@ -690,9 +690,13 @@ func _build_gallery_overlay() -> Control:
 	overlay.color = Color(0.03, 0.02, 0.06, 0.62)
 	root.add_child(overlay)
 
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_PASS
+	root.add_child(center)
+
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(780, 560)
-	panel.set_anchors_preset(Control.PRESET_CENTER)
 
 	var ps: StyleBoxFlat = StyleBoxFlat.new()
 	ps.bg_color = Color(0.97, 0.97, 0.97, 0.98)
@@ -703,7 +707,7 @@ func _build_gallery_overlay() -> Control:
 	ps.content_margin_left = 40.0; ps.content_margin_right  = 40.0
 	ps.content_margin_top  = 36.0; ps.content_margin_bottom = 36.0
 	panel.add_theme_stylebox_override("panel", ps)
-	root.add_child(panel)
+	center.add_child(panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 20)
@@ -862,7 +866,9 @@ func _hide_gallery() -> void:
 
 
 func _refresh_gallery_content() -> void:
-	var panel: PanelContainer = _gallery_overlay.get_child(1) as PanelContainer
+	var center: CenterContainer = _gallery_overlay.get_child(1) as CenterContainer
+	if not center: return
+	var panel: PanelContainer = center.get_child(0) as PanelContainer
 	if not panel: return
 	var vbox: VBoxContainer = panel.get_child(0) as VBoxContainer
 	if not vbox: return

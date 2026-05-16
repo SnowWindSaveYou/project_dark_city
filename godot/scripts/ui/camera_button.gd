@@ -238,28 +238,26 @@ func _draw() -> void:
 	_draw_soft_glow(Vector2(cx, cy), ICON_SIZE * 0.5, 40.0, glow_color, glow_intensity)
 
 	# ── 2. 相机图标（带旋转）
-	var icon_xf: Transform2D = Transform2D()
-	icon_xf = icon_xf.translated(-Vector2(cx, cy))
-	icon_xf = icon_xf.rotated(deg_to_rad(_icon_rot))
-	icon_xf = icon_xf.scaled(Vector2(total_scale, total_scale))
+	# 注意：icon_xf 将原点映射到 (cx, cy) 处，所以 draw_string 以 (0,0) 为中心绘制
+	var icon_xf: Transform2D = Transform2D.IDENTITY.rotated(deg_to_rad(_icon_rot))
 	icon_xf = icon_xf.translated(Vector2(cx, cy))
 	draw_set_transform_matrix(icon_xf)
 
-	# emoji 基线 y = cy + size*0.28，使图标视觉上居中于 cy
+	# emoji 基线：以 (0,0) 为中心，baseline y = size*0.28
 	draw_string(font,
-		Vector2(cx - ICON_SIZE / 2.0, cy + ICON_SIZE * 0.28),
+		Vector2(-ICON_SIZE / 2.0, ICON_SIZE * 0.28),
 		"📷", HORIZONTAL_ALIGNMENT_CENTER, ICON_SIZE, int(ICON_SIZE),
 		Color.WHITE)
 
 	# 恢复按钮级变换
 	draw_set_transform_matrix(xf)
 
-	# ── 3. 胶卷计数 pill（图标正下方）
+	# ── 3. 胶卷计数 pill（图标正下方，不跟随旋转，用原始坐标系绘制）
+	draw_set_transform_matrix(Transform2D.IDENTITY)
 	var film: int = GameData.get_resource("film")
 	_draw_film_pill(cx, cy, film, t, font)
 
 	# 重置
-	draw_set_transform_matrix(Transform2D.IDENTITY)
 	modulate.a = 1.0
 
 # ---------------------------------------------------------------------------
