@@ -1,18 +1,18 @@
 ## TutorialBubble - 屏幕教程气泡
-## 便签条风格，固定显示在屏幕左下角（或右下角），完全独立于对话系统和角色气泡
+## 便签条风格，固定显示在屏幕右上角，完全独立于对话系统和角色气泡
 ## 支持白夜 / 主角两种说话人，各自配头像
-## 动效：从左下角滑入 + 轻微弹簧回弹，打字机效果，手指轻点消除
+## 动效：从右上角滑下 + 轻微弹簧回弹，打字机效果，手指轻点消除
 class_name TutorialBubble
 extends Control
 
 # ---------------------------------------------------------------------------
 # 常量 — 布局
 # ---------------------------------------------------------------------------
-const BUBBLE_W: float      = 420.0   # 气泡宽度
-const BUBBLE_MAX_H: float  = 260.0   # 最大高度（文字过多时不超出）
-const AVATAR_SIZE: float   = 68.0    # 头像尺寸
-const PAD_X: float         = 18.0    # 水平内边距
-const PAD_Y: float         = 14.0    # 垂直内边距
+const BUBBLE_W: float      = 520.0   # 气泡宽度
+const BUBBLE_MAX_H: float  = 320.0   # 最大高度（文字过多时不超出）
+const AVATAR_SIZE: float   = 84.0    # 头像尺寸
+const PAD_X: float         = 22.0    # 水平内边距
+const PAD_Y: float         = 18.0    # 垂直内边距
 const LINE_GAP: float      = 6.0     # 笔记本横线间距（额外）
 const CORNER_R: float      = 12.0    # 圆角半径
 const MARGIN_SCREEN: float = 24.0    # 距屏幕边缘
@@ -23,11 +23,12 @@ const PIN_R: float         = 7.0     # 订书针/图钉半径
 # ---------------------------------------------------------------------------
 # 常量 — 动画
 # ---------------------------------------------------------------------------
-const ENTER_DUR: float  = 0.45   # 入场时长
-const EXIT_DUR: float   = 0.30   # 出场时长
-const IDLE_TIME: float  = 9.0    # 默认自动消失时长（秒）
-const TYPE_SPEED: int   = 22     # 打字机：每秒字符数
-const SLIDE_DIST: float = 60.0   # 入场从下滑入的距离
+const ENTER_DUR: float      = 0.45   # 入场时长
+const EXIT_DUR: float       = 0.30   # 出场时长
+const IDLE_TIME: float      = 9.0    # 对话型教程停留时长（秒）
+const IDLE_TIME_LONG: float = 15.0   # 操作指引型教程停留时长（秒）
+const TYPE_SPEED: int       = 22     # 打字机：每秒字符数
+const SLIDE_DIST: float     = 60.0   # 入场从上滑下的距离
 
 # ---------------------------------------------------------------------------
 # 说话人配置
@@ -54,6 +55,10 @@ var _idle_duration: float = IDLE_TIME
 var _typewriter_pos: int  = 0
 var _typewriter_accum: float = 0.0
 var _avatar_tex: Texture2D = null
+
+# 序列对话
+var _sequence: Array = []        # [{speaker, text}, ...]
+var _seq_index: int  = 0
 
 # ---------------------------------------------------------------------------
 # 内部节点 (程序化构建)
@@ -101,7 +106,7 @@ func _build_ui() -> void:
 	_name_label = Label.new()
 	_name_label.name = "NameLabel"
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_label.add_theme_font_size_override("font_size", 15)
+	_name_label.add_theme_font_size_override("font_size", 17)
 	_panel.add_child(_name_label)
 
 	# ── 正文（打字机用 RichTextLabel）──
@@ -112,7 +117,7 @@ func _build_ui() -> void:
 	_text_label.scroll_active = false
 	_text_label.fit_content = true
 	_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_text_label.add_theme_font_size_override("normal_font_size", 16)
+	_text_label.add_theme_font_size_override("normal_font_size", 18)
 	_panel.add_child(_text_label)
 
 	# ── "轻触关闭" 提示 ──
@@ -120,7 +125,7 @@ func _build_ui() -> void:
 	_close_hint.name = "CloseHint"
 	_close_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_close_hint.text = "轻触关闭"
-	_close_hint.add_theme_font_size_override("font_size", 11)
+	_close_hint.add_theme_font_size_override("font_size", 13)
 	_close_hint.modulate = Color(0.6, 0.6, 0.6, 0.65)
 	_panel.add_child(_close_hint)
 
@@ -128,24 +133,56 @@ func _build_ui() -> void:
 # 公开 API
 # ---------------------------------------------------------------------------
 
-## 显示教程气泡
-## speaker: "白夜" 或 "苏柚"（默认白夜）
-## text: 显示文字（支持 \n 换行）
-## duration: 自动消失时长（秒），0 = 不自动消失
+## 显示单条教程气泡
 func show_tutorial(text: String, speaker: String = SPEAKER_BAIYE,
 		duration: float = IDLE_TIME) -> void:
+	_sequence = []
+	_seq_index = 0
+	_idle_duration = duration
+	_start_bubble(text, speaker)
+
+## 显示多人序列对话
+## lines: [{speaker: "白夜", text: "..."}, ...]
+## duration_last: 最后一条停留时长
+func show_sequence(lines: Array, duration_last: float = IDLE_TIME) -> void:
+	if lines.is_empty():
+		return
+	_sequence = lines
+	_seq_index = 0
+	_idle_duration = duration_last
+	var first: Dictionary = lines[0]
+	_start_bubble(first.get("text", ""), first.get("speaker", SPEAKER_BAIYE))
+
+## 立即隐藏（外部强制）
+func dismiss() -> void:
+	if _phase == "hidden" or _phase == "exiting":
+		return
+	_start_exit_anim()
+
+# ---------------------------------------------------------------------------
+# 内部：启动气泡（单条 or 序列共用）
+# ---------------------------------------------------------------------------
+func _start_bubble(text: String, speaker: String) -> void:
 	if _phase == "entering" or _phase == "visible":
-		# 打断当前，更新内容后重新入场
 		_force_hide_immediate()
 
 	_text_full = text
 	_speaker = speaker
-	_idle_duration = duration
 	_typewriter_pos = 0
 	_typewriter_accum = 0.0
 	_timer = 0.0
 
-	# 加载头像
+	_apply_speaker(speaker)
+	_text_label.text = ""
+
+	visible = true
+	_phase = "entering"
+	_layout_panel()
+	_update_seq_hint()
+	_start_enter_anim()
+
+## 切换当前说话人（头像 / 名字 / 颜色）
+func _apply_speaker(speaker: String) -> void:
 	var avatar_path: String = AVATAR_PATH.get(speaker, "")
 	if avatar_path != "" and ResourceLoader.exists(avatar_path):
 		_avatar_tex = load(avatar_path) as Texture2D
@@ -153,26 +190,30 @@ func show_tutorial(text: String, speaker: String = SPEAKER_BAIYE,
 		_avatar_tex = null
 	_avatar_rect.texture = _avatar_tex
 
-	# 设置名字颜色
 	var name_color: Color = SPEAKER_COLOR.get(speaker, Color(0.25, 0.25, 0.25))
 	_name_label.text = speaker
 	_name_label.add_theme_color_override("font_color", name_color)
-
-	# 设置正文颜色
 	_text_label.add_theme_color_override("default_color",
 		Color(GameTheme.text_primary.r, GameTheme.text_primary.g, GameTheme.text_primary.b, 0.92))
+
+## 更新底部提示文字："轻触继续 ▶" 或 "轻触关闭"
+func _update_seq_hint() -> void:
+	var has_more: bool = _sequence.size() > 0 and _seq_index < _sequence.size() - 1
+	_close_hint.text = "轻触继续 ▶" if has_more else "轻触关闭"
+
+## 推进到序列下一条
+func _advance_sequence() -> void:
+	_seq_index += 1
+	var line: Dictionary = _sequence[_seq_index]
+	_speaker = line.get("speaker", SPEAKER_BAIYE)
+	_text_full = line.get("text", "")
+	_typewriter_pos = 0
+	_typewriter_accum = 0.0
+	_timer = 0.0
 	_text_label.text = ""
-
-	visible = true
-	_phase = "entering"
-	_layout_panel()
-	_start_enter_anim()
-
-## 立即隐藏（外部强制）
-func dismiss() -> void:
-	if _phase == "hidden" or _phase == "exiting":
-		return
-	_start_exit_anim()
+	_apply_speaker(_speaker)
+	_update_seq_hint()
+	_panel.queue_redraw()  # 刷新说话人颜色装饰
 
 # ---------------------------------------------------------------------------
 # 布局计算（每次显示前调用）
@@ -195,9 +236,9 @@ func _layout_panel() -> void:
 	_panel.custom_minimum_size = Vector2(BUBBLE_W, panel_h)
 	_panel.size = Vector2(BUBBLE_W, panel_h)
 
-	# 定位：屏幕左下角
-	var px: float = MARGIN_SCREEN
-	var py: float = sh - panel_h - MARGIN_SCREEN
+	# 定位：屏幕右上角
+	var px: float = sw - BUBBLE_W - MARGIN_SCREEN
+	var py: float = MARGIN_SCREEN
 	_panel.position = Vector2(px, py)
 
 	# 子节点布局
@@ -351,9 +392,9 @@ func _start_enter_anim() -> void:
 		_tween.kill()
 	_panel.modulate.a = 0.0
 	_panel.scale = Vector2(0.92, 0.92)
-	# 入场起始位置：从下方 SLIDE_DIST 滑入
+	# 入场起始位置：从上方 SLIDE_DIST 滑下
 	var base_pos: Vector2 = _panel.position
-	_panel.position = base_pos + Vector2(0, SLIDE_DIST)
+	_panel.position = base_pos + Vector2(0, -SLIDE_DIST)
 
 	_tween = create_tween()
 	_tween.set_parallel(true)
@@ -380,9 +421,9 @@ func _start_exit_anim() -> void:
 
 	_tween = create_tween()
 	_tween.set_parallel(true)
-	# 向左下角收缩
+	# 向右上角收缩
 	_tween.tween_property(_panel, "position",
-		_panel.position + Vector2(-20.0, 30.0), EXIT_DUR) \
+		_panel.position + Vector2(20.0, -30.0), EXIT_DUR) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	_tween.tween_property(_panel, "modulate:a", 0.0, EXIT_DUR) \
 		.set_ease(Tween.EASE_IN)
@@ -416,8 +457,9 @@ func _process(dt: float) -> void:
 				_typewriter_pos = new_pos
 				_text_label.text = _text_full.substr(0, _typewriter_pos)
 
-	# 自动消失计时（文字打完后开始）
-	if _phase == "visible" and _typewriter_pos >= _text_full.length():
+	# 自动消失计时（文字打完且是最后一条时才开始）
+	var is_last_line: bool = _sequence.is_empty() or _seq_index >= _sequence.size() - 1
+	if _phase == "visible" and _typewriter_pos >= _text_full.length() and is_last_line:
 		if _idle_duration > 0.0:
 			_timer += dt
 			if _timer >= _idle_duration:
@@ -430,17 +472,15 @@ func _on_panel_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			if _phase == "visible":
+			if _phase == "visible" or _phase == "entering":
 				if _typewriter_pos < _text_full.length():
-					# 第一次点击：直接显示完整文字
+					# 打字机未完：跳到完整文字
 					_typewriter_pos = _text_full.length()
 					_typewriter_accum = float(_text_full.length())
 					_text_label.text = _text_full
+				elif not _sequence.is_empty() and _seq_index < _sequence.size() - 1:
+					# 序列还有下一条：推进
+					_advance_sequence()
 				else:
-					# 第二次点击（或文字已完整）：关闭
+					# 最后一条（或单条）：关闭
 					_start_exit_anim()
-			elif _phase == "entering":
-				# 入场中点击：直接跳到完整显示
-				_typewriter_pos = _text_full.length()
-				_typewriter_accum = float(_text_full.length())
-				_text_label.text = _text_full

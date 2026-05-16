@@ -620,6 +620,10 @@ func show_tutorial(text: String, speaker: String = "白夜",
 	if _tutorial_bubble:
 		_tutorial_bubble.show_tutorial(text, speaker, duration)
 
+func show_sequence(lines: Array, duration_last: float = TutorialBubble.IDLE_TIME) -> void:
+	if _tutorial_bubble:
+		_tutorial_bubble.show_sequence(lines, duration_last)
+
 func _on_camera_mode_entered() -> void:
 	board_visual.mg_show_on_scouted_cards()
 	board_visual.mg_show_trails_on_board()
@@ -627,7 +631,8 @@ func _on_camera_mode_entered() -> void:
 	if not GameData.tutorial_flags["camera_mode_seen"]:
 		GameData.tutorial_flags["camera_mode_seen"] = true
 		show_tutorial(
-			"翻开之前，先拍一下。\n镜头里有时会浮现方向——妖魔在哪边。\n胶卷不多。"
+			"翻牌之前先拍一下。\n镜头里会浮出方向——妖魔在哪边。\n胶卷不多，记住了。",
+			"白夜", TutorialBubble.IDLE_TIME_LONG
 		)
 
 func _on_camera_mode_exited() -> void:

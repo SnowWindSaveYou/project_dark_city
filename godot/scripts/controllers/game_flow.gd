@@ -131,6 +131,9 @@ func _on_deal_complete() -> void:
 ## Day 1 专用晨间链: 故事 Tick + 晨间事件，完成后调用 on_done
 ## 与 Day 2+ 的 on_date_transition_complete 链对齐，但不重新生成棋盘
 func begin_day1(on_done: Callable) -> void:
+	# current_day 在 start_deal 才赋值，但 query_morning_event 需要它做条件判断
+	# 这里提前同步，确保 morning_day1 的 min_day:1 条件能通过
+	GameData.current_day = m.day_count
 	StoryManager.advance_baiye_sleep()
 	StoryManager.update_chapter_by_day()
 	npc_manager.reset_daily()

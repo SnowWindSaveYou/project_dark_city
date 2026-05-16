@@ -241,7 +241,7 @@
 
 		"cat": {
 			"name": "猫",
-			"tex_path": "res://assets/image/怪物_双尾猫妖v3_20260426071805.png",
+			"tex_path": "res://assets/image/npc_猫咪_自然_20260507040343.png",
 			"sprite_scale": 0.5,
 			"daily_cooldown": true,
 			"dialogues": [
