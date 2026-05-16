@@ -223,10 +223,8 @@ func _ready() -> void:
 	_baiye_sprite.z_index = 5  # 位于 UI 下方, Token 上方
 	_ui_layer.add_child(_baiye_sprite)
 
-	# 标题画面
-	GameData.set_game_phase("title")
-	GameData.set_demo_state("idle")
-	_title_screen.show_title()
+	# 从主菜单跳转而来，直接进入游戏，跳过游戏内标题画面
+	_on_title_start()
 
 # ---------------------------------------------------------------------------
 # 场景树构建
@@ -591,7 +589,17 @@ func _connect_signals() -> void:
 func _on_title_start() -> void:
 	GameData.set_game_phase("playing")
 	card_interaction.reset_daily_steps()
-	game_flow.start_deal()
+	# 播放日期切换动效（第1天），完成后再发牌；动效内含"第X天"文字，不显示横幅。
+	# Day 1 入场不走晨间事件链，需临时断开常规的 transition_completed 连接，
+	# 用一次性回调替代，结束后恢复常规连接。
+	_date_transition.transition_completed.disconnect_all()
+	var conn: Callable = func() -> void:
+		# 恢复常规连接（供 Day 2+ 使用）
+		_date_transition.transition_completed.connect(
+			func(): game_flow.on_date_transition_complete())
+		game_flow.start_deal(false)
+	_date_transition.transition_completed.connect(conn, CONNECT_ONE_SHOT)
+	_date_transition.play(day_count)
 
 func _on_shop_closed() -> void:
 	if GameData.demo_state == "dark_world":

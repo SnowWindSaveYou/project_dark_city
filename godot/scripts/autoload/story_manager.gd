@@ -171,8 +171,8 @@ func get_all_clues() -> Array:
 ## 获取所有线索分类
 func get_clue_categories() -> Array:
 	var cats: Dictionary = {}
-	for cid in _clue_defs:
-		var cat: String = _clue_defs[cid].get("category", "未分类")
+	for cid in collected_clues:
+		var cat: String = _clue_defs.get(cid, {}).get("category", "未分类")
 		cats[cat] = true
 	return cats.keys()
 

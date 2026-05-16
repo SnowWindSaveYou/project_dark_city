@@ -186,8 +186,16 @@ func parse_dark_world_card(card: Card, row: int, col: int, day_count: int) -> Ev
 		
 		"clue":
 			if not card.dark_collected:
-				result.event_type = EventType.CLUE
-				result.message = card.dark_name
+				result.event_type = EventType.DARK_CLUE
+				var dark_clue_evt: Dictionary = StoryManager.pick_dark_clue_event()
+				if not dark_clue_evt.is_empty():
+					var apply_result: Dictionary = StoryManager.apply_event_effects(dark_clue_evt)
+					if apply_result.get("is_new_clue"):
+						result.message = "获得暗线索: %s" % apply_result["clue_name"]
+					else:
+						result.message = dark_clue_evt.get("text", card.dark_name)
+				else:
+					result.message = card.dark_name
 				result.effects = { "san": 1 }
 				card.dark_collected = true
 			else:

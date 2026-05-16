@@ -61,7 +61,7 @@ func generate_board() -> void:
 # ---------------------------------------------------------------------------
 
 ## 启动发牌 → 横幅 → 螺旋飞牌 → _on_deal_complete
-func start_deal() -> void:
+func start_deal(show_day_banner: bool = true) -> void:
 	print("[GameFlow] start_deal: day=%d, demo_state=%s" % [m.day_count, GameData.demo_state])
 	GameData.current_day = m.day_count
 	GameData.set_demo_state("dealing")
@@ -69,7 +69,9 @@ func start_deal() -> void:
 	GameData.day_start_revealed = GameData.cards_revealed
 	# BGM (与 main.gd _process 使用相同 key, 避免每天发牌时触发无意义交叉淡入)
 	AudioManager.play_bgm("day_light")
-	m._vfx.action_banner("第 %d 天" % m.day_count, Color.WHITE, 1.2)
+	# Day 1 显示横幅; Day 2+ 已有日期切换动效，动效内含"第X天"文字，不重复显示
+	if show_day_banner:
+		m._vfx.action_banner("第 %d 天" % m.day_count, Color.WHITE, 1.2)
 	m.board_visual.start_deal_animation(_on_deal_complete)
 
 func _on_deal_complete() -> void:
@@ -389,7 +391,8 @@ func _begin_new_day() -> void:
 	m.card_interaction.reset_daily_steps()
 	m.board = Board.new()
 	generate_board()
-	start_deal()
+	# 日期切换动效内含"第X天"文字，此处不再重复显示横幅
+	start_deal(false)
 
 # ---------------------------------------------------------------------------
 # 胜负判定 (Phase 5: EndingSystem 多结局)

@@ -319,7 +319,7 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 		EventHandler.EventType.NONE:
 			m.dark_world.set_ready()
 		
-		EventHandler.EventType.CLUE:
+		EventHandler.EventType.CLUE, EventHandler.EventType.DARK_CLUE:
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
 			_event_handler.execute_event(result, card)
 			# 碎片掉落检查
@@ -329,8 +329,6 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 				var is_new: bool = StoryManager.collect_fragment(frag_id)
 				if is_new:
 					var frag_info: Dictionary = StoryManager.get_fragment_info(frag_id)
-					m._vfx.action_banner("碎片: %s" % frag_info.get("name", frag_id),
-						Color(0.9, 0.7, 0.2), 1.2)
 					# 设置防重复 flag
 					var drops: Array = CardConfig.get_dw_fragment_drops()
 					for drop in drops:
@@ -339,6 +337,11 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 							if flag_key != "":
 								StoryManager.set_flag(flag_key)
 							break
+					# 通过弹窗展示碎片全文，等待玩家关闭后再继续
+					m.dark_world.dark_state = "popup"
+					m._event_popup.show_fragment(frag_info)
+					await m._event_popup.popup_closed
+					m.dark_world.dark_state = "ready"
 			# 精英遭遇检查 (线索卡触发)
 			if m.dark_world.check_elite_encounter(
 					StoryManager.get_fragment_count(), _baiye_following,
@@ -450,8 +453,8 @@ func _trigger_encounter_dialogue(encounter_data: Dictionary) -> void:
 			var chosen: Dictionary = choices[idx] if idx < choices.size() else {}
 			var effects: Dictionary = chosen.get("effects", {})
 			var result_text: String = chosen.get("result_text", "")
-			# 应用效果
-			_apply_encounter_effects(effects)
+			# 应用效果（可能含碎片弹窗，需等待完成后再 set_ready）
+			await _apply_encounter_effects(effects)
 			# 显示结果文本
 			if result_text != "":
 				m._vfx.action_banner(result_text, Color(0.8, 0.7, 0.4), 1.5)
@@ -482,8 +485,11 @@ func _apply_encounter_effects(effects: Dictionary) -> void:
 		var is_new: bool = StoryManager.collect_fragment(frag)
 		if is_new:
 			var info: Dictionary = StoryManager.get_fragment_info(frag)
-			m._vfx.action_banner("获得碎片: %s" % info.get("name", frag),
-				Color(0.9, 0.7, 0.2), 1.2)
+			# 通过弹窗展示碎片全文，等待玩家关闭后再继续
+			m.dark_world.dark_state = "popup"
+			m._event_popup.show_fragment(info)
+			await m._event_popup.popup_closed
+			m.dark_world.dark_state = "ready"
 
 # ---------------------------------------------------------------------------
 # L2 双向通道选择

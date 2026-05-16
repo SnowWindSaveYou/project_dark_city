@@ -1,5 +1,9 @@
 ## CameraButton - 相机模式按钮 + 取景框
-## 对应原版 CameraButton.lua
+## 视觉设计：📷 emoji 图标为主体，无实心圆背景
+##   idle:    极淡暖色光晕（barely visible）
+##   hover:   光晕加强 + 图标微放大
+##   active:  橘红脉冲光晕 + 图标 15° 倾斜
+##   胶卷计数：图标正下方小 pill 标签
 extends Control
 
 # ---------------------------------------------------------------------------
@@ -7,18 +11,23 @@ extends Control
 # ---------------------------------------------------------------------------
 signal camera_mode_entered
 signal camera_mode_exited
-signal photograph_requested  # 请求拍摄 (未翻卡)
-signal exorcise_requested    # 请求驱魔 (已翻怪物卡)
+signal photograph_requested
+signal exorcise_requested
 
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const BUTTON_SIZE: float = 132.0
-const BTN_MARGIN_R: float = 60.0   # 仅用于胶卷数字偏移，不再决定按钮位置
-const BTN_MARGIN_B: float = 56.0   # 底部边距（相机现位于画面下方中心）
-const BRACKET_LEN: float = 84.0
+const BUTTON_SIZE: float  = 132.0   # 点击判定半径的来源（不变，保持手感）
+const BTN_MARGIN_B: float =  56.0   # 底部边距
+const ICON_SIZE: float    =  76.0   # emoji 渲染尺寸
+const BRACKET_LEN: float  =  84.0
 const BRACKET_MARGIN: float = 60.0
-const SCAN_SPEED: float = 180.0  # px/s
+const SCAN_SPEED: float   = 180.0   # px/s
+
+# pill
+const PILL_W: float = 68.0
+const PILL_H: float = 24.0
+const PILL_GAP: float = 10.0   # 与 emoji 底部的间距（估算）
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -26,23 +35,18 @@ const SCAN_SPEED: float = 180.0  # px/s
 var _visible_flag: bool = false
 var _in_camera_mode: bool = false
 
-# 按钮动画
 var _btn_scale: float = 0.0
 var _btn_alpha: float = 0.0
-var _icon_rot: float = 0.0  # 图标旋转角(度)
-var _hover_t: float = 0.0
-var _shake_x: float = 0.0
+var _icon_rot: float  = 0.0
+var _hover_t: float   = 0.0
+var _shake_x: float   = 0.0
 
-# 取景器
 var _viewfinder_alpha: float = 0.0
 var _scan_line_y: float = 0.0
 var _rec_blink_timer: float = 0.0
 
-# 内部计时
 var _time: float = 0.0
 
-# 缓存
-var _btn_center: Vector2 = Vector2.ZERO
 var _film_texture: Texture2D = null
 var _film_tex_loaded: bool = false
 
@@ -70,7 +74,6 @@ func _setup_vignette() -> void:
 	_vignette_rect.visible = false
 	add_child(_vignette_rect)
 
-## 只在相机按钮圆形区域内拦截鼠标事件, 其余区域透传到 _unhandled_input
 func _has_point(point: Vector2) -> bool:
 	if not _visible_flag:
 		return false
@@ -89,8 +92,7 @@ func show_button() -> void:
 	visible = true
 	_btn_scale = 0.3
 	_btn_alpha = 0.0
-	var tw: Tween = create_tween()
-	tw.set_parallel(true)
+	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(self, "_btn_scale", 1.0, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "_btn_alpha", 1.0, 0.3)
 
@@ -102,8 +104,7 @@ func hide_button() -> void:
 		_viewfinder_alpha = 0.0
 		_icon_rot = 0.0
 	_visible_flag = false
-	var tw: Tween = create_tween()
-	tw.set_parallel(true)
+	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(self, "_btn_scale", 0.3, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tw.tween_property(self, "_btn_alpha", 0.0, 0.2)
 	tw.chain().tween_callback(func(): visible = false)
@@ -114,9 +115,7 @@ func enter_camera_mode() -> void:
 	_in_camera_mode = true
 	_scan_line_y = 0.0
 	_rec_blink_timer = 0.0
-
-	var tw: Tween = create_tween()
-	tw.set_parallel(true)
+	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(self, "_icon_rot", 15.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "_viewfinder_alpha", 1.0, 0.3)
 	camera_mode_entered.emit()
@@ -125,9 +124,7 @@ func exit_camera_mode() -> void:
 	if not _in_camera_mode:
 		return
 	_in_camera_mode = false
-
-	var tw: Tween = create_tween()
-	tw.set_parallel(true)
+	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(self, "_icon_rot", 0.0, 0.2)
 	tw.tween_property(self, "_viewfinder_alpha", 0.0, 0.25)
 	camera_mode_exited.emit()
@@ -151,7 +148,7 @@ func _process(delta: float) -> void:
 
 	if _in_camera_mode:
 		var vp: Vector2 = get_viewport_rect().size
-		var area_h: float = vp.y - 240.0 - 42.0  # 取景器可用高度
+		var area_h: float = vp.y - 240.0 - 42.0
 		_scan_line_y += SCAN_SPEED * delta
 		if _scan_line_y > area_h:
 			_scan_line_y = 0.0
@@ -178,16 +175,13 @@ func _gui_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseMotion:
 		var inside: bool = _hit_test_button(event.position)
-		var target: float = 1.0 if inside else 0.0
-		# 直接设置，平滑在 _process 中处理也可
-		_hover_t = lerpf(_hover_t, target, 0.3)
+		_hover_t = lerpf(_hover_t, 1.0 if inside else 0.0, 0.3)
 		return
 
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 			return
-
 		if _hit_test_button(mb.position):
 			if _in_camera_mode:
 				exit_camera_mode()
@@ -197,7 +191,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _hit_test_button(pos: Vector2) -> bool:
 	var vp: Vector2 = get_viewport_rect().size
-	var cx: float = vp.x / 2.0                        # 水平居中
+	var cx: float = vp.x / 2.0
 	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
 	var dx: float = pos.x - cx
 	var dy: float = pos.y - cy
@@ -220,12 +214,11 @@ func _draw() -> void:
 	if not _visible_flag or _btn_alpha <= 0.01:
 		return
 
-	var cx: float = vp.x / 2.0 + _shake_x             # 水平居中
+	var cx: float = vp.x / 2.0 + _shake_x
 	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
-	var r: float = BUTTON_SIZE / 2.0
 
-	# 按钮变换
-	var hover_scale: float = 1.0 + _hover_t * 0.1
+	# 按钮整体变换（弹入 + hover 微放大）
+	var hover_scale: float = 1.0 + _hover_t * 0.08
 	var total_scale: float = _btn_scale * hover_scale
 	var xf: Transform2D = Transform2D()
 	xf = xf.translated(-Vector2(cx, cy))
@@ -234,152 +227,186 @@ func _draw() -> void:
 	draw_set_transform_matrix(xf)
 	modulate.a = _btn_alpha
 
-	# 软径向阴影 — Lua: offset(1,2), spread≈r*0.5, alpha=50/255 → Godot 3×
-	_draw_radial_shadow(Vector2(cx, cy), r, Vector2(3.0, 6.0), int(r * 0.5), 0.20)
-
-	# 按钮背景
-	var btn_color: Color = t.camera_btn_active if _in_camera_mode else t.camera_btn
-	draw_circle(Vector2(cx, cy), r, btn_color)
-
-	# 激活态脉冲光晕
+	# ── 1. 柔光晕（替代实心圆，无硬边）
+	var glow_color: Color = t.camera_btn_active if _in_camera_mode else t.camera_btn
+	var glow_intensity: float
 	if _in_camera_mode:
-		var glow_phase: float = 0.4 + 0.6 * absf(sin(_time * 2.5))
-		var glow_r: float = r + 12.0 + glow_phase * 9.0
-		var glow_color: Color = Color(btn_color.r, btn_color.g, btn_color.b, glow_phase * 0.2)
-		draw_circle(Vector2(cx, cy), glow_r, glow_color)
+		var pulse: float = 0.5 + 0.5 * absf(sin(_time * 2.5))
+		glow_intensity = 0.14 + pulse * 0.16
+	else:
+		glow_intensity = 0.05 + _hover_t * 0.12
+	_draw_soft_glow(Vector2(cx, cy), 30.0, 38.0, glow_color, glow_intensity)
 
-	# Hover 高光
-	if _hover_t > 0.01:
-		draw_circle(Vector2(cx, cy), r, Color(1, 1, 1, _hover_t * 0.15))
-
-	# 边框
-	var border_alpha: float = 0.78 if _in_camera_mode else 0.59
-	_draw_circle_outline(Vector2(cx, cy), r, Color(1, 1, 1, border_alpha + _hover_t * 0.2), 4.5)
-
-	# 图标 (📷) - 带旋转
+	# ── 2. 相机图标（带旋转）
 	var icon_xf: Transform2D = Transform2D()
 	icon_xf = icon_xf.translated(-Vector2(cx, cy))
 	icon_xf = icon_xf.rotated(deg_to_rad(_icon_rot))
 	icon_xf = icon_xf.scaled(Vector2(total_scale, total_scale))
 	icon_xf = icon_xf.translated(Vector2(cx, cy))
 	draw_set_transform_matrix(icon_xf)
-	draw_string(font, Vector2(cx - BUTTON_SIZE / 2.0, cy + 21), "📷",
-		HORIZONTAL_ALIGNMENT_CENTER, BUTTON_SIZE, 60, Color.WHITE)
 
-	# 恢复变换到按钮级别
+	# emoji 基线 y = cy + size*0.28，使图标视觉上居中于 cy
+	draw_string(font,
+		Vector2(cx - ICON_SIZE / 2.0, cy + ICON_SIZE * 0.28),
+		"📷", HORIZONTAL_ALIGNMENT_CENTER, ICON_SIZE, int(ICON_SIZE),
+		Color.WHITE)
+
+	# 恢复按钮级变换
 	draw_set_transform_matrix(xf)
 
-	# === 胶卷计数 (按钮左侧) ===
+	# ── 3. 胶卷计数 pill（图标正下方）
 	var film: int = GameData.get_resource("film")
-	var film_alpha: float = 0.86 if film <= 1 else 0.78
-
-	# 胶卷数字
-	var num_text: String = str(film)
-	var num_x: float = cx - r - 24.0
-	var num_color: Color
-	if film <= 1:
-		num_color = Color(0.86, 0.31, 0.31, film_alpha)
-	else:
-		num_color = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, film_alpha)
-	draw_string(font, Vector2(num_x - 120, cy + 15), num_text,
-		HORIZONTAL_ALIGNMENT_RIGHT, 120, 39, num_color)
-
-	# 胶卷图标 (纹理优先)
-	var icon_x: float = num_x - 54.0
-	_ensure_film_texture()
-	if _film_texture:
-		var tex_size: float = 48.0
-		var tex_rect: Rect2 = Rect2(icon_x - tex_size / 2.0, cy - tex_size / 2.0, tex_size, tex_size)
-		draw_texture_rect(_film_texture, tex_rect, false, Color(1, 1, 1, film_alpha))
-	else:
-		draw_string(font, Vector2(icon_x - 30, cy + 15), "🎞️",
-			HORIZONTAL_ALIGNMENT_CENTER, 60, 39, num_color)
+	_draw_film_pill(cx, cy, film, t, font)
 
 	# 重置
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	modulate.a = 1.0
 
+# ---------------------------------------------------------------------------
+# 胶卷 pill
+# ---------------------------------------------------------------------------
+
+## 图标正下方的小圆角标签
+## cy 是图标中心 y；emoji 渲染后底部约在 cy + ICON_SIZE*0.72
+func _draw_film_pill(cx: float, cy: float, film: int, t: Object, font: Font) -> void:
+	# emoji 视觉底部（经验值，避免数学推导误差）
+	var icon_bottom: float = cy + ICON_SIZE * 0.68
+	var pill_top: float = icon_bottom + PILL_GAP
+	var pill_rect: Rect2 = Rect2(cx - PILL_W / 2.0, pill_top, PILL_W, PILL_H)
+
+	var film_alpha: float = _btn_alpha * 0.90
+
+	# pill 背景色：胶卷不足时偏粉警示，正常时白色半透明
+	var pill_bg: Color
+	var text_col: Color
+	if film <= 1:
+		pill_bg  = Color(1.0, 0.90, 0.90, 0.82 * film_alpha)
+		text_col = Color(0.78, 0.18, 0.18, film_alpha)
+	else:
+		pill_bg  = Color(1.0, 1.0, 1.0, 0.76 * film_alpha)
+		text_col = Color(t.text_secondary.r, t.text_secondary.g, t.text_secondary.b, film_alpha)
+
+	# pill 背景（圆角矩形 + 极细阴影）
+	_draw_pill_shadow(pill_rect, film_alpha * 0.12)
+	_draw_rounded_pill(pill_rect, PILL_H / 2.0, pill_bg)
+
+	# pill 内容：胶卷图标 + 数字
+	_ensure_film_texture()
+	var content_cx: float = cx
+	if _film_texture:
+		# 贴图在左，数字在右
+		var tex_size: float = 18.0
+		var tex_x: float = content_cx - 22.0
+		var tex_y: float = pill_top + (PILL_H - tex_size) / 2.0
+		draw_texture_rect(_film_texture,
+			Rect2(tex_x, tex_y, tex_size, tex_size), false,
+			Color(text_col.r, text_col.g, text_col.b, film_alpha))
+		draw_string(font,
+			Vector2(tex_x + tex_size + 3.0, pill_top + PILL_H * 0.72),
+			str(film), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, text_col)
+	else:
+		# fallback: emoji + 数字，居中
+		var label: String = "🎞 " + str(film)
+		draw_string(font,
+			Vector2(cx - PILL_W / 2.0 + 6.0, pill_top + PILL_H * 0.72),
+			label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, text_col)
+
+# ---------------------------------------------------------------------------
+# 取景框
+# ---------------------------------------------------------------------------
+func _draw_viewfinder(vp: Vector2, t: Object, font: Font) -> void:
+	var alpha: float = _viewfinder_alpha
+	var area_top: float = 240.0
+	var area_bottom: float = vp.y - 42.0
+
+	var bm: float = BRACKET_MARGIN - 18.0
+	var bl: float = BRACKET_LEN
+	var bracket_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g,
+		t.camera_viewfinder.b, alpha * 0.7)
+	var bw: float = 7.5
+	var left: float = bm
+	var right_edge: float = vp.x - bm
+	var top: float = area_top + bm
+	var bottom: float = area_bottom - bm
+
+	# 四角 L 形标记
+	draw_rect(Rect2(left,             top,          bl, bw), bracket_color)
+	draw_rect(Rect2(left,             top,          bw, bl), bracket_color)
+	draw_rect(Rect2(right_edge - bl,  top,          bl, bw), bracket_color)
+	draw_rect(Rect2(right_edge - bw,  top,          bw, bl), bracket_color)
+	draw_rect(Rect2(left,             bottom - bw,  bl, bw), bracket_color)
+	draw_rect(Rect2(left,             bottom - bl,  bw, bl), bracket_color)
+	draw_rect(Rect2(right_edge - bl,  bottom - bw,  bl, bw), bracket_color)
+	draw_rect(Rect2(right_edge - bw,  bottom - bl,  bw, bl), bracket_color)
+
+	# 扫描线
+	var scan_abs_y: float = area_top + _scan_line_y
+	if scan_abs_y <= area_bottom:
+		var scan_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g,
+			t.camera_viewfinder.b, alpha * 0.2)
+		draw_line(Vector2(0, scan_abs_y), Vector2(vp.x, scan_abs_y), scan_color, 4.5)
+
+	# REC 指示灯
+	if sin(_rec_blink_timer * 3.0) > -0.3:
+		var rec_x: float = left + 24.0
+		var rec_y: float = top + bl + 36.0
+		var rec_color: Color = Color(t.camera_rec.r, t.camera_rec.g, t.camera_rec.b, alpha)
+		draw_circle(Vector2(rec_x, rec_y), 12.0, rec_color)
+		draw_circle(Vector2(rec_x, rec_y), 21.0,
+			Color(rec_color.r, rec_color.g, rec_color.b, alpha * 0.16))
+		draw_string(font, Vector2(rec_x + 36.0, rec_y + 12.0), "CAMERA MODE",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 33, Color(1, 1, 1, alpha * 0.63))
+
+# ---------------------------------------------------------------------------
+# 辅助：加载胶卷纹理
+# ---------------------------------------------------------------------------
 func _ensure_film_texture() -> void:
 	if _film_tex_loaded:
 		return
 	_film_tex_loaded = true
 	_film_texture = ItemIcons.get_texture("film")
 
-func _draw_viewfinder(vp: Vector2, t, font: Font) -> void:
-	var alpha: float = _viewfinder_alpha
-
-	# 取景器区域
-	var area_top: float = 240.0
-	var area_bottom: float = vp.y - 42.0
-
-	# 四角 L 形标记
-	var bm: float = BRACKET_MARGIN - 18.0
-	var bl: float = BRACKET_LEN
-	var bracket_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.7)
-	var bw: float = 7.5
-
-	var left: float = bm
-	var right_edge: float = vp.x - bm
-	var top: float = area_top + bm
-	var bottom: float = area_bottom - bm
-
-	# 左上
-	draw_rect(Rect2(left, top, bl, bw), bracket_color)
-	draw_rect(Rect2(left, top, bw, bl), bracket_color)
-	# 右上
-	draw_rect(Rect2(right_edge - bl, top, bl, bw), bracket_color)
-	draw_rect(Rect2(right_edge - bw, top, bw, bl), bracket_color)
-	# 左下
-	draw_rect(Rect2(left, bottom - bw, bl, bw), bracket_color)
-	draw_rect(Rect2(left, bottom - bl, bw, bl), bracket_color)
-	# 右下
-	draw_rect(Rect2(right_edge - bl, bottom - bw, bl, bw), bracket_color)
-	draw_rect(Rect2(right_edge - bw, bottom - bl, bw, bl), bracket_color)
-
-	# 扫描线
-	var scan_abs_y: float = area_top + _scan_line_y
-	if scan_abs_y <= area_bottom:
-		var scan_color: Color = Color(t.camera_viewfinder.r, t.camera_viewfinder.g, t.camera_viewfinder.b, alpha * 0.2)
-		draw_line(Vector2(0, scan_abs_y), Vector2(vp.x, scan_abs_y), scan_color, 4.5)
-
-	# REC 指示灯
-	var rec_visible: float = sin(_rec_blink_timer * 3.0) > -0.3
-	if rec_visible:
-		var rec_x: float = left + 24.0
-		var rec_y: float = top + bl + 36.0
-		var rec_color: Color = Color(t.camera_rec.r, t.camera_rec.g, t.camera_rec.b, alpha)
-		draw_circle(Vector2(rec_x, rec_y), 12, rec_color)
-		# 光晕
-		draw_circle(Vector2(rec_x, rec_y), 21, Color(rec_color.r, rec_color.g, rec_color.b, alpha * 0.16))
-		# "CAMERA MODE" 文字
-		draw_string(font, Vector2(rec_x + 36, rec_y + 12), "CAMERA MODE",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 33,
-			Color(1, 1, 1, alpha * 0.63))
-
 # ---------------------------------------------------------------------------
-# 辅助
+# 辅助：绘制
 # ---------------------------------------------------------------------------
 
-## 软径向阴影 (StyleBoxFlat，与 HandPanel 方式相同)
-## 圆形 = 四角半径等于按钮半径的 StyleBoxFlat
-func _draw_radial_shadow(center: Vector2, r: float, offset: Vector2, shadow_size: int, alpha: float) -> void:
+## 多层半透明圆叠加的柔光晕（无硬边，替代实心圆）
+## inner_r: 最内层半径；expand: 向外扩展总量；intensity: 最内层 alpha
+func _draw_soft_glow(center: Vector2, inner_r: float, expand: float,
+		color: Color, intensity: float) -> void:
+	const STEPS: int = 7
+	for i in range(STEPS):
+		var t_val: float = float(i) / float(STEPS - 1)   # 0 → 1
+		var r: float = inner_r + t_val * expand
+		# 二次衰减：从内到外快速降至 0
+		var a: float = intensity * (1.0 - t_val) * (1.0 - t_val)
+		if a > 0.004:
+			draw_circle(center, r, Color(color.r, color.g, color.b, a))
+
+
+## 圆角 pill 背景
+func _draw_rounded_pill(rect: Rect2, radius: float, color: Color) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.corner_radius_top_left     = int(radius)
+	sb.corner_radius_top_right    = int(radius)
+	sb.corner_radius_bottom_left  = int(radius)
+	sb.corner_radius_bottom_right = int(radius)
+	sb.set_content_margin_all(0)
+	draw_style_box(sb, rect)
+
+
+## pill 专用小阴影（向下 2px，spread 4px）
+func _draw_pill_shadow(rect: Rect2, alpha: float) -> void:
+	if alpha < 0.01:
+		return
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0, 0, 0, 0)
-	sb.corner_radius_top_left     = int(r)
-	sb.corner_radius_top_right    = int(r)
-	sb.corner_radius_bottom_left  = int(r)
-	sb.corner_radius_bottom_right = int(r)
-	sb.shadow_color  = Color(0.0, 0.0, 0.0, alpha)
-	sb.shadow_size   = shadow_size
-	sb.shadow_offset = offset
-	draw_style_box(sb, Rect2(center.x - r, center.y - r, r * 2.0, r * 2.0))
-
-
-func _draw_circle_outline(center: Vector2, radius: float, color: Color, width: float) -> void:
-	var segments: int = 32
-	var prev: Vector2 = center + Vector2(radius, 0)
-	for i in range(1, segments + 1):
-		var angle: float = TAU * i / segments
-		var next: Vector2 = center + Vector2(cos(angle) * radius, sin(angle) * radius)
-		draw_line(prev, next, color, width)
-		prev = next
+	sb.corner_radius_top_left     = int(PILL_H / 2.0)
+	sb.corner_radius_top_right    = int(PILL_H / 2.0)
+	sb.corner_radius_bottom_left  = int(PILL_H / 2.0)
+	sb.corner_radius_bottom_right = int(PILL_H / 2.0)
+	sb.shadow_color  = Color(0.1, 0.18, 0.28, alpha)
+	sb.shadow_size   = 4
+	sb.shadow_offset = Vector2(0.0, 2.0)
+	draw_style_box(sb, rect)

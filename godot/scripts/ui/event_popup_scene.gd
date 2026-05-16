@@ -275,6 +275,42 @@ func show_event_data(
 
 	_run_enter_animation(baiiye_text != "")
 
+## 碎片收集弹窗：展示前世记忆全文
+func show_fragment(frag_info: Dictionary) -> void:
+	_active = true
+	_phase = "enter"
+	visible = true
+	_overlay.visible = true
+	$PanelAnchor.visible = true
+	AudioManager.play_sfx("popup_open")
+
+	_photo_rotation_deg = randf_range(-4.0, 4.0)
+	var accent: Color = Color(0.855, 0.714, 0.278)  # 金黄色
+
+	# 拍立得：无插画，隐藏图片区
+	_event_texture.texture = null
+	_event_texture.visible = false
+
+	# 拍立得底部：碎片类型标签
+	_type_label.text = "🌙 前世碎片"
+	_type_label.add_theme_color_override("font_color", Color(accent.r, accent.g, accent.b, 0.82))
+	_location_label.visible = false
+	($PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox/CardBottom/CardBottomSep as Label).visible = false
+
+	_polaroid_card.rotation = deg_to_rad(_photo_rotation_deg)
+	_notebook_decor.queue_redraw()
+
+	# 右侧文字区
+	_title_label.text = frag_info.get("name", "前世碎片")
+	_title_label.add_theme_color_override("font_color", Color(accent.r, accent.g, accent.b, 0.90))
+	_populate_effects({}, false)
+	_desc_label.text = frag_info.get("full_text", frag_info.get("desc", ""))
+	_baiiye_label.visible = false
+	_confirm_label.text = "收下记忆"
+	_style_confirm_button(false)
+
+	_run_enter_animation(false)
+
 ## 旧签名（供 shop 等阻断型事件使用）
 func show_event(card: Card) -> void:
 	_card = card
@@ -729,10 +765,11 @@ func _draw_notebook_decor() -> void:
 func _draw_polaroid_shadow_decor() -> void:
 	if _polaroid_card == null or not _polaroid_card.is_inside_tree():
 		return
-	var global_rect: Rect2 = _polaroid_card.get_global_rect()
-	var pol_w: float = global_rect.size.x
-	var pol_h: float = global_rect.size.y
-	if pol_w < 10.0 or pol_h < 10.0:
+	# ⚠️ 必须用 .size 而非 get_global_rect().size：
+	#   get_global_rect() 返回旋转后的 AABB，尺寸随旋转角度变化 → 阴影每次不一致
+	var pol_size: Vector2 = _polaroid_card.size        # 原始未旋转尺寸（固定值）
+	var pol_w: float = pol_size.x
+	if pol_w < 10.0:
 		return
 
 	# 分辨率缩放（Lua POL_W=122 → Godot 实际宽度）
@@ -745,18 +782,16 @@ func _draw_polaroid_shadow_decor() -> void:
 	sb.corner_radius_top_right    = 6
 	sb.corner_radius_bottom_right = 6
 	sb.corner_radius_bottom_left  = 6
-	# Lua feather=16 → shadow_size，缩减至 8 使阴影更紧凑；offset(+2,+4) 保持缩放
 	sb.shadow_size   = int(8.0 * s)                   # ≈ 17
 	sb.shadow_offset = Vector2(2.0 * s, 4.0 * s)      # ≈ (4, 9)
-	# Lua nvgRGBA(30,20,10,80) ≈ 暖棕色，与 ResourceBar 现实模式阴影色系一致
 	sb.shadow_color  = Color(0.118, 0.078, 0.039, 0.28)
 
-	# 将卡片全局坐标转到 NotebookDecor 本地坐标，并应用旋转
-	var local_origin: Vector2 = global_rect.position - _notebook_decor.global_position
-	var local_center: Vector2 = global_rect.get_center() - _notebook_decor.global_position
+	# global_position 是未旋转矩形的左上角（不受 AABB 影响），配合 .size 还原真实中心
+	var card_global_center: Vector2 = _polaroid_card.global_position + pol_size * 0.5
+	var local_center: Vector2 = card_global_center - _notebook_decor.global_position
+	# 以卡片中心为旋转原点，Rect 坐标相对于该原点（-half_size → +half_size）
 	_notebook_decor.draw_set_transform(local_center, _polaroid_card.rotation)
-	# draw_style_box 的 Rect 以旋转中心为原点偏移
-	_notebook_decor.draw_style_box(sb, Rect2(local_origin - local_center, global_rect.size))
+	_notebook_decor.draw_style_box(sb, Rect2(-pol_size * 0.5, pol_size))
 	_notebook_decor.draw_set_transform(Vector2.ZERO, 0.0)
 
 # ---------------------------------------------------------------------------
