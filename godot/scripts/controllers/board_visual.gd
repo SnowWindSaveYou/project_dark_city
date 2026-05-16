@@ -160,7 +160,7 @@ func rebuild_card_nodes() -> void:
 			# 暗面类型图标 Sprite3D (中等大小，居中偏上，初始隐藏)
 			var dark_icon_sprite: Sprite3D = Sprite3D.new()
 			dark_icon_sprite.name = "DarkIconSprite"
-			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.004, 0.05)
+			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.004, 0)
 			dark_icon_sprite.rotation_degrees = Vector3(-90, 180, 0)
 			dark_icon_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			dark_icon_sprite.transparent = true
@@ -446,7 +446,6 @@ func update_dark_card_visual(row: int, col: int) -> void:
 		# 中等图标: 按 dark_type 显示对应 evt_icon
 		if dark_icon_sprite:
 			var icon_tex: Texture2D = CardImageMap.get_dark_icon_texture(card.dark_type)
-			print("[DarkIcon] row=%d col=%d dark_type=%s icon_tex=%s" % [row, col, card.dark_type, str(icon_tex)])
 			if icon_tex:
 				dark_icon_sprite.pixel_size = DARK_ICON_SIZE / float(icon_tex.get_width())
 				dark_icon_sprite.texture = icon_tex

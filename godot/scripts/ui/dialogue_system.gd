@@ -289,13 +289,15 @@ func on_exit_complete() -> void:
 	# 过渡态（flipping/dealing 等）不能直接恢复，否则游戏卡死，统一回退到 ready
 	const TRANSIT_STATES: Array = ["flipping", "dealing", "moving"]
 	var restore_state: String = _prev_demo_state if _prev_demo_state not in TRANSIT_STATES else "ready"
-	print("[DialogueSystem] on_exit_complete: restoring demo_state='%s' (prev='%s'), has_cb=%s" % [restore_state, _prev_demo_state, _on_complete.is_valid()])
+	print("[DialogueSystem] on_exit_complete: restoring demo_state='%s' (prev='%s'), current='%s', has_cb=%s" % [restore_state, _prev_demo_state, GameData.demo_state, _on_complete.is_valid()])
 	state = "idle"
 	_script = []
 	_script_index = 0
 	_portrait_tex = null
 	_bg_tex = null
-	GameData.set_demo_state(restore_state)
+	# 仅当 demo_state 仍为 "dialogue" 时才恢复，防止异步场景切换（如进入暗面）后状态被覆盖
+	if GameData.demo_state == "dialogue":
+		GameData.set_demo_state(restore_state)
 	if _on_complete.is_valid():
 		var cb: Callable = _on_complete
 		_on_complete = Callable()
