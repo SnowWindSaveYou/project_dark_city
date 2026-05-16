@@ -445,6 +445,12 @@ func on_rift_cancelled() -> void:
 # =========================================================================
 
 func on_popup_dismissed(card: Card) -> void:
+	# 暗面世界使用同一个 _event_popup，弹窗关闭信号会同样触发此回调。
+	# 暗面有自己的状态管理（dark_world_flow），此处必须跳过，防止把
+	# demo_state 从 "dark_world" 错误地覆写为 "ready"。
+	if GameData.demo_state == "dark_world":
+		return
+
 	if card:
 		var effects: Dictionary = card.get_effects()
 		for key in effects:

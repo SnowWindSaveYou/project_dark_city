@@ -55,10 +55,19 @@ const GLOW_LM_RING_COUNT: int = 4    # 多一层
 const ICON_QUAD: float = 0.18        # 图标边长 (米)
 const ICON_Y: float = 0.15           # 图标浮在卡面上方的高度
 ## 暗面类型图标尺寸 (中等，比侦察图标大)
-const DARK_ICON_SIZE: float = 0.27
+const DARK_ICON_SIZE: float = 0.30
+## 暗面图标背景光晕底圆尺寸 (世界单位, 比图标略大)
+const DARK_ICON_BG_SIZE: float = 0.46
+## 暗面图标背景底圆纹理分辨率 (px)
+const DARK_ICON_BG_TEX_SIZE: int = 128
+## 暗面图标向卡牌顶部偏移 (Z 轴，正方向=卡牌底部→顶部)
+const DARK_ICON_Z_OFFSET: float = 0.10
 ## 预加载图标纹理
 var _tex_scouted: Texture2D = null
 var _tex_revealed: Texture2D = null
+
+## 暗面图标背景光晕纹理 (程序化生成，所有卡共用同一纹理，仅颜色不同)
+var _dark_icon_bg_tex: ImageTexture = null
 
 ## 暗面幽灵 Sprite3D 节点缓存: ghost_index(int) → Dictionary
 var _ghost_nodes: Dictionary = {}
@@ -89,6 +98,29 @@ func setup(main_ref) -> void:
 
 	# 卡牌纹理生成器
 	_card_textures = CardTextures.new()
+
+	# 暗面图标背景光晕纹理 (软渐变圆，运行时生成一次)
+	_dark_icon_bg_tex = _create_glow_circle_texture(DARK_ICON_BG_TEX_SIZE)
+
+## 生成软渐变圆纹理 (白色底，中心不透明→边缘透明，用 modulate 着色)
+static func _create_glow_circle_texture(size: int) -> ImageTexture:
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var half: float = size * 0.5
+	for y in range(size):
+		for x in range(size):
+			var dx: float = (x - half + 0.5) / half
+			var dy: float = (y - half + 0.5) / half
+			var dist: float = sqrt(dx * dx + dy * dy)
+			var alpha: float
+			if dist <= 0.35:
+				alpha = 1.0
+			elif dist <= 1.0:
+				var t: float = (dist - 0.35) / 0.65
+				alpha = (1.0 - t * t) * (1.0 - t * 0.4)
+			else:
+				alpha = 0.0
+			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+	return ImageTexture.create_from_image(img)
 
 # ---------------------------------------------------------------------------
 # 卡牌节点创建 (全量重建)
@@ -157,10 +189,24 @@ func rebuild_card_nodes() -> void:
 			overlay_sprite.no_depth_test = false
 			card_node.add_child(overlay_sprite)
 
+			# 暗面图标背景光晕底圆 (在图标下方，初始隐藏)
+			var dark_icon_bg: Sprite3D = Sprite3D.new()
+			dark_icon_bg.name = "DarkIconBg"
+			dark_icon_bg.texture = _dark_icon_bg_tex
+			dark_icon_bg.pixel_size = DARK_ICON_BG_SIZE / float(DARK_ICON_BG_TEX_SIZE)
+			dark_icon_bg.position = Vector3(0, SPRITE_Y + 0.002, DARK_ICON_Z_OFFSET)
+			dark_icon_bg.rotation_degrees = Vector3(-90, 180, 0)
+			dark_icon_bg.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+			dark_icon_bg.transparent = true
+			dark_icon_bg.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+			dark_icon_bg.no_depth_test = false
+			dark_icon_bg.visible = false
+			card_node.add_child(dark_icon_bg)
+
 			# 暗面类型图标 Sprite3D (中等大小，居中偏上，初始隐藏)
 			var dark_icon_sprite: Sprite3D = Sprite3D.new()
 			dark_icon_sprite.name = "DarkIconSprite"
-			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.004, 0)
+			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.004, DARK_ICON_Z_OFFSET)
 			dark_icon_sprite.rotation_degrees = Vector3(-90, 180, 0)
 			dark_icon_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			dark_icon_sprite.transparent = true
@@ -434,6 +480,7 @@ func update_dark_card_visual(row: int, col: int) -> void:
 	var png_sprite_d: Sprite3D = card_node.get_node_or_null("PngSprite") as Sprite3D
 	var overlay_sprite_d: Sprite3D = card_node.get_node_or_null("OverlaySprite") as Sprite3D
 	var dark_icon_sprite: Sprite3D = card_node.get_node_or_null("DarkIconSprite") as Sprite3D
+	var dark_icon_bg: Sprite3D = card_node.get_node_or_null("DarkIconBg") as Sprite3D
 
 	if card.is_flipped:
 		# 暗面正面: 程序化彩色背景 + 中等图标 (居中偏上) + dark_name 文字 (底部)
@@ -443,6 +490,12 @@ func update_dark_card_visual(row: int, col: int) -> void:
 			_set_png_texture(png_sprite_d, _card_textures.get_dark_face_texture(card.dark_type))
 		if overlay_sprite_d:
 			overlay_sprite_d.texture = null
+		# 图标底圆光晕: 按 dark_type 主题色着色
+		var type_color: Color = GameTheme.dark_card_type_color(card.dark_type)
+		if dark_icon_bg:
+			# 底圆用类型色，加适度 alpha，配合软渐变纹理产生光晕感
+			dark_icon_bg.modulate = Color(type_color.r, type_color.g, type_color.b, 0.72)
+			dark_icon_bg.visible = true
 		# 中等图标: 按 dark_type 显示对应 evt_icon
 		if dark_icon_sprite:
 			var icon_tex: Texture2D = CardImageMap.get_dark_icon_texture(card.dark_type)
@@ -452,6 +505,8 @@ func update_dark_card_visual(row: int, col: int) -> void:
 				dark_icon_sprite.visible = true
 			else:
 				dark_icon_sprite.visible = false
+				if dark_icon_bg:
+					dark_icon_bg.visible = false
 		# 文字: 优先用 dark_name, fallback 到类型通用 label
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
 		if label:
@@ -468,6 +523,8 @@ func update_dark_card_visual(row: int, col: int) -> void:
 			overlay_sprite_d.texture = null
 		if dark_icon_sprite:
 			dark_icon_sprite.visible = false
+		if dark_icon_bg:
+			dark_icon_bg.visible = false
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
 		if label:
 			label.modulate = Color(1, 1, 1, 0)

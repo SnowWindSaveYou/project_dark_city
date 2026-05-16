@@ -569,17 +569,11 @@ func _find_ghost_index(ghost: DarkWorld.GhostData) -> int:
 func _animate_alive_ghost_moves() -> void:
 	var layer_data = m.dark_world.get_layer_data()
 	if not layer_data:
-		print("[DarkWorldFlow] _animate_alive_ghost_moves: no layer_data!")
 		return
-	var alive_count: int = 0
 	for i in range(layer_data.ghosts.size()):
 		var ghost: DarkWorld.GhostData = layer_data.ghosts[i]
 		if ghost.alive:
-			alive_count += 1
-			var has_node: bool = m.board_visual._ghost_nodes.has(i)
-			print("[DarkWorldFlow] ghost[%d] alive=true row=%d col=%d has_node=%s" % [i, ghost.row, ghost.col, has_node])
 			m.board_visual.animate_ghost_move(i, ghost.row, ghost.col, 0.35)
-	print("[DarkWorldFlow] _animate_alive_ghost_moves: alive=%d total=%d ghost_nodes=%d" % [alive_count, layer_data.ghosts.size(), m.board_visual._ghost_nodes.size()])
 
 # ---------------------------------------------------------------------------
 # 幽灵碰撞处理
