@@ -164,6 +164,7 @@ func set_game_phase(new_phase: String) -> void:
 func set_demo_state(new_state: String) -> void:
 	var old: String = demo_state
 	demo_state = new_state
+	print("[GameData] set_demo_state: '%s' → '%s'\n%s" % [old, new_state, get_stack()])
 	demo_state_changed.emit(old, new_state)
 
 # ---------------------------------------------------------------------------
