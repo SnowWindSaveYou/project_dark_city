@@ -201,11 +201,24 @@ func parse_dark_world_card(card: Card, row: int, col: int, day_count: int) -> Ev
 			if not card.dark_collected:
 				result.event_type = EventType.ITEM
 				# 使用 dark_world.json 的 item_reward_pool (加权随机, changelog #8)
-				var pick: Array = CardConfig.get_dw_item_reward_pool()
-				if pick.is_empty():
-					pick = ["san", 3]  # fallback
-				var res_key: String = pick[0]
-				var res_amt: int = pick[1]
+				# pool 格式: Array[{res, amt, label, weight}]
+				var pool: Array = CardConfig.get_dw_item_reward_pool()
+				var chosen: Dictionary = {}
+				if pool.is_empty():
+					chosen = {"res": "san", "amt": 3}
+				else:
+					var total_weight: int = 0
+					for entry: Dictionary in pool:
+						total_weight += int(entry.get("weight", 1))
+					var roll: int = randi() % maxi(total_weight, 1)
+					chosen = pool[0]
+					for entry: Dictionary in pool:
+						roll -= int(entry.get("weight", 1))
+						if roll < 0:
+							chosen = entry
+							break
+				var res_key: String = chosen.get("res", "san")
+				var res_amt: int = int(chosen.get("amt", 3))
 				# 处理特殊资源 (上限增加)
 				if res_key == "sanMax":
 					GameData.modify_resource_max("san", res_amt)

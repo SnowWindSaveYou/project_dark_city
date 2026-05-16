@@ -25,7 +25,35 @@ const BG_DARK: Color   = Color(0.06, 0.05, 0.10)   # 极深紫黑
 const TOKEN_CLICK_RADIUS: float = 32.0
 
 # 氛围参数 (明亮 → 暗黑, 由 _bg_transition 0→1 插值)
-# 当前只依靠背景色变化实现氛围过渡，无需额外光照参数
+const ATMO_BRIGHT: Dictionary = {
+	"light_color":    Color(1.00, 0.97, 0.90),   # 暖白阳光
+	"light_energy":   1.2,
+	"ambient_energy": 0.60,
+	"glow_intensity":  0.35,
+	"glow_bloom":      0.00,
+	"adj_brightness":  0.92,
+	"adj_contrast":    1.04,
+	"adj_saturation":  0.88,
+	"tonemap_exposure": 0.85,
+}
+const ATMO_DARK: Dictionary = {
+	"light_color":    Color(0.62, 0.65, 0.90),   # 冷蓝紫幽光
+	"light_energy":   0.55,
+	"ambient_energy": 0.30,
+	"glow_intensity":  1.10,
+	"glow_bloom":      0.08,
+	"adj_brightness":  0.88,
+	"adj_contrast":    1.18,
+	"adj_saturation":  0.58,
+	"tonemap_exposure": 0.82,
+}
+# 雷暴天气叠加偏移
+const ATMO_STORMY_OFFSET: Dictionary = {
+	"adj_brightness": -0.07,
+	"adj_contrast":   +0.08,
+	"adj_saturation": -0.15,
+	"light_energy":   -0.35,
+}
 
 # ---------------------------------------------------------------------------
 # 核心数据 (控制器通过 m.xxx 访问)
@@ -961,13 +989,46 @@ func _update_card_hover(dt: float) -> void:
 # 3D 氛围过渡
 # ---------------------------------------------------------------------------
 
-## 根据过渡因子 t (0=明亮, 1=暗黑) 更新背景色
+## 根据过渡因子 t (0=明亮, 1=暗黑) 更新所有 3D 环境参数
 func _apply_atmosphere(t: float) -> void:
 	if not _env:
 		return
 
-	# 背景色过渡 (唯一的氛围表现)
+	# 雷暴天气偏移系数
+	var stormy_t: float = 0.0
+	if _weather_particles:
+		var wt: int = _weather_particles.get_weather_type()
+		if wt == Weather.Type.STORMY:
+			stormy_t = 1.0
+		elif wt == Weather.Type.RAINY:
+			stormy_t = 0.4
+
+	# 背景色
 	_env.background_color = BG_BRIGHT.lerp(BG_DARK, t)
+
+	# 主光源
+	if _dir_light:
+		_dir_light.light_color = ATMO_BRIGHT["light_color"].lerp(ATMO_DARK["light_color"], t)
+		_dir_light.light_energy = lerpf(ATMO_BRIGHT["light_energy"], ATMO_DARK["light_energy"], t) \
+			+ ATMO_STORMY_OFFSET["light_energy"] * stormy_t
+
+	# 环境光
+	_env.ambient_light_energy = lerpf(ATMO_BRIGHT["ambient_energy"], ATMO_DARK["ambient_energy"], t)
+
+	# Tonemap
+	_env.tonemap_exposure = lerpf(ATMO_BRIGHT["tonemap_exposure"], ATMO_DARK["tonemap_exposure"], t)
+
+	# Glow
+	_env.glow_intensity = lerpf(ATMO_BRIGHT["glow_intensity"], ATMO_DARK["glow_intensity"], t)
+	_env.glow_bloom     = lerpf(ATMO_BRIGHT["glow_bloom"],     ATMO_DARK["glow_bloom"],     t)
+
+	# 色彩调整
+	_env.adjustment_brightness = lerpf(ATMO_BRIGHT["adj_brightness"], ATMO_DARK["adj_brightness"], t) \
+		+ ATMO_STORMY_OFFSET["adj_brightness"] * stormy_t
+	_env.adjustment_contrast   = lerpf(ATMO_BRIGHT["adj_contrast"],   ATMO_DARK["adj_contrast"],   t) \
+		+ ATMO_STORMY_OFFSET["adj_contrast"] * stormy_t
+	_env.adjustment_saturation = lerpf(ATMO_BRIGHT["adj_saturation"], ATMO_DARK["adj_saturation"], t) \
+		+ ATMO_STORMY_OFFSET["adj_saturation"] * stormy_t
 
 	# 物语背景层明暗同步
 	if _monogatari_bg:

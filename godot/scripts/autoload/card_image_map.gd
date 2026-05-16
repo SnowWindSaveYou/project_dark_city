@@ -164,3 +164,30 @@ static func get_event_texture(loc_key: String, event_type: String) -> Texture2D:
 	if path.is_empty():
 		return null
 	return load(path) as Texture2D
+
+# ---------------------------------------------------------------------------
+# 暗面事件图标 (dark side card face icons) - 按事件类型显示
+# key: dark_type → 图片文件名
+# ---------------------------------------------------------------------------
+const DARK_EVENT_ICONS: Dictionary = {
+	"safe":    "evt_icon_safe_20260514140832.png",
+	"monster": "evt_icon_monster_v11_20260514144442.png",
+	"trap":    "evt_icon_trap_v2_20260514142002.png",
+	"reward":  "evt_icon_reward_v2_20260514142006.png",
+	"plot":    "evt_icon_plot_v8_20260514144720.png",
+	"clue":    "evt_icon_clue_v11_20260514144709.png",
+}
+
+## 获取暗面卡图标路径（无图返回空字符串）
+static func get_dark_icon_path(dark_type: String) -> String:
+	var filename: String = DARK_EVENT_ICONS.get(dark_type, "")
+	if filename.is_empty():
+		return ""
+	return IMAGE_BASE + filename
+
+## 获取暗面卡图标 Texture2D（无图返回 null）
+static func get_dark_icon_texture(dark_type: String) -> Texture2D:
+	var path := get_dark_icon_path(dark_type)
+	if path.is_empty():
+		return null
+	return load(path) as Texture2D

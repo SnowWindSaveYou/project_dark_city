@@ -423,10 +423,14 @@ func update_dark_card_visual(row: int, col: int) -> void:
 	var overlay_sprite_d: Sprite3D = card_node.get_node_or_null("OverlaySprite") as Sprite3D
 
 	if card.is_flipped:
-		# 暗面正面: 程序化暗色纹理 + 标签
+		# 暗面正面: evt_icon PNG（按事件类型）+ 标签，fallback 程序化纹理
 		mat.albedo_color = Color.WHITE
 		if png_sprite_d:
-			_set_png_texture(png_sprite_d, _card_textures.get_dark_face_texture(card.dark_type))
+			var icon_tex: Texture2D = CardImageMap.get_dark_icon_texture(card.dark_type)
+			if icon_tex:
+				_set_png_texture(png_sprite_d, icon_tex)
+			else:
+				_set_png_texture(png_sprite_d, _card_textures.get_dark_face_texture(card.dark_type))
 		if overlay_sprite_d:
 			overlay_sprite_d.texture = null
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
