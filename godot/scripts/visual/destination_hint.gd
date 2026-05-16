@@ -197,9 +197,9 @@ func _build_labels() -> void:
 	_label_ghost2.font_size = FONT_SIZE
 	_label_ghost2.modulate = COLOR_GHOST2
 	_label_ghost2.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_label_ghost2.no_depth_test = false
-	_label_ghost2.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
-	_label_ghost2.render_priority = 1
+	_label_ghost2.no_depth_test = true   # 关闭深度测试，完全依赖 render_priority 排序
+	_label_ghost2.alpha_cut = Label3D.ALPHA_CUT_DISABLED
+	_label_ghost2.render_priority = 1    # 最先渲染 = 最底层
 	_label_ghost2.outline_size = 0
 	_label_ghost2.double_sided = true
 	_label_ghost2.shaded = false
@@ -213,8 +213,8 @@ func _build_labels() -> void:
 	_label_ghost1.font_size = FONT_SIZE
 	_label_ghost1.modulate = COLOR_GHOST1
 	_label_ghost1.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_label_ghost1.no_depth_test = false
-	_label_ghost1.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
+	_label_ghost1.no_depth_test = true   # 关闭深度测试，完全依赖 render_priority 排序
+	_label_ghost1.alpha_cut = Label3D.ALPHA_CUT_DISABLED
 	_label_ghost1.render_priority = 2
 	_label_ghost1.outline_size = 0
 	_label_ghost1.double_sided = true
@@ -229,9 +229,9 @@ func _build_labels() -> void:
 	_label_main.font_size = FONT_SIZE
 	_label_main.modulate = COLOR_MAIN
 	_label_main.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_label_main.no_depth_test = false
-	_label_main.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
-	_label_main.render_priority = 3
+	_label_main.no_depth_test = true     # 关闭深度测试，完全依赖 render_priority 排序
+	_label_main.alpha_cut = Label3D.ALPHA_CUT_DISABLED
+	_label_main.render_priority = 3      # 最后渲染 = 最顶层（白色主体永远在最前）
 	_label_main.outline_size = 0
 	_label_main.double_sided = true
 	_label_main.shaded = false
@@ -342,7 +342,7 @@ func _process(delta: float) -> void:
 		_label_ghost1.position = Vector3(
 			g1_x + 0.008,        # 偏右
 			_base_y - 0.006,     # 偏下（像素级）
-			0.001                # 正Z：比主文字更远离相机（在主文字后方）
+			0.0                  # no_depth_test=true，Z无需偏移
 		)
 
 	# 重影2：轻微偏左上 + 更大相位差
@@ -351,5 +351,5 @@ func _process(delta: float) -> void:
 		_label_ghost2.position = Vector3(
 			g2_x - 0.007,        # 偏左
 			_base_y + 0.007,     # 偏上
-			0.002                # 正Z：比ghost1更远离相机（最底层）
+			0.0                  # no_depth_test=true，Z无需偏移
 		)
