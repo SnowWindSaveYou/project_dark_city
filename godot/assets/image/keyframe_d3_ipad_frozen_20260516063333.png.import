@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4d395c14d8"
-path="res://.godot/imported/keyframe_d3_ipad_frozen_20260516063333.png-63c7970b9336f5e786a1c971b63568a6.ctex"
+uid="uid://b4d4a5c14d8"
+path="res://.godot/imported/keyframe_d3_ipad_frozen_20260516063333.png-dac447423ca7e75864d9e7552745b886.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d3_ipad_frozen_20260516063333.png"
-dest_files=["res://.godot/imported/keyframe_d3_ipad_frozen_20260516063333.png-63c7970b9336f5e786a1c971b63568a6.ctex"]
+dest_files=["res://.godot/imported/keyframe_d3_ipad_frozen_20260516063333.png-dac447423ca7e75864d9e7552745b886.ctex"]
 
 [params]
 

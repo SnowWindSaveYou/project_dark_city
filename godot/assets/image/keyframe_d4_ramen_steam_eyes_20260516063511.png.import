@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b53c3903af0"
-path="res://.godot/imported/keyframe_d4_ramen_steam_eyes_20260516063511.png-f958e49d523762644b439ce6097c2cba.ctex"
+uid="uid://b53c4a03af0"
+path="res://.godot/imported/keyframe_d4_ramen_steam_eyes_20260516063511.png-3017cb04f0d32fe61211ef283bf74775.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d4_ramen_steam_eyes_20260516063511.png"
-dest_files=["res://.godot/imported/keyframe_d4_ramen_steam_eyes_20260516063511.png-f958e49d523762644b439ce6097c2cba.ctex"]
+dest_files=["res://.godot/imported/keyframe_d4_ramen_steam_eyes_20260516063511.png-3017cb04f0d32fe61211ef283bf74775.ctex"]
 
 [params]
 

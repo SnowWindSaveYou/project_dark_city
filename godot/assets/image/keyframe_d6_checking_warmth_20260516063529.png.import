@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5a20e99a6ab"
-path="res://.godot/imported/keyframe_d6_checking_warmth_20260516063529.png-4315a9029db20128688b2cb2343dbbfb.ctex"
+uid="uid://5a20fbaa6ab"
+path="res://.godot/imported/keyframe_d6_checking_warmth_20260516063529.png-66793f7a87fa2e2ff4c19b9ff4693e26.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d6_checking_warmth_20260516063529.png"
-dest_files=["res://.godot/imported/keyframe_d6_checking_warmth_20260516063529.png-4315a9029db20128688b2cb2343dbbfb.ctex"]
+dest_files=["res://.godot/imported/keyframe_d6_checking_warmth_20260516063529.png-66793f7a87fa2e2ff4c19b9ff4693e26.ctex"]
 
 [params]
 

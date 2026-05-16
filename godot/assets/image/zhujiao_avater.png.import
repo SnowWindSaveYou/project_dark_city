@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://6e0ce001d01"
-path="res://.godot/imported/keyframe_d9_before_entering_v2_20260516064849.png-a62259ec8a28fb0f01c30cc0bee42aae.ctex"
+uid="uid://cm7747cruuwd1"
+path="res://.godot/imported/zhujiao_avater.png-644e38e9ad66bef98a79e4e0833ff74a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/image/keyframe_d9_before_entering_v2_20260516064849.png"
-dest_files=["res://.godot/imported/keyframe_d9_before_entering_v2_20260516064849.png-a62259ec8a28fb0f01c30cc0bee42aae.ctex"]
+source_file="res://assets/image/zhujiao_avater.png"
+dest_files=["res://.godot/imported/zhujiao_avater.png-644e38e9ad66bef98a79e4e0833ff74a.ctex"]
 
 [params]
 

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://9665274f5fd"
-path="res://.godot/imported/keyframe_d1_blanket_indent_v3_20260516015013.png-1440a47c9f3097208ab676bcf00a791d.ctex"
+uid="uid://ba665274f5fd"
+path="res://.godot/imported/keyframe_d1_blanket_indent_v3_20260516015013.png-787f6e5dc01d285c4def989ec793ff35.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d1_blanket_indent_v3_20260516015013.png"
-dest_files=["res://.godot/imported/keyframe_d1_blanket_indent_v3_20260516015013.png-1440a47c9f3097208ab676bcf00a791d.ctex"]
+dest_files=["res://.godot/imported/keyframe_d1_blanket_indent_v3_20260516015013.png-787f6e5dc01d285c4def989ec793ff35.ctex"]
 
 [params]
 

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://f999caea2ba"
-path="res://.godot/imported/edited_keyframe_d14_sunlight_v5_20260516044711.png-3daf693ef8443a526c5039a4c4f76b9b.ctex"
+uid="uid://gbbacaea2ba"
+path="res://.godot/imported/edited_keyframe_d14_sunlight_v5_20260516044711.png-238b2278b63b6eba3033c41fe104296e.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/edited_keyframe_d14_sunlight_v5_20260516044711.png"
-dest_files=["res://.godot/imported/edited_keyframe_d14_sunlight_v5_20260516044711.png-3daf693ef8443a526c5039a4c4f76b9b.ctex"]
+dest_files=["res://.godot/imported/edited_keyframe_d14_sunlight_v5_20260516044711.png-238b2278b63b6eba3033c41fe104296e.ctex"]
 
 [params]
 

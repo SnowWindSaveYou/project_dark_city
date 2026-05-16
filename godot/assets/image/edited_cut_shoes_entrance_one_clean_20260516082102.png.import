@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://7a79a49fd0d"
-path="res://.godot/imported/edited_cut_shoes_entrance_one_clean_20260516082102.png-524e17e7469a1825fe89dc6e5d8ae0b1.ctex"
+uid="uid://7a8aa5afd0d"
+path="res://.godot/imported/edited_cut_shoes_entrance_one_clean_20260516082102.png-db109b3d9583ec1de89a462f53854c1f.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/edited_cut_shoes_entrance_one_clean_20260516082102.png"
-dest_files=["res://.godot/imported/edited_cut_shoes_entrance_one_clean_20260516082102.png-524e17e7469a1825fe89dc6e5d8ae0b1.ctex"]
+dest_files=["res://.godot/imported/edited_cut_shoes_entrance_one_clean_20260516082102.png-db109b3d9583ec1de89a462f53854c1f.ctex"]
 
 [params]
 

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://9a82e60d65d"
-path="res://.godot/imported/keyframe_d6_baiye_barrier_v2_20260516061358.png-7aaad12bb8aa67d4bb0edf69cd3de7ea.ctex"
+uid="uid://baa82e60d65d"
+path="res://.godot/imported/keyframe_d6_baiye_barrier_v2_20260516061358.png-8181b63f8610ca65bfd5902f4c87e103.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d6_baiye_barrier_v2_20260516061358.png"
-dest_files=["res://.godot/imported/keyframe_d6_baiye_barrier_v2_20260516061358.png-7aaad12bb8aa67d4bb0edf69cd3de7ea.ctex"]
+dest_files=["res://.godot/imported/keyframe_d6_baiye_barrier_v2_20260516061358.png-8181b63f8610ca65bfd5902f4c87e103.ctex"]
 
 [params]
 

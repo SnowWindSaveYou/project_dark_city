@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fe2ebeebd4c"
-path="res://.godot/imported/cut_window_daytime_v4_20260516083956.png-d6368aca36361a5cc2d13d3483ebabb3.ctex"
+path="res://.godot/imported/cut_window_daytime_v4_20260516083956.png-f9fb17c7ed1d18aae007efc53ca854b8.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/cut_window_daytime_v4_20260516083956.png"
-dest_files=["res://.godot/imported/cut_window_daytime_v4_20260516083956.png-d6368aca36361a5cc2d13d3483ebabb3.ctex"]
+dest_files=["res://.godot/imported/cut_window_daytime_v4_20260516083956.png-f9fb17c7ed1d18aae007efc53ca854b8.ctex"]
 
 [params]
 

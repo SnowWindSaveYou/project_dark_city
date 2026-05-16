@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://58b0e2e91cc"
-path="res://.godot/imported/keyframe_d6_curse_transfer_20260516063728.png-e3ed9f0965be6bdef0766bcd399c1149.ctex"
+uid="uid://58b0e2fa1cc"
+path="res://.godot/imported/keyframe_d6_curse_transfer_20260516063728.png-9bd70216692a0823b95a5cb8b1d500f8.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d6_curse_transfer_20260516063728.png"
-dest_files=["res://.godot/imported/keyframe_d6_curse_transfer_20260516063728.png-e3ed9f0965be6bdef0766bcd399c1149.ctex"]
+dest_files=["res://.godot/imported/keyframe_d6_curse_transfer_20260516063728.png-9bd70216692a0823b95a5cb8b1d500f8.ctex"]
 
 [params]
 

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://de1457ee299"
-path="res://.godot/imported/cut_fridge_blue_glow_v5_20260516083237.png-e7c2ef0d531f0edfda3900430f889692.ctex"
+uid="uid://de1457ee3ba"
+path="res://.godot/imported/cut_fridge_blue_glow_v5_20260516083237.png-65c6086228421c63bd3498b54c0e2862.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/cut_fridge_blue_glow_v5_20260516083237.png"
-dest_files=["res://.godot/imported/cut_fridge_blue_glow_v5_20260516083237.png-e7c2ef0d531f0edfda3900430f889692.ctex"]
+dest_files=["res://.godot/imported/cut_fridge_blue_glow_v5_20260516083237.png-65c6086228421c63bd3498b54c0e2862.ctex"]
 
 [params]
 

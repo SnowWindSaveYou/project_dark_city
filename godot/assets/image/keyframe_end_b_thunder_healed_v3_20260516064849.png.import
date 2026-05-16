@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://387313df9d6"
-path="res://.godot/imported/keyframe_end_b_thunder_healed_v3_20260516064849.png-77c18649c8a440ff269e1407647ec523.ctex"
+uid="uid://387313dgad6"
+path="res://.godot/imported/keyframe_end_b_thunder_healed_v3_20260516064849.png-cc60700d30e4b2142a5088efd4d40d1c.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_end_b_thunder_healed_v3_20260516064849.png"
-dest_files=["res://.godot/imported/keyframe_end_b_thunder_healed_v3_20260516064849.png-77c18649c8a440ff269e1407647ec523.ctex"]
+dest_files=["res://.godot/imported/keyframe_end_b_thunder_healed_v3_20260516064849.png-cc60700d30e4b2142a5088efd4d40d1c.ctex"]
 
 [params]
 

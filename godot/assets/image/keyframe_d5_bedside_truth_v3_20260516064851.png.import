@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b457e633459"
-path="res://.godot/imported/keyframe_d5_bedside_truth_v3_20260516064851.png-af9777845c1706e68ca6f137e2f79af6.ctex"
+uid="uid://b457e63346a"
+path="res://.godot/imported/keyframe_d5_bedside_truth_v3_20260516064851.png-5d0367ff0c44e5e2fb8a3d7c50d99367.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d5_bedside_truth_v3_20260516064851.png"
-dest_files=["res://.godot/imported/keyframe_d5_bedside_truth_v3_20260516064851.png-af9777845c1706e68ca6f137e2f79af6.ctex"]
+dest_files=["res://.godot/imported/keyframe_d5_bedside_truth_v3_20260516064851.png-5d0367ff0c44e5e2fb8a3d7c50d99367.ctex"]
 
 [params]
 

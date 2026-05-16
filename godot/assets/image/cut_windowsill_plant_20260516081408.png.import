@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3fe3c239c53"
-path="res://.godot/imported/cut_windowsill_plant_20260516081408.png-528cd3a14697789e95912e21050fd6ba.ctex"
+uid="uid://3fe3c24ac53"
+path="res://.godot/imported/cut_windowsill_plant_20260516081408.png-93336aadf45ab6e01c4de6302da18009.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/cut_windowsill_plant_20260516081408.png"
-dest_files=["res://.godot/imported/cut_windowsill_plant_20260516081408.png-528cd3a14697789e95912e21050fd6ba.ctex"]
+dest_files=["res://.godot/imported/cut_windowsill_plant_20260516081408.png-93336aadf45ab6e01c4de6302da18009.ctex"]
 
 [params]
 

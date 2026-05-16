@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://051157227d7"
-path="res://.godot/imported/cut_room_distorting_20260516081410.png-547099b5b94351fb463ffb305f8844bc.ctex"
+path="res://.godot/imported/cut_room_distorting_20260516081410.png-ec86c5b6210ac23df32cc97fbd7559e7.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/cut_room_distorting_20260516081410.png"
-dest_files=["res://.godot/imported/cut_room_distorting_20260516081410.png-547099b5b94351fb463ffb305f8844bc.ctex"]
+dest_files=["res://.godot/imported/cut_room_distorting_20260516081410.png-ec86c5b6210ac23df32cc97fbd7559e7.ctex"]
 
 [params]
 

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0a00fc3950c"
-path="res://.godot/imported/cut_dark_floor_crack_20260516081435.png-284f6eca85e82f0c6cfe34dd70919602.ctex"
+uid="uid://0a00fc4a50c"
+path="res://.godot/imported/cut_dark_floor_crack_20260516081435.png-87dd9114fb67b380fd55fa6ec23708fc.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/cut_dark_floor_crack_20260516081435.png"
-dest_files=["res://.godot/imported/cut_dark_floor_crack_20260516081435.png-284f6eca85e82f0c6cfe34dd70919602.ctex"]
+dest_files=["res://.godot/imported/cut_dark_floor_crack_20260516081435.png-87dd9114fb67b380fd55fa6ec23708fc.ctex"]
 
 [params]
 

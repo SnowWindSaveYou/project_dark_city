@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://705b6379f63"
-path="res://.godot/imported/keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png-e5b67baffa4c39ead8a47ac4df99f511.ctex"
+uid="uid://705b638af63"
+path="res://.godot/imported/keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png-777329df7f3818cc0c5b9e199d6d943c.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/image/keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png"
-dest_files=["res://.godot/imported/keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png-e5b67baffa4c39ead8a47ac4df99f511.ctex"]
+dest_files=["res://.godot/imported/keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png-777329df7f3818cc0c5b9e199d6d943c.ctex"]
 
 [params]
 
