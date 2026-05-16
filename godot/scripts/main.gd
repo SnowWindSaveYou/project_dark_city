@@ -650,10 +650,10 @@ func _on_debug_action(action_id: String) -> void:
 					break
 		"frag_4":
 			for i in range(1, 5):
-				StoryManager.collect_fragment("memory_%02d" % i)
+				StoryManager.collect_fragment("frag_%02d" % i)
 		"frag_9":
 			for i in range(1, 10):
-				StoryManager.collect_fragment("memory_%02d" % i)
+				StoryManager.collect_fragment("frag_%02d" % i)
 		"reset_flags":
 			StoryManager.reset_flags()
 		"next_day":

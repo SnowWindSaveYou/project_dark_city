@@ -4,21 +4,29 @@
 	"extend_threshold": 5,
 
 	"initial_resources": {
-		"san": 10,
+		"san": 20,
 		"order": 10,
-		"money": 50,
+		"money": 20,
 		"film": 3,
-		"health": 10,
+		"health": 20,
 		"inspiration": 10
 	},
 
 	"resource_max": {
-		"san": 10,
+		"san": -1,
 		"order": 10,
 		"money": -1,
 		"film": -1,
-		"health": 10,
+		"health": -1,
 		"inspiration": -1
+	},
+
+	"monster_scaling": {
+		"base_san": 2,
+		"inspiration_base": 10,
+		"inspiration_step": 15,
+		"max_extra_damage": 3,
+		"health_damage_table": [0, -1, -2, -3]
 	},
 
 	"resource_icons": {

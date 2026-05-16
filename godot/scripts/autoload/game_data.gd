@@ -18,6 +18,7 @@ var INITIAL_RESOURCES: Dictionary = {}
 var RESOURCE_MAX: Dictionary = {}
 var RESOURCE_ICONS: Dictionary = {}
 var LOCATION_SCARCITY: Dictionary = { "day_1_2": 3, "day_3_4": 2, "day_5_plus": 1 }
+var MONSTER_SCALING: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -58,9 +59,10 @@ func _load_game_config() -> void:
 	var file: FileAccess = FileAccess.open("res://data/game_config.json", FileAccess.READ)
 	if file == null:
 		push_warning("[GameData] game_config.json not found, using defaults")
-		INITIAL_RESOURCES = { "san": 10, "order": 10, "money": 50, "film": 3, "health": 10, "inspiration": 10 }
-		RESOURCE_MAX = { "san": 10, "order": 10, "money": -1, "film": -1, "health": 10, "inspiration": -1 }
+		INITIAL_RESOURCES = { "san": 20, "order": 10, "money": 20, "film": 3, "health": 20, "inspiration": 10 }
+		RESOURCE_MAX = { "san": -1, "order": 10, "money": -1, "film": -1, "health": -1, "inspiration": -1 }
 		RESOURCE_ICONS = { "san": "🧠", "order": "⚖️", "money": "💰", "film": "📷", "health": "❤️", "inspiration": "✨" }
+		MONSTER_SCALING = { "base_san": 2, "inspiration_base": 10, "inspiration_step": 15, "max_extra_damage": 3, "health_damage_table": [0, -1, -2, -3] }
 		return
 	var json: JSON = JSON.new()
 	var err: Error = json.parse(file.get_as_text())
@@ -82,6 +84,18 @@ func _load_game_config() -> void:
 		LOCATION_SCARCITY = {}
 		for k in raw_scarcity:
 			LOCATION_SCARCITY[k] = int(raw_scarcity[k])
+	var raw_monster: Dictionary = data.get("monster_scaling", {})
+	if not raw_monster.is_empty():
+		MONSTER_SCALING = {}
+		for k in raw_monster:
+			var v = raw_monster[k]
+			if v is Array:
+				var arr: Array = []
+				for item in v:
+					arr.append(int(item))
+				MONSTER_SCALING[k] = arr
+			else:
+				MONSTER_SCALING[k] = int(v)
 	print("[GameData] Loaded game_config.json: max_days=%d, resources=%s" % [MAX_DAYS, str(INITIAL_RESOURCES)])
 
 func reset() -> void:

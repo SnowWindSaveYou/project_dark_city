@@ -439,12 +439,13 @@ func advance_baiye_sleep() -> void:
 # 碎片系统 (alias 层 — 底层统一使用 collected_clues)
 # ---------------------------------------------------------------------------
 
-## 收集前世记忆碎片，alias → collect_clue，同时发出 fragment_collected 信号
+## 收集前世记忆碎片，直接写入 collected_clues（不经过 collect_clue，避免多触发 clue_collected 信号）
 func collect_fragment(fragment_id: String) -> bool:
-	var is_new: bool = collect_clue(fragment_id)
-	if is_new:
-		fragment_collected.emit(fragment_id, get_fragment_count())
-	return is_new
+	if fragment_id in collected_clues:
+		return false
+	collected_clues.append(fragment_id)
+	fragment_collected.emit(fragment_id, get_fragment_count())
+	return true
 
 func has_fragment(fragment_id: String) -> bool:
 	return has_clue(fragment_id)

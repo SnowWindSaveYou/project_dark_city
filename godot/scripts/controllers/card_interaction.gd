@@ -39,9 +39,9 @@ func reset_daily_steps() -> void:
 	_sync_steps_to_gamedata()
 
 ## 将步数状态同步到 GameData，供 resource_bar_scene UI 读取
-## 使用天开始时的 health 快照，而非实时 health (避免天中 health 变化影响步数上限)
+## 使用天开始时的 health 快照 / 2，而非实时 health (避免天中 health 变化影响步数上限)
 func _sync_steps_to_gamedata() -> void:
-	var max_steps: int = _day_start_health
+	var max_steps: int = _day_start_health / 2
 	GameData.steps_total = max_steps
 	GameData.steps_remaining = max_steps - _steps_today
 
@@ -72,8 +72,8 @@ func handle_card_click(row: int, col: int) -> void:
 			_flip_current_card(card, row, col)
 		return
 
-	# Phase 5: 步数限制 (天开始时 health 快照 = 当日最大步数) — 统一检查
-	var max_steps: int = _day_start_health
+	# Phase 5: 步数限制 (天开始时 health 快照 / 2 = 当日最大步数) — 统一检查
+	var max_steps: int = _day_start_health / 2
 
 	# 检查相邻
 	if not m.board.is_adjacent(m.token.target_row, m.token.target_col, row, col):
