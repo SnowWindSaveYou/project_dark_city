@@ -446,6 +446,7 @@ func update_dark_card_visual(row: int, col: int) -> void:
 		# 中等图标: 按 dark_type 显示对应 evt_icon
 		if dark_icon_sprite:
 			var icon_tex: Texture2D = CardImageMap.get_dark_icon_texture(card.dark_type)
+			print("[DarkIcon] row=%d col=%d dark_type=%s icon_tex=%s" % [row, col, card.dark_type, str(icon_tex)])
 			if icon_tex:
 				dark_icon_sprite.pixel_size = DARK_ICON_SIZE / float(icon_tex.get_width())
 				dark_icon_sprite.texture = icon_tex
