@@ -291,6 +291,50 @@ end
 -- 触发 / 关闭
 -- ---------------------------------------------------------------------------
 
+--- 教程专用: 显示固定文本气泡，角色移动不关闭，持续 duration 秒后自动解锁
+--- 玩家点击角色可提前关闭
+---@param bubble BubbleInstance
+---@param text string 要显示的固定文本
+---@param duration number|nil 显示时长 (秒), 默认 7
+function M.showTutorial(bubble, text, duration)
+    -- 强制打断当前气泡
+    Tween.cancelTag("bubble")
+    bubble.text        = text
+    bubble.timer       = 0
+    bubble.lockDuration = duration or 7
+    bubble.locked      = true
+    bubble.cooldownTimer = 0
+    bubble.state       = "showing"
+    bubble.alpha       = 0
+    bubble.scale       = 0.3
+    bubble.offsetY     = 8
+
+    Tween.to(bubble, { alpha = 1, scale = 1, offsetY = 0 }, 0.3, {
+        easing = Tween.Easing.easeOutBack,
+        tag = "bubble",
+        onComplete = function()
+            bubble.state = "visible"
+        end
+    })
+end
+
+--- 解除教程锁定并隐藏
+---@param bubble BubbleInstance
+local function unlockAndHide(bubble)
+    bubble.locked = false
+    bubble.lockDuration = nil
+    bubble.state = "hiding"
+    Tween.cancelTag("bubble")
+    Tween.to(bubble, { alpha = 0, scale = 0.6, offsetY = -5 }, 0.2, {
+        easing = Tween.Easing.easeInQuad,
+        tag = "bubble",
+        onComplete = function()
+            bubble.state = "hidden"
+            bubble.cooldownTimer = COOLDOWN
+        end
+    })
+end
+
 --- 显示气泡 (外部调用: 点击角色 / 事件触发)
 ---@param bubble BubbleInstance
 ---@param location string|nil 当前地点
@@ -333,6 +377,8 @@ function M.hide(bubble)
     if bubble.state == "hidden" or bubble.state == "hiding" then
         return
     end
+    -- 教程锁定中不响应普通 hide 请求
+    if bubble.locked then return end
 
     bubble.state = "hiding"
     Tween.cancelTag("bubble")

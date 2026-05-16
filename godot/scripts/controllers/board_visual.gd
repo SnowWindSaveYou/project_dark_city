@@ -24,8 +24,10 @@ const PNG_TEX_HEIGHT: int = 768
 ## 相机 45° 俯视: 阴影必须明显低于卡面才能在卡片边缘外侧被看见
 ## 偏移 = -(CARD_THICKNESS/2 + CARD_Y + 0.005), 使阴影落在世界 Y ≈ 0
 const CARD_SHADOW_Y_LOCAL: float = -(Card.CARD_THICKNESS / 2.0 + CARD_Y + 0.005)
-## 阴影尺寸相对卡面的比例 (足够大才能在 45° 视角下从卡片边缘溢出可见)
-const CARD_SHADOW_SCALE: float = 1.5
+## 阴影尺寸相对卡面的比例
+## 卡片间距 GAP=0.12m, 每侧最多溢出 0.05m 以内才不会叠到邻近卡片
+## 溢出量 = CARD_W * (scale-1)/2 <= 0.05 → scale <= 1.156; 取 1.14 留余量
+const CARD_SHADOW_SCALE: float = 1.14
 ## 静止状态阴影不透明度
 const CARD_SHADOW_ALPHA_NORMAL: float = 0.28
 ## 悬停/抬起顶峰时阴影不透明度 (hover_t = 1)
@@ -261,6 +263,9 @@ func rebuild_card_nodes() -> void:
 			shadow_mat.no_depth_test = false
 			shadow_quad.material_override = shadow_mat
 			shadow_quad.position = Vector3(0.0, CARD_SHADOW_Y_LOCAL, 0.0)
+			# render_priority=-1: 在所有普通透明物体之前排序, 确保不遮住邻近卡片
+			shadow_quad.extra_cull_margin = 0.0
+			shadow_mat.render_priority = -1
 			card_node.add_child(shadow_quad)
 
 			board_layer.add_child(card_node)
@@ -1854,11 +1859,7 @@ func _attach_glow_rings(card_node: MeshInstance3D, card_type: String) -> void:
 
 	var is_landmark: bool = (card_type == "landmark")
 	var ring_count: int = GLOW_LM_RING_COUNT if is_landmark else GLOW_RING_COUNT
-	var base_color: Color
-	if is_landmark:
-		base_color = Color(1.0, 0.7, 0.1, 1.0)     # 饱和金色 (加法混合下更明显)
-	else:
-		base_color = Color(0.6, 0.75, 1.0, 0.7)    # 淡蓝白 (降低亮度避免冲白)
+	var base_color: Color = Color(0.55, 0.38, 0.05, 0.55)  # 统一金色, 降低亮度与透明度
 
 	for i in range(1, ring_count + 1):
 		var ring: MeshInstance3D = MeshInstance3D.new()
