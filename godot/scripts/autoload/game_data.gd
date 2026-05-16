@@ -50,12 +50,11 @@ var steps_total: int = 0
 
 ## 一次性教程触发标记
 var tutorial_flags: Dictionary = {
-	"health_steps_seen"  : false,  # 健康影响每日步数（Day 1 对话）
-	"monster_seen"       : false,  # 灵感影响怪物伤害
-	"rift_seen"          : false,  # 裂隙/灵感机制
-	"camera_mode_seen"   : false,  # 相机模式侦察+轨迹
-	"camera_exorcise_seen": false, # 拍照消灭怪物
-	"safe_zone_seen"     : false,  # 安全区光晕机制
+	"monster_seen"        : false,  # 灵感影响怪物伤害
+	"rift_seen"           : false,  # 裂隙/灵感机制
+	"camera_mode_seen"    : false,  # 相机模式侦察+轨迹
+	"camera_exorcise_seen": false,  # 拍照消灭怪物
+	"safe_zone_seen"      : false,  # 安全区光晕机制
 }
 
 # ---------------------------------------------------------------------------

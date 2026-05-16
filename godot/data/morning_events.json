@@ -1,341 +1,788 @@
 {
-	"version": 1,
-	"events": [
-		{
-			"id": "morning_day1",
-			"priority": 10,
-			"once_flag": "morning_day1_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 1 },
-					{ "max_day": 1 },
-					{ "not_flag": "morning_day1_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "出院第一个夜晚，公寓比记忆中更安静。" },
-				{ "speaker": "", "text": "凌晨三点，衣柜里传来低低的哭声。" },
-				{ "speaker": "苏柚", "text": "……谁在那儿？" },
-				{ "speaker": "", "text": "拉开柜门的瞬间，一团半透明的黑影蜷缩在衣服堆里，金色的眼睛猛地亮了。" },
-				{ "speaker": "???", "text": "你……你终于回来了……" },
-				{ "speaker": "", "text": "它激动地扑过来，打翻了床头的牛奶。然后缩在角落，开始哭。" },
-				{ "speaker": "苏柚", "text": "（把自己反锁在卫生间里，坐到天亮。）" },
-				{ "speaker": "", "text": "推开门时，床头放着一碗粥，还冒着热气。" },
-				{ "speaker": "", "text": "犹豫了很久，尝了一口——味道意外地好。" },
-				{ "speaker": "", "text": "门框后面，金色的眼睛偷偷亮了一下。" }
-			]
-		},
-		{
-			"id": "morning_day2",
-			"priority": 10,
-			"once_flag": "morning_day2_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 2 },
-					{ "max_day": 2 },
-					{ "not_flag": "morning_day2_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "入夜后暴雨倾盆，闪电劈开天际。" },
-				{ "speaker": "", "text": "白夜缩成拳头大的毛球，钻进了被窝。" },
-				{ "speaker": "苏柚", "text": "……你怕打雷？" },
-				{ "speaker": "", "text": "毛球发出细小的呜咽声，身体微微发抖。" },
-				{ "speaker": "苏柚", "text": "（僵了很久，最终还是伸手把它拢住了。）" },
-				{ "speaker": "", "text": "那一夜，梦境变得不一样了——灰暗扭曲的镜像世界，影子在追逐。脚边有一片发光的碎片。" },
-				{ "speaker": "", "text": "她弯腰捡起它——触碰的瞬间，画面闪回：一个人站在白夜身边，背对着她，看不清面容。白夜的眼神温柔、明亮，没有一丝黑暗。" }
-			]
-		},
-		{
-			"id": "morning_day3",
-			"priority": 10,
-			"once_flag": "morning_day3_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 3 },
-					{ "max_day": 4 },
-					{ "not_flag": "morning_day3_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "这几天开始主动配合白夜的「训练」——学习在暗面中辨别安全路线。" },
-				{ "speaker": "苏柚", "text": "我好像……没那么怕你了。" },
-				{ "speaker": "", "text": "白夜飘在身后，不说话，只是一直跟着。" },
-				{ "speaker": "", "text": "去厨房，它跟着；去客厅，它跟着；去卫生间，它趴在门口等。" },
-				{ "speaker": "", "text": "回头看它，它就停住；转回去，它又跟上来。" },
-				{ "speaker": "苏柚", "text": "……我不会丢掉你的。" },
-				{ "speaker": "", "text": "白夜停在原地，过了好一会儿才慢慢飘到肩膀上趴着，像是确认了什么。" }
-			]
-		},
-		{
-			"id": "morning_day5",
-			"priority": 10,
-			"once_flag": "morning_day5_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 5 },
-					{ "max_day": 5 },
-					{ "not_flag": "morning_day5_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "准备出门时发现手机没电了，充了半小时还是开不了机。" },
-				{ "speaker": "白夜", "text": "在家吃吧，外面不安全。" },
-				{ "speaker": "", "text": "它端来一盘煎蛋，笑得很开心的样子。" },
-				{ "speaker": "苏柚", "text": "（妥协了。也不确定是因为信任还是因为懒得对抗。）" },
-				{ "speaker": "", "text": "晚上白夜照常问'明天穿我选的那件外套好不好'。" },
-				{ "speaker": "", "text": "点了头。保护和控制之间的线，越来越模糊。" }
-			]
-		},
-		{
-			"id": "morning_day6",
-			"priority": 10,
-			"once_flag": "morning_day6_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 6 },
-					{ "max_day": 6 },
-					{ "not_flag": "morning_day6_seen" },
-					{ "baiye_available": false }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "白夜昨晚释放了全部力量，缩成拳头大的毛球，沉沉睡去。" },
-				{ "speaker": "", "text": "把它放在枕头边，每隔一会儿就摸一下确认还有温度。" },
-				{ "speaker": "苏柚", "text": "……还在呼吸。" },
-				{ "speaker": "", "text": "今天得一个人面对一切了。" }
-			]
-		},
-		{
-			"id": "morning_day6_awake",
-			"priority": 5,
-			"once_flag": "morning_day6_awake_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 6 },
-					{ "max_day": 6 },
-					{ "not_flag": "morning_day6_awake_seen" },
-					{ "baiye_available": true }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "早上醒来，白夜在四处张望。" },
-				{ "speaker": "", "text": "从枕头飘到床头柜，飘到门口，飘到厨房，最后在客厅找到了你。" },
-				{ "speaker": "", "text": "它安静地飘到身边，什么都没说，只是一直看着。" },
-				{ "speaker": "苏柚", "text": "（端着热粥坐到床边）以后别再这样了。" }
-			]
-		},
-		{
-			"id": "morning_day7",
-			"priority": 10,
-			"once_flag": "morning_day7_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 7 },
-					{ "max_day": 7 },
-					{ "not_flag": "morning_day7_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "第七天早上，白夜已经完全恢复了，又变回四处飘荡的毛球。苏柚看了它一眼，没说什么。大概这就是它的治愈方式。" },
-				{ "speaker": "", "text": "新的碎片补全了闪回画面。" },
-				{ "speaker": "", "text": "终于看清了那个和白夜并肩站着的人——容貌和自己相似，但气质截然不同。" },
-				{ "speaker": "", "text": "眉眼凛冽，站姿笔直，像一柄收在鞘中的刀。" },
-				{ "speaker": "白夜", "text": "棠……" },
-				{ "speaker": "", "text": "盯着那个画面看了很久。" },
-				{ "speaker": "", "text": "从出院那天起，白夜教的一切——走路的姿态、战斗的方式、甚至喝粥的习惯——" },
-				{ "speaker": "", "text": "都是在把自己往棠的方向改造。" },
-				{ "speaker": "苏柚", "text": "（我不是被选中的人。我是备用的模具。）" },
-				{ "speaker": "白夜", "text": "怎么了？" },
-				{ "speaker": "苏柚", "text": "……没什么。" }
-			]
-		},
-
-		{
-			"id": "morning_day8",
-			"priority": 10,
-			"once_flag": "morning_day8_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 8 },
-					{ "max_day": 8 },
-					{ "not_flag": "morning_day8_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "白夜今天话很少，飘在身边却始终保持着一段距离。" },
-				{ "speaker": "", "text": "去了以前会一起翻牌的街区，但那里的裂隙比上周多了两倍。" },
-				{ "speaker": "苏柚", "text": "封印是不是快撑不住了？" },
-				{ "speaker": "白夜", "text": "……还好。" },
-				{ "speaker": "苏柚", "text": "（它撒谎了。我听得出来。）" },
-				{ "speaker": "", "text": "回家路上，路灯挨个熄灭，又挨个亮起，像在致意。" },
-				{ "speaker": "白夜", "text": "……是城里的其他同类。它们知道我醒了。" },
-				{ "speaker": "苏柚", "text": "它们是来帮你的，还是来……" },
-				{ "speaker": "白夜", "text": "不确定。先回家。" }
-			]
-		},
-
-		{
-			"id": "morning_day9_low_trust",
-			"priority": 10,
-			"once_flag": "morning_day9_cold_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 9 },
-					{ "max_day": 9 },
-					{ "not_flag": "morning_day9_cold_seen" },
-					{ "not": { "min_trust": 3 } }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "今天醒来，白夜不在公寓里。" },
-				{ "speaker": "", "text": "等了一上午，下午它才从窗缝里飘回来，身上带着暗面的气息。" },
-				{ "speaker": "苏柚", "text": "去哪了？" },
-				{ "speaker": "白夜", "text": "……处理了一些事。" },
-				{ "speaker": "", "text": "它不说，我也没再追问。" },
-				{ "speaker": "", "text": "但它放在桌上的那杯茶还是热的。" },
-				{ "speaker": "", "text": "这已经是这周第三次了。" }
-			]
-		},
-
-		{
-			"id": "morning_day9_high_trust",
-			"priority": 5,
-			"once_flag": "morning_day9_warm_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 9 },
-					{ "max_day": 9 },
-					{ "min_trust": 3 },
-					{ "not_flag": "morning_day9_warm_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "白夜一大早就钻进被窝，把头缩在枕头旁边，用金色的眼睛盯着你。" },
-				{ "speaker": "苏柚", "text": "……你想说什么就说。" },
-				{ "speaker": "白夜", "text": "你知道我一直在你身边，不会走的，对吗？" },
-				{ "speaker": "苏柚", "text": "……知道。" },
-				{ "speaker": "白夜", "text": "（松了口气）就是想确认一下。" },
-				{ "speaker": "", "text": "今天它跟了你一整天，没有说很多话，只是一直在。" },
-				{ "speaker": "", "text": "有些安慰是不需要语言的。" }
-			]
-		},
-
-		{
-			"id": "morning_day10",
-			"priority": 10,
-			"once_flag": "morning_day10_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 10 },
-					{ "max_day": 10 },
-					{ "not_flag": "morning_day10_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "在附近的废弃变电站里看到了那个镜中的身影——这次是正面朝向你。" },
-				{ "speaker": "", "text": "她和你长得像，但站在那里的方式像一根锚，稳定、肃穆，俯视众生。" },
-				{ "speaker": "???", "text": "你找到我了。" },
-				{ "speaker": "苏柚", "text": "你是棠？" },
-				{ "speaker": "???", "text": "我是你留下来的一个痕迹。要告诉你一些事——但白夜不能听。" },
-				{ "speaker": "", "text": "还没来得及听完，白夜扑过来把镜面打碎了。" },
-				{ "speaker": "白夜", "text": "那不是真的棠。是危险的东西，它在冒充。" },
-				{ "speaker": "苏柚", "text": "（不确定它说的是真的，还是在保护什么秘密。）" }
-			]
-		},
-
-		{
-			"id": "morning_day11",
-			"priority": 10,
-			"once_flag": "morning_day11_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 11 },
-					{ "max_day": 11 },
-					{ "not_flag": "morning_day11_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "夜里三点，公寓突然剧烈颤抖。" },
-				{ "speaker": "", "text": "白夜从沉睡中惊醒，金色的眼睛瞬间亮到极致。" },
-				{ "speaker": "白夜", "text": "封印中心移动了。有什么东西在试图从里面打开。" },
-				{ "speaker": "苏柚", "text": "谁？" },
-				{ "speaker": "白夜", "text": "……不知道。也可能是我自己的一部分。" },
-				{ "speaker": "", "text": "颤抖持续了三分钟，然后骤然停止。" },
-				{ "speaker": "", "text": "两个人坐在黑暗里，没有开灯，直到天亮。" },
-				{ "speaker": "白夜", "text": "……不管最后发生什么，我希望你不要后悔今天选择留下来。" },
-				{ "speaker": "苏柚", "text": "（这句话像是告别，也像是某种请求。）" }
-			]
-		},
-
-		{
-			"id": "morning_day12",
-			"priority": 10,
-			"once_flag": "morning_day12_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 12 },
-					{ "max_day": 12 },
-					{ "not_flag": "morning_day12_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "城市今天很安静，反常地安静。" },
-				{ "speaker": "", "text": "连路边的野猫都消失了，鸟也不叫。只有风声，带着淡淡的焦糊气味。" },
-				{ "speaker": "白夜", "text": "今天……会有什么事发生。" },
-				{ "speaker": "苏柚", "text": "什么事？" },
-				{ "speaker": "白夜", "text": "不确定。但我感觉到了——很大的事。" },
-				{ "speaker": "", "text": "出门前，它把自己缩成最小，悄悄钻进你口袋里。" },
-				{ "speaker": "苏柚", "text": "……你不用藏着。" },
-				{ "speaker": "白夜", "text": "（从口袋里探出头）这样安全一点。" }
-			]
-		},
-
-		{
-			"id": "morning_day13",
-			"priority": 10,
-			"once_flag": "morning_day13_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 13 },
-					{ "max_day": 13 },
-					{ "not_flag": "morning_day13_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "今天白夜给你煮了很久的汤，闷在锅里不让掀盖。" },
-				{ "speaker": "苏柚", "text": "……今天怎么这么心血来潮？" },
-				{ "speaker": "白夜", "text": "你上次发烧是因为没好好吃饭。" },
-				{ "speaker": "苏柚", "text": "那是一个月前的事了。" },
-				{ "speaker": "白夜", "text": "我记得。" },
-				{ "speaker": "", "text": "汤煮好了，味道意外地好，带着一种说不清的、海边的咸味。" },
-				{ "speaker": "苏柚", "text": "你以前住在海边？" },
-				{ "speaker": "白夜", "text": "……不是。是棠喜欢海。我学会了。" },
-				{ "speaker": "", "text": "沉默了很久。两个人都没有说话，只是吃完了这碗汤。" }
-			]
-		},
-
-		{
-			"id": "morning_day14",
-			"priority": 10,
-			"once_flag": "morning_day14_seen",
-			"condition": {
-				"all": [
-					{ "min_day": 14 },
-					{ "not_flag": "morning_day14_seen" }
-				]
-			},
-			"dialogue": [
-				{ "speaker": "", "text": "最后一天，天气很好，是那种适合结束某件事的好天气。" },
-				{ "speaker": "", "text": "白夜坐在窗台上，看着外面的城市，半天没有动。" },
-				{ "speaker": "苏柚", "text": "在想什么？" },
-				{ "speaker": "白夜", "text": "……如果我什么都没有告诉你，你会过上什么样的生活。" },
-				{ "speaker": "苏柚", "text": "可能会一直觉得公寓闹鬼，然后搬家。" },
-				{ "speaker": "白夜", "text": "（笑了一下）……然后我就跟着你去新的地方。" },
-				{ "speaker": "", "text": "阳光照在白夜身上，它变得有点透明，像是随时会消散的样子。" },
-				{ "speaker": "苏柚", "text": "不管今天发生什么，我不后悔认识你。" },
-				{ "speaker": "白夜", "text": "……我也是。" }
-			]
-		}
-	]
+  "version": 1,
+  "events": [
+    {
+      "id": "morning_day1",
+      "priority": 10,
+      "once_flag": "morning_day1_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 1
+          },
+          {
+            "max_day": 1
+          },
+          {
+            "not_flag": "morning_day1_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "出院第一个夜晚，公寓比记忆中更安静。"
+        },
+        {
+          "speaker": "",
+          "text": "凌晨三点，衣柜里传来低低的哭声。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……谁在那儿？"
+        },
+        {
+          "speaker": "",
+          "text": "拉开柜门的瞬间，一团半透明的黑影蜷缩在衣服堆里，金色的眼睛猛地亮了。"
+        },
+        {
+          "speaker": "???",
+          "text": "你……你终于回来了……"
+        },
+        {
+          "speaker": "",
+          "text": "它激动地扑过来，打翻了床头的牛奶。然后缩在角落，开始哭。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（把自己反锁在卫生间里，坐到天亮。）"
+        },
+        {
+          "speaker": "",
+          "text": "推开门时，床头放着一碗粥，还冒着热气。"
+        },
+        {
+          "speaker": "",
+          "text": "犹豫了很久，尝了一口——味道意外地好。"
+        },
+        {
+          "speaker": "",
+          "text": "门框后面，金色的眼睛偷偷亮了一下。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "对了，我每天能走多少，跟身体状态有关。健康低了，腿就软，走不远。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……别乱挨打。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "我知道。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day2",
+      "priority": 10,
+      "once_flag": "morning_day2_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 2
+          },
+          {
+            "max_day": 2
+          },
+          {
+            "not_flag": "morning_day2_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "入夜后暴雨倾盆，闪电劈开天际。"
+        },
+        {
+          "speaker": "",
+          "text": "白夜缩成拳头大的毛球，钻进了被窝。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……你怕打雷？"
+        },
+        {
+          "speaker": "",
+          "text": "毛球发出细小的呜咽声，身体微微发抖。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（僵了很久，最终还是伸手把它拢住了。）"
+        },
+        {
+          "speaker": "",
+          "text": "那一夜，梦境变得不一样了——灰暗扭曲的镜像世界，影子在追逐。脚边有一片发光的碎片。"
+        },
+        {
+          "speaker": "",
+          "text": "她弯腰捡起它——触碰的瞬间，画面闪回：一个人站在白夜身边，背对着她，看不清面容。白夜的眼神温柔、明亮，没有一丝黑暗。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day3",
+      "priority": 10,
+      "once_flag": "morning_day3_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 3
+          },
+          {
+            "max_day": 4
+          },
+          {
+            "not_flag": "morning_day3_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "这几天开始主动配合白夜的「训练」——学习在暗面中辨别安全路线。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "我好像……没那么怕你了。"
+        },
+        {
+          "speaker": "",
+          "text": "白夜飘在身后，不说话，只是一直跟着。"
+        },
+        {
+          "speaker": "",
+          "text": "去厨房，它跟着；去客厅，它跟着；去卫生间，它趴在门口等。"
+        },
+        {
+          "speaker": "",
+          "text": "回头看它，它就停住；转回去，它又跟上来。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……我不会丢掉你的。"
+        },
+        {
+          "speaker": "",
+          "text": "白夜停在原地，过了好一会儿才慢慢飘到肩膀上趴着，像是确认了什么。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day5",
+      "priority": 10,
+      "once_flag": "morning_day5_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 5
+          },
+          {
+            "max_day": 5
+          },
+          {
+            "not_flag": "morning_day5_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "准备出门时发现手机没电了，充了半小时还是开不了机。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "在家吃吧，外面不安全。"
+        },
+        {
+          "speaker": "",
+          "text": "它端来一盘煎蛋，笑得很开心的样子。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（妥协了。也不确定是因为信任还是因为懒得对抗。）"
+        },
+        {
+          "speaker": "",
+          "text": "晚上白夜照常问'明天穿我选的那件外套好不好'。"
+        },
+        {
+          "speaker": "",
+          "text": "点了头。保护和控制之间的线，越来越模糊。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day6",
+      "priority": 10,
+      "once_flag": "morning_day6_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 6
+          },
+          {
+            "max_day": 6
+          },
+          {
+            "not_flag": "morning_day6_seen"
+          },
+          {
+            "baiye_available": false
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "白夜昨晚释放了全部力量，缩成拳头大的毛球，沉沉睡去。"
+        },
+        {
+          "speaker": "",
+          "text": "把它放在枕头边，每隔一会儿就摸一下确认还有温度。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……还在呼吸。"
+        },
+        {
+          "speaker": "",
+          "text": "今天得一个人面对一切了。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day6_awake",
+      "priority": 5,
+      "once_flag": "morning_day6_awake_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 6
+          },
+          {
+            "max_day": 6
+          },
+          {
+            "not_flag": "morning_day6_awake_seen"
+          },
+          {
+            "baiye_available": true
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "早上醒来，白夜在四处张望。"
+        },
+        {
+          "speaker": "",
+          "text": "从枕头飘到床头柜，飘到门口，飘到厨房，最后在客厅找到了你。"
+        },
+        {
+          "speaker": "",
+          "text": "它安静地飘到身边，什么都没说，只是一直看着。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（端着热粥坐到床边）以后别再这样了。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day7",
+      "priority": 10,
+      "once_flag": "morning_day7_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 7
+          },
+          {
+            "max_day": 7
+          },
+          {
+            "not_flag": "morning_day7_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "第七天早上，白夜已经完全恢复了，又变回四处飘荡的毛球。苏柚看了它一眼，没说什么。大概这就是它的治愈方式。"
+        },
+        {
+          "speaker": "",
+          "text": "新的碎片补全了闪回画面。"
+        },
+        {
+          "speaker": "",
+          "text": "终于看清了那个和白夜并肩站着的人——容貌和自己相似，但气质截然不同。"
+        },
+        {
+          "speaker": "",
+          "text": "眉眼凛冽，站姿笔直，像一柄收在鞘中的刀。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "棠……"
+        },
+        {
+          "speaker": "",
+          "text": "盯着那个画面看了很久。"
+        },
+        {
+          "speaker": "",
+          "text": "从出院那天起，白夜教的一切——走路的姿态、战斗的方式、甚至喝粥的习惯——"
+        },
+        {
+          "speaker": "",
+          "text": "都是在把自己往棠的方向改造。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（我不是被选中的人。我是备用的模具。）"
+        },
+        {
+          "speaker": "白夜",
+          "text": "怎么了？"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……没什么。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day8",
+      "priority": 10,
+      "once_flag": "morning_day8_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 8
+          },
+          {
+            "max_day": 8
+          },
+          {
+            "not_flag": "morning_day8_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "白夜今天话很少，飘在身边却始终保持着一段距离。"
+        },
+        {
+          "speaker": "",
+          "text": "去了以前会一起翻牌的街区，但那里的裂隙比上周多了两倍。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "封印是不是快撑不住了？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……还好。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（它撒谎了。我听得出来。）"
+        },
+        {
+          "speaker": "",
+          "text": "回家路上，路灯挨个熄灭，又挨个亮起，像在致意。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……是城里的其他同类。它们知道我醒了。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "它们是来帮你的，还是来……"
+        },
+        {
+          "speaker": "白夜",
+          "text": "不确定。先回家。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day9_low_trust",
+      "priority": 10,
+      "once_flag": "morning_day9_cold_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 9
+          },
+          {
+            "max_day": 9
+          },
+          {
+            "not_flag": "morning_day9_cold_seen"
+          },
+          {
+            "not": {
+              "min_trust": 3
+            }
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "今天醒来，白夜不在公寓里。"
+        },
+        {
+          "speaker": "",
+          "text": "等了一上午，下午它才从窗缝里飘回来，身上带着暗面的气息。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "去哪了？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……处理了一些事。"
+        },
+        {
+          "speaker": "",
+          "text": "它不说，我也没再追问。"
+        },
+        {
+          "speaker": "",
+          "text": "但它放在桌上的那杯茶还是热的。"
+        },
+        {
+          "speaker": "",
+          "text": "这已经是这周第三次了。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day9_high_trust",
+      "priority": 5,
+      "once_flag": "morning_day9_warm_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 9
+          },
+          {
+            "max_day": 9
+          },
+          {
+            "min_trust": 3
+          },
+          {
+            "not_flag": "morning_day9_warm_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "白夜一大早就钻进被窝，把头缩在枕头旁边，用金色的眼睛盯着你。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……你想说什么就说。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "你知道我一直在你身边，不会走的，对吗？"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……知道。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "（松了口气）就是想确认一下。"
+        },
+        {
+          "speaker": "",
+          "text": "今天它跟了你一整天，没有说很多话，只是一直在。"
+        },
+        {
+          "speaker": "",
+          "text": "有些安慰是不需要语言的。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day10",
+      "priority": 10,
+      "once_flag": "morning_day10_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 10
+          },
+          {
+            "max_day": 10
+          },
+          {
+            "not_flag": "morning_day10_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "在附近的废弃变电站里看到了那个镜中的身影——这次是正面朝向你。"
+        },
+        {
+          "speaker": "",
+          "text": "她和你长得像，但站在那里的方式像一根锚，稳定、肃穆，俯视众生。"
+        },
+        {
+          "speaker": "???",
+          "text": "你找到我了。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "你是棠？"
+        },
+        {
+          "speaker": "???",
+          "text": "我是你留下来的一个痕迹。要告诉你一些事——但白夜不能听。"
+        },
+        {
+          "speaker": "",
+          "text": "还没来得及听完，白夜扑过来把镜面打碎了。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "那不是真的棠。是危险的东西，它在冒充。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（不确定它说的是真的，还是在保护什么秘密。）"
+        }
+      ]
+    },
+    {
+      "id": "morning_day11",
+      "priority": 10,
+      "once_flag": "morning_day11_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 11
+          },
+          {
+            "max_day": 11
+          },
+          {
+            "not_flag": "morning_day11_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "夜里三点，公寓突然剧烈颤抖。"
+        },
+        {
+          "speaker": "",
+          "text": "白夜从沉睡中惊醒，金色的眼睛瞬间亮到极致。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "封印中心移动了。有什么东西在试图从里面打开。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "谁？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……不知道。也可能是我自己的一部分。"
+        },
+        {
+          "speaker": "",
+          "text": "颤抖持续了三分钟，然后骤然停止。"
+        },
+        {
+          "speaker": "",
+          "text": "两个人坐在黑暗里，没有开灯，直到天亮。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……不管最后发生什么，我希望你不要后悔今天选择留下来。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（这句话像是告别，也像是某种请求。）"
+        }
+      ]
+    },
+    {
+      "id": "morning_day12",
+      "priority": 10,
+      "once_flag": "morning_day12_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 12
+          },
+          {
+            "max_day": 12
+          },
+          {
+            "not_flag": "morning_day12_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "城市今天很安静，反常地安静。"
+        },
+        {
+          "speaker": "",
+          "text": "连路边的野猫都消失了，鸟也不叫。只有风声，带着淡淡的焦糊气味。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "今天……会有什么事发生。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "什么事？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "不确定。但我感觉到了——很大的事。"
+        },
+        {
+          "speaker": "",
+          "text": "出门前，它把自己缩成最小，悄悄钻进你口袋里。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……你不用藏着。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "（从口袋里探出头）这样安全一点。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day13",
+      "priority": 10,
+      "once_flag": "morning_day13_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 13
+          },
+          {
+            "max_day": 13
+          },
+          {
+            "not_flag": "morning_day13_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "今天白夜给你煮了很久的汤，闷在锅里不让掀盖。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "……今天怎么这么心血来潮？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "你上次发烧是因为没好好吃饭。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "那是一个月前的事了。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "我记得。"
+        },
+        {
+          "speaker": "",
+          "text": "汤煮好了，味道意外地好，带着一种说不清的、海边的咸味。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "你以前住在海边？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……不是。是棠喜欢海。我学会了。"
+        },
+        {
+          "speaker": "",
+          "text": "沉默了很久。两个人都没有说话，只是吃完了这碗汤。"
+        }
+      ]
+    },
+    {
+      "id": "morning_day14",
+      "priority": 10,
+      "once_flag": "morning_day14_seen",
+      "condition": {
+        "all": [
+          {
+            "min_day": 14
+          },
+          {
+            "not_flag": "morning_day14_seen"
+          }
+        ]
+      },
+      "dialogue": [
+        {
+          "speaker": "",
+          "text": "最后一天，天气很好，是那种适合结束某件事的好天气。"
+        },
+        {
+          "speaker": "",
+          "text": "白夜坐在窗台上，看着外面的城市，半天没有动。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "在想什么？"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……如果我什么都没有告诉你，你会过上什么样的生活。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "可能会一直觉得公寓闹鬼，然后搬家。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "（笑了一下）……然后我就跟着你去新的地方。"
+        },
+        {
+          "speaker": "",
+          "text": "阳光照在白夜身上，它变得有点透明，像是随时会消散的样子。"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "不管今天发生什么，我不后悔认识你。"
+        },
+        {
+          "speaker": "白夜",
+          "text": "……我也是。"
+        }
+      ]
+    }
+  ]
 }

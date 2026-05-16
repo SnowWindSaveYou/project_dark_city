@@ -114,6 +114,7 @@ var _game_over: Control = null
 var _date_transition: Control = null
 var _dialogue_overlay: Control = null
 var _bubble_overlay: Control = null
+var _tutorial_bubble: TutorialBubble = null
 var _debug_panel: DebugPanel = null
 var _settings_overlay: Control = null
 
@@ -372,6 +373,12 @@ func _setup_scene_tree() -> void:
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
+	# TutorialBubble — 屏幕教程气泡（z_index=8，覆盖游戏 UI 但低于 title/settings）
+	_tutorial_bubble = TutorialBubble.new()
+	_tutorial_bubble.name = "TutorialBubble"
+	_tutorial_bubble.z_index = 8
+	ui_layer.add_child(_tutorial_bubble)
+
 	# DebugPanel (开发调试面板, 按 1 切换; 打包 release 时不创建)
 	if OS.is_debug_build():
 		_debug_panel = DebugPanel.create(ui_layer)
@@ -596,19 +603,29 @@ func _on_shop_closed() -> void:
 	else:
 		card_interaction.on_shop_closed()
 
-## 供控制器访问玩家气泡（教程锁定用）
+## 供控制器访问玩家气泡
 func get_player_bubble() -> BubbleDialogue:
 	return _bubble_dialogue
+
+## 供控制器访问白夜气泡（教程台词用）
+func get_baiye_bubble() -> BubbleDialogue:
+	return _baiye_bubble
+
+## 显示屏幕教程气泡（全新独立系统，便签条风格）
+## speaker: "白夜"（默认）或 "苏柚"
+func show_tutorial(text: String, speaker: String = "白夜",
+		duration: float = TutorialBubble.IDLE_TIME) -> void:
+	if _tutorial_bubble:
+		_tutorial_bubble.show_tutorial(text, speaker, duration)
 
 func _on_camera_mode_entered() -> void:
 	board_visual.mg_show_on_scouted_cards()
 	board_visual.mg_show_trails_on_board()
-	# 首次进入相机模式 → 侦察教程
-	if not GameData.tutorial_flags["camera_mode_seen"] and _bubble_dialogue:
+	# 首次进入相机模式 → 侦察教程（白夜说话）
+	if not GameData.tutorial_flags["camera_mode_seen"]:
 		GameData.tutorial_flags["camera_mode_seen"] = true
-		_bubble_dialogue.show_tutorial(
-			"白夜：翻开之前，先拍一下。\n镜头里有时会浮现方向——妖魔在哪边。\n胶卷不多。",
-			8.0
+		show_tutorial(
+			"翻开之前，先拍一下。\n镜头里有时会浮现方向——妖魔在哪边。\n胶卷不多。"
 		)
 
 func _on_camera_mode_exited() -> void:

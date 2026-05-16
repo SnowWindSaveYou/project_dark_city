@@ -135,34 +135,15 @@ func begin_day1(on_done: Callable) -> void:
 	StoryManager.update_chapter_by_day()
 	npc_manager.reset_daily()
 
-	# 晨间事件链（内层，在教程对话之后执行）
-	var _do_morning: Callable = func() -> void:
-		var event = story_event_mgr.query_morning_event()
-		if event != null:
-			event = story_event_mgr.trigger_morning_event(event)
-			event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
-				story_event_mgr.on_morning_event_complete(event, chosen_id)
-				on_done.call()
-			)
-		else:
+	var event = story_event_mgr.query_morning_event()
+	if event != null:
+		event = story_event_mgr.trigger_morning_event(event)
+		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
+			story_event_mgr.on_morning_event_complete(event, chosen_id)
 			on_done.call()
-
-	# Day 1 健康=步数教程对话（仅触发一次）
-	if not GameData.tutorial_flags.get("health_steps_seen", false):
-		GameData.tutorial_flags["health_steps_seen"] = true
-		var tutorial_event: Dictionary = {
-			"id": "tutorial_health_steps",
-			"dialogue": [
-				{ "speaker": "苏柚", "text": "对了，我每天能走多少，跟身体状态有关。健康低了，腿就软，走不远。" },
-				{ "speaker": "白夜", "text": "……别乱挨打。" },
-				{ "speaker": "苏柚", "text": "我知道。" },
-			]
-		}
-		event_dialogue_requested.emit(tutorial_event, func(_chosen: String) -> void:
-			_do_morning.call()
 		)
 	else:
-		_do_morning.call()
+		on_done.call()
 
 ## 道具弹出动画
 func _animate_item_spawn() -> void:
