@@ -745,8 +745,8 @@ func _draw_polaroid_shadow_decor() -> void:
 	sb.corner_radius_top_right    = 6
 	sb.corner_radius_bottom_right = 6
 	sb.corner_radius_bottom_left  = 6
-	# Lua feather=16 → shadow_size；offset(+2,+4) → shadow_offset
-	sb.shadow_size   = int(16.0 * s)                  # ≈ 34
+	# Lua feather=16 → shadow_size，缩减至 8 使阴影更紧凑；offset(+2,+4) 保持缩放
+	sb.shadow_size   = int(8.0 * s)                   # ≈ 17
 	sb.shadow_offset = Vector2(2.0 * s, 4.0 * s)      # ≈ (4, 9)
 	# Lua nvgRGBA(30,20,10,80) ≈ 暖棕色，与 ResourceBar 现实模式阴影色系一致
 	sb.shadow_color  = Color(0.118, 0.078, 0.039, 0.28)

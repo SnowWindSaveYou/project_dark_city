@@ -92,45 +92,78 @@ mouse_filter = 2
 theme_override_font_sizes/font_size = 11
 text = "31.2304°N  121.4737°E  /  DAY 0"
 
-[node name="ButtonBlock" type="VBoxContainer" parent="TitleBlock"]
+[node name="ButtonBlock" type="Control" parent="TitleBlock"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0
-anchor_top = 0.42
-anchor_right = 0.88
-anchor_bottom = 0.42
-offset_left = 72.0
-offset_top = 0.0
-offset_bottom = 256.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 2
+mouse_filter = 2
 
 [node name="BtnStart" type="Button" parent="TitleBlock/ButtonBlock"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 60)
-theme_override_font_sizes/font_size = 20
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.40
+anchor_right = 0.0
+anchor_bottom = 0.40
+offset_left = 72.0
+offset_top = -28.0
+offset_right = 340.0
+offset_bottom = 28.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 28
 text = "开始游戏"
 
 [node name="BtnGallery" type="Button" parent="TitleBlock/ButtonBlock"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 48)
-theme_override_font_sizes/font_size = 17
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.51
+anchor_right = 0.0
+anchor_bottom = 0.51
+offset_left = 148.0
+offset_top = -22.0
+offset_right = 380.0
+offset_bottom = 22.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 20
 text = "结局图鉴"
 
 [node name="BtnSettings" type="Button" parent="TitleBlock/ButtonBlock"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 48)
-theme_override_font_sizes/font_size = 17
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.60
+anchor_right = 0.0
+anchor_bottom = 0.60
+offset_left = 104.0
+offset_top = -20.0
+offset_right = 300.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 19
 text = "设  置"
 
 [node name="BtnQuit" type="Button" parent="TitleBlock/ButtonBlock"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 48)
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.69
+anchor_right = 0.0
+anchor_bottom = 0.69
+offset_left = 176.0
+offset_top = -18.0
+offset_right = 340.0
+offset_bottom = 18.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_font_sizes/font_size = 17
 text = "退出游戏"
 

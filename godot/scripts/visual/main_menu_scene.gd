@@ -41,7 +41,7 @@ const C_BTN_SEC_HOVER_BG: Color = Color(0.12, 0.10, 0.20, 0.08)
 @onready var _title_block: Control      = $TitleBlock
 @onready var _title_en: Label           = $TitleBlock/TitleEn
 @onready var _coord_label: Label        = $TitleBlock/CoordLabel
-@onready var _btn_vbox: VBoxContainer   = $TitleBlock/ButtonBlock
+@onready var _btn_block: Control        = $TitleBlock/ButtonBlock
 @onready var _btn_start: Button         = $TitleBlock/ButtonBlock/BtnStart
 @onready var _btn_gallery: Button       = $TitleBlock/ButtonBlock/BtnGallery
 @onready var _btn_settings: Button      = $TitleBlock/ButtonBlock/BtnSettings
@@ -87,6 +87,10 @@ var _glitch_frames: int     = 0
 # 标题颜色呼吸（周期 8s，缓慢在深色→偏紫之间来回）
 var _breath_time: float = 0.0
 
+# 按钮浮动（每个按钮独立相位，与背景文字浮动同风格）
+# { btn: { phase, amp, period, base_top } }
+var _btn_float: Dictionary = {}
+
 # 扫描线（周期 6s，从标题区顶端扫到底部，持续动效）
 var _scan_y: float = 0.0          # 当前扫描线 Y（归一化 0→1 相对 TitleBlock 高度）
 var _scan_alpha: float = 0.0      # 扫描线透明度（入场后淡入）
@@ -115,10 +119,15 @@ func _ready() -> void:
 	_coord_label.add_theme_color_override("font_color", C_COORD)
 	_ver_label.add_theme_color_override("font_color", C_VERSION)
 
-	_style_btn_primary(_btn_start)
-	_style_btn_secondary(_btn_gallery)
-	_style_btn_secondary(_btn_settings)
-	_style_btn_quit(_btn_quit)
+	# 浮动文字按钮样式
+	_style_btn_floating(_btn_start,
+		Color(0.06, 0.05, 0.10, 0.92), Color(0.04, 0.03, 0.08, 1.0))
+	_style_btn_floating(_btn_gallery,
+		Color(0.22, 0.20, 0.32, 0.75), Color(0.06, 0.05, 0.10, 0.95))
+	_style_btn_floating(_btn_settings,
+		Color(0.22, 0.20, 0.32, 0.75), Color(0.06, 0.05, 0.10, 0.95))
+	_style_btn_floating(_btn_quit,
+		Color(0.42, 0.18, 0.18, 0.70), Color(0.70, 0.14, 0.14, 0.95))
 
 	_btn_start.pressed.connect(_on_start_pressed)
 	_btn_gallery.pressed.connect(_on_gallery_pressed)
@@ -148,8 +157,7 @@ func _ready() -> void:
 		lbl.modulate.a = 0.0
 	_title_en.modulate.a    = 0.0
 	_coord_label.modulate.a = 0.0
-	_btn_vbox.modulate.a    = 0.0
-	_btn_vbox.position.x   -= 20.0
+	_btn_block.modulate.a   = 0.0
 	_baiye_sprite.modulate.a = 0.0
 
 	# 物语背景层
@@ -349,74 +357,53 @@ func _load_baiye_sprite() -> void:
 # 按钮样式
 # ---------------------------------------------------------------------------
 
-func _style_btn_primary(btn: Button) -> void:
-	# 深色填充 + 左侧亮竖条（3px）+ 无外框
-	var n: StyleBoxFlat = StyleBoxFlat.new()
-	n.bg_color = Color(0.08, 0.07, 0.13, 1.0)
-	n.border_width_left = 3
-	n.border_color = Color(0.82, 0.80, 0.90, 1.0)   # 左侧亮灰竖条
-	n.border_width_top = 0; n.border_width_right = 0; n.border_width_bottom = 0
-	n.corner_radius_top_left = 0; n.corner_radius_top_right = 0
-	n.corner_radius_bottom_left = 0; n.corner_radius_bottom_right = 0
-	n.content_margin_left  = 22.0
-	n.content_margin_right = 22.0
-	btn.add_theme_stylebox_override("normal", n)
-	btn.add_theme_color_override("font_color",         Color(0.95, 0.94, 0.98))
-	btn.add_theme_color_override("font_hover_color",   Color(1.0, 1.0, 1.0))
-	btn.add_theme_color_override("font_pressed_color", Color(0.85, 0.82, 0.95))
-	var hov: StyleBoxFlat = n.duplicate()
-	hov.bg_color = Color(0.14, 0.11, 0.22, 1.0)
-	hov.border_color = Color(1.0, 1.0, 1.0, 1.0)    # hover：竖条全白
-	btn.add_theme_stylebox_override("hover", hov)
-	var prs: StyleBoxFlat = n.duplicate()
-	prs.bg_color = Color(0.20, 0.14, 0.34, 1.0)
-	btn.add_theme_stylebox_override("pressed", prs)
-	# 右侧箭头文字追加
-	if not btn.text.ends_with("  ▷"):
-		btn.text = btn.text + "  ▷"
+## 统一的浮动文字按钮样式
+## font_col      — 静止文字颜色
+## hover_col     — hover 文字颜色
+## is_quit       — 退出按钮特殊颜色
+func _style_btn_floating(btn: Button,
+		font_col: Color, hover_col: Color) -> void:
+	# 完全透明盒子，无边框，只显示文字
+	var empty: StyleBoxEmpty = StyleBoxEmpty.new()
+	empty.content_margin_left  = 8.0
+	empty.content_margin_right = 8.0
+	empty.content_margin_top   = 4.0
+	empty.content_margin_bottom = 4.0
+	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(state, empty)
+	btn.add_theme_color_override("font_color",         font_col)
+	btn.add_theme_color_override("font_hover_color",   hover_col)
+	btn.add_theme_color_override("font_pressed_color", hover_col.darkened(0.15))
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.clip_text = false
 
 
-func _style_btn_secondary(btn: Button) -> void:
-	# 无填充 + 左侧暗竖条（2px）+ 底部细线分隔
-	var n: StyleBoxFlat = StyleBoxFlat.new()
-	n.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-	n.border_width_left   = 2
-	n.border_width_bottom = 1
-	n.border_width_top = 0; n.border_width_right = 0
-	n.border_color = Color(0.40, 0.38, 0.50, 0.45)
-	n.corner_radius_top_left = 0; n.corner_radius_top_right = 0
-	n.corner_radius_bottom_left = 0; n.corner_radius_bottom_right = 0
-	n.content_margin_left  = 22.0
-	n.content_margin_right = 22.0
-	btn.add_theme_stylebox_override("normal", n)
-	btn.add_theme_color_override("font_color",         Color(0.32, 0.29, 0.44, 0.90))
-	btn.add_theme_color_override("font_hover_color",   Color(0.10, 0.08, 0.18, 1.0))
-	btn.add_theme_color_override("font_pressed_color", Color(0.08, 0.06, 0.14, 1.0))
-	var hov: StyleBoxFlat = n.duplicate()
-	hov.bg_color = Color(0.10, 0.09, 0.16, 0.10)
-	hov.border_color = Color(0.55, 0.52, 0.70, 0.85)  # hover：竖条明显变亮
-	btn.add_theme_stylebox_override("hover", hov)
-	var prs: StyleBoxFlat = n.duplicate()
-	prs.bg_color = Color(0.08, 0.07, 0.14, 0.14)
-	btn.add_theme_stylebox_override("pressed", prs)
-	# 右侧箭头
-	if not btn.text.ends_with("  ›"):
-		btn.text = btn.text + "  ›"
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+## 初始化所有按钮的浮动参数（在 _ready 尾部调用）
+func _init_btn_floats() -> void:
+	# { btn → { phase, amp, period, base_top, base_bot } }
+	# base_top/base_bot 从当前 offset 读取（入场动画结束后调用，已还原到目标位置）
+	var cfg: Array = [
+		[_btn_start,   0.00, 7.0, 4.2],
+		[_btn_gallery, 1.80, 5.5, 5.1],
+		[_btn_settings,3.20, 6.0, 3.9],
+		[_btn_quit,    0.90, 4.5, 4.7],
+	]
+	for c in cfg:
+		var btn: Button = c[0]
+		_btn_float[btn] = {
+			"phase":    c[1],
+			"amp":      c[2],
+			"period":   c[3],
+			"base_top": btn.offset_top,
+			"base_bot": btn.offset_bottom,
+		}
 
 
-func _style_btn_quit(btn: Button) -> void:
-	_style_btn_secondary(btn)
-	# 覆盖竖条为暗红色，底线保留
-	var n: StyleBoxFlat = btn.get_theme_stylebox("normal").duplicate() as StyleBoxFlat
-	n.border_color = Color(0.52, 0.18, 0.18, 0.55)
-	btn.add_theme_stylebox_override("normal", n)
-	var hov: StyleBoxFlat = btn.get_theme_stylebox("hover").duplicate() as StyleBoxFlat
-	hov.border_color = Color(0.78, 0.22, 0.22, 0.90)
-	btn.add_theme_stylebox_override("hover", hov)
-	btn.add_theme_color_override("font_color",       Color(0.52, 0.22, 0.22, 0.85))
-	btn.add_theme_color_override("font_hover_color", Color(0.78, 0.18, 0.18, 1.0))
+# _style_btn_primary / _style_btn_secondary / _style_btn_quit 已废弃，
+# 保留空壳避免引用报错（实际样式由 _style_btn_floating 接管）
+func _style_btn_primary(_btn: Button) -> void:   pass
+func _style_btn_secondary(_btn: Button) -> void: pass
+func _style_btn_quit(_btn: Button) -> void:      pass
 
 
 # ---------------------------------------------------------------------------
@@ -494,19 +481,38 @@ func _draw_decorations() -> void:
 				Vector2(72.0, sy + dy), Vector2(tb_right, sy + dy),
 				Color(C_LINE.r, C_LINE.g, C_LINE.b, a_glow), 1.0)
 
-	# 按钮 hover 划线
-	for btn: Button in [_btn_start, _btn_gallery, _btn_settings, _btn_quit]:
-		var prog: float = _btn_line_progress.get(btn, 0.0)
-		if prog <= 0.0:
-			continue
+	# ── 按钮重影文字 + 常驻下划线 + hover 划线
+	var font_draw: Font = ThemeDB.fallback_font
+	var btn_list: Array[Button] = [_btn_start, _btn_gallery, _btn_settings, _btn_quit]
+	for btn: Button in btn_list:
 		var btn_global: Vector2 = btn.global_position
 		var btn_local: Vector2  = _draw_layer.get_global_transform().affine_inverse() * btn_global
-		var btn_w: float = btn.size.x * prog
-		var btn_y: float = btn_local.y + btn.size.y - 2.0
+		# 文字绘制基线：按钮中心偏上
+		var fs: int  = btn.get_theme_font_size("font_size")
+		var text_y: float = btn_local.y + btn.size.y * 0.5 + fs * 0.35
+		# 常驻下划线（静止时也存在，宽度为文字近似宽度，alpha 较低）
+		var txt: String  = btn.text
+		var txt_w: float = font_draw.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var ul_y: float  = text_y + 3.0
+		var ul_alpha: float = 0.18
 		_draw_layer.draw_line(
-			Vector2(btn_local.x, btn_y),
-			Vector2(btn_local.x + btn_w, btn_y),
-			Color(C_TITLE.r, C_TITLE.g, C_TITLE.b, 0.55), 1.5)
+			Vector2(btn_local.x + 8.0, ul_y),
+			Vector2(btn_local.x + 8.0 + txt_w, ul_y),
+			Color(C_TITLE.r, C_TITLE.g, C_TITLE.b, ul_alpha), 1.0)
+		# 重影文字（偏移 +2,+2，alpha 0.18，颜色与正文相近）
+		if font_draw:
+			var ghost_col: Color = Color(C_TITLE.r, C_TITLE.g, C_TITLE.b, 0.18)
+			_draw_layer.draw_string(font_draw,
+				Vector2(btn_local.x + 8.0 + 2.0, text_y + 2.0),
+				txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ghost_col)
+		# hover 划线（覆盖在下划线之上，亮度更高）
+		var prog: float = _btn_line_progress.get(btn, 0.0)
+		if prog > 0.0:
+			var btn_w: float = txt_w * prog
+			_draw_layer.draw_line(
+				Vector2(btn_local.x + 8.0, ul_y),
+				Vector2(btn_local.x + 8.0 + btn_w, ul_y),
+				Color(C_TITLE.r, C_TITLE.g, C_TITLE.b, 0.65), 1.5)
 
 
 # ---------------------------------------------------------------------------
@@ -553,26 +559,49 @@ func _play_enter_anim() -> void:
 		_coord_rolling = true
 	)
 
-	# 按钮组（0.55s 瞬现 + 横向滑入）
+	# 按钮逐个错落淡入（0.55s 起，每个按钮间隔 80ms，从下方 12px 上浮）
+	var btns: Array[Button] = [_btn_start, _btn_gallery, _btn_settings, _btn_quit]
+	for bi: int in range(btns.size()):
+		var btn: Button     = btns[bi]
+		var delay: float    = 0.55 + bi * 0.08
+		var tw_b: Tween     = create_tween()
+		tw_b.tween_interval(delay)
+		tw_b.tween_callback(func() -> void:
+			# 从当前位置下方 12px 处上浮进入
+			btn.offset_top    += 12.0
+			btn.offset_bottom += 12.0
+			btn.modulate.a     = 0.0
+			var tw_in: Tween = create_tween()
+			tw_in.set_parallel(true)
+			tw_in.tween_property(btn, "modulate:a", 1.0, 0.22) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+			tw_in.tween_property(btn, "offset_top",
+				btn.offset_top - 12.0, 0.22) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
+			tw_in.tween_property(btn, "offset_bottom",
+				btn.offset_bottom - 12.0, 0.22) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
+		)
+	# 所有按钮入场完成后标记入场结束，并初始化浮动参数
 	var t4: Tween = create_tween()
-	t4.tween_interval(0.55)
-	t4.set_parallel(false)
-	t4.tween_callback(func() -> void: _btn_vbox.modulate.a = 1.0)
-	t4.set_parallel(true)
-	t4.tween_property(_btn_vbox, "position:x",
-		_btn_vbox.position.x + 20.0, 0.20) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
-	t4.tween_callback(func() -> void: _enter_done = true)
+	t4.tween_interval(0.55 + btns.size() * 0.08 + 0.25)
+	t4.tween_callback(func() -> void:
+		_btn_block.modulate.a = 1.0
+		_init_btn_floats()
+		_enter_done = true
+	)
 
 	# 超时保底
-	get_tree().create_timer(2.0).timeout.connect(func() -> void:
+	get_tree().create_timer(2.5).timeout.connect(func() -> void:
 		if not _enter_done:
 			for lbl in _title_chars: lbl.modulate.a = 1.0
-			_title_en.modulate.a    = 1.0
-			_coord_label.modulate.a = 1.0
-			_btn_vbox.modulate.a    = 1.0
+			_title_en.modulate.a     = 1.0
+			_coord_label.modulate.a  = 1.0
+			for btn: Button in btns: btn.modulate.a = 1.0
+			_btn_block.modulate.a    = 1.0
 			_baiye_sprite.modulate.a = 1.0
 			_line_progress = 1.0
+			_init_btn_floats()
 			_enter_done = true
 	)
 
@@ -639,6 +668,14 @@ func _process(dt: float) -> void:
 	if _enter_done:
 		_scan_alpha = move_toward(_scan_alpha, 1.0, dt * 0.8)
 		_scan_y = fmod(_scan_y + dt / 6.0, 1.0)
+
+	# ── 按钮浮动（入场完成且 _btn_float 已初始化后，每帧更新 offset）
+	if _enter_done and not _btn_float.is_empty():
+		for btn: Button in _btn_float:
+			var fp: Dictionary = _btn_float[btn]
+			var drift: float = sin(_game_time / fp["period"] * TAU + fp["phase"]) * fp["amp"]
+			btn.offset_top    = fp["base_top"] + drift
+			btn.offset_bottom = fp["base_bot"] + drift
 
 	# ── 坐标噪声（每 ~6s 抖动经纬度数字 4 帧）
 	if _enter_done and not _coord_rolling:

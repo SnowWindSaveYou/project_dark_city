@@ -153,8 +153,6 @@ var _token_shadow: MeshInstance3D = null
 # 3D 场景组件
 # ---------------------------------------------------------------------------
 var _camera_3d: Camera3D = null
-var _cam_attr: CameraAttributesPractical = null
-var _dof_tween: Tween = null
 var _dir_light: DirectionalLight3D = null
 var _world_env: WorldEnvironment = null
 var _env: Environment = null
@@ -604,40 +602,10 @@ func _on_shop_closed() -> void:
 func _on_camera_mode_entered() -> void:
 	board_visual.mg_show_on_scouted_cards()
 	board_visual.mg_show_trails_on_board()
-	_dof_set(true)
 
 func _on_camera_mode_exited() -> void:
 	board_visual.mg_clear_card_ghosts()
 	board_visual.mg_clear_trail_ghosts()
-	_dof_set(false)
-
-func _dof_set(enable: bool) -> void:
-	if not _camera_3d:
-		return
-	if _dof_tween:
-		_dof_tween.kill()
-	if enable:
-		if not _cam_attr:
-			_cam_attr = CameraAttributesPractical.new()
-			# 相机距棋盘约 6m，近处（桌面以内）和远处都虚化
-			_cam_attr.dof_blur_far_enabled = true
-			_cam_attr.dof_blur_far_distance = 7.5
-			_cam_attr.dof_blur_far_transition = 4.0
-			_cam_attr.dof_blur_near_enabled = true
-			_cam_attr.dof_blur_near_distance = 3.5
-			_cam_attr.dof_blur_near_transition = 2.0
-			_cam_attr.dof_blur_amount = 0.0
-		_camera_3d.attributes = _cam_attr
-		_dof_tween = create_tween()
-		_dof_tween.tween_property(_cam_attr, "dof_blur_amount", 0.07, 0.5) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	else:
-		if not _cam_attr:
-			return
-		_dof_tween = create_tween()
-		_dof_tween.tween_property(_cam_attr, "dof_blur_amount", 0.0, 0.35) \
-			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-		_dof_tween.tween_callback(func() -> void: _camera_3d.attributes = null)
 
 func _on_debug_action(action_id: String) -> void:
 	match action_id:
