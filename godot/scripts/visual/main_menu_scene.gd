@@ -229,15 +229,15 @@ func _setup_city_layer() -> void:
 	var grad: Gradient = Gradient.new()
 	grad.colors  = PackedColorArray([
 		Color(0.0, 0.0, 0.0, 0.0),          # 透明（渐变起点）
-		Color(0.04, 0.02, 0.10, 0.88),       # 深蓝紫黑（渐变终点）
+		Color(0.06, 0.04, 0.14, 0.72),       # 深蓝紫（渐变终点，比之前浅 + 更透）
 	])
 	grad.offsets = PackedFloat32Array([0.0, 1.0])
 
 	var grad_tex: GradientTexture2D = GradientTexture2D.new()
 	grad_tex.gradient  = grad
 	grad_tex.fill      = GradientTexture2D.FILL_LINEAR
-	grad_tex.fill_from = Vector2(0.36, 0.18)  # 左上方（透明侧锚点）
-	grad_tex.fill_to   = Vector2(0.88, 0.82)  # 右下方（深色侧锚点）—— 约45°斜向
+	grad_tex.fill_from = Vector2(0.58, 0.22)  # 右移：暗色从右侧 60% 处开始渗入
+	grad_tex.fill_to   = Vector2(1.02, 0.90)  # 终点推到屏幕右边缘外，暗区更集中
 
 	grad_rect.texture      = grad_tex
 	grad_rect.stretch_mode = TextureRect.STRETCH_SCALE
@@ -303,15 +303,15 @@ func _draw_city() -> void:
 			var bh_px: float = bld["h"] * h
 			var by: float    = h - bh_px
 
-			# 楼中心X → 计算处于白区(0)还是暗区(1)
+			# 楼中心X → 计算处于白区(0)还是暗区(1)，与渐变起点对齐（0.58起渐深）
 			var cx: float   = bld["x"] + bld["w"] * 0.5
-			var zone_t: float = clamp((cx - 0.40) / 0.36, 0.0, 1.0)
+			var zone_t: float = clamp((cx - 0.55) / 0.30, 0.0, 1.0)
 
-			# 各层在暗区的不透明度（远→近递增）
-			var dark_alpha: Array[float] = [0.55, 0.78, 0.96]
-			# 白区楼宇：浅灰紫（barely visible），暗区楼宇：深蓝黑
+			# 各层在暗区的不透明度（远→近递增，整体降低避免太黑）
+			var dark_alpha: Array[float] = [0.42, 0.62, 0.78]
+			# 白区楼宇：浅灰紫，暗区楼宇：深灰蓝紫（非纯黑）
 			var fill_bright: Color = Color(0.72, 0.70, 0.78, dark_alpha[layer] * 0.22)
-			var fill_dark:   Color = Color(0.020, 0.012, 0.060, dark_alpha[layer])
+			var fill_dark:   Color = Color(0.18, 0.15, 0.28, dark_alpha[layer])
 			var fill_col: Color    = fill_bright.lerp(fill_dark, zone_t)
 			_city_layer.draw_rect(Rect2(bx, by, bw_px, bh_px), fill_col)
 
