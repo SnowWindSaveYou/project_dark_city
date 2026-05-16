@@ -5,7 +5,7 @@
       "id": "morning_day1",
       "priority": 10,
       "once_flag": "morning_day1_seen",
-      "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+      "bg_image": "res://godot/assets/image/loc_hospital_v2_20260514054038.png",
       "condition": {
         "all": [
           {
@@ -26,7 +26,8 @@
         },
         {
           "speaker": "",
-          "text": "凌晨三点，衣柜里传来低低的哭声。"
+          "text": "凌晨三点，衣柜里传来低低的哭声。",
+          "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
         },
         {
           "speaker": "苏柚",

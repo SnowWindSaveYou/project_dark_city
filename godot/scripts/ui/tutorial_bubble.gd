@@ -7,14 +7,13 @@ extends Control
 # ---------------------------------------------------------------------------
 # 常量 — 单条消息尺寸
 # ---------------------------------------------------------------------------
-const ITEM_W: float        = 400.0   # 每条消息宽度
-const ITEM_AVATAR_R: float = 22.0    # 头像半径
-const ITEM_SPINE_W: float  = 20.0    # 左侧色条宽度（说话人颜色）
-const ITEM_PAD_X: float    = 12.0    # 水平内边距
-const ITEM_PAD_Y: float    = 10.0    # 垂直内边距
-const ITEM_CORNER_R: float = 8.0     # 圆角半径
-const ITEM_MAX_H: float    = 160.0   # 最大单条高度
-const ITEM_MIN_H: float    = 68.0    # 最小单条高度
+const ITEM_W: float        = 480.0   # 每条消息宽度
+const ITEM_AVATAR_R: float = 28.0    # 头像半径
+const ITEM_SPINE_W: float  = 22.0    # 左侧色条宽度（说话人颜色）
+const ITEM_PAD_X: float    = 14.0    # 水平内边距
+const ITEM_PAD_Y: float    = 12.0    # 垂直内边距
+const ITEM_MAX_H: float    = 200.0   # 最大单条高度
+const ITEM_MIN_H: float    = 80.0    # 最小单条高度
 
 # ---------------------------------------------------------------------------
 # 常量 — 布局
@@ -41,7 +40,7 @@ const IDLE_TIME_LONG: float = 14.0   # 操作指引型停留时长
 # ---------------------------------------------------------------------------
 # 常量 — 打字机
 # ---------------------------------------------------------------------------
-const TYPE_SPEED: int = 26
+const TYPE_SPEED: int = 16   # 字/秒（慢一些，更易阅读）
 
 # ---------------------------------------------------------------------------
 # 说话人配置
@@ -135,14 +134,16 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	var base_x: float = sw - ITEM_W - MARGIN_X
 	var base_y: float = _get_next_y()
 
-	# 面板
+	# 面板（直角）
 	var panel: Control = Control.new()
 	panel.size = Vector2(ITEM_W, item_h)
 	panel.position = Vector2(base_x + SLIDE_X, base_y)
 	panel.modulate.a = 0.0
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# 头像
+	var av_diam: float = ITEM_AVATAR_R * 2.0
+
+	# 头像（右侧，垂直居中）
 	var avatar_rect: TextureRect = TextureRect.new()
 	avatar_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -150,7 +151,6 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	var avatar_path: String = AVATAR_PATH.get(speaker, "")
 	if avatar_path != "" and ResourceLoader.exists(avatar_path):
 		avatar_rect.texture = load(avatar_path) as Texture2D
-	var av_diam: float = ITEM_AVATAR_R * 2.0
 	avatar_rect.size = Vector2(av_diam, av_diam)
 	avatar_rect.position = Vector2(
 		ITEM_W - av_diam - ITEM_PAD_X,
@@ -162,11 +162,11 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	var name_label: Label = Label.new()
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_label.text = speaker
-	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_font_size_override("font_size", 15)
 	var sp_color: Color = SPEAKER_COLOR.get(speaker, Color(0.3, 0.3, 0.3))
 	name_label.add_theme_color_override("font_color", sp_color)
 	name_label.position = Vector2(ITEM_SPINE_W + ITEM_PAD_X, ITEM_PAD_Y)
-	name_label.size = Vector2(ITEM_W - ITEM_SPINE_W - ITEM_PAD_X * 2 - av_diam - 8.0, 18.0)
+	name_label.size = Vector2(ITEM_W - ITEM_SPINE_W - ITEM_PAD_X * 2 - av_diam - 8.0, 22.0)
 	panel.add_child(name_label)
 
 	# 正文
@@ -176,37 +176,36 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	text_label.scroll_active = false
 	text_label.fit_content = true
 	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text_label.add_theme_font_size_override("normal_font_size", 15)
+	text_label.add_theme_font_size_override("normal_font_size", 17)
 	text_label.add_theme_color_override("default_color",
 		Color(GameTheme.text_primary.r, GameTheme.text_primary.g,
 			GameTheme.text_primary.b, 0.90))
 	text_label.text = ""
 	var text_x: float = ITEM_SPINE_W + ITEM_PAD_X
-	var text_y: float = ITEM_PAD_Y + 20.0
+	var text_y: float = ITEM_PAD_Y + 24.0
 	var text_w: float = ITEM_W - ITEM_SPINE_W - ITEM_PAD_X * 2 - av_diam - 8.0
 	var text_h: float = item_h - text_y - ITEM_PAD_Y
 	text_label.position = Vector2(text_x, text_y)
-	text_label.size = Vector2(text_w, maxf(text_h, 20.0))
+	text_label.size = Vector2(text_w, maxf(text_h, 24.0))
 	panel.add_child(text_label)
 
 	# Item 数据
 	var item: Dictionary = {
-		"panel":           panel,
-		"text_label":      text_label,
-		"text":            text,
-		"speaker":         speaker,
-		"duration":        duration,
-		"typewriter_pos":  0,
+		"panel":            panel,
+		"text_label":       text_label,
+		"text":             text,
+		"speaker":          speaker,
+		"duration":         duration,
+		"typewriter_pos":   0,
 		"typewriter_accum": 0.0,
-		"idle_timer":      0.0,
-		"phase":           "entering",
-		"tween":           null,
-		"base_x":          base_x,
-		"base_y":          base_y,
-		"height":          item_h,
+		"idle_timer":       0.0,
+		"phase":            "entering",
+		"tween":            null,
+		"base_x":           base_x,
+		"base_y":           base_y,
+		"height":           item_h,
 	}
 
-	# 连接绘制
 	panel.draw.connect(_draw_item.bind(item))
 
 	add_child(panel)
@@ -215,14 +214,14 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	_start_item_enter(item)
 
 # ---------------------------------------------------------------------------
-# 高度估算
+# 高度估算（依据字号 17 重新校准）
 # ---------------------------------------------------------------------------
 func _estimate_height(text: String) -> float:
 	var line_count: int = maxi(1, text.count("\n") + 1)
-	var chars_per_line: float = 16.0
+	var chars_per_line: float = 18.0
 	var est_lines: int = maxi(line_count, ceili(float(text.length()) / chars_per_line))
-	var text_h: float = est_lines * (15.0 * 1.6)
-	return clampf(ITEM_PAD_Y * 2 + 20.0 + text_h, ITEM_MIN_H, ITEM_MAX_H)
+	var text_h: float = est_lines * (17.0 * 1.65)
+	return clampf(ITEM_PAD_Y * 2 + 24.0 + text_h, ITEM_MIN_H, ITEM_MAX_H)
 
 # ---------------------------------------------------------------------------
 # 计算下一条消息的 Y 位置
@@ -238,7 +237,7 @@ func _get_next_y() -> float:
 	return y
 
 # ---------------------------------------------------------------------------
-# 绘制：便签条风格（精简版）
+# 绘制：便签条风格（直角版）
 # ---------------------------------------------------------------------------
 func _draw_item(item: Dictionary) -> void:
 	var panel: Control = item["panel"]
@@ -249,47 +248,32 @@ func _draw_item(item: Dictionary) -> void:
 	var h: float = panel.size.y
 	var sp_color: Color = SPEAKER_COLOR.get(item["speaker"], Color(0.5, 0.5, 0.5))
 
-	# 阴影
-	panel.draw_colored_polygon(
-		_rounded_rect_pts(Rect2(2, 3, w, h), ITEM_CORNER_R + 1.0),
-		Color(0.08, 0.06, 0.12, 0.22)
-	)
+	# 阴影（直角偏移块）
+	panel.draw_rect(Rect2(3, 4, w, h), Color(0.08, 0.06, 0.12, 0.20))
 
-	# 主背景（稿纸色）
-	panel.draw_colored_polygon(
-		_rounded_rect_pts(Rect2(0, 0, w, h), ITEM_CORNER_R),
-		Color(t.notebook_paper.r, t.notebook_paper.g, t.notebook_paper.b, 0.96)
-	)
+	# 主背景（稿纸色，直角）
+	panel.draw_rect(Rect2(0, 0, w, h),
+		Color(t.notebook_paper.r, t.notebook_paper.g, t.notebook_paper.b, 0.97))
 
-	# 横线（2条，仅文字区）
-	var line_color: Color = Color(t.notebook_line.r, t.notebook_line.g, t.notebook_line.b, 0.45)
+	# 横线（文字区）
+	var line_color: Color = Color(t.notebook_line.r, t.notebook_line.g, t.notebook_line.b, 0.40)
 	var lx0: float = ITEM_SPINE_W + ITEM_PAD_X
 	var lx1: float = w - ITEM_PAD_X - ITEM_AVATAR_R * 2.0 - 6.0
-	var ly: float = ITEM_PAD_Y + 20.0 + 18.0
-	var step: float = 22.0
+	var ly: float = ITEM_PAD_Y + 24.0 + 24.0
+	var step: float = 26.0
 	while ly < h - ITEM_PAD_Y - 4.0:
-		panel.draw_line(Vector2(lx0, ly), Vector2(lx1, ly), line_color, 0.7)
+		panel.draw_line(Vector2(lx0, ly), Vector2(lx1, ly), line_color, 0.8)
 		ly += step
 
-	# 左侧说话人色条
-	var spine_rect: PackedVector2Array = [
-		Vector2(0, ITEM_CORNER_R),
-		Vector2(0, h - ITEM_CORNER_R),
-		Vector2(ITEM_CORNER_R, h),
-		Vector2(ITEM_SPINE_W, h),
-		Vector2(ITEM_SPINE_W, 0),
-		Vector2(ITEM_CORNER_R, 0),
-	]
-	panel.draw_colored_polygon(spine_rect,
-		Color(sp_color.r, sp_color.g, sp_color.b, 0.72))
+	# 左侧说话人色条（直角矩形）
+	panel.draw_rect(Rect2(0, 0, ITEM_SPINE_W, h),
+		Color(sp_color.r, sp_color.g, sp_color.b, 0.75))
 
 	# 外框
-	var border_pts: PackedVector2Array = _rounded_rect_pts(Rect2(0, 0, w, h), ITEM_CORNER_R)
-	border_pts.append(border_pts[0])
-	panel.draw_polyline(border_pts,
-		Color(t.notebook_border.r, t.notebook_border.g, t.notebook_border.b, 0.45), 1.0)
+	panel.draw_rect(Rect2(0, 0, w, h),
+		Color(t.notebook_border.r, t.notebook_border.g, t.notebook_border.b, 0.40), false, 1.0)
 
-	# 头像圆底
+	# 头像圆底（保留圆形头像框）
 	var av_cx: float = w - ITEM_AVATAR_R - ITEM_PAD_X
 	var av_cy: float = h * 0.5
 	panel.draw_circle(Vector2(av_cx, av_cy), ITEM_AVATAR_R + 2.0,
@@ -339,22 +323,3 @@ func _start_item_exit(item: Dictionary) -> void:
 		if is_instance_valid(panel):
 			panel.queue_free()
 	)
-
-# ---------------------------------------------------------------------------
-# 辅助：圆角矩形顶点
-# ---------------------------------------------------------------------------
-func _rounded_rect_pts(rect: Rect2, r: float) -> PackedVector2Array:
-	var pts: PackedVector2Array = PackedVector2Array()
-	var steps: int = 7
-	var corners: Array[Vector2] = [
-		Vector2(rect.position.x + r,              rect.position.y + r),
-		Vector2(rect.position.x + rect.size.x - r, rect.position.y + r),
-		Vector2(rect.position.x + rect.size.x - r, rect.position.y + rect.size.y - r),
-		Vector2(rect.position.x + r,              rect.position.y + rect.size.y - r),
-	]
-	var start_angles: Array[float] = [PI, PI * 1.5, 0.0, PI * 0.5]
-	for i in range(4):
-		for s in range(steps + 1):
-			var angle: float = start_angles[i] + PI * 0.5 * float(s) / float(steps)
-			pts.append(corners[i] + Vector2(cos(angle), sin(angle)) * r)
-	return pts

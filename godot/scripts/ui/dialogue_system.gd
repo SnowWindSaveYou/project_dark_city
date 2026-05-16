@@ -74,6 +74,8 @@ var _portrait_tex: Texture2D = null
 ## 背景图
 var bg_image_path: String = ""
 var _bg_tex: Texture2D = null
+## 行级背景切换：_load_line 检测到新路径时置为非空，main.gd 消费后清空
+var bg_pending_path: String = ""
 
 ## 打字机
 var _typewriter_pos: int = 0    # 当前显示字符数
@@ -203,6 +205,7 @@ func reset() -> void:
 	bg_image_alpha = 0.0
 	_portrait_tex = null
 	_bg_tex = null
+	bg_pending_path = ""
 	# 如果对话正在进行，恢复对话前的状态
 	if was_active:
 		GameData.set_demo_state(_prev_demo_state)
@@ -259,6 +262,10 @@ func _load_line(index: int) -> void:
 	_typewriter_total = _current_text.length()
 	_typewriter_pos = 0
 	_typewriter_accum = 0.0
+	# 行级背景切换：路径非空且与当前不同时，通知 main.gd 做 cross-fade
+	var line_bg: String = line.get("bg_image", "")
+	if line_bg != "" and line_bg != bg_image_path:
+		bg_pending_path = line_bg
 	state = "typing"
 
 func _advance() -> void:
@@ -295,6 +302,7 @@ func on_exit_complete() -> void:
 	_script_index = 0
 	_portrait_tex = null
 	_bg_tex = null
+	bg_pending_path = ""
 	# 仅当 demo_state 仍为 "dialogue" 时才恢复，防止异步场景切换（如进入暗面）后状态被覆盖
 	if GameData.demo_state == "dialogue":
 		GameData.set_demo_state(restore_state)

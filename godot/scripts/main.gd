@@ -1086,6 +1086,12 @@ func _update_dialogue_tweens(dt: float) -> void:
 		return
 	_dialogue_system.update(dt)
 
+	# 行级背景切换：cross-fade 新背景
+	if _dialogue_system.bg_pending_path != "":
+		var new_path: String = _dialogue_system.bg_pending_path
+		_dialogue_system.bg_pending_path = ""
+		_tween_dialogue_bg_switch(new_path)
+
 	match _dialogue_system.state:
 		"entering":
 			if not _dlg_enter_tweened:
@@ -1135,6 +1141,16 @@ func _tween_dialogue_exit() -> void:
 	# 完成回调
 	var tw_cb: Tween = create_tween()
 	tw_cb.tween_callback(_dialogue_system.on_exit_complete).set_delay(0.35)
+
+## 行级背景 cross-fade：淡出当前背景 → 换贴图 → 淡入新背景
+func _tween_dialogue_bg_switch(new_path: String) -> void:
+	var tw: Tween = create_tween()
+	tw.tween_property(_dialogue_system, "bg_image_alpha", 0.0, 0.25)
+	tw.tween_callback(func() -> void:
+		_dialogue_system.bg_image_path = new_path
+		_dialogue_system._bg_tex = load(new_path) as Texture2D
+	)
+	tw.tween_property(_dialogue_system, "bg_image_alpha", 1.0, 0.35)
 
 # ---------------------------------------------------------------------------
 # 气泡对话 tween 管理
