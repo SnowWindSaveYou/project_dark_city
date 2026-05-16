@@ -748,8 +748,8 @@ func _draw_polaroid_shadow_decor() -> void:
 	sb.shadow_color  = Color(0.118, 0.078, 0.039, 0.28)
 
 	# 将卡片全局坐标转到 NotebookDecor 本地坐标，并应用旋转
-	var local_origin: Vector2 = _notebook_decor.to_local(global_rect.position)
-	var local_center: Vector2 = _notebook_decor.to_local(global_rect.get_center())
+	var local_origin: Vector2 = global_rect.position - _notebook_decor.global_position
+	var local_center: Vector2 = global_rect.get_center() - _notebook_decor.global_position
 	_notebook_decor.draw_set_transform(local_center, _polaroid_card.rotation)
 	# draw_style_box 的 Rect 以旋转中心为原点偏移
 	_notebook_decor.draw_style_box(sb, Rect2(local_origin - local_center, global_rect.size))
