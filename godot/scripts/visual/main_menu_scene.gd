@@ -212,6 +212,84 @@ func _set_white_bg() -> void:
 
 
 # ---------------------------------------------------------------------------
+# 城市层：右侧暗色渐变 + 楼宇剪影
+# ---------------------------------------------------------------------------
+
+func _setup_city_layer() -> void:
+	# ── 暗色渐变 TextureRect（全屏，从中间到右侧渐深）
+	var grad_rect: TextureRect = TextureRect.new()
+	grad_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	grad_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grad_rect.z_index = -80   # 白底之上，其他一切之下
+
+	var grad: Gradient = Gradient.new()
+	grad.colors  = PackedColorArray([
+		Color(0.0, 0.0, 0.0, 0.0),          # 透明（渐变起点）
+		Color(0.04, 0.02, 0.10, 0.88),       # 深蓝紫黑（渐变终点）
+	])
+	grad.offsets = PackedFloat32Array([0.0, 1.0])
+
+	var grad_tex: GradientTexture2D = GradientTexture2D.new()
+	grad_tex.gradient  = grad
+	grad_tex.fill      = GradientTexture2D.FILL_LINEAR
+	grad_tex.fill_from = Vector2(0.50, 0.5)  # 从屏幕 50% 处开始透明→暗
+	grad_tex.fill_to   = Vector2(0.90, 0.5)  # 到 90% 处达到最深
+
+	grad_rect.texture      = grad_tex
+	grad_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	add_child(grad_rect)
+	move_child(grad_rect, 1)   # 紧跟白色背景之后
+
+	# ── 楼宇剪影绘制层（z_index 低于 BaiYeSprite，让角色浮在城市之上）
+	_city_layer = Control.new()
+	_city_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_city_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_city_layer.z_index = -1   # 刚好在默认层之下
+	add_child(_city_layer)
+	_city_layer.draw.connect(_draw_city)
+
+	_init_buildings()
+	_city_layer.queue_redraw()
+
+
+func _init_buildings() -> void:
+	_buildings.clear()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20250516
+
+	# 楼宇群在右侧（x: 52%~108%），底部对齐
+	# 紧密排列，宽度和高度都以屏幕比例存储
+	var x_cursor: float = 0.52
+	while x_cursor < 1.08:
+		var bw: float = rng.randf_range(0.025, 0.068)
+		var bh: float = rng.randf_range(0.08, 0.24)
+		_buildings.append({ "x": x_cursor, "w": bw, "h": bh })
+		x_cursor += bw + rng.randf_range(0.001, 0.006)   # 几乎无间隙，密集城市感
+
+
+func _draw_city() -> void:
+	if _city_layer == null:
+		return
+	var w: float = _city_layer.size.x
+	var h: float = _city_layer.size.y
+
+	# 楼宇颜色：比深色渐变略深，让轮廓可见
+	var bld_fill:   Color = Color(0.025, 0.015, 0.07, 0.95)
+	var bld_edge:   Color = Color(0.18, 0.14, 0.32, 0.25)   # 顶部细线，楼层感
+
+	for bld in _buildings:
+		var bx: float  = bld["x"] * w
+		var bw_px: float = bld["w"] * w
+		var bh_px: float = bld["h"] * h
+		var by: float  = h - bh_px   # 从底部向上
+
+		# 楼宇主体
+		_city_layer.draw_rect(Rect2(bx, by, bw_px, bh_px), bld_fill)
+		# 楼宇顶部亮边（1px，模拟城市灯光轮廓）
+		_city_layer.draw_line(Vector2(bx, by), Vector2(bx + bw_px, by), bld_edge, 1.0)
+
+
+# ---------------------------------------------------------------------------
 # 立绘加载
 # ---------------------------------------------------------------------------
 
@@ -468,6 +546,8 @@ func _process(dt: float) -> void:
 				_glitch_char_idx = -1
 
 	_draw_layer.queue_redraw()
+	if _city_layer:
+		_city_layer.queue_redraw()
 
 
 # ---------------------------------------------------------------------------
