@@ -131,7 +131,8 @@ func _draw() -> void:
 	if m == null or m._dialogue_system == null:
 		return
 	var ds: DialogueSystem = m._dialogue_system
-	if ds.overlay_alpha < 0.01 and ds.box_alpha < 0.01:
+	# 注意：bg_image_alpha 也需要参与判断，避免背景图被提前 return 遮住
+	if ds.overlay_alpha < 0.01 and ds.box_alpha < 0.01 and ds.bg_image_alpha < 0.01:
 		return
 
 	var vp: Vector2 = get_viewport_rect().size
