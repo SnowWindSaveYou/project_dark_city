@@ -110,6 +110,7 @@ local G = {
         monsterSeen        = false,  -- 灵感影响怪物伤害
         riftSeen           = false,  -- 裂隙/灵感机制
         darkWorldEntered   = false,  -- 理智=暗面步数
+        safeZoneSeen       = false,  -- 安全区光晕机制
     },
 }
 
@@ -594,7 +595,7 @@ function Start()
             G.tutorialFlags.cameraModeSeen = true
             BubbleDialogue.showTutorial(
                 playerBubble,
-                "白夜：拍没翻开的格子，能提前侦察危险。\n拍完有时会出现箭头——指向最近的妖魔。\n胶卷有限，省着用。",
+                "白夜：翻开之前，先拍一下。\n镜头里有时会浮现方向——妖魔在哪边。\n胶卷不多。",
                 8
             )
         end

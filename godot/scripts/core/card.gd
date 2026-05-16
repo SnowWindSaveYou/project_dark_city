@@ -45,6 +45,7 @@ var dark_type: String = ""        # 暗面卡牌类型 (normal/shop/passage/abys
 var dark_name: String = ""        # 暗面卡牌显示名
 var dark_icon: String = ""        # 暗面卡牌图标
 var dark_collected: bool = false  # 暗面道具/线索是否已被收集
+var dark_dot: bool = false        # 是否含有暗币点 (踩到时 +1 darkcoin)
 
 # --- 陷阱/裂隙 ---
 var trap_subtype: String = ""     # 陷阱子类型 (sanity/money/film/teleport)

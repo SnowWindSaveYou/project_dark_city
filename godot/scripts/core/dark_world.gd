@@ -65,6 +65,8 @@ class LayerData:
 	var entry_row: int = 2
 	var entry_col: int = 2
 	var collected: Dictionary = {}  # "row,col" → true
+	## 换层前保存的棋盘对象，回层时直接恢复 (避免重新生成随机地图)
+	var saved_board: Board = null
 
 # ---------------------------------------------------------------------------
 # 实例状态

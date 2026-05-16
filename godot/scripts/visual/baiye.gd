@@ -19,7 +19,7 @@ const OFFSET_X: float = -90.0   # 左侧，远离棋子
 const OFFSET_Y: float = 20.0    # 略低，不与棋子头部重叠
 
 ## 正常显示缩放（入场动画结束后的目标 scale）
-const NORMAL_SCALE: float = 0.2
+const NORMAL_SCALE: float = 0.5
 
 ## 跟随平滑速度 (越大越紧, 越小越飘)
 const FOLLOW_SPEED: float = 4.0

@@ -117,6 +117,15 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 	_photo_rotation = randf_range(-5.0, 5.0)
 	visible = true
 
+	# 视口自适应：确保弹窗在各分辨率下不溢出屏幕
+	var vp: Vector2 = get_viewport_rect().size
+	var fit: float = minf(vp.x * 0.90 / float(PHOTO_W), vp.y * 0.92 / float(PHOTO_H), 1.0)
+	var fw: float = PHOTO_W * fit
+	var fh: float = PHOTO_H * fit
+	_photo_frame.custom_minimum_size = Vector2(fw, fh)
+	# 图片区高度按相同比例缩放（原始 476 来自 .tscn）
+	_image_area.custom_minimum_size.y = 476.0 * fit
+
 	var darkside: Dictionary = card.get_darkside_info()
 	var type_color: Color = GameTheme.card_type_color(card.type)
 	var tmpl: Dictionary = CardConfig.pick_event_template(card.type, card.location, card.trap_subtype)
@@ -177,8 +186,8 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 	# 初始动画状态
 	_overlay.color.a = 0.0
 	_photo_frame.scale = Vector2(0.15, 0.15)
-	# pivot_offset 必须用常量计算，visible=false 时 size 尚未由 layout 更新（为0）
-	_photo_frame.pivot_offset = Vector2(PHOTO_W, PHOTO_H) / 2.0
+	# pivot_offset 用实际尺寸（已按视口缩放），visible=false 时 size=0 故用 custom_minimum_size
+	_photo_frame.pivot_offset = _photo_frame.custom_minimum_size / 2.0
 	_photo_frame.modulate.a = 0.0
 	_photo_frame.rotation = 0.0
 	# 标题行（标题+分隔+地点同行，一起淡入）

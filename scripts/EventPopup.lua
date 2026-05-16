@@ -905,26 +905,42 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     nvgFillColor(vg, nvgRGBA(30, 35, 45, 240))
     nvgFill(vg)
 
-    -- 场景图片 (aspect-fill: 保持宽高比填满图区，居中裁剪)
+    -- 场景图片 (cover-fit: 保持宽高比填满图区，居中裁剪)
     if sceneImg > 0 then
-        nvgSave(vg)
-        nvgScissor(vg, imgX, imgY, imgW, imgH)
-        -- 获取图片原始尺寸，计算 aspect-fill 缩放
+        -- nil 安全：nvgImageSize 可能返回 nil
         local srcW, srcH = nvgImageSize(vg, sceneImg)
-        local scaleX = imgW / (srcW > 0 and srcW or imgW)
-        local scaleY = imgH / (srcH > 0 and srcH or imgH)
-        local scale  = math.max(scaleX, scaleY)   -- fill: 取较大值确保无黑边
-        local dstW   = (srcW > 0 and srcW or imgW) * scale
-        local dstH   = (srcH > 0 and srcH or imgH) * scale
-        local dstX   = imgX + (imgW - dstW) * 0.5  -- 居中
-        local dstY   = imgY + (imgH - dstH) * 0.5
-        local imgPaint = nvgImagePattern(vg, dstX, dstY, dstW, dstH, 0, sceneImg, 1.0)
+        srcW = (srcW and srcW > 0) and srcW or nil
+        srcH = (srcH and srcH > 0) and srcH or nil
+
+        -- cover-fit 计算（参考 Widget.lua RenderFitImage 实现）
+        local drawX, drawY, drawW, drawH = imgX, imgY, imgW, imgH
+        if srcW and srcH then
+            local imgRatio = srcW / srcH
+            local boxRatio = imgW / imgH
+            if imgRatio > boxRatio then
+                -- 图片更宽：以高度为准，裁左右
+                drawH = imgH
+                drawW = imgH * imgRatio
+                drawX = imgX - (drawW - imgW) * 0.5
+                drawY = imgY
+            else
+                -- 图片更高：以宽度为准，裁上下
+                drawW = imgW
+                drawH = imgW / imgRatio
+                drawX = imgX
+                drawY = imgY - (drawH - imgH) * 0.5
+            end
+        end
+
+        -- nvgSave/Restore 包裹，确保 scissor 状态可恢复
+        nvgSave(vg)
+        nvgIntersectScissor(vg, imgX, imgY, imgW, imgH)
+        local imgPaint = nvgImagePattern(vg, drawX, drawY, drawW, drawH, 0, sceneImg, 1.0)
         nvgBeginPath(vg)
         nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
         nvgFillPaint(vg, imgPaint)
         nvgFill(vg)
-        nvgResetScissor(vg)
-        nvgRestore(vg)
+        nvgRestore(vg)  -- Restore 自动恢复 scissor，无需 nvgResetScissor
     else
         -- 场景图加载失败时, 显示事件图标作为占位
         nvgFontFace(vg, "sans")

@@ -108,7 +108,7 @@ function M.enterDarkWorld(riftRow, riftCol)
                 if G.playerBubble then
                     BubbleDialogue.showTutorial(
                         G.playerBubble,
-                        "白夜：这里……能走多远，取决于你还剩多少清醒。\n理智越多，能走的越远。",
+                        "白夜：这里的规则不一样。\n理智剩多少，就能走多少。撑不住就会被送回去。",
                         8
                     )
                 end

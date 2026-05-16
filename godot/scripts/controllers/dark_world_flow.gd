@@ -101,6 +101,8 @@ func enter_dark_world(rift_row: int, rift_col: int, force: bool = false) -> void
 			"layer_name": m.dark_world.get_layer_name(),
 			"energy": m.dark_world.get_energy(),
 			"max_energy": m.dark_world.get_max_energy(),
+			"layer_idx": m.dark_world.current_layer + 1,
+			"layer_count": 3,
 		})
 		m._camera_button.show_button()
 
@@ -147,21 +149,24 @@ func _generate_dark_board() -> void:
 		m.dark_world._npc_manager = m.game_flow.npc_manager
 		m.dark_world.generate_overlay_data(layer_idx, m.board)
 	else:
-		# 层已生成, 复用已有数据重建 Board (确保 npc_manager 注入)
-		# board=null: 位置已由首次生成确定，无需再做 bind_to_card 定位
+		# 层已生成: 恢复已保存的棋盘，避免重新随机生成导致暗币点位/卡牌状态丢失
 		m.game_flow.npc_manager.clear()
 		m.dark_world._npc_manager = m.game_flow.npc_manager
 		m.dark_world.generate_npcs(layer_idx, m.game_flow.npc_manager, null)
-		m.board = Board.new()
-		var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
-		var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
-		var ld_dict: Dictionary = {
-			"walkable": {},
-			"entry_row": 3,
-			"entry_col": 3,
-			"collected": layer_data.collected,
-		}
-		m.board.generate_dark_cards(ld_dict, dark_locs, dark_config)
+		if layer_data.saved_board != null:
+			m.board = layer_data.saved_board
+		else:
+			# 兜底: 没有保存棋盘则重新生成 (首次进入非当前层时的异常情况)
+			m.board = Board.new()
+			var dark_config: Dictionary = m.dark_world.get_dark_config(layer_idx)
+			var dark_locs: Dictionary = m.dark_world.get_dark_locations(layer_idx)
+			var ld_dict: Dictionary = {
+				"walkable": {},
+				"entry_row": 3,
+				"entry_col": 3,
+				"collected": layer_data.collected,
+			}
+			m.board.generate_dark_cards(ld_dict, dark_locs, dark_config)
 
 	m.board_visual.rebuild_card_nodes()
 
@@ -317,17 +322,28 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 	# 根据事件类型处理
 	match result.event_type:
 		EventHandler.EventType.NONE:
+			# 暗币点收集
+			if card.dark_dot:
+				card.dark_dot = false
+				GameData.modify_resource("darkcoin", 1)
+				m._vfx.action_banner("暗币 +1", Color(0.75, 0.45, 0.95), 0.7)
+				m.board_visual.update_dark_card_visual(row, col)
 			m.dark_world.set_ready()
 		
 		EventHandler.EventType.CLUE, EventHandler.EventType.DARK_CLUE:
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
-			_event_handler.execute_event(result, card)
+			# 淡出 → 执行收集 → 淡入 (对齐 Lua collectCard 动画)
+			m.board_visual.animate_dark_card_collect(row, col, func() -> void:
+				_event_handler.execute_event(result, card)
+			)
 			# 碎片掉落检查
 			var frag_id: String = m.dark_world.check_fragment_drop(
 				StoryManager.get_fragment_count(), StoryManager.flags)
 			if frag_id != "":
 				var is_new: bool = StoryManager.collect_fragment(frag_id)
 				if is_new:
+					# 碎片掉落给 inspiration+1 (对齐 Lua 版本)
+					GameData.modify_resource("inspiration", 1)
 					var frag_info: Dictionary = StoryManager.get_fragment_info(frag_id)
 					# 设置防重复 flag
 					var drops: Array = CardConfig.get_dw_fragment_drops()
@@ -352,7 +368,10 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 		
 		EventHandler.EventType.ITEM:
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 8, Color(0.8, 0.7, 0.3))
-			_event_handler.execute_event(result, card)
+			# 淡出 → 执行收集 → 淡入
+			m.board_visual.animate_dark_card_collect(row, col, func() -> void:
+				_event_handler.execute_event(result, card)
+			)
 			# 从奖池额外抽取奖励
 			var reward: Dictionary = m.dark_world.roll_item_reward()
 			if not reward.is_empty():
@@ -364,10 +383,8 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 			_event_handler.execute_event(result, card)
 		
 		EventHandler.EventType.INTEL:
-			# 情报需要额外添加传闻
 			if GameData.get_resource("money") >= result.effects.get("money", 15):
 				_event_handler.execute_event(result, card)
-				m.card_manager.add_rumor_from_board(m.board)
 			else:
 				m._vfx.action_banner("金钱不足", Color(0.86, 0.63, 0.31), 0.7)
 			m.dark_world.set_ready()
@@ -614,6 +631,11 @@ func _handle_dark_camera(row: int, col: int) -> void:
 # =========================================================================
 
 func _change_layer(target_layer: int) -> void:
+	# 换层前先保存当前层棋盘，回层时可直接恢复
+	var cur_layer_data = m.dark_world.get_layer_data()
+	if cur_layer_data != null:
+		cur_layer_data.saved_board = m.board
+
 	var result: Dictionary = m.dark_world.begin_change_layer(target_layer, m.day_count)
 	if not result["success"]:
 		m._vfx.action_banner("该层尚未解锁", Color(0.7, 0.5, 0.3), 0.7)

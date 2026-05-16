@@ -99,8 +99,9 @@ static func is_blocking_event(card_type: String, _has_choices: bool = false) -> 
 @onready var _right_vbox: VBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox
 @onready var _title_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/TitleLabel
 @onready var _effects_row: HBoxContainer = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/EffectsRow
-@onready var _desc_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescLabel
-@onready var _baiiye_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/BaiyeLabel
+@onready var _desc_scroll: ScrollContainer = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll
+@onready var _desc_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll/ContentVBox/DescLabel
+@onready var _baiiye_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll/ContentVBox/BaiyeLabel
 @onready var _confirm_button: PanelContainer = $PanelAnchor/Notebook/OuterVBox/ConfirmButton
 @onready var _confirm_label: Label = $PanelAnchor/Notebook/OuterVBox/ConfirmButton/ConfirmLabel
 @onready var _toast_container: VBoxContainer = $ToastContainer
@@ -247,6 +248,7 @@ func show_event_data(
 	_populate_effects(effects, shield_used)
 
 	_desc_label.text = tmpl.get("desc", "")
+	_desc_scroll.call_deferred("set", "scroll_vertical", 0)
 
 	# 白夜台词
 	var baiiye_text: String = tmpl.get("baiiye", "")
@@ -305,6 +307,7 @@ func show_fragment(frag_info: Dictionary) -> void:
 	_title_label.add_theme_color_override("font_color", Color(accent.r, accent.g, accent.b, 0.90))
 	_populate_effects({}, false)
 	_desc_label.text = frag_info.get("full_text", frag_info.get("desc", ""))
+	_desc_scroll.call_deferred("set", "scroll_vertical", 0)
 	_baiiye_label.visible = false
 	_confirm_label.text = "收下记忆"
 	_style_confirm_button(false)
@@ -349,6 +352,7 @@ func show_event(card: Card) -> void:
 		Color(type_color.r, type_color.g, type_color.b, 0.90))
 	_populate_effects(card.get_effects(), false)
 	_desc_label.text = card.get_event_text()
+	_desc_scroll.call_deferred("set", "scroll_vertical", 0)
 	_baiiye_label.visible = false
 	_confirm_label.text = "点击关闭"
 	_style_confirm_button(false)

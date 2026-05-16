@@ -165,6 +165,15 @@ local function onCardFlipped(card, screenX, screenY)
             card.type = "safe"
             Card.updateTexture(card, CardTextures)
         end
+        -- 首次踏入安全区光晕 → 解释安全区机制
+        if not G.tutorialFlags.safeZoneSeen and G.playerBubble then
+            G.tutorialFlags.safeZoneSeen = true
+            BubbleDialogue.showTutorial(
+                G.playerBubble,
+                "白夜：发光的格子有结界——妖魔近不了身。\n教堂和警察局周围四格，都是这样。",
+                8
+            )
+        end
     end
 
     -- 灵感阈值: 灵感不足时线索降级为安全 (感知力不够, 无法解读线索)
@@ -310,7 +319,7 @@ local function onCardFlipped(card, screenX, screenY)
                 G.tutorialFlags.monsterSeen = true
                 BubbleDialogue.showTutorial(
                     G.playerBubble,
-                    "白夜：灵感越高，妖魔对你造成的伤害越重。\n灵感是把双刃剑。",
+                    "白夜：灵感强了，它们感知得到你。\n感知得到……就咬得重。",
                     7
                 )
             end
@@ -625,7 +634,7 @@ local function onPhotographFlipped(card, screenX, screenY)
                                     G.tutorialFlags.cameraExorciseSeen = true
                                     BubbleDialogue.showTutorial(
                                         G.playerBubble,
-                                        "白夜：相机能驱除已翻开的妖魔。\n比正面遭遇安全，但要消耗胶卷。",
+                                        "白夜：已经现身的，照样能拍走。\n比正面撞上安全一点。要胶卷。",
                                         7
                                     )
                                 end
@@ -906,7 +915,7 @@ function M.handleNormalModeClick(card, row, col)
                 G.tutorialFlags.riftSeen = true
                 BubbleDialogue.showTutorial(
                     G.playerBubble,
-                    "白夜：这道缝……需要足够的灵感才能察觉。\n灵感越高，能感知到的东西也越多。",
+                    "白夜：灵感不够的时候……这里什么都没有。\n不是看不见。是感觉不到。",
                     7
                 )
             end

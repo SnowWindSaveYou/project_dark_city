@@ -83,6 +83,7 @@ mouse_filter = 2
 [node name="Notebook" type="PanelContainer" parent="PanelAnchor"]
 layout_mode = 2
 custom_minimum_size = Vector2(900, 540)
+clip_contents = true
 mouse_filter = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_nb")
 
@@ -165,7 +166,7 @@ theme_override_font_sizes/font_size = 25
 [node name="RightVBox" type="VBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
+size_flags_vertical = 3
 mouse_filter = 2
 theme_override_constants/separation = 16
 
@@ -180,15 +181,27 @@ theme_override_colors/font_color = Color(0.18, 0.18, 0.22, 0.92)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="DescLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox"]
+[node name="DescScroll" type="ScrollContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_right")
+theme_override_constants/scrollbar_v_separation = 4
+
+[node name="ContentVBox" type="VBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="DescLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll/ContentVBox"]
+layout_mode = 2
 text = "事件描述"
 autowrap_mode = 2
 theme_override_font_sizes/font_size = 34
 theme_override_colors/font_color = Color(0.38, 0.38, 0.44, 0.78)
 
-[node name="BaiyeLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox"]
+[node name="BaiyeLabel" type="Label" parent="PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll/ContentVBox"]
 layout_mode = 2
 text = ""
 autowrap_mode = 2

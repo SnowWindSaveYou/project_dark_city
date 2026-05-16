@@ -19,19 +19,6 @@ const SPRITE_Y: float = CARD_Y + Card.CARD_THICKNESS / 2.0 + 0.003
 const OVERLAY_PIXEL_SIZE: float = Card.CARD_W / 256.0
 ## PNG 底图纹理高度 (515×768 资源图)
 const PNG_TEX_HEIGHT: int = 768
-## 卡牌阴影常量
-## 阴影 Quad 相对卡牌中心的 Y 偏移
-## 相机 45° 俯视: 阴影必须明显低于卡面才能在卡片边缘外侧被看见
-## 偏移 = -(CARD_THICKNESS/2 + CARD_Y + 0.005), 使阴影落在世界 Y ≈ 0
-const CARD_SHADOW_Y_LOCAL: float = -(Card.CARD_THICKNESS / 2.0 + CARD_Y + 0.005)
-## 阴影尺寸相对卡面的比例
-## 卡片间距 GAP=0.12m, 每侧最多溢出 0.05m 以内才不会叠到邻近卡片
-## 溢出量 = CARD_W * (scale-1)/2 <= 0.05 → scale <= 1.156; 取 1.14 留余量
-const CARD_SHADOW_SCALE: float = 1.14
-## 静止状态阴影不透明度
-const CARD_SHADOW_ALPHA_NORMAL: float = 0.28
-## 悬停/抬起顶峰时阴影不透明度 (hover_t = 1)
-const CARD_SHADOW_ALPHA_HOVER: float = 0.10
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -51,19 +38,17 @@ var _card_textures: CardTextures = null
 var _card_mesh: BoxMesh = null
 ## 光环 Shader (方形发光边框上浮特效)
 var _glow_border_shader: Shader = null
-## 光环共享 QuadMesh (与卡牌同尺寸, 水平放置)
+## 光环共享 QuadMesh (比卡牌外扩一圈, 水平放置; 卡牌本体遮住中心, 只露出外圈)
 var _glow_quad_mesh: QuadMesh = null
+## 光环外扩边距 (卡牌四边各向外扩出的距离, 单位: 米)
+const GLOW_MARGIN: float = 0.055
 ## 光环层数
 const GLOW_RING_COUNT: int = 3
 ## 光环动画参数 — home / 辐射区 (柔和)
-const GLOW_CYCLE: float = 4.0        # 循环周期 (秒)
-const GLOW_Y_BASE: float = Card.CARD_THICKNESS / 2.0 + 0.003  # 起始高度 (卡面顶部上方)
-const GLOW_Y_RISE: float = 0.05      # 上浮距离
-const GLOW_SCALE_GROW: float = 0.06  # 上浮时微放大
+const GLOW_CYCLE: float = 3.5        # 循环周期 (秒)
+const GLOW_Y_BASE: float = Card.CARD_THICKNESS / 2.0 + 0.001  # 紧贴卡面顶部, 卡体遮住中心
 ## 光环动画参数 — landmark (更华丽)
-const GLOW_LM_CYCLE: float = 3.0     # 更快的周期
-const GLOW_LM_Y_RISE: float = 0.08   # 更高上浮
-const GLOW_LM_SCALE_GROW: float = 0.10  # 更大放大
+const GLOW_LM_CYCLE: float = 2.5     # 更快的周期
 const GLOW_LM_RING_COUNT: int = 4    # 多一层
 
 ## 侦察/揭示图标常量
@@ -93,7 +78,7 @@ func setup(main_ref) -> void:
 	# 光环 Shader & 共享 Mesh
 	_glow_border_shader = load("res://shaders/glow_border.gdshader")
 	_glow_quad_mesh = QuadMesh.new()
-	_glow_quad_mesh.size = Vector2(Card.CARD_W, Card.CARD_H)
+	_glow_quad_mesh.size = Vector2(Card.CARD_W + GLOW_MARGIN * 2.0, Card.CARD_H + GLOW_MARGIN * 2.0)
 	_glow_quad_mesh.orientation = PlaneMesh.FACE_Y  # 水平放置, 面朝 +Y
 
 	# 侦察/揭示图标纹理 (预加载)
@@ -249,25 +234,6 @@ func rebuild_card_nodes() -> void:
 			if card.should_have_glow():
 				_attach_glow_rings(card_node, card.type)
 
-			# 卡牌阴影 (水平 PlaneMesh, 贴桌面, 悬停时变淡扩散)
-			# 注意: QuadMesh 默认竖立面朝 Z, 必须用 PlaneMesh (默认水平面朝 +Y)
-			var shadow_quad: MeshInstance3D = MeshInstance3D.new()
-			shadow_quad.name = "CardShadow"
-			var shadow_mesh: PlaneMesh = PlaneMesh.new()
-			shadow_mesh.size = Vector2(Card.CARD_W * CARD_SHADOW_SCALE, Card.CARD_H * CARD_SHADOW_SCALE)
-			shadow_quad.mesh = shadow_mesh
-			var shadow_mat: StandardMaterial3D = StandardMaterial3D.new()
-			shadow_mat.albedo_color = Color(0.0, 0.0, 0.0, CARD_SHADOW_ALPHA_NORMAL)
-			shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			shadow_mat.no_depth_test = false
-			shadow_quad.material_override = shadow_mat
-			shadow_quad.position = Vector3(0.0, CARD_SHADOW_Y_LOCAL, 0.0)
-			# render_priority=-1: 在所有普通透明物体之前排序, 确保不遮住邻近卡片
-			shadow_quad.extra_cull_margin = 0.0
-			shadow_mat.render_priority = -1
-			card_node.add_child(shadow_quad)
-
 			board_layer.add_child(card_node)
 
 # ---------------------------------------------------------------------------
@@ -295,11 +261,6 @@ func _set_card_alpha(card_node: MeshInstance3D, a: float) -> void:
 	for child in card_node.get_children():
 		if child is Sprite3D or child is Label3D:
 			child.modulate.a = a
-		elif child is MeshInstance3D and child.name == "CardShadow":
-			# 阴影随卡牌整体淡入淡出, 按基础 alpha 比例缩放
-			var smat := child.material_override as StandardMaterial3D
-			if smat:
-				smat.albedo_color.a = CARD_SHADOW_ALPHA_NORMAL * a
 		elif child is Node3D:
 			# 递归处理更深层子节点（图标等）
 			for grandchild in child.get_children():
@@ -439,13 +400,6 @@ func apply_hover_scales() -> void:
 			var hover_scale: float = 1.0 + card.hover_t * 0.08
 			# 仅修改 X 和 Z (保持 Y=1, 卡牌厚度不变)
 			card_node.scale = Vector3(hover_scale, 1.0, hover_scale)
-			# 同步阴影: 抬起时透明度降低 (光源偏远、阴影扩散变淡)
-			# 阴影尺寸随父节点 XZ scale 自然扩大，只需控制 alpha
-			var shadow_node := card_node.get_node_or_null("CardShadow") as MeshInstance3D
-			if shadow_node:
-				var smat := shadow_node.material_override as StandardMaterial3D
-				if smat:
-					smat.albedo_color.a = lerpf(CARD_SHADOW_ALPHA_NORMAL, CARD_SHADOW_ALPHA_HOVER, card.hover_t)
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:
@@ -1154,6 +1108,29 @@ func animate_ghost_fade(ghost_index: int) -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 		_ghost_nodes.erase(ghost_index)
+	)
+
+## 暗面卡牌收集动画: 淡出 0.18s → 执行 callback → 淡入 0.22s
+## 用于 clue/item 收集时的视觉反馈 (对齐 Lua collectCard 动画)
+func animate_dark_card_collect(row: int, col: int, callback: Callable) -> void:
+	var card_node: MeshInstance3D = get_card_node(row, col)
+	if card_node == null:
+		callback.call()
+		return
+	# 淡出
+	var tw_out: Tween = m.create_tween()
+	tw_out.tween_method(func(a: float) -> void:
+		_set_card_alpha(card_node, a)
+	, 1.0, 0.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw_out.tween_callback(func() -> void:
+		callback.call()
+		# 执行 callback 后刷新卡牌视觉 (类型已被更改为 normal)
+		update_dark_card_visual(row, col)
+		# 淡入
+		var tw_in: Tween = m.create_tween()
+		tw_in.tween_method(func(a: float) -> void:
+			_set_card_alpha(card_node, a)
+		, 0.0, 1.0, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	)
 
 # ---------------------------------------------------------------------------
@@ -1906,18 +1883,11 @@ func update_glow_rings(game_time: float) -> void:
 				# 根据 metadata 选择动画参数 (landmark vs home/aura)
 				var is_lm: bool = ring.get_meta("is_landmark", false)
 				var cycle: float = GLOW_LM_CYCLE if is_lm else GLOW_CYCLE
-				var y_rise: float = GLOW_LM_Y_RISE if is_lm else GLOW_Y_RISE
-				var scale_grow: float = GLOW_LM_SCALE_GROW if is_lm else GLOW_SCALE_GROW
 				var ring_count: int = GLOW_LM_RING_COUNT if is_lm else GLOW_RING_COUNT
-				# 交错相位: 每层偏移 1/ring_count 个周期 (匹配 Lua)
+				# 交错相位: 每层偏移 1/ring_count 个周期
 				var phase: float = fmod(game_time / cycle + float(i - 1) / float(ring_count), 1.0)
-				var y: float = GLOW_Y_BASE + phase * y_rise
-				# 线性衰减至全透明
-				var alpha: float = 1.0 - phase
-				var sc: float = 1.0 + phase * scale_grow
-
-				ring.position = Vector3(0, y, 0)
-				ring.scale = Vector3(sc, 1.0, sc)
+				# sin 脉冲: 0.15 ~ 0.75 之间呼吸, 不完全消失
+				var alpha: float = 0.15 + 0.60 * sin(phase * PI)
 				# 更新 shader uniform 中的 alpha (保留原始 RGB 颜色)
 				var mat: ShaderMaterial = ring.material_override as ShaderMaterial
 				var col: Color = mat.get_shader_parameter("border_color") as Color
