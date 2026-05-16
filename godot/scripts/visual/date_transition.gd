@@ -88,7 +88,7 @@ func _ready() -> void:
 	set_process(false)
 
 	# 尝试加载背景图
-	var bg_path: String = "res://assets/images/date_transition_bg.png"
+	var bg_path: String = "res://assets/images/edited_主角_睡觉CGv3_20260425163451.png"
 	if ResourceLoader.exists(bg_path):
 		_bg_texture = load(bg_path)
 
