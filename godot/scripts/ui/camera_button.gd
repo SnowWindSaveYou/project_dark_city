@@ -164,6 +164,8 @@ func _process(delta: float) -> void:
 				Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, 0.12))
 			_vignette_material.set_shader_parameter("overall_alpha", _viewfinder_alpha)
 
+	# modulate 在 _process 里统一设置，避免在 _draw() 内修改节点属性引发死循环
+	modulate.a = _btn_alpha
 	queue_redraw()
 
 # ---------------------------------------------------------------------------
@@ -217,48 +219,31 @@ func _draw() -> void:
 	var cx: float = vp.x / 2.0 + _shake_x
 	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
 
-	# 按钮整体变换（弹入 + hover 微放大）
 	var hover_scale: float = 1.0 + _hover_t * 0.08
 	var total_scale: float = _btn_scale * hover_scale
-	var xf: Transform2D = Transform2D()
-	xf = xf.translated(-Vector2(cx, cy))
-	xf = xf.scaled(Vector2(total_scale, total_scale))
-	xf = xf.translated(Vector2(cx, cy))
-	draw_set_transform_matrix(xf)
-	modulate.a = _btn_alpha
 
-	# ── 1. 柔光晕（从 emoji 外缘向外辐射，中心透明不遮挡图标）
+	# ── 1. 柔光晕（draw_arc 环形，从 emoji 外缘向外，绝对不会覆盖图标中心）
 	var glow_color: Color = t.camera_btn_active if _in_camera_mode else t.camera_btn
 	var glow_intensity: float
 	if _in_camera_mode:
 		var pulse: float = 0.5 + 0.5 * absf(sin(_time * 2.5))
-		glow_intensity = 0.50 + pulse * 0.25
+		glow_intensity = 0.55 + pulse * 0.25
 	else:
-		glow_intensity = 0.18 + _hover_t * 0.28
-	_draw_soft_glow(Vector2(cx, cy), ICON_SIZE * 0.5, 40.0, glow_color, glow_intensity)
+		glow_intensity = 0.20 + _hover_t * 0.30
+	_draw_soft_glow(Vector2(cx, cy), ICON_SIZE * 0.5 * total_scale, 44.0, glow_color, glow_intensity)
 
-	# ── 2. 相机图标（带旋转）
-	# 注意：icon_xf 将原点映射到 (cx, cy) 处，所以 draw_string 以 (0,0) 为中心绘制
-	var icon_xf: Transform2D = Transform2D.IDENTITY.rotated(deg_to_rad(_icon_rot))
-	icon_xf = icon_xf.translated(Vector2(cx, cy))
-	draw_set_transform_matrix(icon_xf)
-
-	# emoji 基线：以 (0,0) 为中心，baseline y = size*0.28
+	# ── 2. 相机图标：draw_set_transform(位置, 旋转, 缩放) 是最可靠的方式
+	draw_set_transform(Vector2(cx, cy), deg_to_rad(_icon_rot), Vector2(total_scale, total_scale))
+	# emoji 基线以变换原点 (cx,cy) 为参考，x 居中，y baseline 约 +0.28*size
 	draw_string(font,
 		Vector2(-ICON_SIZE / 2.0, ICON_SIZE * 0.28),
 		"📷", HORIZONTAL_ALIGNMENT_CENTER, ICON_SIZE, int(ICON_SIZE),
 		Color.WHITE)
 
-	# 恢复按钮级变换
-	draw_set_transform_matrix(xf)
-
-	# ── 3. 胶卷计数 pill（图标正下方，不跟随旋转，用原始坐标系绘制）
-	draw_set_transform_matrix(Transform2D.IDENTITY)
+	# ── 3. 胶卷计数 pill（重置变换，用绝对坐标绘制）
+	draw_set_transform(Vector2.ZERO)
 	var film: int = GameData.get_resource("film")
 	_draw_film_pill(cx, cy, film, t, font)
-
-	# 重置
-	modulate.a = 1.0
 
 # ---------------------------------------------------------------------------
 # 胶卷 pill
@@ -368,25 +353,24 @@ func _ensure_film_texture() -> void:
 # 辅助：绘制
 # ---------------------------------------------------------------------------
 
-## 向外辐射的柔和光晕（StyleBoxFlat shadow）
-## icon_r:  光晕起始半径（emoji 外缘，内部保持透明不遮挡图标）
-## expand:  向外扩散的像素数
-## intensity: shadow_color alpha（直接等于 StyleBoxFlat.shadow_color.a）
-func _draw_soft_glow(center: Vector2, icon_r: float, expand: float,
+## 向外辐射的柔和光晕（draw_arc 环形，从 emoji 外缘向外扩散，绝不覆盖中心）
+## inner_r: 起始半径（emoji 外缘）
+## expand:  向外扩散的总像素数
+## intensity: 最内环的最大 alpha
+func _draw_soft_glow(center: Vector2, inner_r: float, expand: float,
 		color: Color, intensity: float) -> void:
 	if intensity < 0.01:
 		return
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.0, 0.0, 0.0, 0.0)   # 中心透明，不覆盖 emoji
-	sb.corner_radius_top_left     = int(icon_r)
-	sb.corner_radius_top_right    = int(icon_r)
-	sb.corner_radius_bottom_left  = int(icon_r)
-	sb.corner_radius_bottom_right = int(icon_r)
-	sb.shadow_color  = Color(color.r, color.g, color.b, intensity)
-	sb.shadow_size   = int(expand)
-	sb.shadow_offset = Vector2.ZERO
-	draw_style_box(sb, Rect2(center.x - icon_r, center.y - icon_r,
-		icon_r * 2.0, icon_r * 2.0))
+	var steps: int = 7
+	for i in range(steps):
+		var ratio: float = float(i) / float(steps - 1)
+		var r: float = inner_r + 2.0 + ratio * expand
+		var a: float = intensity * pow(1.0 - ratio, 1.6)
+		if a < 0.01:
+			continue
+		var thickness: float = lerpf(5.0, 1.5, ratio)
+		draw_arc(center, r, 0.0, TAU, 64,
+			Color(color.r, color.g, color.b, a), thickness)
 
 
 ## 圆角 pill 背景

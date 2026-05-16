@@ -29,7 +29,7 @@ const ATMO_BRIGHT: Dictionary = {
 	"light_color":    Color(1.00, 0.97, 0.90),   # 暖白阳光
 	"light_energy":   1.2,
 	"ambient_energy": 0.60,
-	"glow_intensity":  0.35,
+	"glow_intensity":  0.15,
 	"glow_bloom":      0.00,
 	"adj_brightness":  0.92,
 	"adj_contrast":    1.04,
@@ -40,8 +40,8 @@ const ATMO_DARK: Dictionary = {
 	"light_color":    Color(0.62, 0.65, 0.90),   # 冷蓝紫幽光
 	"light_energy":   0.55,
 	"ambient_energy": 0.30,
-	"glow_intensity":  1.10,
-	"glow_bloom":      0.08,
+	"glow_intensity":  0.50,
+	"glow_bloom":      0.02,
 	"adj_brightness":  0.88,
 	"adj_contrast":    1.18,
 	"adj_saturation":  0.58,

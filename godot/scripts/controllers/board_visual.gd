@@ -1804,7 +1804,7 @@ func _create_glow_ring_material(color: Color, is_landmark: bool) -> ShaderMateri
 	else:
 		mat.set_shader_parameter("border_width", 0.06)
 		mat.set_shader_parameter("glow_spread", 0.08)
-	mat.render_priority = 1  # 高于卡面(0), 保证在卡面之后渲染; blend_add 加法混合不会遮挡其他元素
+	mat.render_priority = 0  # 与 chibi/token 同组, 由深度排序决定先后; chibi 世界 Y≈0.5 远高于光环 Y≈0.018, 相机俯视时 chibi 自然更近
 	return mat
 
 ## 为指定卡牌挂载方形发光边框 (landmark=4层金色华丽, home=3层柔白)
