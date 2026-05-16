@@ -19,6 +19,15 @@ const SPRITE_Y: float = CARD_Y + Card.CARD_THICKNESS / 2.0 + 0.003
 const OVERLAY_PIXEL_SIZE: float = Card.CARD_W / 256.0
 ## PNG 底图纹理高度 (515×768 资源图)
 const PNG_TEX_HEIGHT: int = 768
+## 卡牌阴影常量
+## 阴影 Quad 相对卡牌中心的 Y 偏移 (略低于卡底面, 贴桌面)
+const CARD_SHADOW_Y_LOCAL: float = -(Card.CARD_THICKNESS / 2.0 + 0.002)
+## 阴影尺寸相对卡面的比例 (略大于卡面, 形成柔和溢出感)
+const CARD_SHADOW_SCALE: float = 1.08
+## 静止状态阴影不透明度
+const CARD_SHADOW_ALPHA_NORMAL: float = 0.30
+## 悬停/抬起顶峰时阴影不透明度 (hover_t = 1)
+const CARD_SHADOW_ALPHA_HOVER: float = 0.12
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -236,6 +245,22 @@ func rebuild_card_nodes() -> void:
 			if card.should_have_glow():
 				_attach_glow_rings(card_node, card.type)
 
+			# 卡牌阴影 (扁平 Quad, 贴桌面, 悬停时变淡扩散)
+			var shadow_quad: MeshInstance3D = MeshInstance3D.new()
+			shadow_quad.name = "CardShadow"
+			var shadow_mesh: QuadMesh = QuadMesh.new()
+			shadow_mesh.size = Vector2(Card.CARD_W * CARD_SHADOW_SCALE, Card.CARD_H * CARD_SHADOW_SCALE)
+			shadow_mesh.orientation = PlaneMesh.FACE_Y
+			shadow_quad.mesh = shadow_mesh
+			var shadow_mat: StandardMaterial3D = StandardMaterial3D.new()
+			shadow_mat.albedo_color = Color(0.0, 0.0, 0.0, CARD_SHADOW_ALPHA_NORMAL)
+			shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			shadow_mat.no_depth_test = false
+			shadow_quad.material_override = shadow_mat
+			shadow_quad.position = Vector3(0.0, CARD_SHADOW_Y_LOCAL, 0.0)
+			card_node.add_child(shadow_quad)
+
 			board_layer.add_child(card_node)
 
 # ---------------------------------------------------------------------------
@@ -263,6 +288,11 @@ func _set_card_alpha(card_node: MeshInstance3D, a: float) -> void:
 	for child in card_node.get_children():
 		if child is Sprite3D or child is Label3D:
 			child.modulate.a = a
+		elif child is MeshInstance3D and child.name == "CardShadow":
+			# 阴影随卡牌整体淡入淡出, 按基础 alpha 比例缩放
+			var smat := child.material_override as StandardMaterial3D
+			if smat:
+				smat.albedo_color.a = CARD_SHADOW_ALPHA_NORMAL * a
 		elif child is Node3D:
 			# 递归处理更深层子节点（图标等）
 			for grandchild in child.get_children():
@@ -402,6 +432,13 @@ func apply_hover_scales() -> void:
 			var hover_scale: float = 1.0 + card.hover_t * 0.08
 			# 仅修改 X 和 Z (保持 Y=1, 卡牌厚度不变)
 			card_node.scale = Vector3(hover_scale, 1.0, hover_scale)
+			# 同步阴影: 抬起时透明度降低 (光源偏远、阴影扩散变淡)
+			# 阴影尺寸随父节点 XZ scale 自然扩大，只需控制 alpha
+			var shadow_node := card_node.get_node_or_null("CardShadow") as MeshInstance3D
+			if shadow_node:
+				var smat := shadow_node.material_override as StandardMaterial3D
+				if smat:
+					smat.albedo_color.a = lerpf(CARD_SHADOW_ALPHA_NORMAL, CARD_SHADOW_ALPHA_HOVER, card.hover_t)
 
 ## 暗面世界卡牌视觉 (墙壁=null → 隐藏节点)
 func update_dark_card_visual(row: int, col: int) -> void:

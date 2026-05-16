@@ -232,13 +232,18 @@ func _draw() -> void:
 		glow_intensity = 0.20 + _hover_t * 0.30
 	_draw_soft_glow(Vector2(cx, cy), ICON_SIZE * 0.5 * total_scale, 44.0, glow_color, glow_intensity)
 
-	# ── 2. 相机图标：draw_set_transform(位置, 旋转, 缩放) 是最可靠的方式
+	# ── 2. 相机图标（手绘，不依赖字体 emoji）
+	var icon_color: Color
+	if _in_camera_mode:
+		icon_color = Color(t.camera_btn_active.r, t.camera_btn_active.g, t.camera_btn_active.b, 1.0)
+	else:
+		icon_color = Color(0.14, 0.18, 0.24, 1.0)   # text_primary #232D3C
+	var lens_ring_color: Color = Color(
+		lerpf(icon_color.r, 1.0, 0.35),
+		lerpf(icon_color.g, 1.0, 0.35),
+		lerpf(icon_color.b, 1.0, 0.35), 1.0)
 	draw_set_transform(Vector2(cx, cy), deg_to_rad(_icon_rot), Vector2(total_scale, total_scale))
-	# emoji 基线以变换原点 (cx,cy) 为参考，x 居中，y baseline 约 +0.28*size
-	draw_string(font,
-		Vector2(-ICON_SIZE / 2.0, ICON_SIZE * 0.28),
-		"📷", HORIZONTAL_ALIGNMENT_CENTER, ICON_SIZE, int(ICON_SIZE),
-		Color.WHITE)
+	_draw_camera_icon(icon_color, lens_ring_color)
 
 	# ── 3. 胶卷计数 pill（重置变换，用绝对坐标绘制）
 	draw_set_transform(Vector2.ZERO)
@@ -371,6 +376,51 @@ func _draw_soft_glow(center: Vector2, inner_r: float, expand: float,
 		var thickness: float = lerpf(5.0, 1.5, ratio)
 		draw_arc(center, r, 0.0, TAU, 64,
 			Color(color.r, color.g, color.b, a), thickness)
+
+
+## 手绘相机图标，坐标以 (0,0) 为中心（配合 draw_set_transform 使用）
+## body_color: 机身/镜头内芯颜色；lens_ring: 镜头外环颜色
+func _draw_camera_icon(body_color: Color, lens_ring: Color) -> void:
+	# ---- 机身（圆角矩形）----
+	var bw: float = 50.0
+	var bh: float = 34.0
+	var br: float = 6.0
+	var body_y: float = 2.0   # 中心稍微偏下，给上方凸起留空间
+	var body_sb := StyleBoxFlat.new()
+	body_sb.bg_color = body_color
+	body_sb.corner_radius_top_left     = int(br)
+	body_sb.corner_radius_top_right    = int(br)
+	body_sb.corner_radius_bottom_left  = int(br)
+	body_sb.corner_radius_bottom_right = int(br)
+	body_sb.shadow_size = 0
+	draw_style_box(body_sb, Rect2(-bw / 2.0, body_y - bh / 2.0, bw, bh))
+
+	# ---- 取景器凸起（机身左上方）----
+	var bump_w: float = 16.0
+	var bump_h: float = 9.0
+	var bump_sb := StyleBoxFlat.new()
+	bump_sb.bg_color = body_color
+	bump_sb.corner_radius_top_left     = 4
+	bump_sb.corner_radius_top_right    = 4
+	bump_sb.corner_radius_bottom_left  = 0
+	bump_sb.corner_radius_bottom_right = 0
+	bump_sb.shadow_size = 0
+	draw_style_box(bump_sb, Rect2(-bw / 4.0 - bump_w / 2.0,
+		body_y - bh / 2.0 - bump_h, bump_w, bump_h))
+
+	# ---- 闪光灯小点（机身右上角）----
+	draw_circle(Vector2(bw / 4.0, body_y - bh / 2.0 + 6.0), 4.0, lens_ring)
+
+	# ---- 镜头外环（亮色）----
+	var lens_cy: float = body_y + 1.0
+	draw_circle(Vector2(0.0, lens_cy), 13.5, lens_ring)
+
+	# ---- 镜头内芯（深色）----
+	draw_circle(Vector2(0.0, lens_cy), 8.5, body_color)
+
+	# ---- 镜头高光（小白点）----
+	draw_circle(Vector2(-3.5, lens_cy - 3.5), 2.5,
+		Color(1.0, 1.0, 1.0, body_color.a * 0.55))
 
 
 ## 圆角 pill 背景
