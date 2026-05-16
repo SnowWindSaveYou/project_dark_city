@@ -128,6 +128,31 @@ func _on_deal_complete() -> void:
 	# Phase 5: 发牌完成后生成当日 NPC
 	_spawn_daily_npcs()
 
+	# 开场教程：第一天且从未触发过
+	# 延迟 2.8s：等待发牌动画、道具弹出、手账本展示动画全部落定后再出现
+	if m.day_count == 1 and not GameData.tutorial_flags.get("intro_seen", false):
+		GameData.tutorial_flags["intro_seen"] = true
+		m.get_tree().create_timer(2.8).timeout.connect(func() -> void:
+			m.show_sequence([
+				{"speaker": "苏柚", "text": "……这就是我家附近？"},
+				{"speaker": "白夜", "text": "棋盘上发光的那个——就是你。\n点击旁边的格子就能走过去。"},
+				{"speaker": "苏柚", "text": "能走多远？"},
+				{"speaker": "白夜", "text": "今天的体力有多少，能走的步数就是一半。\n体力掉了，当天能走的路也会变少。"},
+			])
+		)
+
+	# 日程教程：第一天，在开场教程结束后出现（延迟更长，避免重叠）
+	if m.day_count == 1 and not GameData.tutorial_flags.get("schedule_seen", false):
+		GameData.tutorial_flags["schedule_seen"] = true
+		m.get_tree().create_timer(10.0).timeout.connect(func() -> void:
+			m.show_sequence([
+				{"speaker": "苏柚", "text": "这本手账……是任务清单？"},
+				{"speaker": "白夜", "text": "每天三件事。能做就做，做不完会掉理智、体力或者灵感。"},
+				{"speaker": "苏柚", "text": "走完步数就可以回去了吗？"},
+				{"speaker": "白夜", "text": "步数用完后右下角会出现「结束今天」。\n准备好了再按——明天的棋盘会重新生成。"},
+			])
+		)
+
 ## Day 1 专用晨间链: 故事 Tick + 晨间事件，完成后调用 on_done
 ## 与 Day 2+ 的 on_date_transition_complete 链对齐，但不重新生成棋盘
 func begin_day1(on_done: Callable) -> void:

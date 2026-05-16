@@ -259,6 +259,16 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		m._camera_button.hide_button()
 		await m.get_tree().create_timer(0.4).timeout
 		if card_type == "shop":
+			# 商店首见教程
+			if not GameData.tutorial_flags.get("shop_seen", false):
+				GameData.tutorial_flags["shop_seen"] = true
+				m.show_sequence([
+					{"speaker": "苏柚", "text": "这是……便利店还开着？"},
+					{"speaker": "白夜", "text": "用灵石换道具。\n护身符能挡一次怪物伤害，摄影胶卷能多拍几次。"},
+					{"speaker": "苏柚", "text": "灵石从哪来？"},
+					{"speaker": "白夜", "text": "翻线索牌、完成日程、或者暗面里找——\n省着点花。"},
+				])
+				await m.get_tree().create_timer(0.3).timeout
 			m._shop_popup.open_shop()
 		else:
 			m._event_popup.show_event(card)
@@ -325,10 +335,10 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		if card_type == "monster" and not GameData.tutorial_flags.get("monster_seen", false):
 			GameData.tutorial_flags["monster_seen"] = true
 			m.show_sequence([
-				{"speaker": "苏柚", "text": "……它会主动攻击吗？"},
-				{"speaker": "白夜", "text": "灵感高了……它们能感觉到你。\n感觉到了，才会过来。"},
-				{"speaker": "苏柚", "text": "所以别让灵感涨太快。"},
-				{"speaker": "白夜", "text": "……嗯。"},
+				{"speaker": "苏柚", "text": "……它伤我多深？"},
+				{"speaker": "白夜", "text": "取决于你的灵感。\n灵感越高，它造成的伤害越重。"},
+				{"speaker": "苏柚", "text": "灵感……是从哪里来的？"},
+				{"speaker": "白夜", "text": "翻线索牌会涨。进暗面也会涨。\n想少受伤，就别让它堆太高。"},
 			])
 		elif card_type == "safe" and \
 				m.board.is_in_landmark_aura(row, col) and \
@@ -453,10 +463,10 @@ func _show_rift_confirm(row: int, col: int) -> void:
 	if not GameData.tutorial_flags.get("rift_seen", false):
 		GameData.tutorial_flags["rift_seen"] = true
 		m.show_sequence([
-			{"speaker": "苏柚", "text": "……这里面是什么？"},
-			{"speaker": "白夜", "text": "你感觉不到。\n灵感不够的时候就这样。"},
-			{"speaker": "苏柚", "text": "不是空的？"},
-			{"speaker": "白夜", "text": "不是空的。\n是你感知不到。"},
+			{"speaker": "苏柚", "text": "……这是什么地方？"},
+			{"speaker": "白夜", "text": "暗面的入口。\n你现在能进去——灵感够高的时候才能感知到它。"},
+			{"speaker": "苏柚", "text": "灵感越高越容易看见？"},
+			{"speaker": "白夜", "text": "进去之前想好。\n暗面会拉高灵感，出来时妖魔的伤害也会更重。"},
 		])
 	m._event_popup.show_rift_confirm(center.x, center.y)
 

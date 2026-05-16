@@ -50,8 +50,11 @@ var steps_total: int = 0
 
 ## 一次性教程触发标记
 var tutorial_flags: Dictionary = {
+	"intro_seen"          : false,  # 开场：主角/移动/步数机制
+	"schedule_seen"       : false,  # 日程系统：任务/结算惩罚/结束当天
+	"shop_seen"           : false,  # 商店：购买道具
 	"monster_seen"        : false,  # 灵感影响怪物伤害
-	"rift_seen"           : false,  # 裂隙/灵感机制
+	"rift_seen"           : false,  # 裂隙/暗面世界入口
 	"camera_mode_seen"    : false,  # 相机模式侦察+轨迹
 	"camera_exorcise_seen": false,  # 拍照消灭怪物
 	"safe_zone_seen"      : false,  # 安全区光晕机制

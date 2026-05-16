@@ -630,10 +630,11 @@ func _on_camera_mode_entered() -> void:
 	# 首次进入相机模式 → 侦察教程（白夜说话）
 	if not GameData.tutorial_flags["camera_mode_seen"]:
 		GameData.tutorial_flags["camera_mode_seen"] = true
-		show_tutorial(
-			"翻牌之前先拍一下。\n镜头里会浮出方向——妖魔在哪边。\n胶卷不多，记住了。",
-			"白夜", TutorialBubble.IDLE_TIME_LONG
-		)
+		show_sequence([
+			{"speaker": "白夜", "text": "对着没翻开的格子拍。\n快门一按，格子上会显示它周围有没有妖魔。"},
+			{"speaker": "苏柚", "text": "这样就能知道哪里安全？"},
+			{"speaker": "白夜", "text": "对。胶卷有限，用完就没了。\n先侦察，再落脚。"},
+		])
 
 func _on_camera_mode_exited() -> void:
 	board_visual.mg_clear_card_ghosts()
