@@ -168,48 +168,36 @@ func _init_words() -> void:
 		})
 
 
-## 初始化电线（静态，不随时间移动，仅微弱alpha呼吸）
+## 初始化电线 — 直接定义左/右端高度（屏幕Y比例），角度差异显著
 func _init_wires() -> void:
 	_wires.clear()
-	# 每组电线由若干条平行的细线组成，整体从屏幕左边到右边
-	# 高度分布在屏幕上方 25%~65% 之间，模拟高空电线视角
+	# 每项：[左端Y%, 右端Y%, 基础alpha, 线宽]
+	# 上组：斜向右下（透视感强，从画面上部穿过）
+	# 中组：向右上（与上组交叉，形成"X"交汇）
+	# 下组：近景，角度也更陡
+	var defs: Array = [
+		# 上组
+		[0.17, 0.34,  0.13, 1.1],   # 右端明显低，斜度大
+		[0.20, 0.25,  0.10, 0.9],   # 较平
+		[0.23, 0.21,  0.08, 0.8],   # 微向右上（反向）
+		# 中组（方向与上组相反，形成交叉）
+		[0.44, 0.35,  0.11, 1.2],   # 明显向右上
+		[0.47, 0.52,  0.09, 1.0],   # 微向右下
+		# 下组（近景，较粗）
+		[0.60, 0.68,  0.10, 1.4],   # 向右下，角度较陡
+		[0.63, 0.57,  0.08, 1.1],   # 向右上
+	]
+
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
-
-	# 组1：高位，3根线，坡度向右微下斜
-	var g1_base: float = 0.28   # 基准高度（比例）
-	for i in range(3):
+	for d in defs:
 		_wires.append({
-			"y_ratio":   g1_base + i * 0.016,
-			"slope":     rng.randf_range(0.015, 0.035),  # 向右下倾斜幅度
-			"alpha":     rng.randf_range(0.10, 0.16),
-			"width":     rng.randf_range(0.9, 1.3),
-			"phase":     rng.randf_range(0.0, TAU),      # 呼吸相位
-			"freq":      rng.randf_range(0.12, 0.22),
-		})
-
-	# 组2：中位，2根线，坡度相反（向右上微斜），营造交叉感
-	var g2_base: float = 0.44
-	for i in range(2):
-		_wires.append({
-			"y_ratio":   g2_base + i * 0.024,
-			"slope":     rng.randf_range(-0.028, -0.010),
-			"alpha":     rng.randf_range(0.08, 0.13),
-			"width":     rng.randf_range(0.8, 1.1),
-			"phase":     rng.randf_range(0.0, TAU),
-			"freq":      rng.randf_range(0.10, 0.18),
-		})
-
-	# 组3：低位，2根线，微下斜，视角最近感觉最粗
-	var g3_base: float = 0.58
-	for i in range(2):
-		_wires.append({
-			"y_ratio":   g3_base + i * 0.018,
-			"slope":     rng.randf_range(0.020, 0.045),
-			"alpha":     rng.randf_range(0.07, 0.11),
-			"width":     rng.randf_range(1.1, 1.6),
-			"phase":     rng.randf_range(0.0, TAU),
-			"freq":      rng.randf_range(0.08, 0.15),
+			"y_start": d[0],
+			"y_end":   d[1],
+			"alpha":   d[2],
+			"width":   d[3],
+			"phase":   rng.randf_range(0.0, TAU),
+			"freq":    rng.randf_range(0.08, 0.20),
 		})
 
 
@@ -424,12 +412,6 @@ func _draw_wires() -> void:
 		var col: Color = wire_col_bright.lerp(wire_col_dark, _dark_t)
 		col.a = final_alpha
 
-		# 起点在左侧略微屏外，终点在右侧略微屏外
-		# slope 决定右端 y 相对左端 y 的偏移比例（相对屏幕高度）
-		var y_left:  float = vp.y * wr["y_ratio"]
-		var y_right: float = vp.y * (wr["y_ratio"] + wr["slope"])
-
-		var p_left:  Vector2 = Vector2(-20.0, y_left)
-		var p_right: Vector2 = Vector2(vp.x + 20.0, y_right)
-
+		var p_left:  Vector2 = Vector2(-20.0,       vp.y * wr["y_start"])
+		var p_right: Vector2 = Vector2(vp.x + 20.0, vp.y * wr["y_end"])
 		draw_line(p_left, p_right, col, wr["width"])

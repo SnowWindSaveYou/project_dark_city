@@ -36,27 +36,32 @@ mouse_filter = 2
 layout_mode = 2
 custom_minimum_size = Vector2(520, 720)
 mouse_filter = 2
+clip_contents = true
 
 [node name="VBox" type="VBoxContainer" parent="PhotoAnchor/PhotoFrame"]
 layout_mode = 2
 mouse_filter = 2
+theme_override_constants/separation = 0
 
-[node name="ImageArea" type="PanelContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
+[node name="ImageArea" type="Control" parent="PhotoAnchor/PhotoFrame/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 460)
+custom_minimum_size = Vector2(0, 476)
+size_flags_horizontal = 3
 size_flags_vertical = 3
+clip_contents = true
 mouse_filter = 2
 
-[node name="ImageStack" type="Control" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
-layout_mode = 2
+[node name="BgFill" type="ColorRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+color = Color(0.10, 0.12, 0.16, 0.96)
 
-[node name="EventTexture" type="TextureRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack"]
+[node name="EventTexture" type="TextureRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -67,7 +72,7 @@ mouse_filter = 2
 stretch_mode = 6
 visible = false
 
-[node name="IconLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack"]
+[node name="IconLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -80,7 +85,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "📷"
 
-[node name="ScoutBadge" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack"]
+[node name="ScoutBadge" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
 layout_mode = 1
 anchors_preset = 4
 anchor_left = 1.0
@@ -95,7 +100,7 @@ mouse_filter = 2
 horizontal_alignment = 2
 text = "📷 侦察"
 
-[node name="ChibiOverlay" type="TextureRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack"]
+[node name="ChibiOverlay" type="TextureRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -112,38 +117,47 @@ expand_mode = 3
 stretch_mode = 5
 visible = false
 
-[node name="WhiteBottom" type="VBoxContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
+[node name="WhiteBottomMargin" type="MarginContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 150)
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_right = 0
+
+[node name="WhiteBottom" type="VBoxContainer" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin"]
+layout_mode = 2
 mouse_filter = 2
 
-[node name="TitleLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottom"]
+[node name="TitleLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom"]
 layout_mode = 2
 size_flags_horizontal = 3
 horizontal_alignment = 1
 text = "事件标题"
 
-[node name="LocationLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottom"]
+[node name="LocationLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom"]
 layout_mode = 2
 size_flags_horizontal = 3
 horizontal_alignment = 1
 text = "📍 地点"
 
-[node name="BaiyeSep" type="HSeparator" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottom"]
+[node name="BaiyeSep" type="HSeparator" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom"]
 layout_mode = 2
 visible = false
 
-[node name="BaiyeRow" type="HBoxContainer" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottom"]
+[node name="BaiyeRow" type="HBoxContainer" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom"]
 layout_mode = 2
 mouse_filter = 2
+alignment = 1
 visible = false
 
-[node name="BaiyeIcon" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottom/BaiyeRow"]
+[node name="BaiyeIcon" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeRow"]
 layout_mode = 2
 text = "🌙"
 vertical_alignment = 1
 
-[node name="BaiyeLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottom/BaiyeRow"]
+[node name="BaiyeLabel" type="Label" parent="PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 autowrap_mode = 2

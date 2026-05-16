@@ -236,8 +236,8 @@ func _setup_city_layer() -> void:
 	var grad_tex: GradientTexture2D = GradientTexture2D.new()
 	grad_tex.gradient  = grad
 	grad_tex.fill      = GradientTexture2D.FILL_LINEAR
-	grad_tex.fill_from = Vector2(0.50, 0.5)  # 从屏幕 50% 处开始透明→暗
-	grad_tex.fill_to   = Vector2(0.90, 0.5)  # 到 90% 处达到最深
+	grad_tex.fill_from = Vector2(0.36, 0.18)  # 左上方（透明侧锚点）
+	grad_tex.fill_to   = Vector2(0.88, 0.82)  # 右下方（深色侧锚点）—— 约45°斜向
 
 	grad_rect.texture      = grad_tex
 	grad_rect.stretch_mode = TextureRect.STRETCH_SCALE
@@ -261,14 +261,29 @@ func _init_buildings() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20250516
 
-	# 楼宇群在右侧（x: 52%~108%），底部对齐
-	# 紧密排列，宽度和高度都以屏幕比例存储
-	var x_cursor: float = 0.52
-	while x_cursor < 1.08:
-		var bw: float = rng.randf_range(0.025, 0.068)
-		var bh: float = rng.randf_range(0.08, 0.24)
-		_buildings.append({ "x": x_cursor, "w": bw, "h": bh })
-		x_cursor += bw + rng.randf_range(0.001, 0.006)   # 几乎无间隙，密集城市感
+	# 层0：远景小楼 — 从白区开始（x: 30%~105%），矮小稀疏
+	var x: float = 0.30
+	while x < 1.05:
+		var bw: float = rng.randf_range(0.016, 0.038)
+		var bh: float = rng.randf_range(0.04, 0.09)
+		_buildings.append({ "x": x, "w": bw, "h": bh, "layer": 0 })
+		x += bw + rng.randf_range(0.006, 0.018)
+
+	# 层1：中景楼 — 从过渡区开始（x: 43%~105%），中等高度
+	x = 0.43
+	while x < 1.05:
+		var bw: float = rng.randf_range(0.022, 0.052)
+		var bh: float = rng.randf_range(0.09, 0.17)
+		_buildings.append({ "x": x, "w": bw, "h": bh, "layer": 1 })
+		x += bw + rng.randf_range(0.002, 0.009)
+
+	# 层2：近景大楼 — 主要在暗色区（x: 53%~108%），高耸密集
+	x = 0.53
+	while x < 1.08:
+		var bw: float = rng.randf_range(0.028, 0.068)
+		var bh: float = rng.randf_range(0.13, 0.26)
+		_buildings.append({ "x": x, "w": bw, "h": bh, "layer": 2 })
+		x += bw + rng.randf_range(0.001, 0.005)
 
 
 func _draw_city() -> void:
@@ -277,20 +292,34 @@ func _draw_city() -> void:
 	var w: float = _city_layer.size.x
 	var h: float = _city_layer.size.y
 
-	# 楼宇颜色：比深色渐变略深，让轮廓可见
-	var bld_fill:   Color = Color(0.025, 0.015, 0.07, 0.95)
-	var bld_edge:   Color = Color(0.18, 0.14, 0.32, 0.25)   # 顶部细线，楼层感
+	# 三层从远到近依次绘制（远景先画，近景覆盖其上）
+	for layer in range(3):
+		for bld in _buildings:
+			if bld["layer"] != layer:
+				continue
 
-	for bld in _buildings:
-		var bx: float  = bld["x"] * w
-		var bw_px: float = bld["w"] * w
-		var bh_px: float = bld["h"] * h
-		var by: float  = h - bh_px   # 从底部向上
+			var bx: float    = bld["x"] * w
+			var bw_px: float = bld["w"] * w
+			var bh_px: float = bld["h"] * h
+			var by: float    = h - bh_px
 
-		# 楼宇主体
-		_city_layer.draw_rect(Rect2(bx, by, bw_px, bh_px), bld_fill)
-		# 楼宇顶部亮边（1px，模拟城市灯光轮廓）
-		_city_layer.draw_line(Vector2(bx, by), Vector2(bx + bw_px, by), bld_edge, 1.0)
+			# 楼中心X → 计算处于白区(0)还是暗区(1)
+			var cx: float   = bld["x"] + bld["w"] * 0.5
+			var zone_t: float = clamp((cx - 0.40) / 0.36, 0.0, 1.0)
+
+			# 各层在暗区的不透明度（远→近递增）
+			var dark_alpha: Array[float] = [0.55, 0.78, 0.96]
+			# 白区楼宇：浅灰紫（barely visible），暗区楼宇：深蓝黑
+			var fill_bright: Color = Color(0.72, 0.70, 0.78, dark_alpha[layer] * 0.22)
+			var fill_dark:   Color = Color(0.020, 0.012, 0.060, dark_alpha[layer])
+			var fill_col: Color    = fill_bright.lerp(fill_dark, zone_t)
+			_city_layer.draw_rect(Rect2(bx, by, bw_px, bh_px), fill_col)
+
+			# 顶部轮廓线（白区灰紫细线，暗区冷紫亮边）
+			var edge_bright: Color = Color(0.55, 0.52, 0.62, 0.10)
+			var edge_dark:   Color = Color(0.20, 0.15, 0.36, 0.30)
+			var edge_col: Color    = edge_bright.lerp(edge_dark, zone_t)
+			_city_layer.draw_line(Vector2(bx, by), Vector2(bx + bw_px, by), edge_col, 1.0)
 
 
 # ---------------------------------------------------------------------------

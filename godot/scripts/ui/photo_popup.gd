@@ -22,17 +22,18 @@ const PHOTO_BORDER: int = 22
 @onready var _overlay: ColorRect = $Overlay
 @onready var _photo_anchor: CenterContainer = $PhotoAnchor
 @onready var _photo_frame: PanelContainer = $PhotoAnchor/PhotoFrame
-@onready var _image_area: PanelContainer = $PhotoAnchor/PhotoFrame/VBox/ImageArea
-@onready var _event_texture: TextureRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack/EventTexture
-@onready var _icon_label: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack/IconLabel
-@onready var _scout_badge: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack/ScoutBadge
-@onready var _chibi_overlay: TextureRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ImageStack/ChibiOverlay
-@onready var _white_bottom: VBoxContainer = $PhotoAnchor/PhotoFrame/VBox/WhiteBottom
-@onready var _title_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottom/TitleLabel
-@onready var _location_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottom/LocationLabel
-@onready var _baiiye_sep: HSeparator = $PhotoAnchor/PhotoFrame/VBox/WhiteBottom/BaiyeSep
-@onready var _baiiye_row: HBoxContainer = $PhotoAnchor/PhotoFrame/VBox/WhiteBottom/BaiyeRow
-@onready var _baiiye_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottom/BaiyeRow/BaiyeLabel
+@onready var _image_area: Control = $PhotoAnchor/PhotoFrame/VBox/ImageArea
+@onready var _bg_fill: ColorRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/BgFill
+@onready var _event_texture: TextureRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/EventTexture
+@onready var _icon_label: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/IconLabel
+@onready var _scout_badge: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ScoutBadge
+@onready var _chibi_overlay: TextureRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ChibiOverlay
+@onready var _white_bottom: VBoxContainer = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom
+@onready var _title_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/TitleLabel
+@onready var _location_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/LocationLabel
+@onready var _baiiye_sep: HSeparator = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeSep
+@onready var _baiiye_row: HBoxContainer = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeRow
+@onready var _baiiye_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeRow/BaiyeLabel
 @onready var _tape_decor: ColorRect = $PhotoAnchor/TapeDecor
 @onready var _hint_label: Label = $HintLabel
 
@@ -52,6 +53,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 	# 相片白框 — 拍立得风格，四边均匀留白
+	# 上/左/右留白相等，底部留白更大（拍立得特征）
 	var frame_style: StyleBoxFlat = StyleBoxFlat.new()
 	frame_style.bg_color = Color(0.990, 0.982, 0.965, 0.99)
 	frame_style.border_color = Color(0.82, 0.78, 0.72, 0.35)
@@ -64,12 +66,8 @@ func _ready() -> void:
 	_photo_frame.add_theme_stylebox_override("panel", frame_style)
 	_photo_frame.custom_minimum_size = Vector2(PHOTO_W, PHOTO_H)
 
-	# 照片内区域 — 零边距，图片贴满四边
-	var image_style: StyleBoxFlat = StyleBoxFlat.new()
-	image_style.bg_color = Color(0.10, 0.12, 0.16, 0.96)
-	image_style.set_border_width_all(0)
-	image_style.set_content_margin_all(0)
-	_image_area.add_theme_stylebox_override("panel", image_style)
+	# 照片内区域背景 — 深色底，图片贴满（Control 无 content margin，直接显示）
+	_bg_fill.color = Color(0.10, 0.12, 0.16, 0.96)
 
 	# 侦察角标 — 图片右下角，半透明小字
 	_scout_badge.add_theme_font_size_override("font_size", 22)
@@ -142,11 +140,9 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 		_icon_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.82))
 
 	# 照片区氛围色叠加（轻微类型染色）
-	var image_style: StyleBoxFlat = _image_area.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
 	var base: Color = Color(0.10, 0.12, 0.16, 0.96)
 	var atmos: Color = Color(tc.r, tc.g, tc.b, 0.10)
-	image_style.bg_color = base.blend(atmos)
-	_image_area.add_theme_stylebox_override("panel", image_style)
+	_bg_fill.color = base.blend(atmos)
 
 	# 怪物/陷阱 chibi 叠加层
 	var has_chibi: bool = chibi_tex_path != ""
