@@ -177,7 +177,8 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 	# 初始动画状态
 	_overlay.color.a = 0.0
 	_photo_frame.scale = Vector2(0.15, 0.15)
-	_photo_frame.pivot_offset = _photo_frame.size / 2.0
+	# pivot_offset 必须用常量计算，visible=false 时 size 尚未由 layout 更新（为0）
+	_photo_frame.pivot_offset = Vector2(PHOTO_W, PHOTO_H) / 2.0
 	_photo_frame.modulate.a = 0.0
 	_photo_frame.rotation = 0.0
 	# 标题行（标题+分隔+地点同行，一起淡入）

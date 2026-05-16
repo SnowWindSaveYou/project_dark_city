@@ -424,27 +424,26 @@ func _draw_footer() -> void:
 	var cx: float   = rect.size.x / 2.0
 	var t: Node     = get_node("/root/GameTheme")
 
+	# 分隔线（始终显示，强度随状态变化）
+	var line_alpha: float = 0.18 if can_advance else 0.10
+	_footer_area.draw_line(
+		Vector2(24.0, 0.0), Vector2(rect.size.x - 24.0, 0.0),
+		Color(0.55, 0.50, 0.40, line_alpha), 1.0
+	)
+
 	if can_advance:
-		var pulse: float  = 0.72 + 0.28 * sin(_footer_pulse_time * 2.6)
-		var line_alpha: float = 0.35 + 0.35 * pulse
-		# 分隔线
-		_footer_area.draw_line(
-			Vector2(24.0, 0.0), Vector2(rect.size.x - 24.0, 0.0),
-			Color(0.82, 0.63, 0.24, line_alpha), 2.0
-		)
-		# "结束今天 →" 文字
-		var text_alpha: float = 0.45 + 0.45 * pulse
-		var nudge: float = 4.5 * sin(_footer_pulse_time * 2.0)
+		# 辅助提示：细小灰字 + 右下角浮动按钮已是主入口，这里仅作备注
+		var hint_alpha: float = 0.28 + 0.10 * sin(_footer_pulse_time * 1.8)
 		_footer_area.draw_string(
 			ThemeDB.fallback_font,
-			Vector2(cx - 84.0 + nudge, 36.0),
-			"结束今天 →",
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1, 30,
-			Color(t.warning, text_alpha)
+			Vector2(cx, 34.0),
+			"↘ 点击右下角进入下一天",
+			HORIZONTAL_ALIGNMENT_CENTER,
+			-1, 13,
+			Color(0.72, 0.65, 0.45, hint_alpha)
 		)
 	else:
-		# 灰色小字
+		# 灰色小字：还有 N 项待完成
 		_footer_area.draw_string(
 			ThemeDB.fallback_font,
 			Vector2(cx, 30.0),
@@ -790,24 +789,10 @@ func _on_item_used(key: String) -> void:
 		_consumable_controller.use_consumable(key)
 		refresh()   # 更新道具数量显示
 
-func _on_footer_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb: InputEventMouseButton = event as InputEventMouseButton
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			if not _has_game_data(): return
-			var schedules: Array = _card_manager.schedules
-			var has_pending: bool = false
-			for s: Dictionary in schedules:
-				if s.get("status", "") == "pending":
-					has_pending = true
-					break
-			var su: int = GameData.steps_remaining
-			var sm: int = GameData.steps_total
-			var steps_done: bool = sm > 0 and su <= 0   # remaining <= 0 表示耗尽
-			if (not has_pending or steps_done):
-				end_day_pressed.emit()
-				if _on_advance_day.is_valid():
-					_on_advance_day.call()
+func _on_footer_input(_event: InputEvent) -> void:
+	# FooterArea 已降为辅助提示区域，点击不再触发进入下一天
+	# 主入口：右下角 AdvanceDayButton 悬浮按钮
+	pass
 
 # ---------------------------------------------------------------------------
 # 传闻便签点击输入

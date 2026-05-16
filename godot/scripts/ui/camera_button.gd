@@ -14,8 +14,8 @@ signal exorcise_requested    # 请求驱魔 (已翻怪物卡)
 # 常量
 # ---------------------------------------------------------------------------
 const BUTTON_SIZE: float = 132.0
-const BTN_MARGIN_R: float = 60.0
-const BTN_MARGIN_B: float = 270.0  # 避开底部 HandPanel
+const BTN_MARGIN_R: float = 60.0   # 仅用于胶卷数字偏移，不再决定按钮位置
+const BTN_MARGIN_B: float = 56.0   # 底部边距（相机现位于画面下方中心）
 const BRACKET_LEN: float = 84.0
 const BRACKET_MARGIN: float = 60.0
 const SCAN_SPEED: float = 180.0  # px/s
@@ -46,29 +46,11 @@ var _btn_center: Vector2 = Vector2.ZERO
 var _film_texture: Texture2D = null
 var _film_tex_loaded: bool = false
 
-# 暗角
-var _vignette_rect: ColorRect = null
-var _vignette_material: ShaderMaterial = null
-
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_setup_vignette()
-
-func _setup_vignette() -> void:
-	var shader: Shader = load("res://shaders/vignette.gdshader")
-	_vignette_material = ShaderMaterial.new()
-	_vignette_material.shader = shader
-
-	_vignette_rect = ColorRect.new()
-	_vignette_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_vignette_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_vignette_rect.show_behind_parent = true
-	_vignette_rect.material = _vignette_material
-	_vignette_rect.visible = false
-	add_child(_vignette_rect)
 
 ## 只在相机按钮圆形区域内拦截鼠标事件, 其余区域透传到 _unhandled_input
 func _has_point(point: Vector2) -> bool:
@@ -157,16 +139,6 @@ func _process(delta: float) -> void:
 			_scan_line_y = 0.0
 		_rec_blink_timer += delta
 
-	# 更新暗角
-	if _vignette_rect != null:
-		var show: bool = _viewfinder_alpha > 0.01
-		_vignette_rect.visible = show
-		if show:
-			var t = GameTheme
-			_vignette_material.set_shader_parameter("tint_color",
-				Color(t.camera_tint.r, t.camera_tint.g, t.camera_tint.b, 1.0))
-			_vignette_material.set_shader_parameter("overall_alpha", _viewfinder_alpha)
-
 	queue_redraw()
 
 # ---------------------------------------------------------------------------
@@ -197,7 +169,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _hit_test_button(pos: Vector2) -> bool:
 	var vp: Vector2 = get_viewport_rect().size
-	var cx: float = vp.x - BTN_MARGIN_R - BUTTON_SIZE / 2.0
+	var cx: float = vp.x / 2.0                        # 水平居中
 	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
 	var dx: float = pos.x - cx
 	var dy: float = pos.y - cy
@@ -220,7 +192,7 @@ func _draw() -> void:
 	if not _visible_flag or _btn_alpha <= 0.01:
 		return
 
-	var cx: float = vp.x - BTN_MARGIN_R - BUTTON_SIZE / 2.0 + _shake_x
+	var cx: float = vp.x / 2.0 + _shake_x             # 水平居中
 	var cy: float = vp.y - BTN_MARGIN_B - BUTTON_SIZE / 2.0
 	var r: float = BUTTON_SIZE / 2.0
 

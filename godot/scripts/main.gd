@@ -128,6 +128,7 @@ var _conversion_popup: Control = null
 var _hand_panel: Control = null
 var _clue_log: Control = null
 var _camera_button: Control = null
+var _advance_day_btn: Control = null
 var _title_screen: Control = null
 var _game_over: Control = null
 var _date_transition: Control = null
@@ -152,6 +153,8 @@ var _token_shadow: MeshInstance3D = null
 # 3D 场景组件
 # ---------------------------------------------------------------------------
 var _camera_3d: Camera3D = null
+var _cam_attr: CameraAttributesPractical = null
+var _dof_tween: Tween = null
 var _dir_light: DirectionalLight3D = null
 var _world_env: WorldEnvironment = null
 var _env: Environment = null
@@ -332,9 +335,14 @@ func _setup_scene_tree() -> void:
 	_clue_log = load("res://scenes/ui/clue_log.tscn").instantiate()
 	ui_layer.add_child(_clue_log)
 
-	# CameraButton — Scene 化
+	# CameraButton — Scene 化（位于画面下方中心）
 	_camera_button = load("res://scenes/ui/camera_button.tscn").instantiate()
 	ui_layer.add_child(_camera_button)
+
+	# AdvanceDayButton — 右下角"进入下一天"悬浮按钮
+	_advance_day_btn = load("res://scripts/ui/advance_day_button.gd").new()
+	_advance_day_btn.name = "AdvanceDayButton"
+	ui_layer.add_child(_advance_day_btn)
 
 	# BubbleOverlay — 气泡层，z_index=-1 确保低于所有 UI 菜单和弹窗
 	_bubble_overlay = load("res://scenes/screens/bubble_overlay.tscn").instantiate()
@@ -538,6 +546,10 @@ func _connect_signals() -> void:
 		func(): game_flow.reveal_random_card())
 	_hand_panel.open_clue_log.connect(func(): _clue_log.open())
 
+	# 进入下一天悬浮按钮
+	_advance_day_btn.setup(card_manager)
+	_advance_day_btn.advance_day_requested.connect(func(): game_flow.advance_day())
+
 	# 相机按钮
 	_camera_button.photograph_requested.connect(_on_photograph_request)
 	_camera_button.exorcise_requested.connect(
@@ -592,10 +604,40 @@ func _on_shop_closed() -> void:
 func _on_camera_mode_entered() -> void:
 	board_visual.mg_show_on_scouted_cards()
 	board_visual.mg_show_trails_on_board()
+	_dof_set(true)
 
 func _on_camera_mode_exited() -> void:
 	board_visual.mg_clear_card_ghosts()
 	board_visual.mg_clear_trail_ghosts()
+	_dof_set(false)
+
+func _dof_set(enable: bool) -> void:
+	if not _camera_3d:
+		return
+	if _dof_tween:
+		_dof_tween.kill()
+	if enable:
+		if not _cam_attr:
+			_cam_attr = CameraAttributesPractical.new()
+			# 相机距棋盘约 6m，近处（桌面以内）和远处都虚化
+			_cam_attr.dof_blur_far_enabled = true
+			_cam_attr.dof_blur_far_distance = 7.5
+			_cam_attr.dof_blur_far_transition = 4.0
+			_cam_attr.dof_blur_near_enabled = true
+			_cam_attr.dof_blur_near_distance = 3.5
+			_cam_attr.dof_blur_near_transition = 2.0
+			_cam_attr.dof_blur_amount = 0.0
+		_camera_3d.attributes = _cam_attr
+		_dof_tween = create_tween()
+		_dof_tween.tween_property(_cam_attr, "dof_blur_amount", 0.07, 0.5) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	else:
+		if not _cam_attr:
+			return
+		_dof_tween = create_tween()
+		_dof_tween.tween_property(_cam_attr, "dof_blur_amount", 0.0, 0.35) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		_dof_tween.tween_callback(func() -> void: _camera_3d.attributes = null)
 
 func _on_debug_action(action_id: String) -> void:
 	match action_id:
