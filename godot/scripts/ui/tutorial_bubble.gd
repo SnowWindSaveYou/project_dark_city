@@ -322,4 +322,26 @@ func _start_item_exit(item: Dictionary) -> void:
 		_active_items.erase(item)
 		if is_instance_valid(panel):
 			panel.queue_free()
+		_shift_items_up(item)
 	)
+
+## 某条气泡消失后，将其下方的气泡缓速上移
+func _shift_items_up(removed_item: Dictionary) -> void:
+	var freed_h: float = removed_item["height"] + ITEM_GAP
+	var removed_y: float = removed_item["base_y"]
+	const SHIFT_DUR: float = 0.30
+
+	for other in _active_items:
+		if other["base_y"] <= removed_y:
+			continue
+		if other["phase"] == "done":
+			continue
+		other["base_y"] -= freed_h
+		var panel: Control = other["panel"]
+		if not is_instance_valid(panel):
+			continue
+		# 目标 X 保持当前值（可能正在入场滑动中），只移动 Y
+		var target_pos: Vector2 = Vector2(panel.position.x, other["base_y"])
+		var shift_tw: Tween = create_tween()
+		shift_tw.tween_property(panel, "position", target_pos, SHIFT_DUR) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)

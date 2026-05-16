@@ -26,4 +26,3 @@ scripts/.luarc.json
 *.meta
 # Godot 编辑器缓存
 .godot/
-/godot/Build

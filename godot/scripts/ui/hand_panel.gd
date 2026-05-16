@@ -11,6 +11,7 @@ signal schedule_toggled(index: int)
 signal use_exorcism_pressed
 signal use_map_pressed
 signal open_clue_log
+signal panel_expanded   ## 手账本首次展开时触发（用于日程教程）
 
 # ---------------------------------------------------------------------------
 # 布局常量（Lua 原版 × 3，适配 Godot 1920×1080 canvas）
@@ -96,6 +97,11 @@ var _was_can_advance: bool = false
 var _rumor_page: int      = 1
 
 var _tween: Tween = null
+
+# Tab 脉冲高亮（第一天，直到玩家首次展开）
+var _tab_pulse_time: float  = 0.0
+var _tab_pulse_active: bool = false
+var _tab_pulse_overlay: Control = null   ## 叠在 Tab1 按钮上方的 _draw 覆盖层
 
 # 回调
 var _on_use_exorcism: Callable
@@ -496,6 +502,8 @@ func expand() -> void:
 	_collapse_btn.visible = true
 	_animate_to(_expanded_x(), 0.0, 0.35, Tween.EASE_OUT, Tween.TRANS_BACK)
 	_update_tab_visual()
+	_stop_tab_pulse()
+	panel_expanded.emit()
 
 ## 折叠（动画到折叠位）
 func collapse() -> void:
@@ -531,6 +539,7 @@ func reset() -> void:
 	visible = false
 	_was_can_advance = false
 	_rumor_page = 1
+	_stop_tab_pulse()
 
 # ---------------------------------------------------------------------------
 # 动画
@@ -563,6 +572,10 @@ func _process(delta: float) -> void:
 
 	_footer_pulse_time += delta
 	_footer_area.queue_redraw()
+
+	if _tab_pulse_active and is_instance_valid(_tab_pulse_overlay):
+		_tab_pulse_time += delta
+		_tab_pulse_overlay.queue_redraw()
 
 	# 检测"可进入下一天"状态变化 → 自动展开到日程 tab
 	if _has_game_data():
@@ -812,6 +825,63 @@ func next_rumor() -> void:
 	if rumors.size() > 1:
 		_rumor_page = (_rumor_page % rumors.size()) + 1
 		_refresh_rumors()
+
+# ---------------------------------------------------------------------------
+# Tab 1 脉冲高亮（第一天引导玩家打开手账本）
+# ---------------------------------------------------------------------------
+
+## 开启脉冲动画（由外部在第一天发牌后调用）
+func start_tab1_pulse() -> void:
+	if _tab_pulse_active: return
+	_tab_pulse_active = true
+	_tab_pulse_time = 0.0
+
+	# 创建一个与 Tab1 同尺寸的透明覆盖层，用 _draw 画光圈
+	var overlay := Control.new()
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 不拦截点击
+	_tab_btns[0].add_child(overlay)
+	# 撑满 Tab1 按钮区域
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.draw.connect(_draw_tab_pulse.bind(overlay))
+	_tab_pulse_overlay = overlay
+
+func _stop_tab_pulse() -> void:
+	if not _tab_pulse_active: return
+	_tab_pulse_active = false
+	if is_instance_valid(_tab_pulse_overlay):
+		_tab_pulse_overlay.queue_free()
+	_tab_pulse_overlay = null
+	# 恢复 Tab1 modulate（防止残留高亮）
+	if _tab_btns.size() > 0 and is_instance_valid(_tab_btns[0]):
+		_tab_btns[0].modulate = Color.WHITE
+
+## 脉冲覆盖层 _draw 回调
+func _draw_tab_pulse(overlay: Control) -> void:
+	if not _tab_pulse_active: return
+	var rect: Rect2 = overlay.get_rect()
+	var cx: float = rect.size.x / 2.0
+	var cy: float = rect.size.y / 2.0
+
+	# 慢速呼吸节奏（1.5 Hz）
+	var t: float = _tab_pulse_time
+	var breath: float = 0.5 + 0.5 * sin(t * TAU * 1.5)   # 0..1
+
+	# 外圈光晕（淡金色，随呼吸扩散）
+	var glow_r: float = 44.0 + breath * 18.0
+	var glow_a: float = 0.22 * (1.0 - breath * 0.4)
+	var glow_col: Color = Color(1.0, 0.88, 0.35, glow_a)
+	overlay.draw_circle(Vector2(cx, cy), glow_r, glow_col)
+
+	# 内圈实心点（金色，脉冲缩放）
+	var dot_r: float = 10.0 + breath * 5.0
+	var dot_a: float = 0.72 + breath * 0.28
+	var dot_col: Color = Color(1.0, 0.82, 0.15, dot_a)
+	overlay.draw_circle(Vector2(cx, cy), dot_r, dot_col)
+
+	# 让 Tab1 按钮本身也有轻微亮度脉冲
+	if is_instance_valid(_tab_btns[0]):
+		var bright: float = 1.0 + breath * 0.18
+		_tab_btns[0].modulate = Color(bright, bright, bright, 1.0)
 
 # ---------------------------------------------------------------------------
 # 辅助

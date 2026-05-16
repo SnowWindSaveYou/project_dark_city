@@ -533,6 +533,7 @@ func _connect_signals() -> void:
 	_hand_panel.use_map_pressed.connect(
 		func(): game_flow.reveal_random_card())
 	_hand_panel.open_clue_log.connect(func(): _clue_log.open())
+	_hand_panel.panel_expanded.connect(_on_hand_panel_first_expanded)
 
 	# 进入下一天悬浮按钮
 	_advance_day_btn.setup(card_manager)
@@ -623,6 +624,17 @@ func show_tutorial(text: String, speaker: String = "白夜",
 func show_sequence(lines: Array, duration_last: float = TutorialBubble.IDLE_TIME) -> void:
 	if _tutorial_bubble:
 		_tutorial_bubble.show_sequence(lines, duration_last)
+
+func _on_hand_panel_first_expanded() -> void:
+	if GameData.tutorial_flags.get("schedule_seen", false):
+		return
+	GameData.tutorial_flags["schedule_seen"] = true
+	show_sequence([
+		{"speaker": "苏柚", "text": "这本手账……是任务清单？"},
+		{"speaker": "白夜", "text": "每天三件事。能做就做，做不完会掉理智、体力或者灵感。"},
+		{"speaker": "苏柚", "text": "走完步数就可以回去了吗？"},
+		{"speaker": "白夜", "text": "步数用完后右下角会出现「结束今天」。\n准备好了再按——明天的棋盘会重新生成。"},
+	])
 
 func _on_camera_mode_entered() -> void:
 	board_visual.mg_show_on_scouted_cards()
