@@ -3,7 +3,7 @@
 	"events": [
 		{
 			"id": "evening_day1",
-			"bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+			"bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
 			"priority": 10,
 			"once_flag": "evening_day1_seen",
 			"condition": {
@@ -22,7 +22,7 @@
 		},
 		{
 			"id": "evening_day2",
-			"bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+			"bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
 			"priority": 10,
 			"once_flag": "evening_day2_seen",
 			"condition": {
@@ -42,7 +42,7 @@
 		},
 		{
 			"id": "evening_day3",
-			"bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+			"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
 			"priority": 10,
 			"once_flag": "evening_day3_seen",
 			"condition": {
@@ -67,7 +67,7 @@
 		},
 		{
 			"id": "evening_day4",
-			"bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+			"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
 			"priority": 10,
 			"once_flag": "evening_day4_seen",
 			"condition": {
@@ -91,7 +91,7 @@
 		},
 		{
 			"id": "evening_day5",
-			"bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+			"bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
 			"priority": 10,
 			"once_flag": "evening_day5_seen",
 			"condition": {
@@ -114,7 +114,7 @@
 		},
 		{
 			"id": "evening_day6",
-			"bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+			"bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
 			"priority": 10,
 			"once_flag": "evening_day6_seen",
 			"condition": {
@@ -134,7 +134,7 @@
 		},
 		{
 			"id": "evening_day7",
-			"bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+			"bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
 			"priority": 10,
 			"once_flag": "evening_day7_seen",
 			"condition": {
@@ -177,7 +177,7 @@
 		},
 		{
 			"id": "evening_day8",
-			"bg_image": "res://godot/assets/image/bg_apartment_kitchen_20260515161008.png",
+			"bg_image": "res://assets/image/bg_apartment_kitchen_20260515161008.png",
 			"priority": 10,
 			"once_flag": "evening_day8_seen",
 			"condition": {
@@ -199,7 +199,7 @@
 		},
 		{
 			"id": "evening_day9",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"priority": 10,
 			"once_flag": "evening_day9_seen",
 			"condition": {
@@ -219,7 +219,7 @@
 		},
 		{
 			"id": "evening_day10",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"priority": 10,
 			"once_flag": "evening_day10_seen",
 			"condition": {
@@ -238,7 +238,7 @@
 		},
 		{
 			"id": "evening_day11",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"priority": 10,
 			"once_flag": "evening_day11_seen",
 			"condition": {
@@ -257,7 +257,7 @@
 		},
 		{
 			"id": "evening_day12",
-			"bg_image": "res://godot/assets/image/bg_dark_world_deep_v2_20260515161735.png",
+			"bg_image": "res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
 			"priority": 10,
 			"once_flag": "evening_day12_seen",
 			"condition": {
@@ -277,7 +277,7 @@
 		},
 		{
 			"id": "evening_day13",
-			"bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+			"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
 			"priority": 10,
 			"once_flag": "evening_day13_seen",
 			"condition": {
@@ -298,7 +298,7 @@
 		},
 		{
 			"id": "evening_day14",
-			"bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+			"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
 			"priority": 10,
 			"once_flag": "evening_day14_seen",
 			"condition": {

@@ -3,7 +3,7 @@
 	"events": [
 		{
 			"id": "plot_newspaper",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"card_type": "plot",
 			"priority": 10,
 			"once_flag": "seen_newspaper",
@@ -36,7 +36,7 @@
 		},
 		{
 			"id": "clue_graffiti",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"card_type": "clue",
 			"priority": 10,
 			"once_flag": "seen_graffiti",
@@ -55,7 +55,7 @@
 		},
 		{
 			"id": "plot_phone_call",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"card_type": "plot",
 			"priority": 10,
 			"once_flag": "seen_phone_call",
@@ -91,7 +91,7 @@
 		},
 		{
 			"id": "plot_mirror",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"card_type": "plot",
 			"priority": 20,
 			"once_flag": "seen_mirror",
@@ -111,7 +111,7 @@
 		},
 		{
 			"id": "clue_tape",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"card_type": "clue",
 			"priority": 15,
 			"once_flag": "seen_tape",
@@ -133,7 +133,7 @@
 
 		{
 			"id": "clue_dream_promise",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"card_type": "clue",
 			"priority": 15,
 			"once_flag": "seen_dream_promise",
@@ -158,7 +158,7 @@
 
 		{
 			"id": "plot_baiye_wings",
-			"bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
 			"card_type": "plot",
 			"priority": 15,
 			"once_flag": "seen_baiye_wings",
@@ -197,7 +197,7 @@
 
 		{
 			"id": "clue_forest_run",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"card_type": "clue",
 			"priority": 10,
 			"once_flag": "seen_forest_run",
@@ -220,7 +220,7 @@
 
 		{
 			"id": "plot_cliff_vow",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"card_type": "plot",
 			"priority": 10,
 			"once_flag": "seen_cliff_vow",
@@ -247,7 +247,7 @@
 
 		{
 			"id": "clue_holy_sword",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"card_type": "clue",
 			"priority": 10,
 			"once_flag": "seen_holy_sword",
@@ -273,7 +273,7 @@
 
 		{
 			"id": "clue_long_dark",
-			"bg_image": "res://godot/assets/image/bg_dark_world_deep_v2_20260515161735.png",
+			"bg_image": "res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
 			"card_type": "clue",
 			"priority": 10,
 			"once_flag": "seen_long_dark",
@@ -299,7 +299,7 @@
 
 		{
 			"id": "plot_full_memory",
-			"bg_image": "res://godot/assets/image/bg_memory_overexposed_20260515161038.png",
+			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
 			"card_type": "plot",
 			"priority": 10,
 			"once_flag": "seen_full_memory",
@@ -327,7 +327,7 @@
 
 		{
 			"id": "plot_baiye_confession",
-			"bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+			"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
 			"card_type": "plot",
 			"priority": 5,
 			"once_flag": "seen_confession",
@@ -375,7 +375,7 @@
 
 		{
 			"id": "plot_final_choice",
-			"bg_image": "res://godot/assets/image/bg_dark_world_deep_v2_20260515161735.png",
+			"bg_image": "res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
 			"card_type": "plot",
 			"priority": 1,
 			"once_flag": "made_final_choice",

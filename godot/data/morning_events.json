@@ -5,7 +5,7 @@
       "id": "morning_day1",
       "priority": 10,
       "once_flag": "morning_day1_seen",
-      "bg_image": "res://godot/assets/image/loc_hospital_v2_20260514054038.png",
+      "bg_image": "res://assets/image/loc_hospital_v2_20260514054038.png",
       "condition": {
         "all": [
           {
@@ -27,7 +27,7 @@
         {
           "speaker": "",
           "text": "凌晨三点，衣柜里传来低低的哭声。",
-          "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
+          "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
         },
         {
           "speaker": "苏柚",
@@ -79,7 +79,7 @@
       "id": "morning_day2",
       "priority": 10,
       "once_flag": "morning_day2_seen",
-      "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+      "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
       "condition": {
         "all": [
           {
@@ -128,7 +128,7 @@
       "id": "morning_day3",
       "priority": 10,
       "once_flag": "morning_day3_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+      "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
       "condition": {
         "all": [
           {
@@ -177,7 +177,7 @@
       "id": "morning_day5",
       "priority": 10,
       "once_flag": "morning_day5_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_kitchen_20260515161008.png",
+      "bg_image": "res://assets/image/bg_apartment_kitchen_20260515161008.png",
       "condition": {
         "all": [
           {
@@ -222,7 +222,7 @@
       "id": "morning_day6",
       "priority": 10,
       "once_flag": "morning_day6_seen",
-      "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+      "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
       "condition": {
         "all": [
           {
@@ -262,7 +262,7 @@
       "id": "morning_day6_awake",
       "priority": 5,
       "once_flag": "morning_day6_awake_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+      "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
       "condition": {
         "all": [
           {
@@ -302,7 +302,7 @@
       "id": "morning_day7",
       "priority": 10,
       "once_flag": "morning_day7_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+      "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
       "condition": {
         "all": [
           {
@@ -367,7 +367,7 @@
       "id": "morning_day8",
       "priority": 10,
       "once_flag": "morning_day8_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+      "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
       "condition": {
         "all": [
           {
@@ -424,7 +424,7 @@
       "id": "morning_day9_low_trust",
       "priority": 10,
       "once_flag": "morning_day9_cold_seen",
-      "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+      "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
       "condition": {
         "all": [
           {
@@ -478,7 +478,7 @@
       "id": "morning_day9_high_trust",
       "priority": 5,
       "once_flag": "morning_day9_warm_seen",
-      "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+      "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
       "condition": {
         "all": [
           {
@@ -530,7 +530,7 @@
       "id": "morning_day10",
       "priority": 10,
       "once_flag": "morning_day10_seen",
-      "bg_image": "res://godot/assets/image/bg_dark_world_open_20260515161039.png",
+      "bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
       "condition": {
         "all": [
           {
@@ -583,7 +583,7 @@
       "id": "morning_day11",
       "priority": 10,
       "once_flag": "morning_day11_seen",
-      "bg_image": "res://godot/assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
+      "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png",
       "condition": {
         "all": [
           {
@@ -640,7 +640,7 @@
       "id": "morning_day12",
       "priority": 10,
       "once_flag": "morning_day12_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+      "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
       "condition": {
         "all": [
           {
@@ -693,7 +693,7 @@
       "id": "morning_day13",
       "priority": 10,
       "once_flag": "morning_day13_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_kitchen_20260515161008.png",
+      "bg_image": "res://assets/image/bg_apartment_kitchen_20260515161008.png",
       "condition": {
         "all": [
           {
@@ -750,7 +750,7 @@
       "id": "morning_day14",
       "priority": 10,
       "once_flag": "morning_day14_seen",
-      "bg_image": "res://godot/assets/image/bg_apartment_living_dusk_final.png",
+      "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
       "condition": {
         "all": [
           {
