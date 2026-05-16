@@ -481,6 +481,27 @@ function Start()
     G.worldToScreen = worldToScreen
     G.checkDefeat    = nil  -- → GameFlow.init 后设置
     G.enterDarkWorld = nil  -- → DarkWorldFlow.init 后设置
+
+    -- 相机 Pan 回调 (供 GameFlow 等子模块驱动相机移动)
+    -- 用 Tween 平滑插值 cameraPanX_/Z_, 完成后执行 onComplete
+    G.setCameraPan = function(targetX, targetZ, duration, easing, onComplete)
+        local proxy = { x = cameraPanX_, z = cameraPanZ_ }
+        Tween.to(proxy, { x = targetX, z = targetZ }, duration or 0.8, {
+            easing = easing or Tween.Easing.easeInOutQuad,
+            tag = "camerapan",
+            onUpdate = function()
+                cameraPanX_ = proxy.x
+                cameraPanZ_ = proxy.z
+                applyCameraPosition()
+            end,
+            onComplete = function()
+                cameraPanX_ = proxy.x
+                cameraPanZ_ = proxy.z
+                applyCameraPosition()
+                if onComplete then onComplete() end
+            end,
+        })
+    end
     DarkWorldFlow.init(G, {
         scene = scene_,
         camera = camera_,
@@ -1189,6 +1210,7 @@ function HandleNanoVGRender(eventType, eventData)
 
     -- === 手牌面板 ===
     HandPanel.draw(vg, logicalW, logicalH, gameTime)
+    HandPanel.drawHighlight(vg, logicalH)   -- Day 1 教程: 便签高亮脉冲
 
     -- === HUD (天数已整合到 ResourceBar) ===
 

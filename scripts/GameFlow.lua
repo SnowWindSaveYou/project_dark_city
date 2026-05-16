@@ -175,7 +175,72 @@ function M.startDeal()
         CameraButton.show()
 
         BoardItems.spawnDaily(G.board, Board, homeRow, homeCol)
+
+        -- Day 1 教程: 发牌完成、所有初始化结束后触发
+        -- 流程: 相机 Pan 聚焦主角 → 短暂定格 → 相机回中心 → 白夜对话 → 笔记本高亮
+        if G.dayCount == 1 then
+            M.triggerDay1Tutorial(wx, wz)
+        end
     end)
+end
+
+-- ============================================================================
+-- Day 1 引导教程
+-- ============================================================================
+
+-- 白夜引导对话内容
+local DAY1_TUTORIAL_DIALOGUE = {
+    { speaker = "白夜", text = "……这里是外面的世界。" },
+    { speaker = "苏柚", text = "对。我们今天要出门。" },
+    { speaker = "白夜", text = "那些背面朝上的牌……翻开后会有麻烦吗？" },
+    { speaker = "苏柚", text = "有些是正常的地方，有些……自从你来了以后，就不太一样了。" },
+    { speaker = "白夜", text = "……对不起。" },
+    { speaker = "苏柚", text = "不是怪你。（翻开笔记本）不管怎样，我今天有些事要做。" },
+    { speaker = "苏柚", text = "左边这本是日程，完成了有好处。尽量别一直拖着。" },
+    { speaker = "白夜", text = "……我知道了。我不会拖累你的。" },
+}
+
+--- Day 1 教程触发
+---@param tokenWX number Token 的世界 X
+---@param tokenWZ number Token 的世界 Z
+function M.triggerDay1Tutorial(tokenWX, tokenWZ)
+    if not G.setCameraPan then return end
+
+    -- 阶段1: 相机 Pan 聚焦主角格子 (稍微偏移，不完全居中以保留棋盘感)
+    local panTargetX = tokenWX * 0.55
+    local panTargetZ = tokenWZ * 0.55
+
+    -- 短暂延迟让 Token/白夜 入场动画先播完
+    local delay = { t = 0 }
+    Tween.to(delay, { t = 1 }, 0.6, {
+        tag = "tutorial",
+        onComplete = function()
+            -- 聚焦主角
+            G.setCameraPan(panTargetX, panTargetZ, 0.9, Tween.Easing.easeOutQuad, function()
+                -- 阶段2: 定格 0.8s 让玩家看清自己的角色
+                local hold = { t = 0 }
+                Tween.to(hold, { t = 1 }, 0.8, {
+                    tag = "tutorial",
+                    onComplete = function()
+                        -- 阶段3: 相机缓回中心，同时触发对话
+                        G.setCameraPan(0, 0, 1.2, Tween.Easing.easeInOutQuad)
+
+                        -- 短暂等待后弹出对话（和相机回程同步，更自然）
+                        local dialogDelay = { t = 0 }
+                        Tween.to(dialogDelay, { t = 1 }, 0.3, {
+                            tag = "tutorial",
+                            onComplete = function()
+                                DialogueSystem.show(DAY1_TUTORIAL_DIALOGUE, function()
+                                    -- 对话结束 → 笔记本高亮提示
+                                    HandPanel.highlightOnce()
+                                end)
+                            end,
+                        })
+                    end,
+                })
+            end)
+        end,
+    })
 end
 
 -- ============================================================================

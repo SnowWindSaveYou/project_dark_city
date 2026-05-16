@@ -1260,4 +1260,82 @@ function M.updateHover(lx, ly, dt, logicalW, logicalH)
     end
 end
 
+-- ============================================================================
+-- Day 1 教程: 笔记本高亮提示
+-- 在第一个便签贴（"日程"）上播放三次脉冲光晕，提醒玩家注意
+-- ============================================================================
+
+local highlightState_ = {
+    active    = false,
+    timer     = 0,       -- 当前脉冲计时
+    pulseCount = 0,      -- 已播放次数
+    alpha     = 0,       -- 当前光晕 alpha (0~1)
+}
+
+local HIGHLIGHT_PULSE_DURATION = 0.55   -- 单次脉冲时长 (s)
+local HIGHLIGHT_PULSE_TIMES    = 3      -- 共脉冲3次
+local HIGHLIGHT_COLOR          = { 255, 210, 80 }  -- 暖黄色光晕
+
+--- 触发一次性笔记本高亮提示（Day 1 教程结束后调用）
+function M.highlightOnce()
+    if highlightState_.active then return end
+    highlightState_.active    = true
+    highlightState_.timer     = 0
+    highlightState_.pulseCount = 0
+    highlightState_.alpha     = 0
+end
+
+--- 在 M.update 中每帧推进高亮动画
+local _origUpdate = M.update
+function M.update(dt, logicalH)
+    if _origUpdate then _origUpdate(dt, logicalH) end
+
+    if not highlightState_.active then return end
+    highlightState_.timer = highlightState_.timer + dt
+    local progress = highlightState_.timer / HIGHLIGHT_PULSE_DURATION
+    -- sin 曲线: 0→1→0, 每次脉冲
+    highlightState_.alpha = math.max(0, math.sin(progress * math.pi))
+
+    if progress >= 1.0 then
+        highlightState_.pulseCount = highlightState_.pulseCount + 1
+        highlightState_.timer = 0
+        if highlightState_.pulseCount >= HIGHLIGHT_PULSE_TIMES then
+            highlightState_.active = false
+            highlightState_.alpha  = 0
+        end
+    end
+end
+
+--- 在 M.draw 中绘制高亮光晕（叠加在便签贴上方）
+--- 由外部 draw 调用末尾追加：M.drawHighlight(vg, logicalH)
+function M.drawHighlight(vg, logicalH)
+    if not highlightState_.active or highlightState_.alpha < 0.01 then return end
+    if not state.visible then return end
+
+    -- 取第一个便签贴（"日程"）的位置
+    local lx, ly, lw, lh = getTabLabelRect(logicalH, 1)
+    local cx = lx + lw / 2
+    local cy = ly + lh / 2
+    local r  = math.max(lw, lh) * 0.85
+
+    local a   = math.floor(highlightState_.alpha * 180)
+    local cr, cg, cb = HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2], HIGHLIGHT_COLOR[3]
+
+    -- 放射状渐变光晕
+    local paint = nvgRadialGradient(vg, cx, cy, r * 0.3, r,
+        nvgRGBA(cr, cg, cb, a),
+        nvgRGBA(cr, cg, cb, 0))
+    nvgBeginPath(vg)
+    nvgCircle(vg, cx, cy, r)
+    nvgFillPaint(vg, paint)
+    nvgFill(vg)
+
+    -- 边框描边脉冲
+    nvgBeginPath(vg)
+    nvgRoundedRect(vg, lx - 2, ly - 2, lw + 4, lh + 4, TAB_LABEL_RADIUS + 2)
+    nvgStrokeColor(vg, nvgRGBA(cr, cg, cb, math.floor(highlightState_.alpha * 220)))
+    nvgStrokeWidth(vg, 2)
+    nvgStroke(vg)
+end
+
 return M

@@ -905,11 +905,20 @@ function M.drawPhoto(vg, logicalW, logicalH, gameTime)
     nvgFillColor(vg, nvgRGBA(30, 35, 45, 240))
     nvgFill(vg)
 
-    -- 场景图片
+    -- 场景图片 (aspect-fill: 保持宽高比填满图区，居中裁剪)
     if sceneImg > 0 then
         nvgSave(vg)
         nvgScissor(vg, imgX, imgY, imgW, imgH)
-        local imgPaint = nvgImagePattern(vg, imgX, imgY, imgW, imgH, 0, sceneImg, 1.0)
+        -- 获取图片原始尺寸，计算 aspect-fill 缩放
+        local srcW, srcH = nvgImageSize(vg, sceneImg)
+        local scaleX = imgW / (srcW > 0 and srcW or imgW)
+        local scaleY = imgH / (srcH > 0 and srcH or imgH)
+        local scale  = math.max(scaleX, scaleY)   -- fill: 取较大值确保无黑边
+        local dstW   = (srcW > 0 and srcW or imgW) * scale
+        local dstH   = (srcH > 0 and srcH or imgH) * scale
+        local dstX   = imgX + (imgW - dstW) * 0.5  -- 居中
+        local dstY   = imgY + (imgH - dstH) * 0.5
+        local imgPaint = nvgImagePattern(vg, dstX, dstY, dstW, dstH, 0, sceneImg, 1.0)
         nvgBeginPath(vg)
         nvgRoundedRect(vg, imgX, imgY, imgW, imgH, POL_IMG_R)
         nvgFillPaint(vg, imgPaint)
