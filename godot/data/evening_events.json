@@ -362,16 +362,16 @@
 				{
 					"speaker": "",
 					"text": "白夜抬起头，眼睛看着她。嘴唇翕动了一下，却没有说出来。"
-				},
-				{
-					"speaker": "",
-					"text": "此刻，苏柚面临选择——"
 				}
 			],
 			"choices": [
 				{
-					"id": "accept",
-					"text": "……嗯。我知道了。好好睡吧。"
+					"id": "wait",
+					"text": "（等着，不说话。等他说出来。）"
+				},
+				{
+					"id": "name",
+					"text": "你叫我苏柚。"
 				},
 				{
 					"id": "reject",
@@ -379,13 +379,18 @@
 				}
 			],
 			"choice_effects": {
-				"accept": {
-					"trust_delta": 1
+				"wait": {
+					"baiye_trust_change": 1,
+					"effects": { "inspiration": 1 }
+				},
+				"name": {
+					"baiye_trust_change": 2,
+					"set_flags": { "named_herself_day7": true }
 				},
 				"reject": {
-					"set_flags": [
-						"ending_seal"
-					]
+					"baiye_trust_change": -1,
+					"effects": { "san": 1 },
+					"set_flags": { "ending_seal": true }
 				}
 			}
 		},
@@ -438,8 +443,31 @@
 					"speaker": "",
 					"text": "面好了，两人都没有再说话。",
 					"bg_image": "res://assets/image/cut_ramen_two_bowls_v2_20260516082554.png"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "（面还是要吃的。）"
 				}
-			]
+			],
+			"choices": [
+				{
+					"id": "forgive",
+					"text": "默默吃完，没再提这件事。"
+				},
+				{
+					"id": "silent",
+					"text": "放下碗。今晚不说话了。"
+				}
+			],
+			"choice_effects": {
+				"forgive": {
+					"baiye_trust_change": 1
+				},
+				"silent": {
+					"baiye_trust_change": -1,
+					"set_flags": { "silent_night_day8": true }
+				}
+			}
 		},
 		{
 			"id": "evening_day9",

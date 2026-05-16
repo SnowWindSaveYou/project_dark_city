@@ -216,7 +216,11 @@
         },
         {
           "speaker": "苏柚",
-          "text": "（妥协了。也不确定是因为信任还是因为懒得对抗。）"
+          "text": "（手放在门把手上。出去，还是算了？）",
+          "choices": [
+            { "label": "算了。留下来吃。", "choice_id": "stay" },
+            { "label": "还是出去一下。", "choice_id": "leave" }
+          ]
         },
         {
           "speaker": "",
@@ -224,9 +228,20 @@
         },
         {
           "speaker": "",
-          "text": "点了头。保护和控制之间的线，越来越模糊。"
+          "text": "保护和控制之间的线，越来越模糊。"
         }
-      ]
+      ],
+      "choice_effects": {
+        "stay": {
+          "baiye_trust_change": 1,
+          "effects": { "san": 1 }
+        },
+        "leave": {
+          "baiye_trust_change": -1,
+          "effects": { "health": -1 },
+          "set_flags": { "defied_baiye_day5": true }
+        }
+      }
     },
     {
       "id": "morning_day6",
@@ -774,8 +789,32 @@
           "speaker": "",
           "text": "沉默了很久。两个人都没有说话，只是吃完了这碗汤。",
           "bg_image": "res://assets/image/edited_keyframe_d13_tear_in_bowl_v3_20260516065359.png"
+        },
+        {
+          "speaker": "白夜",
+          "text": "今天……会想起很多事情。不管你想起了什么，都不要恨我。",
+          "bg_image": "res://assets/image/keyframe_d5_bedside_truth_v3_20260516064851.png"
+        },
+        {
+          "speaker": "苏柚",
+          "text": "（……）",
+          "choices": [
+            { "label": "我什么都想知道。", "choice_id": "face_all" },
+            { "label": "如果太重，我会停下来。", "choice_id": "cautious" }
+          ]
         }
-      ]
+      ],
+      "choice_effects": {
+        "face_all": {
+          "baiye_trust_change": 1,
+          "effects": { "san": -1 },
+          "set_flags": { "chose_to_face_all": true }
+        },
+        "cautious": {
+          "baiye_trust_change": 1,
+          "effects": { "san": 1 }
+        }
+      }
     },
     {
       "id": "morning_day14",
