@@ -190,7 +190,7 @@ func _build_labels() -> void:
 	_label_ghost2.modulate = COLOR_GHOST2
 	_label_ghost2.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_label_ghost2.no_depth_test = false
-	_label_ghost2.alpha_cut = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	_label_ghost2.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 	_label_ghost2.render_priority = 1
 	_label_ghost2.outline_size = 0
 	_label_ghost2.double_sided = true
@@ -206,7 +206,7 @@ func _build_labels() -> void:
 	_label_ghost1.modulate = COLOR_GHOST1
 	_label_ghost1.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_label_ghost1.no_depth_test = false
-	_label_ghost1.alpha_cut = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	_label_ghost1.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 	_label_ghost1.render_priority = 2
 	_label_ghost1.outline_size = 0
 	_label_ghost1.double_sided = true
@@ -222,7 +222,7 @@ func _build_labels() -> void:
 	_label_main.modulate = COLOR_MAIN
 	_label_main.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_label_main.no_depth_test = false
-	_label_main.alpha_cut = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	_label_main.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 	_label_main.render_priority = 3
 	_label_main.outline_size = 0
 	_label_main.double_sided = true
