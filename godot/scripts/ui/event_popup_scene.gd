@@ -188,6 +188,10 @@ func show_photo(card: Card) -> void:
 	if _photo_popup:
 		_photo_popup.show_photo(card)
 
+func show_photo_with_chibi(card: Card, monster_tex_path: String) -> void:
+	if _photo_popup:
+		_photo_popup.show_photo(card, monster_tex_path)
+
 # ===========================================================================
 # 模态弹窗 API
 # ===========================================================================

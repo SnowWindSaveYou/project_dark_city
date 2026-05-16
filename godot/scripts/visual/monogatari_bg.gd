@@ -41,6 +41,12 @@ const SHAPE_COUNT: int = 14  # 同屏漂浮几何体数量
 const WORD_COUNT: int = 5    # 同屏文字数量
 
 # ---------------------------------------------------------------------------
+# 电线参数
+# ---------------------------------------------------------------------------
+## 每组电线的数量（3组，每组2-3根线，从上方不同高度横穿）
+const WIRE_GROUP_COUNT: int = 3
+
+# ---------------------------------------------------------------------------
 # 配色方案 — 明面 / 暗面
 # ---------------------------------------------------------------------------
 ## 明面：白底黑字，几何体深灰线条
@@ -59,6 +65,7 @@ const COLOR_DARK_SHADOW: Color = Color(0.25, 0.18, 0.38, 0.18)   # 深紫阴影
 # ---------------------------------------------------------------------------
 var _shapes: Array[Dictionary] = []     # 几何体运行时数据
 var _words:  Array[Dictionary] = []     # 文字运行时数据
+var _wires:  Array[Dictionary] = []     # 电线运行时数据
 
 var _current_day: int = 1
 var _dark_t: float = 0.0               # 0.0=明面 1.0=暗面，由外部插值赋值
@@ -78,6 +85,7 @@ func _ready() -> void:
 
 	_init_shapes()
 	_init_words()
+	_init_wires()
 
 
 func _get_vp_size() -> Vector2:
@@ -160,6 +168,51 @@ func _init_words() -> void:
 		})
 
 
+## 初始化电线（静态，不随时间移动，仅微弱alpha呼吸）
+func _init_wires() -> void:
+	_wires.clear()
+	# 每组电线由若干条平行的细线组成，整体从屏幕左边到右边
+	# 高度分布在屏幕上方 25%~65% 之间，模拟高空电线视角
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+
+	# 组1：高位，3根线，坡度向右微下斜
+	var g1_base: float = 0.28   # 基准高度（比例）
+	for i in range(3):
+		_wires.append({
+			"y_ratio":   g1_base + i * 0.016,
+			"slope":     rng.randf_range(0.015, 0.035),  # 向右下倾斜幅度
+			"alpha":     rng.randf_range(0.10, 0.16),
+			"width":     rng.randf_range(0.9, 1.3),
+			"phase":     rng.randf_range(0.0, TAU),      # 呼吸相位
+			"freq":      rng.randf_range(0.12, 0.22),
+		})
+
+	# 组2：中位，2根线，坡度相反（向右上微斜），营造交叉感
+	var g2_base: float = 0.44
+	for i in range(2):
+		_wires.append({
+			"y_ratio":   g2_base + i * 0.024,
+			"slope":     rng.randf_range(-0.028, -0.010),
+			"alpha":     rng.randf_range(0.08, 0.13),
+			"width":     rng.randf_range(0.8, 1.1),
+			"phase":     rng.randf_range(0.0, TAU),
+			"freq":      rng.randf_range(0.10, 0.18),
+		})
+
+	# 组3：低位，2根线，微下斜，视角最近感觉最粗
+	var g3_base: float = 0.58
+	for i in range(2):
+		_wires.append({
+			"y_ratio":   g3_base + i * 0.018,
+			"slope":     rng.randf_range(0.020, 0.045),
+			"alpha":     rng.randf_range(0.07, 0.11),
+			"width":     rng.randf_range(1.1, 1.6),
+			"phase":     rng.randf_range(0.0, TAU),
+			"freq":      rng.randf_range(0.08, 0.15),
+		})
+
+
 func _get_day_words() -> Array:
 	if DAY_WORDS.has(_current_day):
 		return DAY_WORDS[_current_day]
@@ -226,6 +279,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	_draw_wires()
 	_draw_shapes()
 	_draw_words()
 
@@ -345,3 +399,37 @@ func _draw_words() -> void:
 		# 主文字
 		draw_string(_font, pos, wd["text"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, fs, t_col)
+
+
+# ---------------------------------------------------------------------------
+# 绘制电线
+# ---------------------------------------------------------------------------
+
+func _draw_wires() -> void:
+	var vp: Vector2 = _get_vp_size()
+
+	# 明面：深灰线；暗面：冷蓝白线
+	var wire_col_bright: Color = Color(0.12, 0.10, 0.14)
+	var wire_col_dark:   Color = Color(0.62, 0.60, 0.78)
+
+	for wr in _wires:
+		# alpha 呼吸（非常缓慢，±20%）
+		var a_mod: float = 0.85 + 0.15 * sin(_time * wr["freq"] * TAU + wr["phase"])
+		var base_alpha: float = wr["alpha"]
+
+		# 暗面时线条更亮更可见
+		var alpha_dark_boost: float = lerp(base_alpha, base_alpha * 1.6, _dark_t)
+		var final_alpha: float = alpha_dark_boost * a_mod
+
+		var col: Color = wire_col_bright.lerp(wire_col_dark, _dark_t)
+		col.a = final_alpha
+
+		# 起点在左侧略微屏外，终点在右侧略微屏外
+		# slope 决定右端 y 相对左端 y 的偏移比例（相对屏幕高度）
+		var y_left:  float = vp.y * wr["y_ratio"]
+		var y_right: float = vp.y * (wr["y_ratio"] + wr["slope"])
+
+		var p_left:  Vector2 = Vector2(-20.0, y_left)
+		var p_right: Vector2 = Vector2(vp.x + 20.0, y_right)
+
+		draw_line(p_left, p_right, col, wr["width"])

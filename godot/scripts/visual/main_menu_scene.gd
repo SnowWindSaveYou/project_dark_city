@@ -84,6 +84,9 @@ var _glitch_interval: float = 10.0
 var _glitch_char_idx: int   = -1
 var _glitch_frames: int     = 0
 
+# 标题颜色呼吸（周期 8s，缓慢在深色→偏紫之间来回）
+var _breath_time: float = 0.0
+
 # ---------------------------------------------------------------------------
 # _ready
 # ---------------------------------------------------------------------------
@@ -163,14 +166,14 @@ func _build_title_chars() -> void:
 	if old:
 		old.queue_free()
 
-	# HBoxContainer 承载四个字，锚点定位到 22% 高度处
+	# HBoxContainer 承载四个字，锚点定位到 14% 高度处
 	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.name = "TitleHBox"
 	hbox.layout_mode = 1
 	hbox.set_anchor(SIDE_LEFT,   0.0)
-	hbox.set_anchor(SIDE_TOP,    0.22)
+	hbox.set_anchor(SIDE_TOP,    0.14)
 	hbox.set_anchor(SIDE_RIGHT,  0.9)
-	hbox.set_anchor(SIDE_BOTTOM, 0.22)
+	hbox.set_anchor(SIDE_BOTTOM, 0.14)
 	hbox.set_offset(SIDE_LEFT,   72.0)
 	hbox.set_offset(SIDE_TOP,    -64.0)
 	hbox.set_offset(SIDE_RIGHT,  0.0)
@@ -410,13 +413,14 @@ func _play_enter_anim() -> void:
 # ---------------------------------------------------------------------------
 
 func _process(dt: float) -> void:
-	_game_time  += dt
-	_float_time += dt
+	_game_time   += dt
+	_float_time  += dt
+	_breath_time += dt
 
 	# ── 角色浮动（正弦，±18px，周期 3.5s；旋转 ±1.5°同步）
 	if _baiye_sprite.visible and _baiye_sprite.texture:
 		var t: float = _float_time
-		_baiye_sprite.position.y    = _baiye_base_y + sin(t * TAU / 3.5) * 18.0
+		_baiye_sprite.position.y       = _baiye_base_y + sin(t * TAU / 3.5) * 18.0
 		_baiye_sprite.rotation_degrees = _baiye_base_rot + sin(t * TAU / 3.5 + 0.5) * 1.5
 
 	# ── 坐标 DAY 滚动（14→0，约 0.7s）
@@ -427,9 +431,22 @@ func _process(dt: float) -> void:
 			_coord_rolling = false
 			_coord_label.text = "31.2304°N  121.4737°E  /  DAY 0"
 
-	# ── 标题偶发抖动
+	# ── 标题颜色呼吸（周期 8s，深近黑 ↔ 深紫，幅度温和）
+	if _title_chars.size() > 0 and _enter_done:
+		var phase: float = sin(_breath_time * TAU / 8.0) * 0.5 + 0.5  # 0→1
+		# C_TITLE(0.04,0.03,0.08) ↔ 深紫(0.18,0.12,0.30)
+		var breath_color: Color = Color(
+			lerp(C_TITLE.r, 0.18, phase * 0.6),
+			lerp(C_TITLE.g, 0.12, phase * 0.6),
+			lerp(C_TITLE.b, 0.30, phase * 0.6),
+			1.0
+		)
+		for lbl: Label in _title_chars:
+			lbl.add_theme_color_override("font_color", breath_color)
+
+	# ── 标题偶发抖动（使用 offset 而非 position，避免锚点节点飞移）
 	_glitch_timer += dt
-	if _glitch_timer >= _glitch_interval and _title_chars.size() > 0:
+	if _glitch_timer >= _glitch_interval and _title_chars.size() > 0 and _enter_done:
 		_glitch_timer    = 0.0
 		_glitch_interval = randf_range(8.0, 14.0)
 		_glitch_char_idx = randi() % _title_chars.size()
@@ -437,13 +454,16 @@ func _process(dt: float) -> void:
 
 	if _glitch_frames > 0:
 		_glitch_frames -= 1
-		var hbox: Node = _title_block.get_node_or_null("TitleHBox")
+		var hbox: Control = _title_block.get_node_or_null("TitleHBox") as Control
 		if hbox:
 			if _glitch_frames > 0:
-				hbox.position.x = randf_range(-4.0, 4.0)
-				hbox.position.y = randf_range(-2.0, 2.0)
+				# layout_mode=1 的锚点节点必须用 offset 而非 position 做位移
+				hbox.offset_left = 72.0 + randf_range(-5.0, 5.0)
+				hbox.offset_top  = -64.0 + randf_range(-3.0, 3.0)
 			else:
-				hbox.position = Vector2.ZERO
+				# 复位到初始 offset
+				hbox.offset_left = 72.0
+				hbox.offset_top  = -64.0
 				_glitch_char_idx = -1
 
 	_draw_layer.queue_redraw()

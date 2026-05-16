@@ -14,6 +14,9 @@ var _event_handler: EventHandler = null
 var _photo_row: int = -1
 var _photo_col: int = -1
 
+## 照片弹窗关闭后是否继续驱除流程（怪物/陷阱拍照时为 true，跳过 on_photo_popup_dismissed 的 ready 恢复）
+var _pending_exorcise: bool = false
+
 ## Phase 5: 每日步数计数
 var _steps_today: int = 0
 ## 天开始时的 health 快照 (用于计算当日最大步数, 避免天中 health 变化影响步数上限)
@@ -540,7 +543,7 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 			GameData.cards_revealed += 1
 
 			# -----------------------------------------------------------
-			# 侦察=清除: 怪物/陷阱 → 展示后自动驱除, 变为安全格 (photo)
+			# 侦察=清除: 怪物/陷阱 → 先弹出照片弹窗，关闭后驱除，变为安全格 (photo)
 			# -----------------------------------------------------------
 			if card.type == "monster" or card.type == "trap":
 				var is_monster: bool = (card.type == "monster")
@@ -550,13 +553,24 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 					m.board_visual.mg_show_on_card(row, col, card.location)
 					GameData.monsters_slain += 1
 
-				# — Phase 1: 认知 (0.8s 停顿让玩家看清)
+				# — Phase 0: 弹出照片弹窗，让玩家看到拍到的东西
 				m.token.set_emotion("scared" if is_monster else "nervous")
-				GameData.set_demo_state("exorcising")
+				GameData.set_demo_state("popup")
 				_photo_row = -1
 				_photo_col = -1
 
-				await m.get_tree().create_timer(0.8).timeout
+				# 传递怪物 chibi 贴图路径供弹窗叠加显示
+				var monster_tex: String = ""
+				if is_monster:
+					monster_tex = MonsterGhost.get_monster_texture(card.location)
+				_pending_exorcise = true
+				m._event_popup.show_photo_with_chibi(card, monster_tex)
+				await m._photo_popup.photo_popup_closed
+				_pending_exorcise = false
+
+				# — Phase 1: 认知状态过渡 (短暂停顿)
+				GameData.set_demo_state("exorcising")
+				await m.get_tree().create_timer(0.4).timeout
 
 				# — Phase 2: 蓄力 (0.6s)
 				var pc: Color = GameTheme.card_type_color("plot")
@@ -627,6 +641,10 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 ## 拍照弹窗关闭
 func on_photo_popup_dismissed(_card_type: String) -> void:
 	# cards_revealed 已在 do_photograph 翻牌回调中计数，此处不再重复
+
+	# 怪物/陷阱情况：弹窗关闭后继续驱除流程，跳过此处的状态恢复
+	if _pending_exorcise:
+		return
 
 	# 清除踪迹幽灵 (拍照结果弹窗关闭后)
 	m.board_visual.mg_clear_trail_ghosts()
