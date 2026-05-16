@@ -111,60 +111,60 @@ anchor_top = 0.40
 anchor_right = 0.0
 anchor_bottom = 0.40
 offset_left = 72.0
-offset_top = -28.0
-offset_right = 340.0
-offset_bottom = 28.0
+offset_top = -34.0
+offset_right = 400.0
+offset_bottom = 34.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 40
 text = "开始游戏"
 
 [node name="BtnGallery" type="Button" parent="TitleBlock/ButtonBlock"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0
-anchor_top = 0.51
+anchor_top = 0.52
 anchor_right = 0.0
-anchor_bottom = 0.51
+anchor_bottom = 0.52
 offset_left = 148.0
-offset_top = -22.0
-offset_right = 380.0
-offset_bottom = 22.0
+offset_top = -28.0
+offset_right = 420.0
+offset_bottom = 28.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 30
 text = "结局图鉴"
 
 [node name="BtnSettings" type="Button" parent="TitleBlock/ButtonBlock"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0
-anchor_top = 0.60
+anchor_top = 0.62
 anchor_right = 0.0
-anchor_bottom = 0.60
+anchor_bottom = 0.62
 offset_left = 104.0
-offset_top = -20.0
-offset_right = 300.0
-offset_bottom = 20.0
+offset_top = -26.0
+offset_right = 340.0
+offset_bottom = 26.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 28
 text = "设  置"
 
 [node name="BtnQuit" type="Button" parent="TitleBlock/ButtonBlock"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.0
-anchor_top = 0.69
+anchor_top = 0.71
 anchor_right = 0.0
-anchor_bottom = 0.69
+anchor_bottom = 0.71
 offset_left = 176.0
-offset_top = -18.0
-offset_right = 340.0
-offset_bottom = 18.0
+offset_top = -24.0
+offset_right = 380.0
+offset_bottom = 24.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 26
 text = "退出游戏"
 
 [node name="VersionLabel" type="Label" parent="."]

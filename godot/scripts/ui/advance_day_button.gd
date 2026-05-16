@@ -284,7 +284,7 @@ func _draw() -> void:
 	# ─────────────────────────────────────────
 	if _state == State.IDLE:
 		var badge_alpha: float = (0.60 + 0.30 * _hover_t) * base_alpha
-		var badge_text: String = "DAY +" + str(GameData.get("current_day", 0) + 1)
+		var badge_text: String = "DAY +" + str(GameData.current_day + 1)
 		var badge_x: float = bx + bw - 10.0
 		var badge_y: float = by - 2.0
 		# badge 背景小圆角矩形

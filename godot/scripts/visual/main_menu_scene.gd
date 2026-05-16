@@ -424,7 +424,7 @@ func _on_btn_exit(btn: Button) -> void:
 	tw.tween_method(func(v: float) -> void:
 		_btn_line_progress[btn] = v
 		_draw_layer.queue_redraw()
-	, _btn_line_progress.get(btn, 1.0), 0.0, 0.12).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	, (_btn_line_progress[btn] if btn in _btn_line_progress else 1.0), 0.0, 0.12).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
 
 # ---------------------------------------------------------------------------
@@ -463,24 +463,6 @@ func _draw_decorations() -> void:
 			"暗面都市 / DARK SIDE CITY", HORIZONTAL_ALIGNMENT_LEFT,
 			-1, 11, Color(C_COORD.r, C_COORD.g, C_COORD.b, alpha))
 
-	# ── 扫描线（在 TitleBlock 范围内从上往下匀速扫过）
-	if _scan_alpha > 0.0 and _line_progress >= 1.0:
-		var tb_right: float = w * 0.56   # TitleBlock 右边界约 58%
-		var tb_top: float   = h * 0.06   # 扫描起点（稍高于标题）
-		var tb_bot: float   = h * 0.72   # 扫描终点（按钮组下方）
-		var sy: float = tb_top + (tb_bot - tb_top) * _scan_y
-		# 主光线（较亮，宽 1px）
-		var a_main: float = _scan_alpha * 0.28
-		_draw_layer.draw_line(
-			Vector2(72.0, sy), Vector2(tb_right, sy),
-			Color(C_LINE.r, C_LINE.g, C_LINE.b, a_main), 1.0)
-		# 光晕（更宽、更透明，扫描感）
-		for dy: int in [-2, -1, 1, 2]:
-			var a_glow: float = _scan_alpha * 0.06 * (3.0 - absf(float(dy))) / 3.0
-			_draw_layer.draw_line(
-				Vector2(72.0, sy + dy), Vector2(tb_right, sy + dy),
-				Color(C_LINE.r, C_LINE.g, C_LINE.b, a_glow), 1.0)
-
 	# ── 按钮重影文字 + 常驻下划线 + hover 划线
 	var font_draw: Font = ThemeDB.fallback_font
 	var btn_list: Array[Button] = [_btn_start, _btn_gallery, _btn_settings, _btn_quit]
@@ -506,7 +488,7 @@ func _draw_decorations() -> void:
 				Vector2(btn_local.x + 8.0 + 2.0, text_y + 2.0),
 				txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ghost_col)
 		# hover 划线（覆盖在下划线之上，亮度更高）
-		var prog: float = _btn_line_progress.get(btn, 0.0)
+		var prog: float = _btn_line_progress[btn] if btn in _btn_line_progress else 0.0
 		if prog > 0.0:
 			var btn_w: float = txt_w * prog
 			_draw_layer.draw_line(
@@ -663,11 +645,6 @@ func _process(dt: float) -> void:
 				hbox.offset_left = 72.0
 				hbox.offset_top  = -64.0
 				_glitch_char_idx = -1
-
-	# ── 扫描线推进（入场完成后启动，周期 6s 循环）
-	if _enter_done:
-		_scan_alpha = move_toward(_scan_alpha, 1.0, dt * 0.8)
-		_scan_y = fmod(_scan_y + dt / 6.0, 1.0)
 
 	# ── 按钮浮动（入场完成且 _btn_float 已初始化后，每帧更新 offset）
 	if _enter_done and not _btn_float.is_empty():
