@@ -64,8 +64,11 @@ func enter_dark_world(rift_row: int, rift_col: int, force: bool = false) -> void
 			MilestoneManager.on_event_complete(ms_event)
 		)
 
-	# 清除所有 MonsterGhost chibi (进入暗面前)
+	# 清除所有 MonsterGhost chibi + 裂隙 chibi (进入暗面前)
 	m.board_visual.mg_clear_all()
+	m.board_visual.rift_clear_all()
+	# 进入暗面时隐藏目的地提示（暗面棋盘与现实无关）
+	m.board_visual.clear_destination_hints()
 
 	# 隐藏 Token + 手牌面板
 	m.token.visible = false
@@ -316,7 +319,17 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 		m.dark_world.collect_card(row, col, card)
 	
 	# 统一表情
-	m.token.set_emotion(EventHandler.get_emotion_for_event(result.event_type))
+	# 对于会立即触发弹窗的事件类型，直接赋值跳过 squash 动画
+	# 避免 squash_x 压缩到 0 时角色变成"小方块"
+	var emo: String = EventHandler.get_emotion_for_event(result.event_type)
+	match result.event_type:
+		EventHandler.EventType.CLUE, EventHandler.EventType.DARK_CLUE, \
+		EventHandler.EventType.ABYSS_CORE:
+			# 弹窗类事件：直接切换，不触发 squash 翻面动画
+			m.token.emotion = emo
+			m.token._pending_emotion = ""
+		_:
+			m.token.set_emotion(emo)
 	
 	# 显示 Toast 通知 (使用原始 dark_type，避免 collect_card 覆写导致显示"normal")
 	if result.event_type != EventHandler.EventType.NONE:
@@ -458,6 +471,14 @@ func _trigger_encounter_dialogue(encounter_data: Dictionary) -> void:
 	var choices: Array = encounter_data.get("choices", [])
 
 	if dialogue.is_empty():
+		m.dark_world.set_ready()
+		return
+
+	# 对话系统忙碌时静默跳过遭遇（否则 on_complete 永远不会被调用，dark_state 卡在 popup）
+	if m._dialogue_system == null or m._dialogue_system.state != "idle":
+		print("[DarkWorldFlow] _trigger_encounter_dialogue: dialogue_system busy (state=%s), skipping encounter" % [
+			m._dialogue_system.state if m._dialogue_system != null else "null"
+		])
 		m.dark_world.set_ready()
 		return
 
@@ -762,6 +783,9 @@ func on_dark_exit_requested() -> void:
 			for r in range(1, Board.ROWS + 1):
 				for c in range(1, Board.COLS + 1):
 					m.board_visual.update_card_visual(r, c)
+
+			# 恢复目的地提示（回到现实棋盘后重建）
+			m.board_visual.refresh_destination_hints()
 
 			# 完成退出
 			m.dark_world.on_exit_complete()

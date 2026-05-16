@@ -124,7 +124,7 @@ var _toast_item_packed: PackedScene = null
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	visible = false
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_PASS  # 默认透传，仅模态弹窗激活时切为 STOP
 
 	_overlay.visible = false
 	$PanelAnchor.visible = false
@@ -205,6 +205,7 @@ func show_event_data(
 		location: String = "",
 		trap_subtype: String = "") -> void:
 	_active = true
+	_sync_mouse_filter()
 	_phase = "enter"
 	visible = true
 	_overlay.visible = true
@@ -280,6 +281,7 @@ func show_event_data(
 ## 碎片收集弹窗：展示前世记忆全文
 func show_fragment(frag_info: Dictionary) -> void:
 	_active = true
+	_sync_mouse_filter()
 	_phase = "enter"
 	visible = true
 	_overlay.visible = true
@@ -318,6 +320,7 @@ func show_fragment(frag_info: Dictionary) -> void:
 func show_event(card: Card) -> void:
 	_card = card
 	_active = true
+	_sync_mouse_filter()
 	_phase = "enter"
 	visible = true
 	_overlay.visible = true
@@ -445,6 +448,7 @@ func dismiss() -> void:
 
 func _on_dismiss_complete() -> void:
 	_active = false
+	_sync_mouse_filter()  # 模态关闭后切回 PASS，toast 不再封锁点击
 	_phase = "none"
 	_overlay.visible = false
 	$PanelAnchor.visible = false
@@ -454,6 +458,12 @@ func _on_dismiss_complete() -> void:
 
 func is_active() -> bool:
 	return _active
+
+## 根据模态弹窗状态切换 mouse_filter:
+## - 模态弹窗激活 → STOP（拦截所有点击，防止误触游戏世界）
+## - 仅 toast / 无内容 → PASS（透传点击到游戏世界，toast 子节点自行响应）
+func _sync_mouse_filter() -> void:
+	mouse_filter = Control.MOUSE_FILTER_STOP if _active else Control.MOUSE_FILTER_PASS
 
 # ===========================================================================
 # 选择面板 API（暗面遭遇 / 通道方向）
@@ -471,6 +481,8 @@ func show_choice(labels: Array, callback: Callable) -> void:
 	visible = true
 	_overlay.visible = true
 	_overlay.color.a = 0.55
+	# 选择面板需要拦截点击，切换为 STOP
+	mouse_filter = Control.MOUSE_FILTER_STOP
 
 	# 根节点：全屏居中容器，鼠标穿透（让 Overlay 拦截背景点击）
 	var anchor: CenterContainer = CenterContainer.new()
@@ -561,6 +573,8 @@ func _dismiss_choice_panel() -> void:
 	if not _active and not _has_active_toasts():
 		_overlay.visible = false
 		visible = false
+	# 恢复 mouse_filter（选择结束后不再需要拦截背景点击）
+	_sync_mouse_filter()
 
 # ===========================================================================
 # 效果徽章（Lua 版风格：绿/红胶囊，icon + 数值）

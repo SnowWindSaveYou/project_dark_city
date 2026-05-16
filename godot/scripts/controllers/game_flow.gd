@@ -271,6 +271,7 @@ func advance_day() -> void:
 	m._camera_button.hide_button()
 	m.token.visible = false
 	m.board_visual.mg_clear_all()
+	m.board_visual.rift_clear_all()
 	m.board_visual.destroy_item_nodes()
 	m.board_visual.destroy_npc_nodes()  # Phase 5: 清理 NPC 节点
 	m.board_items.clear()
