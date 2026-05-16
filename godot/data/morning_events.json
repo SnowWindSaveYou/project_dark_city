@@ -22,7 +22,8 @@
       "dialogue": [
         {
           "speaker": "",
-          "text": "出院第一个夜晚，公寓比记忆中更安静。"
+          "text": "出院第一个夜晚，公寓比记忆中更安静。",
+          "bg_image": "res://assets/image/edited_cut_shoes_entrance_one_clean_20260516082102.png"
         },
         {
           "speaker": "",
@@ -35,7 +36,8 @@
         },
         {
           "speaker": "",
-          "text": "拉开柜门的瞬间，一团半透明的黑影蜷缩在衣服堆里，金色的眼睛猛地亮了。"
+          "text": "拉开柜门的瞬间，一团半透明的黑影蜷缩在衣服堆里，金色的眼睛猛地亮了。",
+          "bg_image": "res://assets/image/edited_keyframe_d1_wardrobe_eyes_v2_clean_20260515183439.png"
         },
         {
           "speaker": "???",
@@ -43,7 +45,8 @@
         },
         {
           "speaker": "",
-          "text": "它激动地扑过来，打翻了床头的牛奶。然后缩在角落，开始哭。"
+          "text": "它激动地扑过来，打翻了床头的牛奶。然后缩在角落，开始哭。",
+          "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
         },
         {
           "speaker": "苏柚",
@@ -51,7 +54,8 @@
         },
         {
           "speaker": "",
-          "text": "推开门时，床头放着一碗粥，还冒着热气。"
+          "text": "推开门时，床头放着一碗粥，还冒着热气。",
+          "bg_image": "res://assets/image/keyframe_d1_blanket_indent_v3_20260516015013.png"
         },
         {
           "speaker": "",
@@ -96,11 +100,13 @@
       "dialogue": [
         {
           "speaker": "",
-          "text": "入夜后暴雨倾盆，闪电劈开天际。"
+          "text": "入夜后暴雨倾盆，闪电劈开天际。",
+          "bg_image": "res://assets/image/edited_cut_window_rain_night_20260516084659.png"
         },
         {
           "speaker": "",
-          "text": "白夜缩成拳头大的毛球，钻进了被窝。"
+          "text": "白夜缩成拳头大的毛球，钻进了被窝。",
+          "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
         },
         {
           "speaker": "苏柚",
@@ -112,7 +118,8 @@
         },
         {
           "speaker": "苏柚",
-          "text": "（僵了很久，最终还是伸手把它拢住了。）"
+          "text": "（僵了很久，最终还是伸手把它拢住了。）",
+          "bg_image": "res://assets/image/keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png"
         },
         {
           "speaker": "",
@@ -120,7 +127,8 @@
         },
         {
           "speaker": "",
-          "text": "她弯腰捡起它——触碰的瞬间，画面闪回：一个人站在白夜身边，背对着她，看不清面容。白夜的眼神温柔、明亮，没有一丝黑暗。"
+          "text": "她弯腰捡起它——触碰的瞬间，画面闪回：一个人站在白夜身边，背对着她，看不清面容。白夜的眼神温柔、明亮，没有一丝黑暗。",
+          "bg_image": "res://assets/image/edited_keyframe_d2_flashback_tang_silhouette_v6_clean_20260515180852.png"
         }
       ]
     },
@@ -153,7 +161,8 @@
         },
         {
           "speaker": "",
-          "text": "白夜飘在身后，不说话，只是一直跟着。"
+          "text": "白夜飘在身后，不说话，只是一直跟着。",
+          "bg_image": "res://assets/image/edited_keyframe_d3_silent_follow_final_20260516053229.png"
         },
         {
           "speaker": "",
@@ -165,7 +174,8 @@
         },
         {
           "speaker": "苏柚",
-          "text": "……我不会丢掉你的。"
+          "text": "……我不会丢掉你的。",
+          "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png"
         },
         {
           "speaker": "",
@@ -242,11 +252,13 @@
       "dialogue": [
         {
           "speaker": "",
-          "text": "白夜昨晚释放了全部力量，缩成拳头大的毛球，沉沉睡去。"
+          "text": "白夜昨晚释放了全部力量，缩成拳头大的毛球，沉沉睡去。",
+          "bg_image": "res://assets/image/keyframe_d6_curse_transfer_20260516063728.png"
         },
         {
           "speaker": "",
-          "text": "把它放在枕头边，每隔一会儿就摸一下确认还有温度。"
+          "text": "把它放在枕头边，每隔一会儿就摸一下确认还有温度。",
+          "bg_image": "res://assets/image/keyframe_d6_checking_warmth_20260516063529.png"
         },
         {
           "speaker": "苏柚",
@@ -282,7 +294,8 @@
       "dialogue": [
         {
           "speaker": "",
-          "text": "早上醒来，白夜在四处张望。"
+          "text": "早上醒来，白夜在四处张望。",
+          "bg_image": "res://assets/image/edited_keyframe_d3_silent_follow_final_20260516053229.png"
         },
         {
           "speaker": "",
@@ -327,7 +340,8 @@
         },
         {
           "speaker": "",
-          "text": "终于看清了那个和白夜并肩站着的人——容貌和自己相似，但气质截然不同。"
+          "text": "终于看清了那个和白夜并肩站着的人——容貌和自己相似，但气质截然不同。",
+          "bg_image": "res://assets/image/edited_keyframe_d7_tang_revealed_v2_clean_20260515180916.png"
         },
         {
           "speaker": "",
@@ -351,7 +365,8 @@
         },
         {
           "speaker": "苏柚",
-          "text": "（我不是被选中的人。我是备用的模具。）"
+          "text": "（我不是被选中的人。我是备用的模具。）",
+          "bg_image": "res://assets/image/edited_keyframe_d7_who_are_you_now_v2_20260516053806.png"
         },
         {
           "speaker": "白夜",
@@ -359,7 +374,8 @@
         },
         {
           "speaker": "苏柚",
-          "text": "……没什么。"
+          "text": "……没什么。",
+          "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png"
         }
       ]
     },
@@ -388,7 +404,8 @@
         },
         {
           "speaker": "",
-          "text": "去了以前会一起翻牌的街区，但那里的裂隙比上周多了两倍。"
+          "text": "去了以前会一起翻牌的街区，但那里的裂隙比上周多了两倍。",
+          "bg_image": "res://assets/image/keyframe_d8_distance_v2_20260516064856.png"
         },
         {
           "speaker": "苏柚",
@@ -400,7 +417,8 @@
         },
         {
           "speaker": "苏柚",
-          "text": "（它撒谎了。我听得出来。）"
+          "text": "（它撒谎了。我听得出来。）",
+          "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png"
         },
         {
           "speaker": "",
@@ -450,11 +468,13 @@
         },
         {
           "speaker": "",
-          "text": "等了一上午，下午它才从窗缝里飘回来，身上带着暗面的气息。"
+          "text": "等了一上午，下午它才从窗缝里飘回来，身上带着暗面的气息。",
+          "bg_image": "res://assets/image/keyframe_d9_before_entering_v2_20260516064849.png"
         },
         {
           "speaker": "苏柚",
-          "text": "去哪了？"
+          "text": "去哪了？",
+          "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
         },
         {
           "speaker": "白夜",
@@ -498,7 +518,8 @@
       "dialogue": [
         {
           "speaker": "",
-          "text": "白夜一大早就钻进被窝，把头缩在枕头旁边，用金色的眼睛盯着你。"
+          "text": "白夜一大早就钻进被窝，把头缩在枕头旁边，用金色的眼睛盯着你。",
+          "bg_image": "res://assets/image/keyframe_d1_blanket_indent_v3_20260516015013.png"
         },
         {
           "speaker": "苏柚",
@@ -551,7 +572,8 @@
         },
         {
           "speaker": "",
-          "text": "她和你长得像，但站在那里的方式像一根锚，稳定、肃穆，俯视众生。"
+          "text": "她和你长得像，但站在那里的方式像一根锚，稳定、肃穆，俯视众生。",
+          "bg_image": "res://assets/image/edited_keyframe_d7_tang_revealed_v2_clean_20260515180916.png"
         },
         {
           "speaker": "???",
@@ -567,7 +589,8 @@
         },
         {
           "speaker": "",
-          "text": "还没来得及听完，白夜扑过来把镜面打碎了。"
+          "text": "还没来得及听完，白夜扑过来把镜面打碎了。",
+          "bg_image": "res://assets/image/cut_room_distorting_20260516081410.png"
         },
         {
           "speaker": "白夜",
@@ -575,7 +598,8 @@
         },
         {
           "speaker": "苏柚",
-          "text": "（不确定它说的是真的，还是在保护什么秘密。）"
+          "text": "（不确定它说的是真的，还是在保护什么秘密。）",
+          "bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png"
         }
       ]
     },
@@ -600,11 +624,13 @@
       "dialogue": [
         {
           "speaker": "",
-          "text": "夜里三点，公寓突然剧烈颤抖。"
+          "text": "夜里三点，公寓突然剧烈颤抖。",
+          "bg_image": "res://assets/image/cut_room_distorting_20260516081410.png"
         },
         {
           "speaker": "",
-          "text": "白夜从沉睡中惊醒，金色的眼睛瞬间亮到极致。"
+          "text": "白夜从沉睡中惊醒，金色的眼睛瞬间亮到极致。",
+          "bg_image": "res://assets/image/edited_bg_apartment_bedroom_night_v3_20260516060904.png"
         },
         {
           "speaker": "白夜",
@@ -624,7 +650,8 @@
         },
         {
           "speaker": "",
-          "text": "两个人坐在黑暗里，没有开灯，直到天亮。"
+          "text": "两个人坐在黑暗里，没有开灯，直到天亮。",
+          "bg_image": "res://assets/image/keyframe_d11_campfire_together_20260516063730.png"
         },
         {
           "speaker": "白夜",
@@ -661,11 +688,13 @@
         },
         {
           "speaker": "",
-          "text": "连路边的野猫都消失了，鸟也不叫。只有风声，带着淡淡的焦糊气味。"
+          "text": "连路边的野猫都消失了，鸟也不叫。只有风声，带着淡淡的焦糊气味。",
+          "bg_image": "res://assets/image/edited_cut_windowsill_plant_dead_20260516084742.png"
         },
         {
           "speaker": "白夜",
-          "text": "今天……会有什么事发生。"
+          "text": "今天……会有什么事发生。",
+          "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png"
         },
         {
           "speaker": "苏柚",
@@ -730,7 +759,8 @@
         },
         {
           "speaker": "",
-          "text": "汤煮好了，味道意外地好，带着一种说不清的、海边的咸味。"
+          "text": "汤煮好了，味道意外地好，带着一种说不清的、海边的咸味。",
+          "bg_image": "res://assets/image/cut_ramen_two_bowls_v2_20260516082554.png"
         },
         {
           "speaker": "苏柚",
@@ -742,7 +772,8 @@
         },
         {
           "speaker": "",
-          "text": "沉默了很久。两个人都没有说话，只是吃完了这碗汤。"
+          "text": "沉默了很久。两个人都没有说话，只是吃完了这碗汤。",
+          "bg_image": "res://assets/image/edited_keyframe_d13_tear_in_bowl_v3_20260516065359.png"
         }
       ]
     },
@@ -768,11 +799,13 @@
         },
         {
           "speaker": "",
-          "text": "白夜坐在窗台上，看着外面的城市，半天没有动。"
+          "text": "白夜坐在窗台上，看着外面的城市，半天没有动。",
+          "bg_image": "res://assets/image/cut_window_daytime_v4_20260516083956.png"
         },
         {
           "speaker": "苏柚",
-          "text": "在想什么？"
+          "text": "在想什么？",
+          "bg_image": "res://assets/image/bg_apartment_living_dusk_final.png"
         },
         {
           "speaker": "白夜",
@@ -788,7 +821,8 @@
         },
         {
           "speaker": "",
-          "text": "阳光照在白夜身上，它变得有点透明，像是随时会消散的样子。"
+          "text": "阳光照在白夜身上，它变得有点透明，像是随时会消散的样子。",
+          "bg_image": "res://assets/image/edited_keyframe_d14_sunlight_v5_20260516044711.png"
         },
         {
           "speaker": "苏柚",
@@ -796,7 +830,8 @@
         },
         {
           "speaker": "白夜",
-          "text": "……我也是。"
+          "text": "……我也是。",
+          "bg_image": "res://assets/image/edited_keyframe_d14_enough_final_20260516051640.png"
         }
       ]
     }

@@ -9,25 +9,43 @@
 			"once_flag": "seen_newspaper",
 			"condition": {
 				"all": [
-					{ "min_day": 2 },
-					{ "not_flag": "seen_newspaper" }
+					{
+						"min_day": 2
+					},
+					{
+						"not_flag": "seen_newspaper"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "你在废弃报亭的角落发现一张旧报纸。标题触目惊心——日期却是明天。" },
 				{
-					"speaker": "白夜", "text": "……这张报纸上写的事情还没有发生。你要仔细看看吗？",
+					"speaker": "旁白",
+					"text": "你在废弃报亭的角落发现一张旧报纸。标题触目惊心——日期却是明天。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……这张报纸上写的事情还没有发生。你要仔细看看吗？",
 					"choices": [
-						{ "label": "仔细研究", "choice_id": "study" },
-						{ "label": "丢掉它", "choice_id": "discard" }
+						{
+							"label": "仔细研究",
+							"choice_id": "study"
+						},
+						{
+							"label": "丢掉它",
+							"choice_id": "discard"
+						}
 					]
 				}
 			],
 			"choice_effects": {
 				"study": {
-					"set_flags": { "studied_paper": true },
+					"set_flags": {
+						"studied_paper": true
+					},
 					"baiye_trust_change": 1,
-					"effects": { "inspiration": 1 }
+					"effects": {
+						"inspiration": 1
+					}
 				},
 				"discard": {
 					"baiye_trust_change": -1
@@ -42,14 +60,27 @@
 			"once_flag": "seen_graffiti",
 			"condition": {
 				"all": [
-					{ "min_day": 1 },
-					{ "not_flag": "seen_graffiti" }
+					{
+						"min_day": 1
+					},
+					{
+						"not_flag": "seen_graffiti"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "墙上的涂鸦里藏着一组奇怪的符号。你举起相机，胶卷自动记录了一切。" },
-				{ "speaker": "白夜", "text": "这些符号……我好像见过。是很久以前的事了。" },
-				{ "speaker": "旁白", "text": "一段模糊的画面在脑海中闪过——你和一个身影站在废墟之上。" }
+				{
+					"speaker": "旁白",
+					"text": "墙上的涂鸦里藏着一组奇怪的符号。你举起相机，胶卷自动记录了一切。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "这些符号……我好像见过。是很久以前的事了。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "一段模糊的画面在脑海中闪过——你和一个身影站在废墟之上。"
+				}
 			],
 			"fragment": "frag_01"
 		},
@@ -61,27 +92,50 @@
 			"once_flag": "seen_phone_call",
 			"condition": {
 				"all": [
-					{ "min_day": 4 },
-					{ "chapter": "bonding" },
-					{ "not_flag": "seen_phone_call" }
+					{
+						"min_day": 4
+					},
+					{
+						"chapter": "bonding"
+					},
+					{
+						"not_flag": "seen_phone_call"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "废弃电话亭的话筒突然震动起来。你犹豫片刻，还是接了起来。" },
-				{ "speaker": "???", "text": "……你终于接了。我等了很久。" },
 				{
-					"speaker": "白夜", "text": "这个声音……！挂掉！快挂掉！",
+					"speaker": "旁白",
+					"text": "废弃电话亭的话筒突然震动起来。你犹豫片刻，还是接了起来。"
+				},
+				{
+					"speaker": "???",
+					"text": "……你终于接了。我等了很久。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "这个声音……！挂掉！快挂掉！",
 					"choices": [
-						{ "label": "继续听", "choice_id": "listen" },
-						{ "label": "挂断电话", "choice_id": "hangup" }
+						{
+							"label": "继续听",
+							"choice_id": "listen"
+						},
+						{
+							"label": "挂断电话",
+							"choice_id": "hangup"
+						}
 					]
 				}
 			],
 			"choice_effects": {
 				"listen": {
-					"set_flags": { "heard_voice": true },
+					"set_flags": {
+						"heard_voice": true
+					},
 					"baiye_trust_change": -1,
-					"effects": { "inspiration": 2 }
+					"effects": {
+						"inspiration": 2
+					}
 				},
 				"hangup": {
 					"baiye_trust_change": 2
@@ -97,16 +151,36 @@
 			"once_flag": "seen_mirror",
 			"condition": {
 				"all": [
-					{ "min_day": 3 },
-					{ "baiye_available": true },
-					{ "not_flag": "seen_mirror" }
+					{
+						"min_day": 3
+					},
+					{
+						"baiye_available": true
+					},
+					{
+						"not_flag": "seen_mirror"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "健身房角落的全身镜映出一个不属于你的影像。那个身影正在朝你微笑。" },
-				{ "speaker": "白夜", "text": "别看！那不是镜子，是……门。" },
-				{ "speaker": "旁白", "text": "白夜猛地拉住你的手臂。镜面泛起涟漪后恢复了平静。" },
-				{ "speaker": "白夜", "text": "……抱歉，吓到你了。下次经过这种东西，离远点。" }
+				{
+					"speaker": "旁白",
+					"text": "健身房角落的全身镜映出一个不属于你的影像。那个身影正在朝你微笑。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "别看！那不是镜子，是……门。",
+					"bg_image": "res://assets/image/keyframe_d8_mirror_hairstyle_v2_20260516064848.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "白夜猛地拉住你的手臂。镜面泛起涟漪后恢复了平静。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……抱歉，吓到你了。下次经过这种东西，离远点。",
+					"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png"
+				}
 			]
 		},
 		{
@@ -117,20 +191,37 @@
 			"once_flag": "seen_tape",
 			"condition": {
 				"all": [
-					{ "min_day": 6 },
-					{ "min_trust": 3 },
-					{ "not_flag": "seen_tape" }
+					{
+						"min_day": 6
+					},
+					{
+						"min_trust": 3
+					},
+					{
+						"not_flag": "seen_tape"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "老旧的录音机里残留着一段对话。你按下了播放键。" },
-				{ "speaker": "???", "text": "「……训练结束了。明天开始，你就是正式的骑士了。」" },
-				{ "speaker": "???", "text": "「嗯！我会成为最强的骑士，然后保护你！」" },
-				{ "speaker": "白夜", "text": "……这是我们的声音。是很久很久以前的事了。" }
+				{
+					"speaker": "旁白",
+					"text": "老旧的录音机里残留着一段对话。你按下了播放键。"
+				},
+				{
+					"speaker": "???",
+					"text": "「……训练结束了。明天开始，你就是正式的骑士了。」"
+				},
+				{
+					"speaker": "???",
+					"text": "「嗯！我会成为最强的骑士，然后保护你！」"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……这是我们的声音。是很久很久以前的事了。"
+				}
 			],
 			"fragment": "frag_03"
 		},
-
 		{
 			"id": "clue_dream_promise",
 			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
@@ -139,23 +230,50 @@
 			"once_flag": "seen_dream_promise",
 			"condition": {
 				"all": [
-					{ "min_day": 4 },
-					{ "chapter": "bonding" },
-					{ "min_trust": 1 },
-					{ "not_flag": "seen_dream_promise" }
+					{
+						"min_day": 4
+					},
+					{
+						"chapter": "bonding"
+					},
+					{
+						"min_trust": 1
+					},
+					{
+						"not_flag": "seen_dream_promise"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "翻开这张牌的瞬间，一道金色的闪光击中了你的额头。" },
-				{ "speaker": "旁白", "text": "画面清晰起来——一个少年跪在废墟前，双手轻轻捧起某样东西。" },
-				{ "speaker": "旁白", "text": "「我会一直守着你，」他说，「无论你变成什么样子，我都认得出你。」" },
-				{ "speaker": "白夜", "text": "……你想起什么了吗？" },
-				{ "speaker": "苏柚", "text": "只是一个很短的画面。少年的脸……我记不清了。" },
-				{ "speaker": "白夜", "text": "（沉默了很久）……没关系。慢慢想起来也可以。" }
+				{
+					"speaker": "旁白",
+					"text": "翻开这张牌的瞬间，一道金色的闪光击中了你的额头。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "画面清晰起来——一个少年跪在废墟前，双手轻轻捧起某样东西。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "「我会一直守着你，」他说，「无论你变成什么样子，我都认得出你。」",
+					"bg_image": "res://assets/image/cut_fragment_floating_v2_20260516082552.png"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……你想起什么了吗？",
+					"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "只是一个很短的画面。少年的脸……我记不清了。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "（沉默了很久）……没关系。慢慢想起来也可以。"
+				}
 			],
 			"fragment": "frag_02"
 		},
-
 		{
 			"id": "plot_baiye_wings",
 			"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png",
@@ -164,29 +282,60 @@
 			"once_flag": "seen_baiye_wings",
 			"condition": {
 				"all": [
-					{ "min_day": 5 },
-					{ "chapter": "bonding" },
-					{ "baiye_available": true },
-					{ "not_flag": "seen_baiye_wings" }
+					{
+						"min_day": 5
+					},
+					{
+						"chapter": "bonding"
+					},
+					{
+						"baiye_available": true
+					},
+					{
+						"not_flag": "seen_baiye_wings"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "一只暗面的怪物扑向你，白夜猛地挡在前面。" },
-				{ "speaker": "旁白", "text": "漆黑的羽翼从它背后骤然展开，猩红色的光在眼眶里燃起。" },
-				{ "speaker": "旁白", "text": "怪物被一击击碎，消散成灰。白夜的翅膀慢慢收起，转过头。" },
-				{ "speaker": "白夜", "text": "……没事了。走吧。" },
 				{
-					"speaker": "苏柚", "text": "等等。你刚才……",
+					"speaker": "旁白",
+					"text": "一只暗面的怪物扑向你，白夜猛地挡在前面。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "漆黑的羽翼从它背后骤然展开，猩红色的光在眼眶里燃起。",
+					"bg_image": "res://assets/image/keyframe_d6_baiye_barrier_v2_20260516061358.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "怪物被一击击碎，消散成灰。白夜的翅膀慢慢收起，转过头。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……没事了。走吧。",
+					"bg_image": "res://assets/image/bg_dark_world_open_20260515161039.png"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "等等。你刚才……",
 					"choices": [
-						{ "label": "那双翅膀是怎么回事", "choice_id": "ask" },
-						{ "label": "没事，谢谢你", "choice_id": "thanks" }
+						{
+							"label": "那双翅膀是怎么回事",
+							"choice_id": "ask"
+						},
+						{
+							"label": "没事，谢谢你",
+							"choice_id": "thanks"
+						}
 					]
 				}
 			],
 			"choice_effects": {
 				"ask": {
 					"baiye_trust_change": -1,
-					"effects": { "inspiration": 1 }
+					"effects": {
+						"inspiration": 1
+					}
 				},
 				"thanks": {
 					"baiye_trust_change": 2
@@ -194,7 +343,6 @@
 			},
 			"fragment": "frag_05"
 		},
-
 		{
 			"id": "clue_forest_run",
 			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
@@ -203,21 +351,41 @@
 			"once_flag": "seen_forest_run",
 			"condition": {
 				"all": [
-					{ "min_day": 8 },
-					{ "chapter": "truth" },
-					{ "not_flag": "seen_forest_run" }
+					{
+						"min_day": 8
+					},
+					{
+						"chapter": "truth"
+					},
+					{
+						"not_flag": "seen_forest_run"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "翻开这张牌，一种窒息的恐惧突然淹没了你。" },
-				{ "speaker": "旁白", "text": "画面里：雨夜的森林，两个身影拼命奔跑。身后是无数道追逐的光。" },
-				{ "speaker": "旁白", "text": "你知道那个跑在前面的人是谁。但你依然迈不开脚。" },
-				{ "speaker": "旁白", "text": "「快！」她回头叫你，「再慢一步就追上来了！」" },
-				{ "speaker": "苏柚", "text": "（胸口一阵钝痛。这种恐惧……不是我的记忆。）" }
+				{
+					"speaker": "旁白",
+					"text": "翻开这张牌，一种窒息的恐惧突然淹没了你。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "画面里：雨夜的森林，两个身影拼命奔跑。身后是无数道追逐的光。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "你知道那个跑在前面的人是谁。但你依然迈不开脚。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "「快！」她回头叫你，「再慢一步就追上来了！」"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "（胸口一阵钝痛。这种恐惧……不是我的记忆。）"
+				}
 			],
 			"fragment": "frag_06"
 		},
-
 		{
 			"id": "plot_cliff_vow",
 			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
@@ -226,25 +394,57 @@
 			"once_flag": "seen_cliff_vow",
 			"condition": {
 				"all": [
-					{ "min_day": 9 },
-					{ "chapter": "truth" },
-					{ "min_fragments": 5 },
-					{ "not_flag": "seen_cliff_vow" }
+					{
+						"min_day": 9
+					},
+					{
+						"chapter": "truth"
+					},
+					{
+						"min_fragments": 5
+					},
+					{
+						"not_flag": "seen_cliff_vow"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "碎片们开始自行拼接。你站在虚空里，看着那个场景——" },
-				{ "speaker": "旁白", "text": "悬崖边缘，风很大。两个人相对而立，都在流泪。" },
-				{ "speaker": "旁白", "text": "「你发誓，」他说，「发誓你不会背弃我。」" },
-				{ "speaker": "旁白", "text": "「我发誓。」她将手放在他胸口，「无论下一世是什么样子。」" },
-				{ "speaker": "旁白", "text": "光从他们握住的地方溢出，金色的，很温暖。然后——画面碎了。" },
-				{ "speaker": "白夜", "text": "……你看到了什么？" },
-				{ "speaker": "苏柚", "text": "一个承诺。一个……关于下辈子的承诺。" },
-				{ "speaker": "白夜", "text": "（没有说话，只是悄悄把手放在你背后。）" }
+				{
+					"speaker": "旁白",
+					"text": "碎片们开始自行拼接。你站在虚空里，看着那个场景——"
+				},
+				{
+					"speaker": "旁白",
+					"text": "悬崖边缘，风很大。两个人相对而立，都在流泪。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "「你发誓，」他说，「发誓你不会背弃我。」"
+				},
+				{
+					"speaker": "旁白",
+					"text": "「我发誓。」她将手放在他胸口，「无论下一世是什么样子。」"
+				},
+				{
+					"speaker": "旁白",
+					"text": "光从他们握住的地方溢出，金色的，很温暖。然后——画面碎了。",
+					"bg_image": "res://assets/image/cut_fragment_floating_v2_20260516082552.png"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……你看到了什么？"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "一个承诺。一个……关于下辈子的承诺。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "（没有说话，只是悄悄把手放在你背后。）"
+				}
 			],
 			"fragment": "frag_07"
 		},
-
 		{
 			"id": "clue_holy_sword",
 			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
@@ -253,24 +453,53 @@
 			"once_flag": "seen_holy_sword",
 			"condition": {
 				"all": [
-					{ "min_day": 10 },
-					{ "chapter": "truth" },
-					{ "min_fragments": 7 },
-					{ "not_flag": "seen_holy_sword" }
+					{
+						"min_day": 10
+					},
+					{
+						"chapter": "truth"
+					},
+					{
+						"min_fragments": 7
+					},
+					{
+						"not_flag": "seen_holy_sword"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "这一次，你在翻牌的瞬间几乎摔倒。" },
-				{ "speaker": "旁白", "text": "画面里，那个女人举起了一把发光的剑，剑尖指向面前的少年。" },
-				{ "speaker": "旁白", "text": "少年没有躲，只是睁大眼睛看着她，表情里没有恐惧，只有不解。" },
-				{ "speaker": "旁白", "text": "「为什么……」他问，声音很轻，「我们不是发誓了吗……」" },
-				{ "speaker": "旁白", "text": "画面停在那里，然后消散。" },
-				{ "speaker": "苏柚", "text": "（心脏猛地收缩）那个女人……就是棠。" },
-				{ "speaker": "苏柚", "text": "白夜是被她封印的。被她——亲手封印的。" }
+				{
+					"speaker": "旁白",
+					"text": "这一次，你在翻牌的瞬间几乎摔倒。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "画面里，那个女人举起了一把发光的剑，剑尖指向面前的少年。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "少年没有躲，只是睁大眼睛看着她，表情里没有恐惧，只有不解。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "「为什么……」他问，声音很轻，「我们不是发誓了吗……」"
+				},
+				{
+					"speaker": "旁白",
+					"text": "画面停在那里，然后消散。"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "（心脏猛地收缩）那个女人……就是棠。",
+					"bg_image": "res://assets/image/edited_keyframe_d7_tang_revealed_v2_clean_20260515180916.png"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "白夜是被她封印的。被她——亲手封印的。"
+				}
 			],
 			"fragment": "frag_08"
 		},
-
 		{
 			"id": "clue_long_dark",
 			"bg_image": "res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
@@ -279,24 +508,53 @@
 			"once_flag": "seen_long_dark",
 			"condition": {
 				"all": [
-					{ "min_day": 12 },
-					{ "chapter": "finale" },
-					{ "min_fragments": 8 },
-					{ "not_flag": "seen_long_dark" }
+					{
+						"min_day": 12
+					},
+					{
+						"chapter": "finale"
+					},
+					{
+						"min_fragments": 8
+					},
+					{
+						"not_flag": "seen_long_dark"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "这张牌没有图案，只有纯粹的黑暗。" },
-				{ "speaker": "旁白", "text": "你站在那片黑暗里，什么都感觉不到。时间不流动，声音不存在。" },
-				{ "speaker": "旁白", "text": "但有一种东西一直在——等待。" },
-				{ "speaker": "旁白", "text": "等待一个声音，一个气息，一个熟悉的人再度出现。" },
-				{ "speaker": "旁白", "text": "这就是白夜在封印里度过的每一天。" },
-				{ "speaker": "苏柚", "text": "（终于明白为什么它会一直跟着我。）" },
-				{ "speaker": "苏柚", "text": "（它等了太久了。）" }
+				{
+					"speaker": "旁白",
+					"text": "这张牌没有图案，只有纯粹的黑暗。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "你站在那片黑暗里，什么都感觉不到。时间不流动，声音不存在。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "但有一种东西一直在——等待。",
+					"bg_image": "res://assets/image/cut_dark_floor_crack_20260516081435.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "等待一个声音，一个气息，一个熟悉的人再度出现。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "这就是白夜在封印里度过的每一天。"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "（终于明白为什么它会一直跟着我。）"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "（它等了太久了。）"
+				}
 			],
 			"fragment": "frag_09"
 		},
-
 		{
 			"id": "plot_full_memory",
 			"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png",
@@ -305,26 +563,64 @@
 			"once_flag": "seen_full_memory",
 			"condition": {
 				"all": [
-					{ "min_day": 13 },
-					{ "chapter": "finale" },
-					{ "min_fragments": 9 },
-					{ "not_flag": "seen_full_memory" }
+					{
+						"min_day": 13
+					},
+					{
+						"chapter": "finale"
+					},
+					{
+						"min_fragments": 9
+					},
+					{
+						"not_flag": "seen_full_memory"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "白夜试图拉住她的手——指尖握住了她的手腕。此前收集的所有碎片同时共鸣，从白夜体内向外炸开，在这一刻汇聚成流。" },
-				{ "speaker": "旁白", "text": "全部记忆向苏柚涌来。" },
-				{ "speaker": "旁白", "text": "你终于想起了一切。废墟、誓言、追逐、圣剑——和最后的分离。" },
-				{ "speaker": "旁白", "text": "棠封印了白夜，不是因为背叛，而是因为那是当时唯一能救它的方式。" },
-				{ "speaker": "旁白", "text": "她以为自己能在下辈子解开封印。然后……就再也没有下辈子了。" },
-				{ "speaker": "旁白", "text": "直到你出现。" },
-				{ "speaker": "白夜", "text": "（轻轻落在你肩头）……你哭了。" },
-				{ "speaker": "苏柚", "text": "这是她的眼泪。不是我的。" },
-				{ "speaker": "白夜", "text": "……都是你的。" }
+				{
+					"speaker": "旁白",
+					"text": "白夜试图拉住她的手——指尖握住了她的手腕。此前收集的所有碎片同时共鸣，从白夜体内向外炸开，在这一刻汇聚成流。",
+					"bg_image": "res://assets/image/keyframe_d13_wrist_grip_v12_20260516073338.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "全部记忆向苏柚涌来。",
+					"bg_image": "res://assets/image/cut_fragment_floating_v2_20260516082552.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "你终于想起了一切。废墟、誓言、追逐、圣剑——和最后的分离。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "棠封印了白夜，不是因为背叛，而是因为那是当时唯一能救它的方式。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "她以为自己能在下辈子解开封印。然后……就再也没有下辈子了。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "直到你出现。",
+					"bg_image": "res://assets/image/bg_memory_overexposed_20260515161038.png"
+				},
+				{
+					"speaker": "白夜",
+					"text": "（轻轻落在你肩头）……你哭了。"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "这是她的眼泪。不是我的。",
+					"bg_image": "res://assets/image/edited_keyframe_d13_tear_in_bowl_v3_20260516065359.png"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……都是你的。"
+				}
 			],
 			"fragment": "frag_10"
 		},
-
 		{
 			"id": "plot_baiye_confession",
 			"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png",
@@ -333,46 +629,96 @@
 			"once_flag": "seen_confession",
 			"condition": {
 				"all": [
-					{ "min_day": 11 },
-					{ "min_fragments": 6 },
-					{ "not_flag": "seen_confession" }
+					{
+						"min_day": 11
+					},
+					{
+						"min_fragments": 6
+					},
+					{
+						"not_flag": "seen_confession"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "今晚白夜没有飘来飘去，只是安静地落在桌上，看着你。" },
-				{ "speaker": "白夜", "text": "……我应该早点告诉你的。" },
-				{ "speaker": "苏柚", "text": "什么？" },
-				{ "speaker": "白夜", "text": "我找到你，不只是因为你是棠的转世。" },
-				{ "speaker": "白夜", "text": "是因为……你身上有她留下的东西。那道她给我的封印，是她的一部分。" },
-				{ "speaker": "白夜", "text": "如果我能让你完全「变成」她，封印就会自然解开，我也可以完整地醒来。" },
-				{ "speaker": "白夜", "text": "但这意味着……你会消失。" },
-				{ "speaker": "旁白", "text": "沉默落下来，很重。" },
-				{ "speaker": "白夜", "text": "我现在不想那样做了。我只是想让你知道真相。" },
 				{
-					"speaker": "苏柚", "text": "……",
+					"speaker": "旁白",
+					"text": "今晚白夜没有飘来飘去，只是安静地落在桌上，看着你。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……我应该早点告诉你的。"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "什么？"
+				},
+				{
+					"speaker": "白夜",
+					"text": "我找到你，不只是因为你是棠的转世。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "是因为……你身上有她留下的东西。那道她给我的封印，是她的一部分。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "如果我能让你完全「变成」她，封印就会自然解开，我也可以完整地醒来。",
+					"bg_image": "res://assets/image/edited_keyframe_d7_who_are_you_now_v2_20260516053806.png"
+				},
+				{
+					"speaker": "白夜",
+					"text": "但这意味着……你会消失。"
+				},
+				{
+					"speaker": "旁白",
+					"text": "沉默落下来，很重。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "我现在不想那样做了。我只是想让你知道真相。",
+					"bg_image": "res://assets/image/bg_apartment_living_dusk_final.png"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "……",
 					"choices": [
-						{ "label": "我知道了。谢谢你告诉我。", "choice_id": "accept" },
-						{ "label": "所以一开始我只是工具。", "choice_id": "reject" },
-						{ "label": "那你现在想要什么？", "choice_id": "question" }
+						{
+							"label": "我知道了。谢谢你告诉我。",
+							"choice_id": "accept"
+						},
+						{
+							"label": "所以一开始我只是工具。",
+							"choice_id": "reject"
+						},
+						{
+							"label": "那你现在想要什么？",
+							"choice_id": "question"
+						}
 					]
 				}
 			],
 			"choice_effects": {
 				"accept": {
-					"set_flags": { "heard_confession": true },
+					"set_flags": {
+						"heard_confession": true
+					},
 					"baiye_trust_change": 2
 				},
 				"reject": {
-					"set_flags": { "heard_confession": true },
+					"set_flags": {
+						"heard_confession": true
+					},
 					"baiye_trust_change": -2
 				},
 				"question": {
-					"set_flags": { "heard_confession": true },
+					"set_flags": {
+						"heard_confession": true
+					},
 					"baiye_trust_change": 1
 				}
 			}
 		},
-
 		{
 			"id": "plot_final_choice",
 			"bg_image": "res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
@@ -381,44 +727,93 @@
 			"once_flag": "made_final_choice",
 			"condition": {
 				"all": [
-					{ "min_day": 12 },
-					{ "chapter": "finale" },
-					{ "min_fragments": 8 },
-					{ "flag": "heard_confession" },
-					{ "not_flag": "made_final_choice" }
+					{
+						"min_day": 12
+					},
+					{
+						"chapter": "finale"
+					},
+					{
+						"min_fragments": 8
+					},
+					{
+						"flag": "heard_confession"
+					},
+					{
+						"not_flag": "made_final_choice"
+					}
 				]
 			},
 			"dialogue": [
-				{ "speaker": "旁白", "text": "暗面的裂缝越来越大。封印的力量以肉眼可见的速度流失。" },
-				{ "speaker": "旁白", "text": "白夜飘在你面前，比任何时候都更真实，也更虚弱。" },
-				{ "speaker": "白夜", "text": "……时间不多了。你必须做决定了。" },
-				{ "speaker": "旁白", "text": "你想起了所有碎片：那道誓言，那把圣剑，那片等待了千年的黑暗。" },
-				{ "speaker": "旁白", "text": "现在，一切的走向掌握在你手中。" },
 				{
-					"speaker": "苏柚", "text": "……",
+					"speaker": "旁白",
+					"text": "暗面的裂缝越来越大。封印的力量以肉眼可见的速度流失。",
+					"bg_image": "res://assets/image/cut_dark_floor_crack_20260516081435.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "白夜飘在你面前，比任何时候都更真实，也更虚弱。"
+				},
+				{
+					"speaker": "白夜",
+					"text": "……时间不多了。你必须做决定了。",
+					"bg_image": "res://assets/image/cut_fragment_floating_v2_20260516082552.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "你想起了所有碎片：那道誓言，那把圣剑，那片等待了千年的黑暗。",
+					"bg_image": "res://assets/image/bg_dark_world_deep_v2_20260515161735.png"
+				},
+				{
+					"speaker": "旁白",
+					"text": "现在，一切的走向掌握在你手中。"
+				},
+				{
+					"speaker": "苏柚",
+					"text": "……",
 					"choices": [
-						{ "label": "接受你，以我们自己的方式守护这座城市", "choice_id": "companion" },
-						{ "label": "让棠的记忆通过我重新活着，解开封印", "choice_id": "merge" },
-						{ "label": "吸收你的力量，由我来终结这一切", "choice_id": "devour" },
-						{ "label": "将你重新封印，让危险消失", "choice_id": "seal" }
+						{
+							"label": "接受你，以我们自己的方式守护这座城市",
+							"choice_id": "companion"
+						},
+						{
+							"label": "让棠的记忆通过我重新活着，解开封印",
+							"choice_id": "merge"
+						},
+						{
+							"label": "吸收你的力量，由我来终结这一切",
+							"choice_id": "devour"
+						},
+						{
+							"label": "将你重新封印，让危险消失",
+							"choice_id": "seal"
+						}
 					]
 				}
 			],
 			"choice_effects": {
 				"companion": {
-					"set_flags": { "chose_acceptance": true },
+					"set_flags": {
+						"chose_acceptance": true
+					},
 					"baiye_trust_change": 3
 				},
 				"merge": {
-					"set_flags": { "chose_merge": true },
+					"set_flags": {
+						"chose_merge": true
+					},
 					"baiye_trust_change": 1
 				},
 				"devour": {
-					"set_flags": { "chose_devour": true },
+					"set_flags": {
+						"chose_devour": true
+					},
 					"baiye_trust_change": -3
 				},
 				"seal": {
-					"set_flags": { "ending_seal": true },
+					"set_flags": {
+						"ending_seal": true
+					},
 					"baiye_trust_change": -2
 				}
 			}
