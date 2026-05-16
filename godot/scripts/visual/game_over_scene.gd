@@ -352,14 +352,14 @@ func _build_stat_rolls() -> void:
 
 		var num_lbl: Label = Label.new()
 		num_lbl.text = "0"
-		num_lbl.add_theme_font_size_override("font_size", 42)
+		num_lbl.add_theme_font_size_override("font_size", 52)
 		num_lbl.add_theme_color_override("font_color", _accent_color)
 		num_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(num_lbl)
 
 		var name_lbl: Label = Label.new()
 		name_lbl.text = "%s %s" % [def["icon"], def["label"]]
-		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_font_size_override("font_size", 16)
 		name_lbl.add_theme_color_override("font_color", C_COORD)
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(name_lbl)
@@ -455,18 +455,20 @@ func _apply_btn_style_primary(btn: Button) -> void:
 	n.bg_color = C_BTN_PRIMARY_BG
 	n.set_corner_radius_all(0)
 	n.set_border_width_all(0)
-	n.content_margin_left = 32.0; n.content_margin_right = 32.0
-	n.content_margin_top  = 16.0; n.content_margin_bottom = 16.0
+	n.content_margin_left = 36.0; n.content_margin_right = 36.0
+	n.content_margin_top  = 18.0; n.content_margin_bottom = 18.0
 	btn.add_theme_stylebox_override("normal", n)
 	var hv: StyleBoxFlat = n.duplicate()
 	hv.bg_color = C_BTN_PRIMARY_HOVER
 	btn.add_theme_stylebox_override("hover", hv)
 	var pr: StyleBoxFlat = n.duplicate()
-	pr.bg_color = GameTheme.darken(C_BTN_PRIMARY_BG, 0.7)
+	pr.bg_color = Color(C_BTN_PRIMARY_BG, 0.75)
 	btn.add_theme_stylebox_override("pressed", pr)
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	btn.add_theme_color_override("font_color", Color.WHITE)
-	btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn.add_theme_font_size_override("font_size", 20)
+	btn.add_theme_color_override("font_color", C_BTN_PRIMARY_TEXT)
+	btn.add_theme_color_override("font_hover_color", C_BTN_PRIMARY_TEXT)
+	btn.add_theme_color_override("font_pressed_color", C_BTN_PRIMARY_TEXT)
 
 func _apply_btn_style_secondary(btn: Button) -> void:
 	var n: StyleBoxFlat = StyleBoxFlat.new()
@@ -474,16 +476,17 @@ func _apply_btn_style_secondary(btn: Button) -> void:
 	n.border_color = C_BTN_SEC_BORDER
 	n.set_border_width_all(1)
 	n.set_corner_radius_all(0)
-	n.content_margin_left = 32.0; n.content_margin_right = 32.0
-	n.content_margin_top  = 16.0; n.content_margin_bottom = 16.0
+	n.content_margin_left = 36.0; n.content_margin_right = 36.0
+	n.content_margin_top  = 18.0; n.content_margin_bottom = 18.0
 	btn.add_theme_stylebox_override("normal", n)
 	var hv: StyleBoxFlat = n.duplicate()
 	hv.bg_color = C_BTN_SEC_HOVER_BG
-	hv.border_color = Color(_accent_color, 0.6)
+	hv.border_color = Color(_accent_color, 0.70)
 	btn.add_theme_stylebox_override("hover", hv)
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	btn.add_theme_color_override("font_color", Color(C_TITLE, 0.85))
-	btn.add_theme_color_override("font_hover_color", Color(_accent_color, 0.9))
+	btn.add_theme_font_size_override("font_size", 20)
+	btn.add_theme_color_override("font_color", C_SUBTITLE)
+	btn.add_theme_color_override("font_hover_color", Color(_accent_color, 0.95))
 
 func _btn_hover(btn: Button, enter: bool, is_primary: bool) -> void:
 	if is_primary:

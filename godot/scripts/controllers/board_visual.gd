@@ -61,7 +61,7 @@ const DARK_ICON_BG_SIZE: float = 0.46
 ## 暗面图标背景底圆纹理分辨率 (px)
 const DARK_ICON_BG_TEX_SIZE: int = 128
 ## 暗面图标向卡牌顶部偏移 (Z 轴，正方向=卡牌底部→顶部)
-const DARK_ICON_Z_OFFSET: float = 0.10
+const DARK_ICON_Z_OFFSET: float = 0.0
 ## 预加载图标纹理
 var _tex_scouted: Texture2D = null
 var _tex_revealed: Texture2D = null
@@ -200,18 +200,20 @@ func rebuild_card_nodes() -> void:
 			dark_icon_bg.transparent = true
 			dark_icon_bg.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 			dark_icon_bg.no_depth_test = false
+			dark_icon_bg.render_priority = 1  # 底圆层
 			dark_icon_bg.visible = false
 			card_node.add_child(dark_icon_bg)
 
-			# 暗面类型图标 Sprite3D (中等大小，居中偏上，初始隐藏)
+			# 暗面类型图标 Sprite3D (中等大小，居中，初始隐藏)
 			var dark_icon_sprite: Sprite3D = Sprite3D.new()
 			dark_icon_sprite.name = "DarkIconSprite"
-			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.004, DARK_ICON_Z_OFFSET)
+			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.010, DARK_ICON_Z_OFFSET)
 			dark_icon_sprite.rotation_degrees = Vector3(-90, 180, 0)
 			dark_icon_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			dark_icon_sprite.transparent = true
 			dark_icon_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 			dark_icon_sprite.no_depth_test = false
+			dark_icon_sprite.render_priority = 2  # 图标层，始终在底圆上方
 			dark_icon_sprite.visible = false
 			card_node.add_child(dark_icon_sprite)
 
