@@ -17,7 +17,7 @@ const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 
 const BAIYE_PATHS: Array = [
 	"res://assets/image/主角_蜷缩漂浮_v4_20260516012946.png",
-	"res://assets/image/白夜_chibi_20260506003802.png",
+	"res://assets/image/白夜_chibi_20260506003802.png",  # fallback
 ]
 
 # 物语配色（白底）
@@ -163,30 +163,33 @@ func _build_title_chars() -> void:
 	if old:
 		old.queue_free()
 
-	var chars: String = "暗面都市"
-	var start_x: float = 72.0
-	var char_w: float  = 100.0   # 每字间距（112px字体大约占100px宽）
-	var anchor_y: float = 0.22    # 与 tscn TitleLarge 一致
+	# HBoxContainer 承载四个字，锚点定位到 22% 高度处
+	var hbox: HBoxContainer = HBoxContainer.new()
+	hbox.name = "TitleHBox"
+	hbox.layout_mode = 1
+	hbox.set_anchor(SIDE_LEFT,   0.0)
+	hbox.set_anchor(SIDE_TOP,    0.22)
+	hbox.set_anchor(SIDE_RIGHT,  0.9)
+	hbox.set_anchor(SIDE_BOTTOM, 0.22)
+	hbox.set_offset(SIDE_LEFT,   72.0)
+	hbox.set_offset(SIDE_TOP,    -64.0)
+	hbox.set_offset(SIDE_RIGHT,  0.0)
+	hbox.set_offset(SIDE_BOTTOM, 64.0)
+	hbox.add_theme_constant_override("separation", 4)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_block.add_child(hbox)
 
+	var chars: String = "暗面都市"
 	for i in range(chars.length()):
 		var lbl: Label = Label.new()
 		lbl.name = "TitleChar%d" % i
 		lbl.text = chars[i]
 		lbl.add_theme_font_size_override("font_size", 112)
 		lbl.add_theme_color_override("font_color", C_TITLE)
-		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-		# 用 AnchorMode = 锚点定位，直接 set_anchors + offset
-		lbl.set_anchor(SIDE_LEFT,   0.0)
-		lbl.set_anchor(SIDE_TOP,    anchor_y)
-		lbl.set_anchor(SIDE_RIGHT,  0.0)
-		lbl.set_anchor(SIDE_BOTTOM, anchor_y)
-		lbl.set_offset(SIDE_LEFT,   start_x + i * char_w)
-		lbl.set_offset(SIDE_TOP,    -56.0)
-		lbl.set_offset(SIDE_RIGHT,  start_x + i * char_w + char_w + 20.0)
-		lbl.set_offset(SIDE_BOTTOM, 56.0)
-
-		_title_block.add_child(lbl)
+		lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
+		lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		lbl.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
+		hbox.add_child(lbl)
 		_title_chars.append(lbl)
 
 
@@ -432,15 +435,16 @@ func _process(dt: float) -> void:
 		_glitch_char_idx = randi() % _title_chars.size()
 		_glitch_frames   = 3
 
-	if _glitch_frames > 0 and _glitch_char_idx >= 0:
+	if _glitch_frames > 0:
 		_glitch_frames -= 1
-		var lbl: Label = _title_chars[_glitch_char_idx]
-		if _glitch_frames > 0:
-			lbl.position.x = randf_range(-3.0, 3.0)
-			lbl.position.y = randf_range(-2.0, 2.0)
-		else:
-			lbl.position = Vector2.ZERO
-			_glitch_char_idx = -1
+		var hbox: Node = _title_block.get_node_or_null("TitleHBox")
+		if hbox:
+			if _glitch_frames > 0:
+				hbox.position.x = randf_range(-4.0, 4.0)
+				hbox.position.y = randf_range(-2.0, 2.0)
+			else:
+				hbox.position = Vector2.ZERO
+				_glitch_char_idx = -1
 
 	_draw_layer.queue_redraw()
 

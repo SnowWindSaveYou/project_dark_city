@@ -204,6 +204,7 @@ func show_event_data(
 	visible = true
 	_overlay.visible = true
 	$PanelAnchor.visible = true
+	AudioManager.play_sfx("popup_open")
 
 	_photo_rotation_deg = randf_range(-5.0, 5.0)
 
@@ -255,6 +256,19 @@ func show_event_data(
 	_confirm_label.text = "知道了"
 	_style_confirm_button(false)
 
+	# 按事件类型播放对应音效（对齐 Lua 版 CardInteraction 的 sfxMap 分发逻辑）
+	var evt_sfx_map: Dictionary = {
+		"safe":    "evt_safe",
+		"trap":    "evt_trap",
+		"reward":  "evt_reward",
+		"clue":    "evt_clue",
+		"plot":    "evt_plot",
+		"monster": "evt_monster",
+	}
+	var evt_sfx: String = evt_sfx_map.get(card_type, "")
+	if evt_sfx != "":
+		AudioManager.play_sfx(evt_sfx)
+
 	_run_enter_animation(baiiye_text != "")
 
 ## 旧签名（供 shop 等阻断型事件使用）
@@ -265,6 +279,7 @@ func show_event(card: Card) -> void:
 	visible = true
 	_overlay.visible = true
 	$PanelAnchor.visible = true
+	AudioManager.play_sfx("popup_open")
 
 	_photo_rotation_deg = randf_range(-4.0, 4.0)
 
@@ -368,6 +383,7 @@ func dismiss() -> void:
 	if not _active or _phase == "exit":
 		return
 	_phase = "exit"
+	AudioManager.play_sfx("popup_close")
 	var tw: Tween = create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(_overlay, "color:a", 0.0, 0.22)
@@ -702,60 +718,41 @@ func _draw_notebook_decor() -> void:
 
 # ---------------------------------------------------------------------------
 # 拍立得阴影绘制（在 NotebookDecor 的 draw 回调中执行，渲染在卡片之下）
-# 对齐 Lua 版 drawPhoto() 中的 nvgBoxGradient 阴影实现：
-#   Lua: psx/psy = ±POL_W/2,±POL_H/2  shadow: nvgBoxGradient(psx+2,psy+4,POL_W,POL_H,POL_R,16,
-#        nvgRGBA(30,20,10,80), transparent)  rect: (psx-18,psy-14, POL_W+36,POL_H+32)
-# 分辨率缩放: scale = pol_w_godot / pol_w_lua = 232 / 122 ≈ 1.902
+# 与 ResourceBarScene._draw_soft_box_shadow() 方式相同：
+#   StyleBoxFlat（主体透明）+ draw_style_box() 利用引擎内置阴影渲染
+# Lua 原始: feather=16, offset(+2,+4), color(30,20,10,80)
 # ---------------------------------------------------------------------------
 func _draw_polaroid_shadow_decor() -> void:
 	if _polaroid_card == null or not _polaroid_card.is_inside_tree():
 		return
-	# 获取卡片全局矩形（运行时实际像素大小）
 	var global_rect: Rect2 = _polaroid_card.get_global_rect()
-	var pol_w: float = global_rect.size.x   # ≈ 232
-	var pol_h: float = global_rect.size.y   # ≈ 356
+	var pol_w: float = global_rect.size.x
+	var pol_h: float = global_rect.size.y
 	if pol_w < 10.0 or pol_h < 10.0:
 		return
 
-	# 将卡片中心转换到 NotebookDecor 的本地坐标系
-	var local_center: Vector2 = global_rect.get_center() - _notebook_decor.global_position
+	# 分辨率缩放（Lua POL_W=122 → Godot 实际宽度）
+	var s: float = pol_w / 122.0
 
-	# 分辨率缩放因子（Lua POL_W=122 → Godot 实际宽度）
-	var s: float = pol_w / 122.0       # ≈ 1.902
+	# StyleBoxFlat 主体透明，只取引擎内置阴影（与 ResourceBar 完全相同的做法）
+	var sb := StyleBoxFlat.new()
+	sb.bg_color                   = Color(0, 0, 0, 0)
+	sb.corner_radius_top_left     = 6
+	sb.corner_radius_top_right    = 6
+	sb.corner_radius_bottom_right = 6
+	sb.corner_radius_bottom_left  = 6
+	# Lua feather=16 → shadow_size；offset(+2,+4) → shadow_offset
+	sb.shadow_size   = int(16.0 * s)                  # ≈ 34
+	sb.shadow_offset = Vector2(2.0 * s, 4.0 * s)      # ≈ (4, 9)
+	# Lua nvgRGBA(30,20,10,80) ≈ 暖棕色，与 ResourceBar 现实模式阴影色系一致
+	sb.shadow_color  = Color(0.118, 0.078, 0.039, 0.28)
 
-	var hw: float = pol_w * 0.5        # 116
-	var hh: float = pol_h * 0.5        # 178
-	# Lua 原始阴影偏移：BoxGradient 起点 (psx+2, psy+4) → 整体偏移 (ox, oy)
-	var ox: float = 2.0 * s            # ≈ 4
-	var oy: float = 4.0 * s            # ≈ 8
-	# Lua BoxGradient feather=16 → 缩放后扩散半径
-	var feather: float = 16.0 * s      # ≈ 30
-
-	# 进入卡片旋转空间（以卡片中心为原点）
+	# 将卡片全局坐标转到 NotebookDecor 本地坐标，并应用旋转
+	var local_origin: Vector2 = _notebook_decor.to_local(global_rect.position)
+	var local_center: Vector2 = _notebook_decor.to_local(global_rect.get_center())
 	_notebook_decor.draw_set_transform(local_center, _polaroid_card.rotation)
-
-	# 用 N 层同心矩形模拟 nvgBoxGradient 的径向渐变
-	# t=0 → 最外层（最大扩展，alpha≈0）；t=1 → 最内层（无扩展，alpha=max_alpha）
-	# 内层颜色: Lua nvgRGBA(30,20,10,80) → Color(0.118, 0.078, 0.039, 0.314)
-	# 用二次曲线让中间层过渡更自然
-	const N := 10
-	const MAX_ALPHA := 0.30
-	for i: int in range(N):
-		var t_val: float = float(i) / float(N - 1)    # 0.0 → 1.0
-		var expand: float = feather * (1.0 - t_val)   # 最外层扩展最多
-		var alpha: float = MAX_ALPHA * t_val * t_val   # 二次增长（外稀内密）
-		_notebook_decor.draw_rect(
-			Rect2(
-				-hw + ox - expand,
-				-hh + oy - expand,
-				pol_w + expand * 2.0,
-				pol_h + expand * 2.0
-			),
-			Color(0.118, 0.078, 0.039, alpha),
-			true
-		)
-
-	# 恢复变换
+	# draw_style_box 的 Rect 以旋转中心为原点偏移
+	_notebook_decor.draw_style_box(sb, Rect2(local_origin - local_center, global_rect.size))
 	_notebook_decor.draw_set_transform(Vector2.ZERO, 0.0)
 
 # ---------------------------------------------------------------------------

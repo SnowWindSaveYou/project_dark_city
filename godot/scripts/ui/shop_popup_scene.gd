@@ -199,6 +199,7 @@ func close_shop() -> void:
 		_active = false
 		visible = false
 		_phase = "none"
+		AudioManager.reset_combo()  # 商店关闭时重置购买连击音调
 		shop_closed.emit()
 	)
 
@@ -265,8 +266,10 @@ func _on_refresh_pressed() -> void:
 	if _phase != "idle" or _refresh_phase != "idle":
 		return
 	if GameData.get_resource("money") < CardConfig.shop_refresh_cost:
+		AudioManager.play_sfx("shop_reject")
 		return
 
+	AudioManager.play_sfx("shop_refresh")
 	GameData.modify_resource("money", -CardConfig.shop_refresh_cost)
 	_update_money_display()
 	_refresh_phase = "exit"
@@ -351,6 +354,7 @@ func _try_purchase(index: int) -> void:
 	var price: int = info.get("price", 999)
 
 	if GameData.get_resource("money") < price:
+		AudioManager.play_sfx("shop_reject")
 		_shake_card(index)
 		return
 
@@ -368,6 +372,8 @@ func _try_purchase(index: int) -> void:
 	GameData.apply_effects(filtered_effect)
 	if info.get("type", "") in ["consumable", "persistent"]:
 		GameData.add_item(item_key)
+
+	AudioManager.play_sfx("shop_buy", -1.0, true)  # combo=true: 连续购买音调递增
 
 	_sold[index] = true
 	_purchase_flash[index] = 1.0

@@ -3,7 +3,7 @@
 		"home": {
 			"label": "家",
 			"icon": "🏠",
-			"image_path": "res://assets/image/bg_apartment_living_dusk_20260515161009.png",
+			"image_path": "",
 			"schedule": { "verb": "在家休息", "reward": ["san", 1] },
 			"forced_type": "home",
 			"weight_mods": {},

@@ -658,8 +658,8 @@ func _on_event_dialogue_requested(event: Dictionary, on_complete: Callable) -> v
 	)
 
 ## 根据当前游戏状态推断对话背景图路径
-## - 暗面世界：随机返回两张暗面背景之一（按层级）
-## - 现实世界：返回当前所站地点的 image_path（可为空）
+## - 暗面世界：按层级返回对应暗面背景图
+## - 现实世界：返回当前所站地点的卡面图（CardImageMap.LOCATION_IMAGES）
 func _get_current_dialogue_bg() -> String:
 	# 暗面世界
 	if dark_world != null and dark_world.active:
@@ -667,7 +667,6 @@ func _get_current_dialogue_bg() -> String:
 			"res://assets/image/bg_dark_world_open_20260515161039.png",
 			"res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
 		]
-		# layer 0 用"开阔"，layer 1+ 用"深渊"；超出范围回退到随机
 		var layer: int = dark_world.current_layer
 		if layer == 0:
 			return DARK_BGS[0]
@@ -675,12 +674,11 @@ func _get_current_dialogue_bg() -> String:
 			return DARK_BGS[layer]
 		else:
 			return DARK_BGS[randi() % DARK_BGS.size()]
-	# 现实世界：查当前格子地点
+	# 现实世界：用 CardImageMap 获取当前格子地点的卡面图
 	if board != null and token != null:
 		var card: Card = board.get_card(token.target_row, token.target_col)
 		if card != null and card.location != "":
-			var loc_data: Dictionary = Locations.get_real_location(card.location)
-			return loc_data.get("image_path", "")
+			return CardImageMap.get_location_image_path(card.location)
 	return ""
 
 func _on_photograph_request() -> void:
