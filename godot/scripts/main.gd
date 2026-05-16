@@ -592,7 +592,8 @@ func _on_title_start() -> void:
 	# 播放日期切换动效（第1天），完成后再发牌；动效内含"第X天"文字，不显示横幅。
 	# Day 1 入场不走晨间事件链，需临时断开常规的 transition_completed 连接，
 	# 用一次性回调替代，结束后恢复常规连接。
-	_date_transition.transition_completed.disconnect_all()
+	for c in _date_transition.transition_completed.get_connections():
+		_date_transition.transition_completed.disconnect(c["callable"])
 	var conn: Callable = func() -> void:
 		# 恢复常规连接（供 Day 2+ 使用）
 		_date_transition.transition_completed.connect(

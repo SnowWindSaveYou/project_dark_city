@@ -10,7 +10,7 @@
 
 ---
 
-## 制作状态（2026-05-15 更新）
+## 制作状态（2026-05-16 更新）
 
 ### 参考素材
 
@@ -30,54 +30,91 @@
 
 ### A类背景底图进度
 
-| 编号 | 文件名 | 状态 | 已生成文件 |
+| 编号 | 文件名 | 状态 | 最终文件 |
 |------|--------|------|-----------|
-| BG-01 | `bg_apartment_living_dusk` | 🔍 待审 | `bg_apartment_living_dusk_20260515161009.png` |
+| BG-01 | `bg_apartment_living_dusk` | ✅ 已验证 | `bg_apartment_living_dusk_final.png`（卧室参考图直接复用） |
 | BG-02 | `bg_apartment_living_night` | ✅ 已验证 | `bg_apartment_living_night_v5_20260515071406.png` |
-| BG-03 | `bg_apartment_bedroom_night` | 🔍 待审 | `bg_apartment_bedroom_night_20260515161006.png` |
-| BG-04 | `bg_apartment_kitchen` | 🔍 待审 | `bg_apartment_kitchen_20260515161008.png` |
-| BG-05 | `bg_dark_world_open` | 🔍 待审 | `bg_dark_world_open_20260515161039.png` |
-| BG-06 | `bg_dark_world_deep` | 🔍 待审 | `bg_dark_world_deep_v2_20260515161735.png` |
-| BG-07 | `bg_memory_overexposed` | 🔍 待审 | `bg_memory_overexposed_20260515161038.png` |
-| BG-08 | `bg_apartment_entrance_dusk` | 🔍 待审 | `bg_apartment_entrance_dusk_20260515161007.png` |
+| BG-03 | `bg_apartment_bedroom_night` | ✅ 已验证 | `edited_bg_apartment_bedroom_night_v3_20260516060904.png` |
+| BG-04 | `bg_apartment_kitchen` | ✅ 已验证 | `bg_apartment_kitchen_20260515161008.png` |
+| BG-05 | `bg_dark_world_open` | ✅ 已验证 | `bg_dark_world_open_20260515161039.png` |
+| BG-06 | `bg_dark_world_deep` | ✅ 已验证 | `bg_dark_world_deep_v2_20260515161735.png` |
+| BG-07 | `bg_memory_overexposed` | ✅ 已验证 | `bg_memory_overexposed_20260515161038.png` |
+| BG-08 | `bg_apartment_entrance_dusk` | ✅ 已验证 | `bg_apartment_entrance_dusk_v2_20260516034935.png` |
 
 ### B类过渡切换帧进度
 
-全部 13 张待生成（⬜）  
+| 编号 | 文件名 | 状态 | 备注 |
+|------|--------|------|------|
+| CUT-01 | `cut_window_daytime` | ⬜ 待生成 | 窗外三联·基础构图，先生成此张 |
+| CUT-02 | `cut_window_dusk` | ⬜ 待生成 | **基于 CUT-01 edit_image 改色调** |
+| CUT-03 | `cut_window_rain_night` | ⬜ 待生成 | **基于 CUT-01 edit_image 改色调** |
+| CUT-04 | `cut_ramen_two_bowls` | ⬜ 待生成 | |
+| CUT-05 | `cut_fridge_blue_glow` | ⬜ 待生成 | |
+| CUT-06 | `cut_shoes_entrance_one` | ⬜ 待生成 | 鞋子对比组·先生成此张 |
+| CUT-07 | `cut_shoes_entrance_plus` | ⬜ 待生成 | **基于 CUT-06 edit_image 添加痕迹** |
+| CUT-08 | `cut_phone_black_screen` | ⬜ 待生成 | |
+| CUT-11 | `cut_room_distorting` | ⬜ 待生成 | |
+| CUT-12 | `cut_dark_floor_crack` | ⬜ 待生成 | |
+| CUT-13 | `cut_fragment_floating` | ⬜ 待生成 | |
+| CUT-14 | `cut_windowsill_plant` | ⬜ 待生成 | 柚子苗对比组·先生成此张 |
+| CUT-15 | `cut_windowsill_plant_dead` | ⬜ 待生成 | **基于 CUT-14 edit_image 改枯萎状态** |
+
 > CUT-09（门把手）合并入 KEY-D5-01，CUT-10（枕头压痕）合并入 KEY-D1-02 / KEY-D6-03
 
 ### C类关键情绪帧进度
 
-**第二批（已生成，待审）**：
-
-| 编号 | 文件名 | 状态 | 已生成文件 |
+| 编号 | 文件名 | 状态 | 最终文件 |
 |------|--------|------|-----------|
-| KEY-D1-01 | `keyframe_d1_wardrobe_eyes` | 🔍 待审 | `keyframe_d1_wardrobe_eyes_20260515162604.png` |
-| KEY-D1-02 | `keyframe_d1_blanket_indent` | 🔍 待审 | `keyframe_d1_blanket_indent_20260515162556.png` |
+| KEY-D1-01 | `keyframe_d1_wardrobe_eyes` | ✅ 已验证 | `edited_keyframe_d1_wardrobe_eyes_v2_clean_20260515183439.png` |
+| KEY-D1-02 | `keyframe_d1_blanket_indent` | ✅ 已验证 | `keyframe_d1_blanket_indent_v3_20260516015013.png` |
 | KEY-D2-01 | `keyframe_d2_hand_cupping_fluffball` | ✅ 已验证 | `keyframe_d2_hand_cupping_fluffball_v4_20260515180206.png` |
 | KEY-D2-02 | `keyframe_d2_flashback_tang_silhouette` | ✅ 已验证 | `edited_keyframe_d2_flashback_tang_silhouette_v6_clean_20260515180852.png` |
-| KEY-D3-02 | `keyframe_d3_silent_follow` | ✅ 已验证 | `keyframe_d3_silent_follow_v3_20260515160624.png` |
-| KEY-D6-01 | `keyframe_d6_baiye_barrier` | 🔍 待审 | `keyframe_d6_baiye_barrier_20260515162839.png` |
+| KEY-D3-01 | `keyframe_d3_ipad_frozen` | ⬜ 待生成 | |
+| KEY-D3-02 | `keyframe_d3_silent_follow` | ✅ 已验证 | `edited_keyframe_d3_silent_follow_final_20260516053229.png` |
+| KEY-D4-01 | `keyframe_d4_dark_shadow_stare` | ⬜ 待生成 | |
+| KEY-D4-02 | `keyframe_d4_ramen_steam_eyes` | ⬜ 待生成 | |
+| KEY-D5-01 | `keyframe_d5_door_handle_unyielding` | ⬜ 待生成 | |
+| KEY-D5-02 | `keyframe_d5_bedside_truth` | ⬜ 待生成 | |
+| KEY-D6-01 | `keyframe_d6_baiye_barrier` | ✅ 已验证 | `keyframe_d6_baiye_barrier_v2_20260516061358.png` |
+| KEY-D6-02 | `keyframe_d6_curse_transfer` | ⬜ 待生成 | 过曝白·棠+白夜前世垫图 |
+| KEY-D6-03 | `keyframe_d6_checking_warmth` | ⬜ 待生成 | |
 | KEY-D7-01 | `keyframe_d7_tang_revealed` | ✅ 已验证 | `edited_keyframe_d7_tang_revealed_v2_clean_20260515180916.png` |
-| KEY-D7-02 | `keyframe_d7_who_are_you_now` | 🔍 待审 | `keyframe_d7_who_are_you_now_20260515162744.png` |
+| KEY-D7-02 | `keyframe_d7_who_are_you_now` | ✅ 已验证 | `edited_keyframe_d7_who_are_you_now_v2_20260516053806.png` |
+| KEY-D8-01 | `keyframe_d8_mirror_hairstyle` | ⬜ 待生成 | |
+| KEY-D8-02 | `keyframe_d8_distance` | ⬜ 待生成 | |
+| KEY-D9-01 | `keyframe_d9_before_entering` | ⬜ 待生成 | |
+| KEY-D11-01 | `keyframe_d11_campfire_together` | ⬜ 待生成 | 过曝白·棠侧脸+白夜前世垫图 |
 | KEY-D12-01 | `keyframe_d12_tang_leaves` | ✅ 已验证 | `edited_keyframe_d12_tang_leaves_v6_overexposed_20260515175236.png` |
-| KEY-D14-01 | `keyframe_d14_enough` | 🔍 待审 | `keyframe_d14_enough_20260515162933.png` |
-| KEY-D14-02 | `keyframe_d14_sunlight` | 🔍 待审 | `keyframe_d14_sunlight_20260515162925.png` |
-
-**剩余待生成**（⬜）：其余 17 张 C 类帧 + 全部 15 张 B 类过渡帧
+| KEY-D13-01 | `keyframe_d13_wrist_grip` | ⬜ 待生成 | |
+| KEY-D13-02 | `keyframe_d13_tear_in_bowl` | ⬜ 待生成 | |
+| KEY-D14-01 | `keyframe_d14_enough` | ✅ 已验证 | `edited_keyframe_d14_enough_final_20260516051640.png` |
+| KEY-D14-02 | `keyframe_d14_sunlight` | ✅ 已验证 | `edited_keyframe_d14_sunlight_v5_20260516044711.png` |
+| KEY-END-A-01 | `keyframe_end_a_empty_apartment` | ⬜ 待生成 | |
+| KEY-END-A-02 | `keyframe_end_a_golden_eyes_window` | ⬜ 待生成 | 与 KEY-D1-01 首尾呼应 |
+| KEY-END-B-01 | `keyframe_end_b_thunder_healed` | ⬜ 待生成 | |
+| KEY-END-C-01 | `keyframe_end_c_stranger_face` | ⬜ 待生成 | |
 
 ### 已验证锚点帧
 
 | 帧 | 文件 | 验证结论 |
 |---|---|---|
-| BG-02 背景底图 | `bg_apartment_living_night_v5_20260515071406.png` | ✅ 风格基准 |
-| KEY-D3-02 情绪帧 | `keyframe_d3_silent_follow_v3_20260515160624.png` | ✅ 主角人设对，白夜形态近似可用，16:9规格确认 |
+| BG-01 客厅傍晚 | `bg_apartment_living_dusk_final.png` | ✅ 公寓系列风格基准（卧室参考图复用） |
+| BG-02 客厅深夜 | `bg_apartment_living_night_v5_20260515071406.png` | ✅ 风格基准 |
+| KEY-D3-02 情绪帧 | `edited_keyframe_d3_silent_follow_final_20260516053229.png` | ✅ 主角人设对，白夜形态近似可用，16:9规格确认 |
+
+### 链式生成规则（节省重复构图）
+
+| 基础图 | 衍生图 | 方式 |
+|--------|--------|------|
+| CUT-01 `cut_window_daytime` | CUT-02 傍晚 / CUT-03 雨夜 | edit_image 改色调/天气 |
+| CUT-06 `cut_shoes_entrance_one` | CUT-07 多了痕迹 | edit_image 添加模糊痕迹 |
+| CUT-14 `cut_windowsill_plant` | CUT-15 枯萎版 | edit_image 改植物状态 |
 
 ### 当前阶段
 
-**已完成**：演出方案确认（物语分镜式，16:9统一规格）、双锚点帧验证、A类背景底图全部生成（8/8）、第二批关键情绪帧全部生成（11/11）  
-**当前**：等待 BG 系列 + 第二批情绪帧审核  
-**下一步**：审核通过 → B类过渡帧（15张）/ C类剩余情绪帧（17张）/ DialogueSystem 背景图代码接入
+**已完成**：演出方案确认、A类背景底图全部完成（8/8）✅、第二批关键情绪帧审核完毕（11/11 全部通过）✅  
+**当前**：B类过渡帧（13张⬜）/ C类剩余情绪帧（17张⬜）待生成  
+**下一步**：B类过渡帧优先（多数无角色，批量快）→ C类剩余情绪帧 → DialogueSystem 背景图代码接入
 
 ### 风格基准
 
