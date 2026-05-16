@@ -108,7 +108,7 @@ theme_override_constants/separation = 16
 
 [node name="PolaroidArea" type="Control" parent="PanelAnchor/Notebook/OuterVBox/HBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(252, 0)
+custom_minimum_size = Vector2(280, 0)
 size_flags_horizontal = 0
 size_flags_vertical = 3
 mouse_filter = 2
@@ -120,13 +120,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -116.0
-offset_top = -178.0
-offset_right = 116.0
-offset_bottom = 178.0
+offset_left = -130.0
+offset_top = -230.0
+offset_right = 130.0
+offset_bottom = 230.0
 grow_horizontal = 2
 grow_vertical = 2
-pivot_offset = Vector2(116, 178)
+pivot_offset = Vector2(130, 230)
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pol")
 
@@ -144,7 +144,7 @@ mouse_filter = 2
 
 [node name="CardBottom" type="HBoxContainer" parent="PanelAnchor/Notebook/OuterVBox/HBox/PolaroidArea/PolaroidCard/PolaroidVBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 61)
+custom_minimum_size = Vector2(0, 71)
 alignment = 1
 mouse_filter = 2
 

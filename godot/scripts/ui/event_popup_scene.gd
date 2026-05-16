@@ -718,7 +718,7 @@ func _draw_polaroid_shadow_decor() -> void:
 		return
 
 	# 将卡片中心转换到 NotebookDecor 的本地坐标系
-	var local_center: Vector2 = _notebook_decor.to_local(global_rect.get_center())
+	var local_center: Vector2 = global_rect.get_center() - _notebook_decor.global_position
 
 	# 分辨率缩放因子（Lua POL_W=122 → Godot 实际宽度）
 	var s: float = pol_w / 122.0       # ≈ 1.902
