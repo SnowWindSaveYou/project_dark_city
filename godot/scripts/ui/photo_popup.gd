@@ -119,7 +119,7 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 
 	# 视口自适应：确保弹窗在各分辨率下不溢出屏幕
 	var vp: Vector2 = get_viewport_rect().size
-	var fit: float = minf(vp.x * 0.90 / float(PHOTO_W), vp.y * 0.92 / float(PHOTO_H), 1.0)
+	var fit: float = minf(minf(vp.x * 0.90 / float(PHOTO_W), vp.y * 0.92 / float(PHOTO_H)), 1.0)
 	var fw: float = PHOTO_W * fit
 	var fh: float = PHOTO_H * fit
 	_photo_frame.custom_minimum_size = Vector2(fw, fh)
