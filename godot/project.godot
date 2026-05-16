@@ -12,6 +12,7 @@ config_version=5
 
 config/name="暗面都市"
 config/description="卡牌 Roguelike 棋盘游戏 · 都市恐怖悬疑"
+config/icon="res://assets/image/icon.png"
 run/main_scene="res://scenes/screens/main_menu.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 

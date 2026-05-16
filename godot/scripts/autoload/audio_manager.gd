@@ -162,7 +162,7 @@ func _apply_default_mapping() -> void:
 		"main":       "res://assets/audio/bgm_day_light.ogg",
 		"day_light":  "res://assets/audio/bgm_day_light.ogg",
 		"day_dark":   "res://assets/audio/bgm_day_dark.ogg",
-		"dark_world": "res://assets/audio/bgm_dark_world.ogg",
+		"dark_world": "res://assets/audio/bgm_day_dark.ogg",
 		"defeat":     "res://assets/audio/bgm_defeat.ogg",
 		"victory":    "res://assets/audio/bgm_victory.ogg",
 	}

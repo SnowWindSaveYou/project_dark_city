@@ -5,73 +5,13 @@ class_name EventPopupScene
 extends Control
 
 # ---------------------------------------------------------------------------
-# Toast 数据结构 (保持原有 API 兼容)
-# ---------------------------------------------------------------------------
-class ToastData:
-	var card_type: String = "safe"
-	var title: String = ""
-	var desc: String = ""
-	var icon: String = ""
-	var effects: Dictionary = {}
-	var shield_used: bool = false
-	var trap_subtype: String = ""
-	var location: String = ""
-
-	func _init(p_card_type: String = "safe") -> void:
-		card_type = p_card_type
-
-	func set_title(p_title: String) -> ToastData:
-		title = p_title
-		return self
-
-	func set_desc(p_desc: String) -> ToastData:
-		desc = p_desc
-		return self
-
-	func set_icon(p_icon: String) -> ToastData:
-		icon = p_icon
-		return self
-
-	func set_effects(p_effects: Dictionary) -> ToastData:
-		effects = p_effects
-		return self
-
-	func set_shield_used(p_used: bool) -> ToastData:
-		shield_used = p_used
-		return self
-
-	func set_trap_subtype(p_subtype: String) -> ToastData:
-		trap_subtype = p_subtype
-		return self
-
-	func set_location(p_location: String) -> ToastData:
-		location = p_location
-		return self
-
-	func to_dict() -> Dictionary:
-		return {
-			"card_type": card_type,
-			"title": title,
-			"desc": desc,
-			"icon": icon,
-			"effects": effects,
-			"shield_used": shield_used,
-			"trap_subtype": trap_subtype,
-			"location": location,
-		}
-
-# ---------------------------------------------------------------------------
 # 信号
 # ---------------------------------------------------------------------------
 signal popup_closed(card: Card)
-signal toast_dismissed(card_type: String)
 
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-const TOAST_MAX: int = 3
-const TOAST_ITEM_SCENE: String = "res://scenes/ui/components/toast_item.tscn"
-
 # 笔记本尺寸（对应 Lua 版 NB_W/NB_H 的缩放值，1px Lua ≈ 4px Godot @1080p）
 const NB_W: int = 900
 const NB_H: int = 540
@@ -104,7 +44,6 @@ static func is_blocking_event(card_type: String, _has_choices: bool = false) -> 
 @onready var _baiiye_label: Label = $PanelAnchor/Notebook/OuterVBox/HBox/RightVBox/DescScroll/ContentVBox/BaiyeLabel
 @onready var _confirm_button: PanelContainer = $PanelAnchor/Notebook/OuterVBox/ConfirmButton
 @onready var _confirm_label: Label = $PanelAnchor/Notebook/OuterVBox/ConfirmButton/ConfirmLabel
-@onready var _toast_container: VBoxContainer = $ToastContainer
 
 # ---------------------------------------------------------------------------
 # 状态
@@ -115,21 +54,14 @@ var _phase: String = "none"  # "enter" | "idle" | "exit"
 var _photo_rotation_deg: float = 0.0
 
 # ---------------------------------------------------------------------------
-# 预加载
-# ---------------------------------------------------------------------------
-var _toast_item_packed: PackedScene = null
-
-# ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	visible = false
-	mouse_filter = Control.MOUSE_FILTER_PASS  # 默认透传，仅模态弹窗激活时切为 STOP
+	mouse_filter = Control.MOUSE_FILTER_STOP
 
 	_overlay.visible = false
 	$PanelAnchor.visible = false
-
-	_toast_item_packed = load(TOAST_ITEM_SCENE)
 
 	# 笔记本稿纸装饰（红色边距竖线 + 蓝色横线）
 	_notebook_decor.draw.connect(_draw_notebook_decor)
@@ -205,7 +137,6 @@ func show_event_data(
 		location: String = "",
 		trap_subtype: String = "") -> void:
 	_active = true
-	_sync_mouse_filter()
 	_phase = "enter"
 	visible = true
 	_overlay.visible = true
@@ -281,7 +212,6 @@ func show_event_data(
 ## 碎片收集弹窗：展示前世记忆全文
 func show_fragment(frag_info: Dictionary) -> void:
 	_active = true
-	_sync_mouse_filter()
 	_phase = "enter"
 	visible = true
 	_overlay.visible = true
@@ -320,7 +250,6 @@ func show_fragment(frag_info: Dictionary) -> void:
 func show_event(card: Card) -> void:
 	_card = card
 	_active = true
-	_sync_mouse_filter()
 	_phase = "enter"
 	visible = true
 	_overlay.visible = true
@@ -448,22 +377,15 @@ func dismiss() -> void:
 
 func _on_dismiss_complete() -> void:
 	_active = false
-	_sync_mouse_filter()  # 模态关闭后切回 PASS，toast 不再封锁点击
 	_phase = "none"
 	_overlay.visible = false
 	$PanelAnchor.visible = false
-	visible = _has_active_toasts()
+	visible = false
 	popup_closed.emit(_card)
 	_card = null
 
 func is_active() -> bool:
 	return _active
-
-## 根据模态弹窗状态切换 mouse_filter:
-## - 模态弹窗激活 → STOP（拦截所有点击，防止误触游戏世界）
-## - 仅 toast / 无内容 → PASS（透传点击到游戏世界，toast 子节点自行响应）
-func _sync_mouse_filter() -> void:
-	mouse_filter = Control.MOUSE_FILTER_STOP if _active else Control.MOUSE_FILTER_PASS
 
 # ===========================================================================
 # 选择面板 API（暗面遭遇 / 通道方向）
@@ -477,12 +399,9 @@ var _choice_panel: Control = null
 func show_choice(labels: Array, callback: Callable) -> void:
 	_dismiss_choice_panel()
 
-	# 确保弹窗容器可见（可能在事件弹窗关闭后调用）
 	visible = true
 	_overlay.visible = true
 	_overlay.color.a = 0.55
-	# 选择面板需要拦截点击，切换为 STOP
-	mouse_filter = Control.MOUSE_FILTER_STOP
 
 	# 根节点：全屏居中容器，鼠标穿透（让 Overlay 拦截背景点击）
 	var anchor: CenterContainer = CenterContainer.new()
@@ -569,12 +488,9 @@ func _dismiss_choice_panel() -> void:
 	if _choice_panel:
 		_choice_panel.queue_free()
 		_choice_panel = null
-	# 仅当主弹窗和 toast 均不活跃时才隐藏 overlay
-	if not _active and not _has_active_toasts():
+	if not _active:
 		_overlay.visible = false
 		visible = false
-	# 恢复 mouse_filter（选择结束后不再需要拦截背景点击）
-	_sync_mouse_filter()
 
 # ===========================================================================
 # 效果徽章（Lua 版风格：绿/红胶囊，icon + 数值）
@@ -620,93 +536,11 @@ func _add_effect_badge(text: String, color: Color, _delta: int) -> void:
 	_effects_row.add_child(badge)
 
 # ===========================================================================
-# Toast API
-# ===========================================================================
-
-func show_toast(data: ToastData) -> void:
-	var card_type: String = data.card_type
-	var trap_subtype: String = data.trap_subtype
-	var location: String = data.location
-
-	var tmpl: Dictionary = _pick_template(card_type, trap_subtype, location)
-
-	var display_title: String = data.title
-	if display_title == "":
-		display_title = tmpl["title"]
-		if location != "":
-			var dark_display: Dictionary = Locations.get_dark_display(location)
-			var dark_info: Dictionary = dark_display.get(card_type, {})
-			if dark_info.has("label"):
-				display_title = dark_info["label"]
-
-	var display_icon: String = data.icon
-	if display_icon == "":
-		display_icon = GameTheme.card_type_info(card_type).get("icon", "❓")
-		if card_type == "trap" and trap_subtype != "":
-			var sub_info: Dictionary = EventPool.get_trap_subtype(trap_subtype)
-			if sub_info.has("icon"):
-				display_icon = sub_info["icon"]
-
-	var display_desc: String = data.desc
-	if display_desc == "":
-		display_desc = tmpl["desc"]
-
-	var toast_dict: Dictionary = {
-		"card_type": card_type,
-		"title": display_title,
-		"desc": display_desc,
-		"icon": display_icon,
-		"effects": data.effects,
-		"shield_used": data.shield_used,
-		"trap_subtype": trap_subtype,
-	}
-	_show_toast_internal(toast_dict)
-
-func _show_toast_internal(data: Dictionary) -> void:
-	visible = true
-	var toast_node: ToastItem = _toast_item_packed.instantiate() as ToastItem
-	_toast_container.add_child(toast_node)
-	toast_node.setup(data)
-	toast_node.dismissed.connect(_on_toast_dismissed)
-	_enforce_toast_limit()
-
-func _enforce_toast_limit() -> void:
-	var visible_count: int = 0
-	var children: Array[Node] = _toast_container.get_children()
-	for child in children:
-		if child is ToastItem:
-			visible_count += 1
-	if visible_count > TOAST_MAX:
-		for child in children:
-			if child is ToastItem:
-				(child as ToastItem).start_exit()
-				break
-
-func _on_toast_dismissed(card_type: String) -> void:
-	toast_dismissed.emit(card_type)
-	if not _active and not _has_active_toasts():
-		visible = false
-
-func _has_active_toasts() -> bool:
-	for child in _toast_container.get_children():
-		if child is ToastItem:
-			return true
-	return false
-
-func is_toast_active() -> bool:
-	return _has_active_toasts()
-
-func clear_toasts() -> void:
-	for child in _toast_container.get_children():
-		if child is ToastItem:
-			child.queue_free()
-
-# ===========================================================================
 # 全局查询
 # ===========================================================================
 
 func is_any_active() -> bool:
-	return _active or _has_active_toasts()
+	return _active
 
 # ===========================================================================
 # 输入处理
@@ -731,9 +565,6 @@ func _handle_popup_click() -> void:
 # ===========================================================================
 # 工具方法
 # ===========================================================================
-
-func _pick_template(card_type: String, trap_subtype: String = "", location: String = "") -> Dictionary:
-	return CardConfig.pick_event_template(card_type, location, trap_subtype)
 
 # ---------------------------------------------------------------------------
 # 笔记本稿纸装饰绘制（红色边距竖线 + 蓝色横线，对齐 Lua 版 drawPhoto）

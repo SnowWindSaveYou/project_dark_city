@@ -556,7 +556,6 @@ func restart_game() -> void:
 
 	# 隐藏/重置所有 UI 面板
 	m._resource_bar.set_dark_mode(false)
-	m._event_popup.clear_toasts()
 	if m._event_popup.is_active():
 		m._event_popup.dismiss()
 	if m._shop_popup.is_active():

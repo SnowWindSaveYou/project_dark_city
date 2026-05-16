@@ -490,8 +490,6 @@ func _connect_signals() -> void:
 	# 事件弹窗 (场景化拆分后信号分布在三个组件)
 	_event_popup.popup_closed.connect(
 		func(card: Card): card_interaction.on_popup_dismissed(card))
-	_event_popup.toast_dismissed.connect(func(_ct: String): pass)
-
 	# 裂隙确认 (独立组件)
 	_rift_popup.rift_confirmed.connect(
 		func(): card_interaction.on_rift_confirmed())
