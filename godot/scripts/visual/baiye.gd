@@ -15,8 +15,11 @@ extends RefCounted
 const TEXTURE_PATH: String = "res://assets/image/白夜_chibi_20260506003802.png"
 
 ## 跟随偏移 (相对 Token 的像素坐标)
-const OFFSET_X: float = -20.0   # 左侧
-const OFFSET_Y: float = -8.0    # 稍微上方
+const OFFSET_X: float = -55.0   # 左侧，远离棋子
+const OFFSET_Y: float = 10.0    # 略低，不与棋子头部重叠
+
+## 正常显示缩放（入场动画结束后的目标 scale）
+const NORMAL_SCALE: float = 0.55
 
 ## 跟随平滑速度 (越大越紧, 越小越飘)
 const FOLLOW_SPEED: float = 4.0

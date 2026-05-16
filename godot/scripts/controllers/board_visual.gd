@@ -20,14 +20,16 @@ const OVERLAY_PIXEL_SIZE: float = Card.CARD_W / 256.0
 ## PNG 底图纹理高度 (515×768 资源图)
 const PNG_TEX_HEIGHT: int = 768
 ## 卡牌阴影常量
-## 阴影 Quad 相对卡牌中心的 Y 偏移 (略低于卡底面, 贴桌面)
-const CARD_SHADOW_Y_LOCAL: float = -(Card.CARD_THICKNESS / 2.0 + 0.002)
-## 阴影尺寸相对卡面的比例 (略大于卡面, 形成柔和溢出感)
-const CARD_SHADOW_SCALE: float = 1.08
+## 阴影 Quad 相对卡牌中心的 Y 偏移
+## 相机 45° 俯视: 阴影必须明显低于卡面才能在卡片边缘外侧被看见
+## 偏移 = -(CARD_THICKNESS/2 + CARD_Y + 0.005), 使阴影落在世界 Y ≈ 0
+const CARD_SHADOW_Y_LOCAL: float = -(Card.CARD_THICKNESS / 2.0 + CARD_Y + 0.005)
+## 阴影尺寸相对卡面的比例 (足够大才能在 45° 视角下从卡片边缘溢出可见)
+const CARD_SHADOW_SCALE: float = 1.5
 ## 静止状态阴影不透明度
-const CARD_SHADOW_ALPHA_NORMAL: float = 0.30
+const CARD_SHADOW_ALPHA_NORMAL: float = 0.28
 ## 悬停/抬起顶峰时阴影不透明度 (hover_t = 1)
-const CARD_SHADOW_ALPHA_HOVER: float = 0.12
+const CARD_SHADOW_ALPHA_HOVER: float = 0.10
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -245,12 +247,12 @@ func rebuild_card_nodes() -> void:
 			if card.should_have_glow():
 				_attach_glow_rings(card_node, card.type)
 
-			# 卡牌阴影 (扁平 Quad, 贴桌面, 悬停时变淡扩散)
+			# 卡牌阴影 (水平 PlaneMesh, 贴桌面, 悬停时变淡扩散)
+			# 注意: QuadMesh 默认竖立面朝 Z, 必须用 PlaneMesh (默认水平面朝 +Y)
 			var shadow_quad: MeshInstance3D = MeshInstance3D.new()
 			shadow_quad.name = "CardShadow"
-			var shadow_mesh: QuadMesh = QuadMesh.new()
+			var shadow_mesh: PlaneMesh = PlaneMesh.new()
 			shadow_mesh.size = Vector2(Card.CARD_W * CARD_SHADOW_SCALE, Card.CARD_H * CARD_SHADOW_SCALE)
-			shadow_mesh.orientation = PlaneMesh.FACE_Y
 			shadow_quad.mesh = shadow_mesh
 			var shadow_mat: StandardMaterial3D = StandardMaterial3D.new()
 			shadow_mat.albedo_color = Color(0.0, 0.0, 0.0, CARD_SHADOW_ALPHA_NORMAL)

@@ -928,8 +928,8 @@ func _update_baiye(dt: float) -> void:
 
 		# 入场动画：平滑过渡 alpha 和 scale
 		_baiye.alpha = move_toward(_baiye.alpha, Baiye.SPIRIT_ALPHA, 1.5 * dt)
-		_baiye.scale_x = move_toward(_baiye.scale_x, 1.0, 3.0 * dt)
-		_baiye.scale_y = move_toward(_baiye.scale_y, 1.0, 3.0 * dt)
+		_baiye.scale_x = move_toward(_baiye.scale_x, Baiye.NORMAL_SCALE, 3.0 * dt)
+		_baiye.scale_y = move_toward(_baiye.scale_y, Baiye.NORMAL_SCALE, 3.0 * dt)
 	else:
 		if _baiye.visible:
 			# 退场动画：渐出后隐藏
