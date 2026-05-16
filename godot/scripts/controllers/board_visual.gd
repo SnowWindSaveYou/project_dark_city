@@ -44,7 +44,7 @@ var _glow_quad_mesh: QuadMesh = null
 const GLOW_RING_COUNT: int = 3
 ## 光环动画参数 — home / 辐射区 (柔和)
 const GLOW_CYCLE: float = 4.0        # 循环周期 (秒)
-const GLOW_Y_BASE: float = 0.005     # 起始高度 (卡面上方)
+const GLOW_Y_BASE: float = Card.CARD_THICKNESS / 2.0 + 0.003  # 起始高度 (卡面顶部上方)
 const GLOW_Y_RISE: float = 0.05      # 上浮距离
 const GLOW_SCALE_GROW: float = 0.06  # 上浮时微放大
 ## 光环动画参数 — landmark (更华丽)
@@ -195,7 +195,7 @@ func rebuild_card_nodes() -> void:
 			label.rotation_degrees = Vector3(-90, 180, 0)  # 朝上平铺, 补偿相机 180° yaw
 			label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 			label.no_depth_test = false
-			label.render_priority = 1
+			label.render_priority = 0
 			card_node.add_child(label)
 
 			# 侦察/揭示图标 Sprite3D (右上角, 平铺在卡面上方)

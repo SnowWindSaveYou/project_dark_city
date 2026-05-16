@@ -227,15 +227,15 @@ func _draw() -> void:
 	draw_set_transform_matrix(xf)
 	modulate.a = _btn_alpha
 
-	# ── 1. 柔光晕（替代实心圆，无硬边）
+	# ── 1. 柔光晕（从 emoji 外缘向外辐射，中心透明不遮挡图标）
 	var glow_color: Color = t.camera_btn_active if _in_camera_mode else t.camera_btn
 	var glow_intensity: float
 	if _in_camera_mode:
 		var pulse: float = 0.5 + 0.5 * absf(sin(_time * 2.5))
-		glow_intensity = 0.14 + pulse * 0.16
+		glow_intensity = 0.50 + pulse * 0.25
 	else:
-		glow_intensity = 0.05 + _hover_t * 0.12
-	_draw_soft_glow(Vector2(cx, cy), 30.0, 38.0, glow_color, glow_intensity)
+		glow_intensity = 0.18 + _hover_t * 0.28
+	_draw_soft_glow(Vector2(cx, cy), ICON_SIZE * 0.5, 40.0, glow_color, glow_intensity)
 
 	# ── 2. 相机图标（带旋转）
 	var icon_xf: Transform2D = Transform2D()
@@ -370,18 +370,25 @@ func _ensure_film_texture() -> void:
 # 辅助：绘制
 # ---------------------------------------------------------------------------
 
-## 多层半透明圆叠加的柔光晕（无硬边，替代实心圆）
-## inner_r: 最内层半径；expand: 向外扩展总量；intensity: 最内层 alpha
-func _draw_soft_glow(center: Vector2, inner_r: float, expand: float,
+## 向外辐射的柔和光晕（StyleBoxFlat shadow）
+## icon_r:  光晕起始半径（emoji 外缘，内部保持透明不遮挡图标）
+## expand:  向外扩散的像素数
+## intensity: shadow_color alpha（直接等于 StyleBoxFlat.shadow_color.a）
+func _draw_soft_glow(center: Vector2, icon_r: float, expand: float,
 		color: Color, intensity: float) -> void:
-	const STEPS: int = 7
-	for i in range(STEPS):
-		var t_val: float = float(i) / float(STEPS - 1)   # 0 → 1
-		var r: float = inner_r + t_val * expand
-		# 二次衰减：从内到外快速降至 0
-		var a: float = intensity * (1.0 - t_val) * (1.0 - t_val)
-		if a > 0.004:
-			draw_circle(center, r, Color(color.r, color.g, color.b, a))
+	if intensity < 0.01:
+		return
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.0, 0.0, 0.0, 0.0)   # 中心透明，不覆盖 emoji
+	sb.corner_radius_top_left     = int(icon_r)
+	sb.corner_radius_top_right    = int(icon_r)
+	sb.corner_radius_bottom_left  = int(icon_r)
+	sb.corner_radius_bottom_right = int(icon_r)
+	sb.shadow_color  = Color(color.r, color.g, color.b, intensity)
+	sb.shadow_size   = int(expand)
+	sb.shadow_offset = Vector2.ZERO
+	draw_style_box(sb, Rect2(center.x - icon_r, center.y - icon_r,
+		icon_r * 2.0, icon_r * 2.0))
 
 
 ## 圆角 pill 背景

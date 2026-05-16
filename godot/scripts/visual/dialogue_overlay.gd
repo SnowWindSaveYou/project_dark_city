@@ -154,10 +154,6 @@ func _draw() -> void:
 				false,
 				Color(1, 1, 1, ds.bg_image_alpha))
 
-	# --- 半透明遮罩 ---
-	var overlay_color: Color = Color(0, 0, 0, ds.overlay_alpha * DialogueSystem.OVERLAY_ALPHA_MAX)
-	draw_rect(Rect2(Vector2.ZERO, vp), overlay_color)
-
 	if ds.box_alpha < 0.01:
 		return
 

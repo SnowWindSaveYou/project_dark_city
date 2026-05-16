@@ -18,29 +18,28 @@ signal baiye_woke_up()
 # 配置数据 (从 story_config.json 加载)
 # ---------------------------------------------------------------------------
 var _chapters: Dictionary = {}
-var _clue_defs: Dictionary = {}       # clue_id → { name, desc, category, icon }
+var _clue_defs: Dictionary = {}       # clue_id → { name, desc, category, icon, [full_text, chapter, order] }
 var _plot_events: Array = []          # [{ condition, weight, text, set_flags, clue_id }]
 var _clue_events: Array = []          # [{ condition, weight, text, clue_id, set_flags }]
 var _npc_dialogues: Dictionary = {}   # npc_id → [{ condition, lines }]
 var _dark_clue_events: Array = []     # [{ condition, weight, text, clue_id, set_flags }]
 var _endings: Array = []              # [{ id, title, subtitle, priority, conditions, is_victory }]
-var _fragments_def: Array = []        # [{ id, name, chapter, order, desc }]
 var _day_constants: Dictionary = {}   # { base_days, extended_days, extend_threshold }
+
+## 前世记忆碎片的 category 标识 (用于区分碎片类线索)
+const FRAGMENT_CATEGORY: String = "前世记忆"
 
 # ---------------------------------------------------------------------------
 # 运行时状态
 # ---------------------------------------------------------------------------
 var flags: Dictionary = {}
-var collected_clues: Array = []       # Array of clue_id (String)
+var collected_clues: Array = []       # Array of clue_id (String)，包含所有类型（实物线索 + 前世记忆碎片）
 var current_chapter: String = "awakening"
 
 # --- 白夜状态 ---
 var baiye_trust: int = 0              # 信任度 0-10
 var baiye_power: int = 0              # 力量等级 0-5
 var sleep_days_left: int = 0          # 沉睡剩余天数 (0 = 可用)
-
-# --- 碎片收集 ---
-var collected_fragments: Dictionary = {}  # { "frag_01": true, ... }
 
 # ---------------------------------------------------------------------------
 # 初始化
@@ -80,7 +79,6 @@ func _load_story_config() -> void:
 	_npc_dialogues    = data.get("npc_dialogues", {})
 	_dark_clue_events = data.get("dark_clue_events", [])
 	_endings          = data.get("endings", [])
-	_fragments_def    = data.get("fragments", [])
 	_day_constants    = data.get("day_constants", { "base_days": 7, "extended_days": 14, "extend_threshold": 5 })
 
 	# weight 转 int
@@ -97,9 +95,13 @@ func _load_story_config() -> void:
 	# endings 按 priority 排序 (升序, 低 priority = 高优先级)
 	_endings.sort_custom(func(a, b): return int(a.get("priority", 99)) < int(b.get("priority", 99)))
 
-	print("[StoryManager] Loaded: %d chapters, %d clues, %d plot_events, %d clue_events, %d npc_dialogues, %d endings, %d fragments" % [
-		_chapters.size(), _clue_defs.size(), _plot_events.size(),
-		_clue_events.size(), _npc_dialogues.size(), _endings.size(), _fragments_def.size()])
+	var frag_count: int = 0
+	for cid in _clue_defs:
+		if _clue_defs[cid].get("category", "") == FRAGMENT_CATEGORY:
+			frag_count += 1
+	print("[StoryManager] Loaded: %d chapters, %d clues (%d 前世记忆 + %d 实物), %d plot_events, %d clue_events, %d npc_dialogues, %d endings" % [
+		_chapters.size(), _clue_defs.size(), frag_count, _clue_defs.size() - frag_count,
+		_plot_events.size(), _clue_events.size(), _npc_dialogues.size(), _endings.size()])
 
 # ---------------------------------------------------------------------------
 # Flag CRUD
@@ -200,7 +202,7 @@ func get_clue_categories() -> Array:
 ## { "not_item": "key" }   → not GameData.has_item(key)
 ## { "min_trust": N }      → baiye_trust >= N
 ## { "max_trust": N }      → baiye_trust <= N
-## { "min_fragments": N }  → collected_fragments.size() >= N
+## { "min_fragments": N }  → get_fragment_count() >= N
 ## { "baiye_available": v }→ is_baiye_available() == v
 ## { "chapter": "id" }     → current_chapter == id
 ## { "weather": "type" }   → GameData.current_weather == type
@@ -434,40 +436,40 @@ func advance_baiye_sleep() -> void:
 			baiye_woke_up.emit()
 
 # ---------------------------------------------------------------------------
-# 碎片系统
+# 碎片系统 (alias 层 — 底层统一使用 collected_clues)
 # ---------------------------------------------------------------------------
 
-## 收集碎片 (去重)，返回是否为新碎片
+## 收集前世记忆碎片，alias → collect_clue，同时发出 fragment_collected 信号
 func collect_fragment(fragment_id: String) -> bool:
-	if collected_fragments.has(fragment_id):
-		return false
-	collected_fragments[fragment_id] = true
-	fragment_collected.emit(fragment_id, collected_fragments.size())
-	return true
+	var is_new: bool = collect_clue(fragment_id)
+	if is_new:
+		fragment_collected.emit(fragment_id, get_fragment_count())
+	return is_new
 
 func has_fragment(fragment_id: String) -> bool:
-	return collected_fragments.has(fragment_id)
+	return has_clue(fragment_id)
 
+## 统计已收集的前世记忆碎片数量 (category == FRAGMENT_CATEGORY)
 func get_fragment_count() -> int:
-	return collected_fragments.size()
+	var count: int = 0
+	for cid in collected_clues:
+		if _clue_defs.get(cid, {}).get("category", "") == FRAGMENT_CATEGORY:
+			count += 1
+	return count
 
-## 获取碎片定义信息
+## 获取碎片定义信息，alias → get_clue_info
 func get_fragment_info(fragment_id: String) -> Dictionary:
-	for frag in _fragments_def:
-		if frag.get("id") == fragment_id:
-			return frag
-	return {}
+	return get_clue_info(fragment_id)
 
-## 获取所有碎片 (定义 + 是否已收集)
+## 获取所有前世记忆碎片 (定义 + 是否已收集)，按 order 排序
 func get_all_fragments() -> Array:
 	var result: Array = []
-	for frag in _fragments_def:
-		var fid: String = frag.get("id", "")
-		result.append({
-			"id": fid,
-			"info": frag,
-			"collected": collected_fragments.has(fid),
-		})
+	for cid in _clue_defs:
+		var entry: Dictionary = _clue_defs[cid]
+		if entry.get("category", "") == FRAGMENT_CATEGORY:
+			result.append({"id": cid, "info": entry, "collected": has_clue(cid)})
+	result.sort_custom(func(a, b):
+		return a["info"].get("order", 99) < b["info"].get("order", 99))
 	return result
 
 # ---------------------------------------------------------------------------
@@ -561,7 +563,6 @@ func apply_choice_effects(choice_effect: Dictionary) -> Dictionary:
 func reset() -> void:
 	flags.clear()
 	collected_clues.clear()
-	collected_fragments.clear()
 	current_chapter = "awakening"
 	baiye_trust = 0
 	baiye_power = 0
@@ -572,18 +573,21 @@ func save_state() -> Dictionary:
 	return {
 		"flags": flags.duplicate(),
 		"collected_clues": collected_clues.duplicate(),
-		"collected_fragments": collected_fragments.duplicate(),
 		"current_chapter": current_chapter,
 		"baiye_trust": baiye_trust,
 		"baiye_power": baiye_power,
 		"sleep_days_left": sleep_days_left,
 	}
 
-## 读档
+## 读档 (兼容旧存档: 将 collected_fragments dict 的 key 合并入 collected_clues)
 func load_state(data: Dictionary) -> void:
 	flags = data.get("flags", {}).duplicate()
 	collected_clues = data.get("collected_clues", []).duplicate()
-	collected_fragments = data.get("collected_fragments", {}).duplicate()
+	# 旧存档迁移：collected_fragments 是 dict，将其 key 追加到 collected_clues
+	var old_frags: Dictionary = data.get("collected_fragments", {})
+	for fid in old_frags:
+		if not (fid in collected_clues):
+			collected_clues.append(fid)
 	current_chapter = data.get("current_chapter", "awakening")
 	baiye_trust = int(data.get("baiye_trust", 0))
 	baiye_power = int(data.get("baiye_power", 0))

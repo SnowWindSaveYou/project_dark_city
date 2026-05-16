@@ -124,24 +124,22 @@ func _on_deal_complete() -> void:
 	# Phase 5: 发牌完成后生成当日 NPC
 	_spawn_daily_npcs()
 
-	# Phase 5: Day 1 晨间事件 (restart_game 不经过 on_date_transition_complete,
-	# 需在发牌完成后单独触发, 仅显示对话, 不重新发牌)
-	if m.day_count == 1:
-		_try_day1_morning_events()
-
-## Day 1 专用晨间事件触发 (仅对话, 不调用 _begin_new_day)
-func _try_day1_morning_events() -> void:
-	# 先做故事 Tick (与 on_date_transition_complete 保持一致)
+## Day 1 专用晨间链: 故事 Tick + 晨间事件，完成后调用 on_done
+## 与 Day 2+ 的 on_date_transition_complete 链对齐，但不重新生成棋盘
+func begin_day1(on_done: Callable) -> void:
 	StoryManager.advance_baiye_sleep()
 	StoryManager.update_chapter_by_day()
+	npc_manager.reset_daily()
 
 	var event = story_event_mgr.query_morning_event()
 	if event != null:
 		event = story_event_mgr.trigger_morning_event(event)
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
 			story_event_mgr.on_morning_event_complete(event, chosen_id)
-			# Day 1 不需要继续里程碑链或重新发牌
+			on_done.call()
 		)
+	else:
+		on_done.call()
 
 ## 道具弹出动画
 func _animate_item_spawn() -> void:

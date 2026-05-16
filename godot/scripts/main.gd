@@ -600,7 +600,10 @@ func _on_title_start() -> void:
 			func(): game_flow.on_date_transition_complete())
 		# 日期动效结束后才生成棋盘，防止卡牌在动效前提前显示
 		game_flow.generate_board()
-		game_flow.start_deal(false)
+		# Day 1 晨间链（与 Day 2+ 对齐：剧情先行，完成后再发牌）
+		game_flow.begin_day1(func() -> void:
+			game_flow.start_deal(false)
+		)
 	_date_transition.transition_completed.connect(conn, CONNECT_ONE_SHOT)
 	_date_transition.play(day_count)
 
