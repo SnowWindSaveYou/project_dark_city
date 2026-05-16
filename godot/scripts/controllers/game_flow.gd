@@ -12,9 +12,6 @@ extends RefCounted
 ## on_complete: Callable(chosen_choice_id: String) — 对话结束后回调
 signal event_dialogue_requested(event: Dictionary, on_complete: Callable)
 
-## 白夜 chibi 立绘路径 (晨间/夜谈/里程碑事件默认立绘)
-const BAIYE_PORTRAIT: String = "res://assets/image/白夜_chibi_20260506003802.png"
-
 ## NPC 交互信号 (转发自 NPCManager, 供 main.gd 做 VFX)
 signal npc_trade_executed(banner_text: String)
 signal npc_trade_failed(reason: String)
@@ -34,12 +31,6 @@ var story_event_mgr: StoryEventManager = null
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
-
-## 为事件注入白夜立绘 (若事件本身未指定 portrait)
-func _inject_portrait(event: Dictionary, portrait_path: String = BAIYE_PORTRAIT) -> Dictionary:
-	if not event.has("portrait") or event.get("portrait", "") == "":
-		event["portrait"] = portrait_path
-	return event
 
 func setup(main_ref) -> void:
 	m = main_ref
@@ -147,7 +138,6 @@ func _try_day1_morning_events() -> void:
 	var event = story_event_mgr.query_morning_event()
 	if event != null:
 		event = story_event_mgr.trigger_morning_event(event)
-		event = _inject_portrait(event)
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
 			story_event_mgr.on_morning_event_complete(event, chosen_id)
 			# Day 1 不需要继续里程碑链或重新发牌
@@ -307,7 +297,6 @@ func advance_day() -> void:
 	var evening_event = story_event_mgr.query_evening_event()
 	if evening_event != null:
 		evening_event = story_event_mgr.trigger_evening_event(evening_event)
-		evening_event = _inject_portrait(evening_event)
 		event_dialogue_requested.emit(evening_event, func(chosen_id: String) -> void:
 			story_event_mgr.on_evening_event_complete(evening_event, chosen_id)
 			do_undeal.call()
@@ -353,7 +342,6 @@ func _try_morning_event() -> void:
 
 		if event != null:
 			event = story_event_mgr.trigger_morning_event(event)
-			event = _inject_portrait(event)
 			event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
 				story_event_mgr.on_morning_event_complete(event, chosen_id)
 				after_morning_day6.call()
@@ -365,7 +353,6 @@ func _try_morning_event() -> void:
 	# 其余天: 正常走里程碑链
 	if event != null:
 		event = story_event_mgr.trigger_morning_event(event)
-		event = _inject_portrait(event)
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
 			print("[GameFlow] morning event on_complete called, chosen='%s'" % chosen_id)
 			story_event_mgr.on_morning_event_complete(event, chosen_id)
@@ -390,7 +377,6 @@ func _try_milestone(hook_id: String, on_done: Callable) -> void:
 	var event = MilestoneManager.try_trigger(hook_id)
 	print("[GameFlow] _try_milestone '%s': event=%s" % [hook_id, "null" if event == null else event.get("id", "?")])
 	if event != null:
-		event = _inject_portrait(event)
 		event_dialogue_requested.emit(event, func(chosen_id: String) -> void:
 			MilestoneManager.on_event_complete(event, chosen_id)
 			on_done.call()

@@ -901,10 +901,7 @@ func _on_start_pressed() -> void:
 	AudioManager.play_sfx("button_click")
 	_btn_start.disabled=true; _btn_gallery.disabled=true
 	_btn_settings.disabled=true; _btn_quit.disabled=true
-	var tw: Tween = create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.3) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	await get_tree().create_timer(0.32).timeout
+	# 直接切换，不做淡出——main.gd 的日期切换动效会接管入场过渡
 	get_tree().change_scene_to_file(MAIN_SCENE_PATH)
 
 

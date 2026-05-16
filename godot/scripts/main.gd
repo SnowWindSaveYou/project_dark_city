@@ -210,8 +210,8 @@ func _ready() -> void:
 	_setup_controllers()
 	_connect_signals()
 
-	# 初始棋盘
-	game_flow.generate_board()
+	# 注意：棋盘生成推迟到 _on_title_start 的日期动效完成后，
+	# 避免卡牌在日期动效播放前就已可见。
 
 	# 白夜跟随精灵 (在 _ui_layer 创建后初始化)
 	_baiye = Baiye.new()
@@ -598,6 +598,8 @@ func _on_title_start() -> void:
 		# 恢复常规连接（供 Day 2+ 使用）
 		_date_transition.transition_completed.connect(
 			func(): game_flow.on_date_transition_complete())
+		# 日期动效结束后才生成棋盘，防止卡牌在动效前提前显示
+		game_flow.generate_board()
 		game_flow.start_deal(false)
 	_date_transition.transition_completed.connect(conn, CONNECT_ONE_SHOT)
 	_date_transition.play(day_count)
