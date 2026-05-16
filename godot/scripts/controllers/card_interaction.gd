@@ -445,11 +445,9 @@ func on_rift_cancelled() -> void:
 # =========================================================================
 
 func on_popup_dismissed(card: Card) -> void:
-	# 暗面世界使用同一个 _event_popup，弹窗关闭信号会同样触发此回调。
-	# 暗面有自己的状态管理（dark_world_flow），此处必须跳过，防止把
-	# demo_state 从 "dark_world" 错误地覆写为 "ready"。
-	if GameData.demo_state == "dark_world":
-		return
+	# TODO: _event_popup.popup_closed 信号在 main.gd 无条件连接到此回调，
+	# 暗面也复用同一 _event_popup，导致暗面弹窗关闭时 demo_state 被错误地
+	# 从 "dark_world" 覆写为 "ready"。需要从架构上拆分两套弹窗信号或加路由层。
 
 	if card:
 		var effects: Dictionary = card.get_effects()

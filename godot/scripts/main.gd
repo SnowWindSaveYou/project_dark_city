@@ -275,10 +275,10 @@ func _setup_scene_tree() -> void:
 	add_child(ui_layer)
 	_ui_layer = ui_layer
 
-	# 物语系列背景层 (layer=2: 最底层，在 3D 场景和天气粒子之下)
+	# 物语系列背景层 (layer=-1: 低于主节点默认层，始终在棋盘/角色/UI之下)
 	var bg_layer: CanvasLayer = CanvasLayer.new()
 	bg_layer.name = "MonogatariBGLayer"
-	bg_layer.layer = 2
+	bg_layer.layer = -1
 	add_child(bg_layer)
 
 	_monogatari_bg = load("res://scripts/visual/monogatari_bg.gd").new()

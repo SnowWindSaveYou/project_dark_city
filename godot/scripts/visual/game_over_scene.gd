@@ -13,23 +13,24 @@ signal return_to_menu_requested
 const MAIN_MENU_PATH: String = "res://scenes/screens/main_menu.tscn"
 
 ## 深色遮罩底色（暗面世界氛围）
-const C_OVERLAY_VIC:  Color = Color(0.04, 0.03, 0.10, 0.88)
-const C_OVERLAY_DEF:  Color = Color(0.08, 0.02, 0.04, 0.92)
+const C_OVERLAY_VIC:  Color = Color(0.04, 0.03, 0.10, 0.90)
+const C_OVERLAY_DEF:  Color = Color(0.08, 0.02, 0.04, 0.93)
 
-## 文字（与主菜单一致）
-const C_TITLE:    Color = Color(0.04, 0.03, 0.08, 1.0)
-const C_SUBTITLE: Color = Color(0.28, 0.25, 0.38, 0.85)
-const C_COORD:    Color = Color(0.50, 0.46, 0.60, 0.60)
+## 深色背景上的文字（反转为浅色系）
+const C_TITLE:    Color = Color(0.93, 0.91, 0.97, 1.00)   # 近白，微紫
+const C_SUBTITLE: Color = Color(0.72, 0.68, 0.80, 0.82)   # 浅紫灰
+const C_COORD:    Color = Color(0.52, 0.50, 0.62, 0.60)   # 暗淡小字
 
-## 细线（与主菜单 C_LINE 一致）
-const C_LINE: Color = Color(0.18, 0.16, 0.28, 0.35)
+## 细线（深色背景上稍亮）
+const C_LINE: Color = Color(0.55, 0.52, 0.68, 0.28)
 
-## 按钮（主按钮=深色填充，次级=空心，零圆角）
-const C_BTN_PRIMARY_BG:    Color = Color(0.08, 0.06, 0.14, 1.0)
-const C_BTN_PRIMARY_HOVER: Color = Color(0.18, 0.12, 0.32, 1.0)
+## 按钮（深色背景上：主按钮=浅色填充深字，次级=半透明边框浅字）
+const C_BTN_PRIMARY_BG:    Color = Color(0.88, 0.86, 0.96, 0.96)  # 近白紫
+const C_BTN_PRIMARY_HOVER: Color = Color(1.00, 1.00, 1.00, 1.00)  # 纯白
+const C_BTN_PRIMARY_TEXT:  Color = Color(0.08, 0.06, 0.16, 1.00)  # 深色文字
 const C_BTN_SEC_BG:        Color = Color(0.0,  0.0,  0.0,  0.0)
-const C_BTN_SEC_BORDER:    Color = Color(0.22, 0.20, 0.32, 0.45)
-const C_BTN_SEC_HOVER_BG:  Color = Color(0.12, 0.10, 0.20, 0.08)
+const C_BTN_SEC_BORDER:    Color = Color(0.60, 0.56, 0.75, 0.45)
+const C_BTN_SEC_HOVER_BG:  Color = Color(0.55, 0.50, 0.72, 0.12)
 
 # 统计项定义
 const STAT_DEFS: Array = [

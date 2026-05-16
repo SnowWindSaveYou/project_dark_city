@@ -340,7 +340,8 @@ func _try_morning_event() -> void:
 			tw.tween_callback(func() -> void:
 				var rift_row: int = ceili(Board.ROWS / 2.0)
 				var rift_col: int = ceili(Board.COLS / 2.0)
-				m.dark_world_flow.enter_dark_world(rift_row, rift_col)
+				# force=true: 第6天剧情强制进入，绕过灵感值检查
+				m.dark_world_flow.enter_dark_world(rift_row, rift_col, true)
 			)
 
 		if event != null:
