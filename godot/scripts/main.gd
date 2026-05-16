@@ -596,9 +596,20 @@ func _on_shop_closed() -> void:
 	else:
 		card_interaction.on_shop_closed()
 
+## 供控制器访问玩家气泡（教程锁定用）
+func get_player_bubble() -> BubbleDialogue:
+	return _bubble_dialogue
+
 func _on_camera_mode_entered() -> void:
 	board_visual.mg_show_on_scouted_cards()
 	board_visual.mg_show_trails_on_board()
+	# 首次进入相机模式 → 侦察教程
+	if not GameData.tutorial_flags["camera_mode_seen"] and _bubble_dialogue:
+		GameData.tutorial_flags["camera_mode_seen"] = true
+		_bubble_dialogue.show_tutorial(
+			"白夜：翻开之前，先拍一下。\n镜头里有时会浮现方向——妖魔在哪边。\n胶卷不多。",
+			8.0
+		)
 
 func _on_camera_mode_exited() -> void:
 	board_visual.mg_clear_card_ghosts()

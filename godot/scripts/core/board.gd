@@ -310,6 +310,18 @@ func _apply_landmark_aura() -> void:
 					nb_card.event_id = ""
 					nb_card.trap_subtype = ""
 
+## 判断某格是否在地标光晕范围内（四方向任意一格为地标即算在光晕内）
+func is_in_landmark_aura(row: int, col: int) -> bool:
+	var neighbors: Array = [
+		Vector2i(row - 1, col), Vector2i(row + 1, col),
+		Vector2i(row, col - 1), Vector2i(row, col + 1),
+	]
+	for nb in neighbors:
+		var nb_card: Card = get_card(nb.x, nb.y)
+		if nb_card and nb_card.is_landmark():
+			return true
+	return false
+
 # ---------------------------------------------------------------------------
 # 螺旋发牌顺序
 # ---------------------------------------------------------------------------

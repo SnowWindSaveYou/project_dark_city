@@ -316,6 +316,20 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		GameData.set_demo_state("ready")
 		m._camera_button.show_button()
 
+		# 教程触发：怪物首遇 / 安全区首次踏入（气泡悬浮，不阻断流程）
+		var _bubble := m.get_player_bubble()
+		if _bubble:
+			if card_type == "monster" and not GameData.tutorial_flags.get("monster_seen", false):
+				GameData.tutorial_flags["monster_seen"] = true
+				_bubble.show_tutorial(
+					"白夜：灵感强了，它们感知得到你。\n感知得到……就咬得重。", 7.0)
+			elif card_type == "safe" and \
+					m.board.is_in_landmark_aura(row, col) and \
+					not GameData.tutorial_flags.get("safe_zone_seen", false):
+				GameData.tutorial_flags["safe_zone_seen"] = true
+				_bubble.show_tutorial(
+					"白夜：发光的格子有结界——妖魔近不了身。\n教堂和警察局周围四格，都是这样。", 8.0)
+
 		# 裂隙检查
 		if card.has_rift:
 			m.board_visual.rift_show_on_card(row, col)
@@ -426,6 +440,12 @@ func _teleport_to_random() -> void:
 func _show_rift_confirm(row: int, col: int) -> void:
 	var center: Vector2 = m.board_visual.get_card_center(row, col)
 	GameData.set_demo_state("rift_confirm")
+	# 裂隙首见教程
+	var _bubble := m.get_player_bubble()
+	if _bubble and not GameData.tutorial_flags.get("rift_seen", false):
+		GameData.tutorial_flags["rift_seen"] = true
+		_bubble.show_tutorial(
+			"白夜：灵感不够的时候……这里什么都没有。\n不是看不见。是感觉不到。", 7.0)
 	m._event_popup.show_rift_confirm(center.x, center.y)
 
 ## 裂隙确认回调
@@ -489,6 +509,12 @@ func _handle_camera_mode_click(card: Card, row: int, col: int) -> void:
 		if film <= 0:
 			m._vfx.action_banner("胶卷不足!", Color(0.86, 0.31, 0.31), 0.8)
 			return
+		# 相机驱除首见教程
+		var _bubble := m.get_player_bubble()
+		if _bubble and not GameData.tutorial_flags.get("camera_exorcise_seen", false):
+			GameData.tutorial_flags["camera_exorcise_seen"] = true
+			_bubble.show_tutorial(
+				"白夜：已经现身的，照样能拍走。\n比正面撞上安全一点。要胶卷。", 7.0)
 		_do_exorcise(card, row, col)
 		return
 

@@ -356,6 +356,10 @@ var cooldown_timer: float = 0.0
 var last_event_type: String = ""
 var last_location: String = ""
 
+# 教程锁定模式 (show_tutorial 使用)
+var locked: bool = false
+var lock_duration: float = 0.0
+
 # ---------------------------------------------------------------------------
 # 对话选取
 # ---------------------------------------------------------------------------
@@ -410,15 +414,31 @@ func show(location: String = "", event_type: String = "") -> void:
 	offset_y = 8.0
 	# 弹入动画由 main.gd tween 驱动 → bubble_alpha=1, bubble_scale=1, offset_y=0
 
+## 显示固定教程文本，锁定气泡直到时间到或玩家点击
+func show_tutorial(tutorial_text: String, duration: float = 7.0) -> void:
+	text = tutorial_text
+	timer = 0.0
+	lock_duration = duration
+	locked = true
+	cooldown_timer = 0.0
+	state = "showing"
+	bubble_alpha = 0.0
+	bubble_scale = 0.3
+	offset_y = 8.0
+	# 弹入动画由 main.gd tween 驱动 → bubble_alpha=1, bubble_scale=1, offset_y=0
+
 ## 隐藏气泡
 func hide() -> void:
 	if state == "hidden" or state == "hiding":
 		return
+	if locked:
+		return  # 锁定期间忽略普通 hide
 	state = "hiding"
 	# 淡出动画由 main.gd tween 驱动
 
-## 强制立即隐藏
+## 强制立即隐藏（解除锁定）
 func force_hide() -> void:
+	locked = false
 	state = "hidden"
 	bubble_alpha = 0.0
 	bubble_scale = 0.0
@@ -444,8 +464,13 @@ func update(dt: float, is_idle: bool, can_trigger: bool) -> void:
 	# 显示计时 → 自动隐藏
 	if state == "visible":
 		timer += dt
-		if timer >= DISPLAY_DURATION:
-			hide()
+		var duration: float = lock_duration if locked else DISPLAY_DURATION
+		if timer >= duration:
+			_unlock_and_hide()
+
+	# 锁定期间：跳过移动隐藏和静止触发
+	if locked:
+		return
 
 	# 静止触发
 	if is_idle and can_trigger:
@@ -462,6 +487,10 @@ func update(dt: float, is_idle: bool, can_trigger: bool) -> void:
 
 ## 点击触发
 func click_trigger() -> void:
+	if locked and (state == "visible" or state == "showing"):
+		# 锁定中点击 → 解锁并关闭
+		_unlock_and_hide()
+		return
 	if state == "visible" or state == "showing":
 		# 已在显示, 换一条
 		hide()
@@ -471,6 +500,12 @@ func click_trigger() -> void:
 	# 未显示 → 直接弹出
 	cooldown_timer = 0.0
 	show()
+
+func _unlock_and_hide() -> void:
+	locked = false
+	if state != "hidden" and state != "hiding":
+		state = "hiding"
+		# 淡出动画由 main.gd tween 驱动
 
 ## 完成显示动画后调用
 func on_show_complete() -> void:
