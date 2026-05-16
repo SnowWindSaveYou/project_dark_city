@@ -843,6 +843,7 @@ func handle_npc_click(row: int, col: int) -> void:
 		m._dialogue_system.start(
 			lines,
 			npc.tex_path,
+			"",
 			func() -> void:
 				# 读取玩家选择的选项并执行 action
 				var selected: Dictionary = m._dialogue_system.get_selected_choice()

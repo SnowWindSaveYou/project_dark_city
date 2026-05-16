@@ -60,7 +60,7 @@ func enter_dark_world(rift_row: int, rift_col: int, force: bool = false) -> void
 	# 里程碑 hook: enter_dark_world
 	var ms_event = MilestoneManager.try_trigger("enter_dark_world")
 	if ms_event != null and m._dialogue_system:
-		m._dialogue_system.start(ms_event.get("dialogue", []), "", func():
+		m._dialogue_system.start(ms_event.get("dialogue", []), "", "", func():
 			MilestoneManager.on_event_complete(ms_event)
 		)
 
@@ -233,6 +233,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 			m._dialogue_system.start(
 				npc_data["dialogue"],
 				npc_data.get("tex", ""),
+				"",
 				func(): m.dark_world.set_ready()
 			)
 		return
@@ -437,7 +438,7 @@ func _trigger_encounter_dialogue(encounter_data: Dictionary) -> void:
 	m.dark_world.dark_state = "popup"
 
 	# 播放对话 → 完成后展示选择
-	m._dialogue_system.start(dialogue, "", func():
+	m._dialogue_system.start(dialogue, "", "", func():
 		if choices.is_empty():
 			m.dark_world.set_ready()
 			return
@@ -655,7 +656,7 @@ func on_dark_exit_requested() -> void:
 	# 里程碑 hook: exit_dark_world
 	var ms_event = MilestoneManager.try_trigger("exit_dark_world")
 	if ms_event != null and m._dialogue_system:
-		m._dialogue_system.start(ms_event.get("dialogue", []), "", func():
+		m._dialogue_system.start(ms_event.get("dialogue", []), "", "", func():
 			MilestoneManager.on_event_complete(ms_event)
 		)
 

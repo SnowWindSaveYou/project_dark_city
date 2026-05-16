@@ -29,8 +29,9 @@ const PHOTO_BORDER: int = 22
 @onready var _scout_badge: Label = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ScoutBadge
 @onready var _chibi_overlay: TextureRect = $PhotoAnchor/PhotoFrame/VBox/ImageArea/ChibiOverlay
 @onready var _white_bottom: VBoxContainer = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom
-@onready var _title_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/TitleLabel
-@onready var _location_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/LocationLabel
+@onready var _title_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/TitleLocRow/TitleLabel
+@onready var _sep_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/TitleLocRow/SepLabel
+@onready var _location_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/TitleLocRow/LocationLabel
 @onready var _baiiye_sep: HSeparator = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeSep
 @onready var _baiiye_row: HBoxContainer = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeRow
 @onready var _baiiye_label: Label = $PhotoAnchor/PhotoFrame/VBox/WhiteBottomMargin/WhiteBottom/BaiyeRow/BaiyeLabel
@@ -76,13 +77,16 @@ func _ready() -> void:
 	# 无插画时大 emoji 居中
 	_icon_label.add_theme_font_size_override("font_size", 110)
 
-	# 白边：标题 — 粗体大字，类型主色（颜色在 show_photo 里按类型设）
-	_title_label.add_theme_font_size_override("font_size", 40)
-	_title_label.add_theme_constant_override("line_spacing", 4)
+	# 白边：标题 — 与地点同行，类型主色（颜色在 show_photo 里按类型设）
+	_title_label.add_theme_font_size_override("font_size", 30)
 
-	# 白边：地点 — 细小字，灰棕色
-	_location_label.add_theme_font_size_override("font_size", 26)
-	_location_label.add_theme_color_override("font_color", Color(0.46, 0.43, 0.38, 0.68))
+	# 白边：分隔点 — 居中显示，灰色
+	_sep_label.add_theme_font_size_override("font_size", 26)
+	_sep_label.add_theme_color_override("font_color", Color(0.60, 0.57, 0.52, 0.50))
+
+	# 白边：地点 — 小字，灰棕色
+	_location_label.add_theme_font_size_override("font_size", 24)
+	_location_label.add_theme_color_override("font_color", Color(0.46, 0.43, 0.38, 0.75))
 
 	# 分割线颜色
 	var sep_style: StyleBoxFlat = StyleBoxFlat.new()
@@ -176,7 +180,9 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 	_photo_frame.pivot_offset = _photo_frame.size / 2.0
 	_photo_frame.modulate.a = 0.0
 	_photo_frame.rotation = 0.0
+	# 标题行（标题+分隔+地点同行，一起淡入）
 	_title_label.modulate.a = 0.0
+	_sep_label.modulate.a = 0.0
 	_location_label.modulate.a = 0.0
 	_scout_badge.modulate.a = 0.0
 	_hint_label.modulate.a = 0.0
@@ -210,10 +216,12 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 		tw.tween_property(_chibi_overlay, "position:y", 0.0, 0.30).set_delay(0.22) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
-	# 白边文字：标题 → 地点（错帧淡入）
-	tw.tween_property(_title_label, "modulate:a", 1.0, 0.26).set_delay(0.18) \
+	# 白边文字：标题行同步淡入（标题+分隔点+地点）
+	tw.tween_property(_title_label, "modulate:a", 1.0, 0.26).set_delay(0.20) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_location_label, "modulate:a", 1.0, 0.22).set_delay(0.26) \
+	tw.tween_property(_sep_label, "modulate:a", 1.0, 0.26).set_delay(0.20) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(_location_label, "modulate:a", 1.0, 0.26).set_delay(0.20) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 	# 白夜台词最后淡入（彩蛋感）
@@ -237,6 +245,7 @@ func dismiss() -> void:
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(_photo_frame, "modulate:a", 0.0, 0.20)
 	tw.tween_property(_title_label, "modulate:a", 0.0, 0.14)
+	tw.tween_property(_sep_label, "modulate:a", 0.0, 0.14)
 	tw.tween_property(_location_label, "modulate:a", 0.0, 0.14)
 	tw.tween_property(_scout_badge, "modulate:a", 0.0, 0.12)
 	tw.tween_property(_hint_label, "modulate:a", 0.0, 0.14)

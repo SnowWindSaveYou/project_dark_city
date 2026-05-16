@@ -229,7 +229,7 @@ func _setup_city_layer() -> void:
 	var grad: Gradient = Gradient.new()
 	grad.colors  = PackedColorArray([
 		Color(0.0, 0.0, 0.0, 0.0),          # 透明（渐变起点）
-		Color(0.06, 0.04, 0.14, 0.72),       # 深蓝紫（渐变终点，比之前浅 + 更透）
+		Color(0.10, 0.10, 0.12, 0.68),       # 深冷灰（几乎无色相偏移）
 	])
 	grad.offsets = PackedFloat32Array([0.0, 1.0])
 
@@ -309,15 +309,15 @@ func _draw_city() -> void:
 
 			# 各层在暗区的不透明度（远→近递增，整体降低避免太黑）
 			var dark_alpha: Array[float] = [0.42, 0.62, 0.78]
-			# 白区楼宇：浅灰紫，暗区楼宇：深灰蓝紫（非纯黑）
-			var fill_bright: Color = Color(0.72, 0.70, 0.78, dark_alpha[layer] * 0.22)
-			var fill_dark:   Color = Color(0.18, 0.15, 0.28, dark_alpha[layer])
+			# 白区楼宇：浅暖灰，暗区楼宇：深冷灰（无紫色偏移）
+			var fill_bright: Color = Color(0.70, 0.70, 0.72, dark_alpha[layer] * 0.22)
+			var fill_dark:   Color = Color(0.20, 0.20, 0.22, dark_alpha[layer])
 			var fill_col: Color    = fill_bright.lerp(fill_dark, zone_t)
 			_city_layer.draw_rect(Rect2(bx, by, bw_px, bh_px), fill_col)
 
-			# 顶部轮廓线（白区灰紫细线，暗区冷紫亮边）
-			var edge_bright: Color = Color(0.55, 0.52, 0.62, 0.10)
-			var edge_dark:   Color = Color(0.20, 0.15, 0.36, 0.30)
+			# 顶部轮廓线（白区浅灰，暗区中灰边）
+			var edge_bright: Color = Color(0.55, 0.55, 0.57, 0.10)
+			var edge_dark:   Color = Color(0.40, 0.40, 0.44, 0.35)
 			var edge_col: Color    = edge_bright.lerp(edge_dark, zone_t)
 			_city_layer.draw_line(Vector2(bx, by), Vector2(bx + bw_px, by), edge_col, 1.0)
 

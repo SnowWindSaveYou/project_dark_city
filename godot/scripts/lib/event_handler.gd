@@ -288,7 +288,7 @@ func execute_event(result: EventResult, card: Card = null) -> void:
 				var dialogue: Array = result.popup_data.get("dialogue", [])
 				var tex: String = result.popup_data.get("tex", "")
 				if _main:
-					_main._dialogue_system.start(dialogue, tex, result.on_complete)
+					_main._dialogue_system.start(dialogue, tex, "", result.on_complete)
 
 	# 执行回调
 	if result.on_complete.is_valid():
