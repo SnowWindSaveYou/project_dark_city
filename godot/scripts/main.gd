@@ -55,6 +55,8 @@ const ATMO_STORMY_OFFSET: Dictionary = {
 	"light_energy":   -0.35,
 }
 
+const TutorialBubble = preload("res://scripts/ui/tutorial_bubble.gd")
+
 # ---------------------------------------------------------------------------
 # 核心数据 (控制器通过 m.xxx 访问)
 # ---------------------------------------------------------------------------
