@@ -1,137 +1,167 @@
 # 教程与机制说明设计文档
 
-> 记录所有需要向玩家传达的机制说明，以及各自的触发方式和实现状态。
+> 记录所有向玩家传达机制说明的触发方式、对话内容与代码位置。
 
 ---
 
 ## 设计原则
 
-- **按需触发**：在玩家第一次遭遇相关机制时说明，而不是开场塞满
-- **白夜作为主要引导者**：她全程陪同，叙事上能自然引出大多数提示
-- **一次性**：每条提示只触发一次，通过持久化标记防止重复
+- **按需触发**：在玩家第一次遭遇相关机制时说明，不在开场集中塞满
+- **白夜作为主要引导者**：作为全程陪同角色，叙事上自然引出大多数提示
+- **一次性**：每条提示只触发一次，通过 `G.tutorialFlags` 防止重复
+- **气泡锁定模式**：使用 `BubbleDialogue.showTutorial(bubble, text, duration)` 显示固定文本，持续到玩家点击或时间到期
 
 ---
 
-## 一、Day 1 开场教程（已实现 ✅）
+## 教程清单
 
-**触发时机**：第一天发牌完成后（`GameFlow.startDeal` deal-complete 回调内）
+### 1. Day 1 开场 · 棋盘与日程
 
-**流程**：
-1. 相机缓移聚焦 Token（苏柚）位置，让玩家认清自己的角色
-2. 定格 0.8 秒
-3. 相机缓回中心
-4. 弹出白夜/苏柚对话（`DialogueSystem.start`）
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 第一天发牌完成后（`GameFlow.startDeal` deal-complete 回调） |
+| **交付方式** | `DialogueSystem.start` 模态对话框 |
+| **实现文件** | `scripts/GameFlow.lua` · `DAY1_TUTORIAL_DIALOGUE` |
 
-**对话内容**：白夜不懂人类世界 → 苏柚解释日程系统 → 顺带交代妖魔是白夜带来的背景
-
-**说明的机制**：
-- 棋盘基本概念（翻牌/日程）
-- 每日日程需要完成（最关键）
-
-**实现文件**：
-- `scripts/GameFlow.lua`：`triggerDay1Tutorial()`、`DAY1_TUTORIAL_DIALOGUE`
-- `scripts/main.lua`：`G.setCameraPan` 回调注入
-- `scripts/HandPanel.lua`：`highlightOnce()`（对话结束后高亮日程 Tab）
-
----
-
-## 二、健康 = 每日步数（待实现 ⬜）
-
-**触发时机**：Day 1 开场对话末尾扩展，或单独作为对话第二条（Day 1 deal 完成后）
-
-**说明内容**：
-> 健康值决定今天能走多少格。健康越高，活动范围越大。
-
-**实现方式**：在 `DAY1_TUTORIAL_DIALOGUE` 末尾追加台词，或在对话结束回调中延迟触发第二段对话
-
----
-
-## 三、灵感相关机制（待实现 ⬜）
-
-### 3a. 灵感 ≥ 15 解锁裂隙（暗面世界入口）
-
-**触发时机**：第一次翻到裂隙卡时（`CardInteraction.lua` 裂隙检测处）
-
-**说明内容**：
-> 白夜：「……这里有道缝。」
-> 苏柚：「灵感够高才能察觉到。灵感越丰富，能感知到的东西就越多。」
-
-**当前相关代码**：`CardInteraction.lua:885`（裂隙弹窗处），`DarkWorldFlow.lua:90`（灵感不足提示）
-
-**实现方式**：`G.tutorialFlags.riftSeen` 一次性标记，首次触发时在裂隙弹窗前插入对话
-
----
-
-### 3b. 灵感越高，怪物伤害越高
-
-**触发时机**：第一次遭遇怪物卡（`CardInteraction.lua` monster 事件处理处）
-
-**说明内容**：
-> Toast 提示：「⚠ 灵感越高，妖魔对你造成的伤害也越重」
-
-**伤害公式**（供参考，不需展示给玩家）：
-`额外理智伤害 = min(3, floor((灵感 - 10) / 15))`
-
-**实现方式**：`G.tutorialFlags.monsterSeen` 标记，首次怪物事件结算后弹 Toast
-
----
-
-## 四、理智 = 暗面世界步数（待实现 ⬜）
-
-**触发时机**：第一次进入暗面世界前（`DarkWorldFlow.enterDarkWorld` 进场动画开始时）
-
-**说明内容**：
-> 白夜：「进去之后……能走多远？」
-> 苏柚：「取决于我现在还剩多少清醒。」
-
-**当前相关代码**：`DarkWorldFlow.lua:165`（`maxEnergy = san`）
-
-**实现方式**：`G.tutorialFlags.darkWorldEntered` 标记，进场动画前插入对话
-
----
-
-## 五、相机机制（待实现 ⬜）
-
-### 5a. 拍照侦察 & 幽灵轨迹
-
-**触发时机**：第一次点击相机按钮进入相机模式（`CameraButton.setOnEnterCallback` 钩子处）
-
-**说明内容**：白夜对话，一次性触发
+**对话内容（完整）**：
 
 ```
-白夜：「……这个东西能拍下来吗？」
-苏柚：「能。拍没翻开的格子可以提前看看有没有危险。」
-苏柚：「拍完之后……有时候能看到痕迹，指向最近的妖魔在哪。」
-白夜：「……像是追踪气息。」
-苏柚：「差不多。每天胶卷有限，省着用。」
+白夜：这是……你住的地方？
+苏柚：嗯。不太平，但没办法。
+白夜：那些背面朝上的牌……翻开后会有麻烦吗？
+苏柚：有些是正常的地方，有些……自从你来了以后，就不太一样了。
+白夜：……对不起。
+苏柚：不是怪你。（翻开笔记本）不管怎样，我今天有些事要做。
+苏柚：左边这本是日程，完成了有好处。尽量别一直拖着。
+白夜：……我知道了。我不会拖累你的。
+苏柚：对了，我每天能走多少，跟身体状态有关。健康低了，腿就软，走不远。
+白夜：……别乱挨打。
+苏柚：我知道。
 ```
 
-**当前相关代码**：`main.lua:583`（`setOnEnterCallback`）
-
-### 5b. 拍照消灭怪物
-
-**触发时机**：第一次对已翻开的怪物卡使用相机（`CardInteraction.lua:1036` 驱除逻辑处）
-
-**说明内容**：
-> Toast 提示：「📷 相机可以驱除已翻开的妖魔，消耗 1 张胶卷」
-
-**实现方式**：`G.tutorialFlags.cameraExorciseSeen` 标记，首次触发后不再提示
+**后续动作**：对话结束后高亮 HandPanel 日程 Tab（`HandPanel.highlightOnce()`）
 
 ---
 
-## 六、触发标记清单
+### 2. 健康 = 每日步数上限
 
-所有一次性标记统一存放在 `G.tutorialFlags`（持久化建议写入本地存档）：
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | Day 1 开场对话末尾（即上方第 9–11 行台词） |
+| **交付方式** | `DialogueSystem` 对话，内嵌在 `DAY1_TUTORIAL_DIALOGUE` |
+| **实现文件** | `scripts/GameFlow.lua` · `DAY1_TUTORIAL_DIALOGUE` 末三行 |
 
-| 标记键 | 对应教程 | 初始值 |
-|--------|---------|--------|
-| `day1Done` | Day 1 开场教程 | false |
-| `healthStepsSeen` | 健康=步数 | false |
-| `riftSeen` | 裂隙/灵感机制 | false |
-| `monsterSeen` | 灵感影响怪物伤害 | false |
-| `darkWorldEntered` | 理智=暗面步数 | false |
-| `cameraModeSeen` | 相机模式基础 | false |
-| `cameraExorciseSeen` | 拍照消灭怪物 | false |
+**说明要点**：健康值决定当天步数上限，受伤会减少活动范围。
+
+---
+
+### 3. 灵感影响怪物伤害
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 玩家**首次翻到怪物卡**时（`MonsterGhost.spawnAroundPlayer` 调用后） |
+| **交付方式** | `BubbleDialogue.showTutorial`，持续 7 秒 |
+| **实现文件** | `scripts/CardInteraction.lua`，`G.tutorialFlags.monsterSeen` |
+| **标记键** | `monsterSeen` |
+
+**气泡文本**：
+> 白夜：灵感强了，它们感知得到你。
+> 感知得到……就咬得重。
+
+---
+
+### 4. 灵感解锁裂隙与更多感知
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 玩家**首次翻到含裂隙的格子**（`EventPopup.showRiftConfirm` 调用前） |
+| **交付方式** | `BubbleDialogue.showTutorial`，持续 7 秒 |
+| **实现文件** | `scripts/CardInteraction.lua`，`G.tutorialFlags.riftSeen` |
+| **标记键** | `riftSeen` |
+
+**气泡文本**：
+> 白夜：灵感不够的时候……这里什么都没有。
+> 不是看不见。是感觉不到。
+
+---
+
+### 5. 理智 = 暗面世界步数
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | **首次进入暗面世界**，进场动画后延迟 1.8 秒 |
+| **交付方式** | `BubbleDialogue.showTutorial`，持续 8 秒 |
+| **实现文件** | `scripts/DarkWorldFlow.lua`，`G.tutorialFlags.darkWorldEntered` |
+| **标记键** | `darkWorldEntered` |
+
+**气泡文本**：
+> 白夜：这里的规则不一样。
+> 理智剩多少，就能走多少。撑不住就会被送回去。
+
+---
+
+### 6. 相机模式 · 侦察与幽灵轨迹
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | **首次点击相机按钮进入相机模式**（`CameraButton.setOnEnterCallback` 钩子） |
+| **交付方式** | `BubbleDialogue.showTutorial`，持续 8 秒 |
+| **实现文件** | `scripts/main.lua`，`G.tutorialFlags.cameraModeSeen` |
+| **标记键** | `cameraModeSeen` |
+
+**气泡文本**：
+> 白夜：翻开之前，先拍一下。
+> 镜头里有时会浮现方向——妖魔在哪边。
+> 胶卷不多。
+
+---
+
+### 7. 相机消灭已翻开的怪物
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | **首次对已翻开怪物卡成功拍照驱除**（`Card.transformTo` 成功回调内） |
+| **交付方式** | `BubbleDialogue.showTutorial`，持续 7 秒 |
+| **实现文件** | `scripts/CardInteraction.lua`，`G.tutorialFlags.cameraExorciseSeen` |
+| **标记键** | `cameraExorciseSeen` |
+
+**气泡文本**：
+> 白夜：已经现身的，照样能拍走。
+> 比正面撞上安全一点。要胶卷。
+
+---
+
+### 8. 安全区光晕
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | **首次踏入安全区光晕格**（`Board.isInLandmarkAura` 为真，home 除外） |
+| **交付方式** | `BubbleDialogue.showTutorial`，持续 8 秒 |
+| **实现文件** | `scripts/CardInteraction.lua` · `onCardFlipped`，`G.tutorialFlags.safeZoneSeen` |
+| **标记键** | `safeZoneSeen` |
+
+**说明要点**：教堂和警察局不可翻开，但其相邻四格会有光晕特效，且妖魔在该范围内不会出现（monster/trap 翻开后自动降级为 safe）。
+
+**气泡文本**：
+> 白夜：发光的格子有结界——妖魔近不了身。
+> 教堂和警察局周围四格，都是这样。
+
+---
+
+## 触发标记总表
+
+所有标记存放于 `G.tutorialFlags`（`scripts/main.lua` G 表初始化处）：
+
+| 标记键 | 对应教程 | 触发文件 |
+|--------|---------|---------|
+| *(无独立标记)* | Day 1 开场对话 | `GameFlow.lua` |
+| *(无独立标记)* | 健康=步数（内嵌 Day 1 对话） | `GameFlow.lua` |
+| `monsterSeen` | 灵感影响怪物伤害 | `CardInteraction.lua` |
+| `riftSeen` | 灵感解锁裂隙感知 | `CardInteraction.lua` |
+| `darkWorldEntered` | 理智=暗面步数 | `DarkWorldFlow.lua` |
+| `cameraModeSeen` | 相机模式侦察+轨迹 | `main.lua` |
+| `cameraExorciseSeen` | 相机消灭怪物 | `CardInteraction.lua` |
+| `safeZoneSeen` | 安全区光晕机制 | `CardInteraction.lua` |
 
 ---
 
@@ -139,10 +169,11 @@
 
 | # | 机制 | 状态 |
 |---|------|------|
-| 1 | Day 1 开场 + 日程说明 | ✅ 已实现 |
-| 2 | 健康 = 步数 | ✅ 已实现 |
-| 3a | 灵感解锁裂隙 | ✅ 已实现 |
-| 3b | 灵感影响怪物伤害 | ✅ 已实现 |
-| 4 | 理智 = 暗面步数 | ✅ 已实现 |
-| 5a | 相机模式（侦察+轨迹） | ✅ 已实现 |
-| 5b | 相机消灭怪物 | ✅ 已实现 |
+| 1 | Day 1 开场 · 棋盘与日程 | ✅ |
+| 2 | 健康 = 每日步数上限 | ✅ |
+| 3 | 灵感影响怪物伤害 | ✅ |
+| 4 | 灵感解锁裂隙与感知 | ✅ |
+| 5 | 理智 = 暗面世界步数 | ✅ |
+| 6 | 相机模式侦察与幽灵轨迹 | ✅ |
+| 7 | 相机消灭已翻开怪物 | ✅ |
+| 8 | 安全区光晕机制 | ✅ |
