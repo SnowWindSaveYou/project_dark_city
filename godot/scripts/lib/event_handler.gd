@@ -57,16 +57,22 @@ func setup(main_ref) -> void:
 
 static func get_emotion_for_event(event_type: EventType) -> String:
 	match event_type:
+		EventType.NONE: return "default"
+		EventType.SAFE: return "relieved"
 		EventType.MONSTER: return "scared"
 		EventType.TRAP: return "nervous"
 		EventType.SHOP: return "confused"
 		EventType.CLUE: return "surprised"
-		EventType.SAFE: return "relieved"
+		EventType.PLOT: return "surprised"
 		EventType.ITEM: return "happy"
 		EventType.INTEL: return "confused"
-		EventType.NPC_DIALOGUE: return "surprised"
+		EventType.CHECKPOINT: return "determined"
+		EventType.PASSAGE: return "determined"
 		EventType.ABYSS_CORE: return "scared"
+		EventType.NPC_DIALOGUE: return "surprised"
+		EventType.PHOTO: return "surprised"
 		EventType.DARK_CLUE: return "surprised"
+		EventType.DARK_ITEM: return "happy"
 	return "default"
 
 # ============================================================================

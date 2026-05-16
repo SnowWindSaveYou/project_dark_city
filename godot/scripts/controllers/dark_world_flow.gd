@@ -308,6 +308,9 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 	var result: EventHandler.EventResult = _event_handler.parse_dark_world_card(
 		card, row, col, m.day_count)
 	
+	# 保存原始 dark_type，collect_card 会将其覆写为 "normal"
+	var original_dark_type: String = card.dark_type
+	
 	# 特殊处理：标记收集状态
 	if card.dark_collected and (card.dark_type == "clue" or card.dark_type == "item"):
 		m.dark_world.collect_card(row, col, card)
@@ -315,9 +318,9 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 	# 统一表情
 	m.token.set_emotion(EventHandler.get_emotion_for_event(result.event_type))
 	
-	# 显示 Toast 通知 (仅对有事件类型的卡牌显示)
+	# 显示 Toast 通知 (使用原始 dark_type，避免 collect_card 覆写导致显示"normal")
 	if result.event_type != EventHandler.EventType.NONE:
-		_show_dark_toast(card.dark_type, result.effects)
+		_show_dark_toast(original_dark_type, result.effects)
 	
 	# 根据事件类型处理
 	match result.event_type:
@@ -448,6 +451,9 @@ func _show_dark_toast(dark_type: String, effects: Dictionary) -> void:
 ## 触发精英或 Boss 遭遇对话 (带选择)
 ## encounter_data: CardConfig.get_dw_elite_encounter() 或 get_dw_boss_encounter()
 func _trigger_encounter_dialogue(encounter_data: Dictionary) -> void:
+	if encounter_data == null or encounter_data.is_empty():
+		m.dark_world.set_ready()
+		return
 	var dialogue: Array = encounter_data.get("dialogue", [])
 	var choices: Array = encounter_data.get("choices", [])
 

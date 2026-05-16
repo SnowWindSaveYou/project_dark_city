@@ -170,6 +170,14 @@ var _anim_tween: Tween = null
 # 扭曲基准相位（每个实例随机，避免多个 hint 同步晃动）
 var _wave_phase: float = 0.0
 
+# Node3D 没有 modulate，用 _alpha 统一控制三个 Label3D 子节点的透明度
+var _alpha: float = 1.0:
+	set(v):
+		_alpha = v
+		if _label_main:   _label_main.modulate.a   = v
+		if _label_ghost1: _label_ghost1.modulate.a = v
+		if _label_ghost2: _label_ghost2.modulate.a = v
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
@@ -190,7 +198,7 @@ func _build_labels() -> void:
 	_label_ghost2.modulate = COLOR_GHOST2
 	_label_ghost2.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_label_ghost2.no_depth_test = false
-	_label_ghost2.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	_label_ghost2.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
 	_label_ghost2.render_priority = 1
 	_label_ghost2.outline_size = 0
 	_label_ghost2.double_sided = true
@@ -206,7 +214,7 @@ func _build_labels() -> void:
 	_label_ghost1.modulate = COLOR_GHOST1
 	_label_ghost1.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_label_ghost1.no_depth_test = false
-	_label_ghost1.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	_label_ghost1.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
 	_label_ghost1.render_priority = 2
 	_label_ghost1.outline_size = 0
 	_label_ghost1.double_sided = true
@@ -222,7 +230,7 @@ func _build_labels() -> void:
 	_label_main.modulate = COLOR_MAIN
 	_label_main.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	_label_main.no_depth_test = false
-	_label_main.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	_label_main.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
 	_label_main.render_priority = 3
 	_label_main.outline_size = 0
 	_label_main.double_sided = true
@@ -268,12 +276,12 @@ func show_hint_with_text(text: String) -> void:
 
 	# 初始状态：缩小 + 透明
 	scale = Vector3(0.05, 0.05, 0.05)
-	modulate = Color(1, 1, 1, 0)
+	_alpha = 0.0
 
 	_anim_tween = get_tree().create_tween().set_parallel(true)
 	_anim_tween.tween_property(self, "scale", Vector3.ONE, POP_DUR)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	_anim_tween.tween_property(self, "modulate:a", 1.0, POP_DUR * 0.6)\
+	_anim_tween.tween_property(self, "_alpha", 1.0, POP_DUR * 0.6)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
 
 
@@ -287,7 +295,7 @@ func hide_hint() -> void:
 		_anim_tween.kill()
 
 	_anim_tween = get_tree().create_tween().set_parallel(true)
-	_anim_tween.tween_property(self, "modulate:a", 0.0, HIDE_DUR)\
+	_anim_tween.tween_property(self, "_alpha", 0.0, HIDE_DUR)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	_anim_tween.tween_property(self, "scale", Vector3(0.05, 0.05, 0.05), HIDE_DUR)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -303,7 +311,7 @@ func force_hide() -> void:
 	_visible_anim = false
 	visible = false
 	scale = Vector3.ONE
-	modulate = Color(1, 1, 1, 1)
+	_alpha = 1.0
 
 # ---------------------------------------------------------------------------
 # 每帧更新：扭曲波动 + 呼吸透明
@@ -319,7 +327,7 @@ func _process(delta: float) -> void:
 	# 动画结束后 scale≈1.0 才激活呼吸
 	if scale.x > 0.9:
 		var breath: float = 1.0 - BREATH_AMP + BREATH_AMP * sin(_time * BREATH_FREQ * TAU + _wave_phase)
-		modulate.a = breath
+		_alpha = breath
 
 	# --- 扭曲：主文字 X 轴摆动 ---
 	var wave_x: float = WAVE_AMP * sin(_time * WAVE_FREQ * TAU + _wave_phase)
