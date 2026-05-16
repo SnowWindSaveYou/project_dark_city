@@ -43,8 +43,8 @@ func setup(main_ref) -> void:
 # 进入暗面
 # =========================================================================
 
-func enter_dark_world(rift_row: int, rift_col: int) -> void:
-	if not m.dark_world.can_enter(m.day_count):
+func enter_dark_world(rift_row: int, rift_col: int, force: bool = false) -> void:
+	if not force and not m.dark_world.can_enter():
 		m._vfx.action_banner("裂隙能量不足", Color(0.7, 0.7, 0.7), 0.7)
 		return
 
@@ -194,6 +194,9 @@ func _on_dark_deal_complete() -> void:
 	if entry_card:
 		m.board.flip_card(pr, pc)
 		m.board_visual.update_dark_card_visual(pr, pc)
+
+	# 刷新通道 chibi: 扫描所有已翻开的通道牌，符合条件则显示
+	_refresh_passage_chibis()
 
 # =========================================================================
 # 暗面卡牌交互
@@ -371,7 +374,7 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 			if cur_layer == 1:
 				# L2 有两个通道: 第一个回 L1, 第二个去 L3
 				# 检查 L3 是否解锁来决定是否提供选择
-				if m.dark_world.is_layer_unlocked(2, m.day_count,
+				if m.dark_world.is_layer_unlocked(2,
 						StoryManager.get_fragment_count()):
 					# 弹出选择对话框
 					m.dark_world.dark_state = "popup"
@@ -497,6 +500,27 @@ func _show_passage_choice() -> void:
 	)
 
 # ---------------------------------------------------------------------------
+# 通道 chibi 刷新
+# ---------------------------------------------------------------------------
+
+## 扫描棋盘所有通道牌, 符合条件时显示 chibi (不重复添加)
+## 在发牌完成 / 层切换完成时调用
+func _refresh_passage_chibis() -> void:
+	m.board_visual.passage_clear_all()
+	var fragments: int = StoryManager.get_fragment_count()
+	var can_pass: bool = m.dark_world.can_use_passage(fragments)
+	if not can_pass:
+		return  # 不满足条件，不显示任何通道 chibi
+
+	for row in range(1, Board.ROWS + 1):
+		for col in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(row, col)
+			if card == null:
+				continue
+			if card.dark_type == "passage":
+				m.board_visual.passage_show_on_card(row, col)
+
+# ---------------------------------------------------------------------------
 # 幽灵 3D 渲染辅助
 # ---------------------------------------------------------------------------
 
@@ -600,9 +624,10 @@ func _change_layer(target_layer: int) -> void:
 
 	# 收牌动画 → 清理 → 重建新层 → 发牌动画
 	m.board_visual.play_undeal_animation(func():
-		# 清理旧层幽灵 & NPC 节点
+		# 清理旧层幽灵 & NPC 节点 & 通道 chibi
 		m.board_visual.destroy_ghost_nodes()
 		m.board_visual.destroy_npc_nodes()
+		m.board_visual.passage_clear_all()
 
 		# 重新生成棋盘
 		_generate_dark_board()
@@ -655,9 +680,10 @@ func on_dark_exit_requested() -> void:
 
 	# 收牌动画 → 清理 → 重建现实棋盘 → 发牌动画
 	m.board_visual.play_undeal_animation(func():
-		# 清理幽灵 & NPC 节点
+		# 清理幽灵 & NPC 节点 & 通道 chibi
 		m.board_visual.destroy_ghost_nodes()
 		m.board_visual.destroy_npc_nodes()
+		m.board_visual.passage_clear_all()
 
 		# 恢复现实棋盘
 		m.board = _saved_board

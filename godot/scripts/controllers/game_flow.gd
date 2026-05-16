@@ -52,7 +52,7 @@ func setup(main_ref) -> void:
 func generate_board() -> void:
 	var req_locs: Array = m.card_manager.pre_select_locations()
 	m.board.required_locations = req_locs
-	var can_have_rift: bool = m.day_count > 1 and m.dark_world.can_enter(m.day_count)
+	var can_have_rift: bool = m.day_count > 1 and m.dark_world.can_enter()
 	m.board.generate_cards(can_have_rift)
 	m.board_visual.rebuild_card_nodes()
 

@@ -601,7 +601,7 @@ func _on_debug_action(action_id: String) -> void:
 	match action_id:
 		"enter_dark":
 			if GameData.demo_state == "ready":
-				dark_world_flow.enter_dark_world(token.target_row, token.target_col)
+				dark_world_flow.enter_dark_world(token.target_row, token.target_col, true)
 		"ins_10":
 			GameData.modify_resource("inspiration", 10)
 		"ins_50":
@@ -650,10 +650,38 @@ func _on_event_dialogue_requested(event: Dictionary, on_complete: Callable) -> v
 		print("[Main] _on_event_dialogue_requested: SKIP (empty=%s, state=%s)" % [dialogue.is_empty(), _dialogue_system.state])
 		on_complete.call("")
 		return
-	_dialogue_system.start(dialogue, portrait_path, func() -> void:
+	# 背景图：event 中若显式指定则优先，否则自动推断当前地点背景
+	var bg_path: String = event.get("bg_image", _get_current_dialogue_bg())
+	_dialogue_system.start(dialogue, portrait_path, bg_path, func() -> void:
 		print("[Main] event dialogue on_complete fired")
 		on_complete.call("")
 	)
+
+## 根据当前游戏状态推断对话背景图路径
+## - 暗面世界：随机返回两张暗面背景之一（按层级）
+## - 现实世界：返回当前所站地点的 image_path（可为空）
+func _get_current_dialogue_bg() -> String:
+	# 暗面世界
+	if dark_world != null and dark_world.active:
+		const DARK_BGS: Array = [
+			"res://assets/image/bg_dark_world_open_20260515161039.png",
+			"res://assets/image/bg_dark_world_deep_v2_20260515161735.png",
+		]
+		# layer 0 用"开阔"，layer 1+ 用"深渊"；超出范围回退到随机
+		var layer: int = dark_world.current_layer
+		if layer == 0:
+			return DARK_BGS[0]
+		elif layer < DARK_BGS.size():
+			return DARK_BGS[layer]
+		else:
+			return DARK_BGS[randi() % DARK_BGS.size()]
+	# 现实世界：查当前格子地点
+	if board != null and token != null:
+		var card: Card = board.get_card(token.target_row, token.target_col)
+		if card != null and card.location != "":
+			var loc_data: Dictionary = Locations.get_real_location(card.location)
+			return loc_data.get("image_path", "")
+	return ""
 
 func _on_photograph_request() -> void:
 	if GameData.demo_state != "ready":
@@ -1057,7 +1085,10 @@ func _update_dialogue_tweens(dt: float) -> void:
 
 func _tween_dialogue_enter() -> void:
 	var tw: Tween = create_tween().set_parallel(true)
-	tw.tween_property(_dialogue_system, "overlay_alpha", 1.0, 0.3)
+	# 背景图最先淡入，略早于遮罩
+	if _dialogue_system._bg_tex != null:
+		tw.tween_property(_dialogue_system, "bg_image_alpha", 1.0, 0.45)
+	tw.tween_property(_dialogue_system, "overlay_alpha", 1.0, 0.3).set_delay(0.1)
 	tw.tween_property(_dialogue_system, "box_offset_y", 0.0, 0.4) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(_dialogue_system, "box_alpha", 1.0, 0.3)
@@ -1082,6 +1113,8 @@ func _tween_dialogue_exit() -> void:
 	tw.tween_property(_dialogue_system, "box_alpha", 0.0, 0.25)
 	tw.tween_property(_dialogue_system, "portrait_alpha", 0.0, 0.25)
 	tw.tween_property(_dialogue_system, "portrait_offset_y", 20.0, 0.25)
+	# 背景图与对话框一起淡出
+	tw.tween_property(_dialogue_system, "bg_image_alpha", 0.0, 0.3)
 	# 完成回调
 	var tw_cb: Tween = create_tween()
 	tw_cb.tween_callback(_dialogue_system.on_exit_complete).set_delay(0.35)

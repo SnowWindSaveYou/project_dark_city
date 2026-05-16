@@ -92,7 +92,7 @@ func _process(_dt: float) -> void:
 		queue_redraw()
 
 	# 需要渲染时才 queue_redraw
-	if ds.is_active() or ds.overlay_alpha > 0.01:
+	if ds.is_active() or ds.overlay_alpha > 0.01 or ds.bg_image_alpha > 0.01:
 		queue_redraw()
 
 func _gui_input(event: InputEvent) -> void:
@@ -135,6 +135,23 @@ func _draw() -> void:
 		return
 
 	var vp: Vector2 = get_viewport_rect().size
+
+	# --- 背景图（在遮罩之前，覆盖整个视口，保持宽高比裁切填满）---
+	if ds.bg_image_alpha > 0.01:
+		var bg_tex: Texture2D = ds.get_bg_texture()
+		if bg_tex != null:
+			var tex_w: float = bg_tex.get_width() as float
+			var tex_h: float = bg_tex.get_height() as float
+			# Cover 模式：等比缩放至短边贴合视口，居中裁切
+			var scale: float = maxf(vp.x / tex_w, vp.y / tex_h)
+			var draw_w: float = tex_w * scale
+			var draw_h: float = tex_h * scale
+			var draw_x: float = (vp.x - draw_w) * 0.5
+			var draw_y: float = (vp.y - draw_h) * 0.5
+			draw_texture_rect(bg_tex,
+				Rect2(draw_x, draw_y, draw_w, draw_h),
+				false,
+				Color(1, 1, 1, ds.bg_image_alpha))
 
 	# --- 半透明遮罩 ---
 	var overlay_color: Color = Color(0, 0, 0, ds.overlay_alpha * DialogueSystem.OVERLAY_ALPHA_MAX)

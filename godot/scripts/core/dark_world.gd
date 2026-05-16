@@ -122,15 +122,24 @@ func reset() -> void:
 # 层级查询 (配置来源: CardConfig / dark_world.json)
 # ---------------------------------------------------------------------------
 
-func can_enter(day_count: int) -> bool:
+func can_enter() -> bool:
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(0)
-	return day_count >= cfg.get("unlock_day", 999)
+	return GameData.get_resource("inspiration") >= cfg.get("unlock_inspiration", 999)
 
-func is_layer_unlocked(layer_idx: int, day_count: int, fragments: int = 0) -> bool:
+## 通道是否可用: 当前层有可达目的地时显示 chibi
+## - 向后(回上层): current_layer > 0, 始终可用
+## - 向前(去下层): 检查下一层是否解锁
+func can_use_passage(fragments: int = 0) -> bool:
+	if current_layer > 0:
+		return true  # 永远可以回上层
+	return is_layer_unlocked(current_layer + 1, fragments)
+
+func is_layer_unlocked(layer_idx: int, fragments: int = 0) -> bool:
 	if layer_idx < 0 or layer_idx >= 3:
 		return false
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(layer_idx)
-	return day_count >= cfg.get("unlock_day", 999) and fragments >= cfg.get("unlock_fragments", 0)
+	return GameData.get_resource("inspiration") >= cfg.get("unlock_inspiration", 999) \
+		and fragments >= cfg.get("unlock_fragments", 0)
 
 func get_energy() -> int:
 	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
@@ -495,7 +504,7 @@ func enter(day_count: int, rift_r: int, rift_c: int,
 
 	# 解锁层级
 	for i in range(3):
-		if is_layer_unlocked(i, day_count, 0):
+		if is_layer_unlocked(i, 0):
 			layers[i].unlocked = true
 
 	var layer: LayerData = layers[current_layer]

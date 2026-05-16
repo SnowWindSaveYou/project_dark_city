@@ -52,6 +52,7 @@ var box_alpha: float = 0.0  # 对话框透明度
 var portrait_alpha: float = 0.0  # 立绘透明度
 var portrait_offset_y: float = 40.0
 var portrait_scale: float = 0.9
+var bg_image_alpha: float = 0.0  # 背景图透明度
 
 # ---------------------------------------------------------------------------
 # 内部状态
@@ -69,6 +70,10 @@ var _prev_demo_state: String = "ready"
 ## 立绘
 var portrait_tex_path: String = ""
 var _portrait_tex: Texture2D = null
+
+## 背景图
+var bg_image_path: String = ""
+var _bg_tex: Texture2D = null
 
 ## 打字机
 var _typewriter_pos: int = 0    # 当前显示字符数
@@ -88,9 +93,10 @@ var _selected_choice: Dictionary = {}  ## 玩家选择的选项 (on_complete 后
 ## 开始对话
 ## dialogue_script: Array of { "speaker": String, "text": String }
 ## portrait_path: 立绘纹理路径
+## bg_path: 背景图路径 (空字符串 = 无背景)
 ## on_complete: 对话结束回调
 func start(dialogue_script: Array, portrait_path: String = "",
-		on_complete: Callable = Callable()) -> void:
+		bg_path: String = "", on_complete: Callable = Callable()) -> void:
 	if state != "idle":
 		return
 	if dialogue_script.is_empty():
@@ -109,6 +115,13 @@ func start(dialogue_script: Array, portrait_path: String = "",
 	else:
 		_portrait_tex = null
 
+	# 加载背景图纹理
+	bg_image_path = bg_path
+	if bg_path != "":
+		_bg_tex = load(bg_path) as Texture2D
+	else:
+		_bg_tex = null
+
 	# 重置动画属性
 	overlay_alpha = 0.0
 	box_offset_y = 80.0
@@ -116,6 +129,7 @@ func start(dialogue_script: Array, portrait_path: String = "",
 	portrait_alpha = 0.0
 	portrait_offset_y = 40.0
 	portrait_scale = 0.9
+	bg_image_alpha = 0.0
 
 	_prev_demo_state = GameData.demo_state
 	state = "entering"
@@ -186,7 +200,9 @@ func reset() -> void:
 	overlay_alpha = 0.0
 	box_alpha = 0.0
 	portrait_alpha = 0.0
+	bg_image_alpha = 0.0
 	_portrait_tex = null
+	_bg_tex = null
 	# 如果对话正在进行，恢复对话前的状态
 	if was_active:
 		GameData.set_demo_state(_prev_demo_state)
@@ -224,6 +240,10 @@ func select_choice(index: int) -> void:
 ## 获取立绘纹理
 func get_portrait_texture() -> Texture2D:
 	return _portrait_tex
+
+## 获取背景图纹理
+func get_bg_texture() -> Texture2D:
+	return _bg_tex
 
 # ---------------------------------------------------------------------------
 # 内部方法
@@ -274,6 +294,7 @@ func on_exit_complete() -> void:
 	_script = []
 	_script_index = 0
 	_portrait_tex = null
+	_bg_tex = null
 	GameData.set_demo_state(restore_state)
 	if _on_complete.is_valid():
 		var cb: Callable = _on_complete

@@ -1354,6 +1354,7 @@ var _mg_surround_nodes: Array = []   # 环绕玩家的 chibi Sprite3D
 var _mg_card_nodes: Array = []       # 卡牌上的 chibi Sprite3D
 var _mg_trail_nodes: Array = []      # 踪迹箭头 chibi Sprite3D
 var _rift_card_nodes: Array = []     # 裂隙入口卡牌上的 chibi Sprite3D
+var _passage_card_nodes: Array = [] # 暗面层通道卡牌上的 chibi Sprite3D
 
 ## 环绕布局 (精确匹配 Lua SURROUND_LAYOUT, size ×2 half-extent 修正)
 const MG_SURROUND_LAYOUT: Array = [
@@ -1370,6 +1371,10 @@ const MG_CARD_SIZE: float = 0.28 * BILLBOARD_HALF_EXTENT_FACTOR
 const RIFT_CARD_BASE_Y: float = 0.40
 const RIFT_CARD_SIZE: float = 0.32 * BILLBOARD_HALF_EXTENT_FACTOR
 const RIFT_TEX_PATH: String = "res://assets/image/rift_chibi.png"
+## 通道 chibi 参数 (暗面层间传送门, 与裂隙相近大小)
+const PASSAGE_CARD_BASE_Y: float = 0.40
+const PASSAGE_CARD_SIZE: float = 0.30 * BILLBOARD_HALF_EXTENT_FACTOR
+const PASSAGE_TEX_PATH: String = "res://assets/image/passage_chibi.png"
 ## 踪迹箭头参数 (Lua: size=0.14 half → 实际 0.28m)
 const MG_TRAIL_BASE_Y: float = 0.25
 const MG_TRAIL_SIZE: float = 0.14 * BILLBOARD_HALF_EXTENT_FACTOR
@@ -1541,6 +1546,38 @@ func rift_clear_all() -> void:
 			node.queue_free()
 	_rift_card_nodes.clear()
 
+# ---------------------------------------------------------------------------
+# 通道 chibi (暗面层间通道翻开且可通行时显示在卡牌上)
+# ---------------------------------------------------------------------------
+
+## 在指定卡牌上显示通道 chibi (弹出动画 + 持续青色脉冲)
+func passage_show_on_card(row: int, col: int) -> void:
+	var world_pos: Vector3 = m.board.grid_to_world(row, col)
+	var phase: float = randf() * TAU
+	var data: Dictionary = _mg_create_sprite(PASSAGE_TEX_PATH,
+		world_pos.x, world_pos.z, PASSAGE_CARD_BASE_Y, PASSAGE_CARD_SIZE, phase)
+	if data.is_empty():
+		push_warning("[BoardVisual] passage_show_on_card: 通道贴图加载失败 " + PASSAGE_TEX_PATH)
+		return
+	_passage_card_nodes.append(data)
+	# 弹出动画: 与裂隙相同风格但更轻盈 (传送门感)
+	var node: Sprite3D = data["node"]
+	var tw: Tween = m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "scale", Vector3(1.05, 1.05, 1.05), 0.35) \
+		.set_delay(0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(node, "modulate:a", 1.0, 0.25).set_delay(0.1)
+	tw.chain().tween_property(node, "scale", Vector3.ONE, 0.15) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+## 清除所有通道 chibi (不带动画, 用于层切换/棋盘重置)
+func passage_clear_all() -> void:
+	for data in _passage_card_nodes:
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_passage_card_nodes.clear()
+
 ## 驱魔: 卡牌 chibi 死亡动画 (抖动→膨胀→淡出→清除)
 ## on_burst: 膨胀开始时触发一次 (用于同步闪光/粒子)
 func mg_exorcise_card_ghosts(on_burst: Callable = Callable()) -> void:
@@ -1696,6 +1733,20 @@ func update_monster_ghost_visuals(game_time: float) -> void:
 		# 加入轻微的色相脉冲 (紫色调明暗)
 		var pulse: float = 0.85 + sin(game_time * 2.2 + data["phase"] * 0.7) * 0.15
 		node.modulate = Color(pulse, pulse * 0.7, 1.0, node.modulate.a)
+		node.position = Vector3(
+			data["anchor_x"],
+			data["base_y"] + float_y,
+			data["anchor_z"])
+
+	# 通道 chibi: 青色脉冲浮动 (传送门感, 稍快于裂隙)
+	for data in _passage_card_nodes:
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * 2.0 + data["phase"]) * 0.022
+		# 青绿色调脉冲
+		var pulse: float = 0.80 + sin(game_time * 2.6 + data["phase"] * 0.8) * 0.20
+		node.modulate = Color(pulse * 0.6, 1.0, pulse, node.modulate.a)
 		node.position = Vector3(
 			data["anchor_x"],
 			data["base_y"] + float_y,
