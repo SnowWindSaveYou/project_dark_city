@@ -93,6 +93,7 @@ var _breath_time: float = 0.0
 
 func _ready() -> void:
 	_set_white_bg()
+	_setup_city_layer()   # 右侧暗色渐变 + 楼宇剪影（在白色背景之上，立绘之下）
 
 	# 逐字标题（替换 tscn 里的 TitleLarge Label）
 	_build_title_chars()
