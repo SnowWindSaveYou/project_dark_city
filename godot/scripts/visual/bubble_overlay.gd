@@ -41,6 +41,10 @@ func _process(_dt: float) -> void:
 			if (bd as BubbleDialogue).bubble_alpha > 0.01:
 				needs_redraw = true
 				break
+	if not needs_redraw and m.has_meta("_baiye_bubble"):
+		var bd: BubbleDialogue = m.get_meta("_baiye_bubble")
+		if bd.bubble_alpha > 0.01:
+			needs_redraw = true
 	if needs_redraw:
 		queue_redraw()
 
@@ -57,6 +61,14 @@ func _draw() -> void:
 				and m._token_sprite and m._token_sprite.visible:
 			var screen_pos: Vector2 = m._camera_3d.unproject_position(
 				m._token_sprite.global_position)
+			_draw_bubble(bd, screen_pos, BUBBLE_OFFSET_Y)
+
+	# --- 白夜气泡 ---
+	if m.has_meta("_baiye_bubble") and m._baiye_sprite and m._baiye_sprite.visible:
+		var bd: BubbleDialogue = m.get_meta("_baiye_bubble")
+		if bd.bubble_alpha >= 0.01 and bd.text != "":
+			var screen_pos: Vector2 = m._camera_3d.unproject_position(
+				m._baiye_sprite.global_position)
 			_draw_bubble(bd, screen_pos, BUBBLE_OFFSET_Y)
 
 	# --- NPC 气泡 ---

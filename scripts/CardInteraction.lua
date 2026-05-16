@@ -305,6 +305,15 @@ local function onCardFlipped(card, screenX, screenY)
             G.gameStats.monstersSlain = G.gameStats.monstersSlain + 1
             -- 怪物 Chibi 弹出环绕玩家
             MonsterGhost.spawnAroundPlayer(G.token.worldX, G.token.worldZ, card.location)
+            -- 首次遭遇怪物 → 气泡提示灵感影响伤害
+            if not G.tutorialFlags.monsterSeen and G.playerBubble then
+                G.tutorialFlags.monsterSeen = true
+                BubbleDialogue.showTutorial(
+                    G.playerBubble,
+                    "白夜：灵感越高，妖魔对你造成的伤害越重。\n灵感是把双刃剑。",
+                    7
+                )
+            end
         end
 
         -- 传闻
@@ -611,6 +620,15 @@ local function onPhotographFlipped(card, screenX, screenY)
                                 Token.setEmotion(G.token, "happy")
                                 G.demoState = "ready"
                                 CameraButton.show()
+                                -- 首次拍照驱除 → 气泡确认
+                                if not G.tutorialFlags.cameraExorciseSeen and G.playerBubble then
+                                    G.tutorialFlags.cameraExorciseSeen = true
+                                    BubbleDialogue.showTutorial(
+                                        G.playerBubble,
+                                        "白夜：相机能驱除已翻开的妖魔。\n比正面遭遇安全，但要消耗胶卷。",
+                                        7
+                                    )
+                                end
                             end, CardTextures)
                         end
                     })
@@ -883,6 +901,15 @@ function M.handleNormalModeClick(card, row, col)
             G.demoState = "popup"
             CameraButton.hide()
             MonsterGhost.showRiftOnCard(card)
+            -- 首次发现裂隙 → 气泡说明灵感机制
+            if not G.tutorialFlags.riftSeen and G.playerBubble then
+                G.tutorialFlags.riftSeen = true
+                BubbleDialogue.showTutorial(
+                    G.playerBubble,
+                    "白夜：这道缝……需要足够的灵感才能察觉。\n灵感越高，能感知到的东西也越多。",
+                    7
+                )
+            end
             local popCX = G.logicalW / 2
             local popCY = G.logicalH * 0.42
             EventPopup.showRiftConfirm(popCX, popCY,

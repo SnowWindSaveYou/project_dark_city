@@ -104,6 +104,13 @@ local G = {
     checkDefeat    = nil,   -- → Start() 中赋值 (跨模块回调)
     enterDarkWorld = nil,   -- → Start() 中赋值 (跨模块回调)
     storyMgr       = nil,   -- → Start() 中赋值 (StoryManager 实例)
+    tutorialFlags  = {      -- 一次性教程触发标记
+        cameraModeSeen     = false,  -- 相机模式基础（侦察+轨迹）
+        cameraExorciseSeen = false,  -- 拍照消灭怪物
+        monsterSeen        = false,  -- 灵感影响怪物伤害
+        riftSeen           = false,  -- 裂隙/灵感机制
+        darkWorldEntered   = false,  -- 理智=暗面步数
+    },
 }
 
 -- 入场过渡遮罩 (替代 TitleScreen, 全黑→游戏)
@@ -582,6 +589,15 @@ function Start()
     -- 相机模式回调
     CameraButton.setOnEnterCallback(function()
         AudioManager.playSFX("camera_enter")
+        -- 第一次进入相机模式 → 白夜气泡教程
+        if not G.tutorialFlags.cameraModeSeen and playerBubble then
+            G.tutorialFlags.cameraModeSeen = true
+            BubbleDialogue.showTutorial(
+                playerBubble,
+                "白夜：拍没翻开的格子，能提前侦察危险。\n拍完有时会出现箭头——指向最近的妖魔。\n胶卷有限，省着用。",
+                8
+            )
+        end
         if not board or not board.cards then return end
         for r = 1, Board.ROWS do
             for c = 1, Board.COLS do

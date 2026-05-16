@@ -100,7 +100,7 @@ func enter_dark_world(rift_row: int, rift_col: int, force: bool = false) -> void
 		m._resource_bar.set_dark_mode(true, {
 			"layer_name": m.dark_world.get_layer_name(),
 			"energy": m.dark_world.get_energy(),
-			"max_energy": CardConfig.get_dw_max_energy(),
+			"max_energy": m.dark_world.get_max_energy(),
 		})
 		m._camera_button.show_button()
 
@@ -254,7 +254,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 
 	# 更新能量 UI
 	m._resource_bar.update_dark_energy(
-		m.dark_world.get_energy(), CardConfig.get_dw_max_energy())
+		m.dark_world.get_energy(), m.dark_world.get_max_energy())
 
 	# Token 移动
 	m.token.target_row = row
@@ -641,7 +641,7 @@ func _change_layer(target_layer: int) -> void:
 
 		# 更新 UI
 		m._resource_bar.update_dark_energy(
-			m.dark_world.get_energy(), CardConfig.get_dw_max_energy())
+			m.dark_world.get_energy(), m.dark_world.get_max_energy())
 
 		# 发牌
 		GameData.set_demo_state("dealing")

@@ -432,25 +432,32 @@ function M.update(bubble, dt, isIdle, canTrigger)
     -- 显示计时 → 自动隐藏
     if bubble.state == "visible" then
         bubble.timer = bubble.timer + dt
-        if bubble.timer >= DISPLAY_DURATION then
+        local limit = bubble.locked and (bubble.lockDuration or 7) or DISPLAY_DURATION
+        if bubble.timer >= limit then
+            if bubble.locked then
+                unlockAndHide(bubble)
+            else
+                M.hide(bubble)
+            end
+        end
+    end
+
+    -- 静止触发 (锁定中跳过)
+    if not bubble.locked then
+        if isIdle and canTrigger then
+            bubble.idleAccum = bubble.idleAccum + dt
+            if bubble.idleAccum >= IDLE_TRIGGER_TIME and bubble.state == "hidden" then
+                M.show(bubble)
+                bubble.idleAccum = 0
+            end
+        else
+            bubble.idleAccum = 0
+        end
+
+        -- 角色移动时立即关闭
+        if not isIdle and bubble.state ~= "hidden" then
             M.hide(bubble)
         end
-    end
-
-    -- 静止触发
-    if isIdle and canTrigger then
-        bubble.idleAccum = bubble.idleAccum + dt
-        if bubble.idleAccum >= IDLE_TRIGGER_TIME and bubble.state == "hidden" then
-            M.show(bubble)
-            bubble.idleAccum = 0  -- 重置，下次再等
-        end
-    else
-        bubble.idleAccum = 0  -- 移动/操作中重置累计
-    end
-
-    -- 角色移动时立即关闭
-    if not isIdle and bubble.state ~= "hidden" then
-        M.hide(bubble)
     end
 end
 
@@ -462,7 +469,12 @@ end
 ---@param bubble BubbleInstance
 function M.clickTrigger(bubble)
     if bubble.state == "visible" or bubble.state == "showing" then
-        -- 已在显示, 换一条
+        -- 锁定教程气泡: 点击提前解锁关闭
+        if bubble.locked then
+            unlockAndHide(bubble)
+            return
+        end
+        -- 普通气泡: 换一条
         M.hide(bubble)
         bubble.cooldownTimer = CLICK_COOLDOWN
         -- 短延迟后弹出新的

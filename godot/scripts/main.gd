@@ -77,7 +77,9 @@ var consumable_controller: RefCounted = null  # RefCounted — controllers/consu
 # 白夜跟随精灵
 # ---------------------------------------------------------------------------
 var _baiye: Baiye = null
-var _baiye_sprite: Sprite2D = null
+var _baiye_bubble: BubbleDialogue = null
+var _baiye_bubble_show_tweened: bool = false
+var _baiye_bubble_hide_tweened: bool = false
 
 # ---------------------------------------------------------------------------
 # 对话系统
@@ -126,6 +128,7 @@ var _weather_particles: WeatherParticles = null
 var _board_layer: Node3D = null
 var _token_sprite: Sprite3D = null
 var _token_shadow: MeshInstance3D = null
+var _baiye_sprite: Sprite3D = null
 
 # ---------------------------------------------------------------------------
 # 3D 场景组件
@@ -191,15 +194,22 @@ func _ready() -> void:
 	# 注意：棋盘生成推迟到 _on_title_start 的日期动效完成后，
 	# 避免卡牌在日期动效播放前就已可见。
 
-	# 白夜跟随精灵 (在 _ui_layer 创建后初始化)
+	# 白夜跟随精灵 (Sprite3D，与主角 token 同层 3D 场景)
 	_baiye = Baiye.new()
-	_baiye_sprite = Sprite2D.new()
+	_baiye_bubble = BubbleDialogue.create_for_baiye()
+	set_meta("_baiye_bubble", _baiye_bubble)
+	_baiye_sprite = Sprite3D.new()
 	_baiye_sprite.name = "BaiyeSprite"
 	_baiye_sprite.visible = false
 	_baiye_sprite.texture = _baiye.texture
+	_baiye_sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_baiye_sprite.pixel_size = 0.0013   # 与主角相同基准
+	_baiye_sprite.transparent = true
+	_baiye_sprite.no_depth_test = false
+	_baiye_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	_baiye_sprite.alpha_scissor_threshold = 0.5
 	_baiye_sprite.modulate = Color(1, 1, 1, 0)
-	_baiye_sprite.z_index = 5  # 位于 UI 下方, Token 上方
-	_ui_layer.add_child(_baiye_sprite)
+	add_child(_baiye_sprite)
 
 	# 从主菜单跳转而来，直接进入游戏，跳过游戏内标题画面
 	_on_title_start()
@@ -905,7 +915,7 @@ func _process(dt: float) -> void:
 # ---------------------------------------------------------------------------
 
 func _update_baiye(dt: float) -> void:
-	if _baiye == null or _baiye_sprite == null or _camera_3d == null:
+	if _baiye == null or _baiye_sprite == null:
 		return
 
 	# 条件：游戏中 + Token 可见 + 白夜应该出现
@@ -914,17 +924,12 @@ func _update_baiye(dt: float) -> void:
 		and _baiye.should_show()
 
 	if should_show:
-		# 获取 Token 的屏幕坐标
-		var token_screen: Vector2 = _camera_3d.unproject_position(_token_sprite.global_position)
-
 		if not _baiye.visible:
-			# 首次出现：定位到 Token 旁边并重置入场参数
-			_baiye.show(token_screen.x, token_screen.y)
+			_baiye.visible = true
+			_baiye.alpha = 0.0
+			_baiye.scale_x = 0.3
+			_baiye.scale_y = 0.3
 			_baiye_sprite.visible = true
-
-		# 更新跟随目标
-		_baiye.set_follow_target(token_screen.x, token_screen.y)
-		_baiye.update(dt)
 
 		# 入场动画：平滑过渡 alpha 和 scale
 		_baiye.alpha = move_toward(_baiye.alpha, Baiye.SPIRIT_ALPHA, 1.5 * dt)
@@ -935,15 +940,20 @@ func _update_baiye(dt: float) -> void:
 			# 退场动画：渐出后隐藏
 			_baiye.alpha = move_toward(_baiye.alpha, 0.0, 2.0 * dt)
 			if _baiye.alpha <= 0.01:
-				_baiye.hide()
+				_baiye.visible = false
 				_baiye_sprite.visible = false
 
-	# 应用绘制数据到 Sprite2D
-	var draw_data: Dictionary = _baiye.get_draw_data(game_time)
-	if draw_data.get("visible", false):
-		_baiye_sprite.position = Vector2(draw_data["x"], draw_data["y"])
-		_baiye_sprite.modulate = Color(1, 1, 1, draw_data["alpha"])
-		_baiye_sprite.scale = Vector2(draw_data["scale_x"], draw_data["scale_y"])
+	# 应用到 Sprite3D（3D 世界坐标，相对 token 偏移）
+	if _baiye.visible:
+		var float_y: float = sin(game_time * Baiye.FLOAT_FREQ_Y) * Baiye.FLOAT_AMP_Y * 0.01
+		var float_x: float = sin(game_time * Baiye.FLOAT_FREQ_X + 0.7) * Baiye.FLOAT_AMP_X * 0.01
+		var breathe: float = 1.0 + sin(game_time * Baiye.FLOAT_FREQ_Y) * Baiye.BREATHE_AMP
+		# 目标位置：token 左前方
+		var target_pos: Vector3 = _token_sprite.position + Vector3(-0.45 + float_x, float_y, -0.05)
+		_baiye_sprite.position = _baiye_sprite.position.lerp(target_pos, 1.0 - exp(-Baiye.FOLLOW_SPEED * dt))
+		var s: float = _baiye.scale_x * breathe
+		_baiye_sprite.scale = Vector3(s, s, 1.0)
+		_baiye_sprite.modulate = Color(1, 1, 1, _baiye.alpha)
 	else:
 		_baiye_sprite.modulate = Color(1, 1, 1, 0)
 
@@ -1181,3 +1191,34 @@ func _update_bubble_tweens(dt: float) -> void:
 			"hidden":
 				_npc_bubble_show_tweened[npc_id] = false
 				_npc_bubble_hide_tweened[npc_id] = false
+
+	# --- 白夜气泡 ---
+	if _baiye_bubble != null and _baiye != null and _baiye.visible:
+		_baiye_bubble.update_baiye(dt)
+		match _baiye_bubble.state:
+			"showing":
+				if not _baiye_bubble_show_tweened:
+					_baiye_bubble_show_tweened = true
+					_baiye_bubble_hide_tweened = false
+					var tw: Tween = create_tween().set_parallel(true)
+					tw.tween_property(_baiye_bubble, "bubble_alpha", 1.0, 0.2)
+					tw.tween_property(_baiye_bubble, "bubble_scale", 1.0, 0.25) \
+						.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+					tw.tween_property(_baiye_bubble, "offset_y", 0.0, 0.2)
+					var tw_cb: Tween = create_tween()
+					tw_cb.tween_callback(_baiye_bubble.on_show_complete).set_delay(0.3)
+			"hiding":
+				if not _baiye_bubble_hide_tweened:
+					_baiye_bubble_hide_tweened = true
+					var tw: Tween = create_tween().set_parallel(true)
+					tw.tween_property(_baiye_bubble, "bubble_alpha", 0.0, 0.15)
+					tw.tween_property(_baiye_bubble, "bubble_scale", 0.5, 0.15)
+					var tw_cb: Tween = create_tween()
+					tw_cb.tween_callback(_baiye_bubble.on_hide_complete).set_delay(0.2)
+			"hidden":
+				_baiye_bubble_show_tweened = false
+				_baiye_bubble_hide_tweened = false
+	elif _baiye_bubble != null and not _baiye.visible:
+		# 白夜隐藏时强制关闭气泡
+		if _baiye_bubble.state != "hidden":
+			_baiye_bubble.force_hide()

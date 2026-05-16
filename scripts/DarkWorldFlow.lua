@@ -98,6 +98,23 @@ function M.enterDarkWorld(riftRow, riftCol)
     CameraButton.hide()
     HandPanel.hide()
     if G.playerBubble then BubbleDialogue.forceHide(G.playerBubble) end
+    -- 首次进入暗面 → 气泡说明理智=步数
+    if not G.tutorialFlags.darkWorldEntered and G.playerBubble then
+        G.tutorialFlags.darkWorldEntered = true
+        local delayProxy = { t = 0 }
+        Tween.to(delayProxy, { t = 1 }, 1.8, {
+            tag = "tutorial",
+            onComplete = function()
+                if G.playerBubble then
+                    BubbleDialogue.showTutorial(
+                        G.playerBubble,
+                        "白夜：这里……能走多远，取决于你还剩多少清醒。\n理智越多，能走的越远。",
+                        8
+                    )
+                end
+            end
+        })
+    end
     AudioManager.playSFX("rift_enter")
     AudioManager.playBGM("dark_world", 2.0)
     AudioManager.playAmbient("dark")

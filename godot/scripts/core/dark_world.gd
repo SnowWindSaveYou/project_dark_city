@@ -60,6 +60,8 @@ class LayerData:
 	var player_row: int = 2   # 0-based (对应 Board 中心 3行/3列)
 	var player_col: int = 2
 	var energy: int = DEFAULT_MAX_ENERGY
+	## 本次进入时的能量上限 (= min(san, config_max))，供 UI 进度条使用
+	var max_energy: int = DEFAULT_MAX_ENERGY
 	var entry_row: int = 2
 	var entry_col: int = 2
 	var collected: Dictionary = {}  # "row,col" → true
@@ -145,6 +147,12 @@ func get_energy() -> int:
 	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
 		return 0
 	return layers[current_layer].energy
+
+## 返回本次进入时的能量上限 (由 san 决定，供 UI 进度条使用)
+func get_max_energy() -> int:
+	if layers.is_empty() or current_layer < 0 or current_layer >= layers.size():
+		return CardConfig.get_dw_max_energy()
+	return layers[current_layer].max_energy
 
 func get_layer_name() -> String:
 	var cfg: Dictionary = CardConfig.get_dw_layer_config(current_layer)
@@ -512,6 +520,7 @@ func enter(day_count: int, rift_r: int, rift_c: int,
 	var max_e: int = CardConfig.get_dw_max_energy()
 	var san: int = GameData.get_resource("san")
 	layer.energy = mini(san, max_e)
+	layer.max_energy = layer.energy  # 记录本次进入时的上限，供 UI 使用
 	dark_state = "transition"
 
 ## 暗面完全进入 (发牌完成后)
@@ -546,6 +555,7 @@ func begin_change_layer(target_layer: int, day_count: int) -> Dictionary:
 	var max_e: int = CardConfig.get_dw_max_energy()
 	var san: int = GameData.get_resource("san")
 	layers[current_layer].energy = mini(san, max_e)
+	layers[current_layer].max_energy = layers[current_layer].energy  # 记录本次上限
 
 	return { "success": true, "layer_name": CardConfig.get_dw_layer_config(target_layer).get("name", "") }
 
