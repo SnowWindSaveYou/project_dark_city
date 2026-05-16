@@ -2047,13 +2047,17 @@ func refresh_destination_hints() -> void:
 			if is_instance_valid(hint):
 				hint.hide_hint()
 
+	print("[DestHint] pending_locs: ", pending_locs.keys())
+
 	# 为每个 pending 地点显示/刷新提示
 	for loc_id in pending_locs.keys():
 		# 找到该地点在棋盘上的卡牌位置
 		var card_pos: Vector2i = _find_card_by_location(loc_id)
 		if card_pos == Vector2i.ZERO:
+			print("[DestHint] ⚠️ location '%s' NOT FOUND on board!" % loc_id)
 			continue  # 该地点当前不在棋盘上
 
+		print("[DestHint] location '%s' → grid %s" % [loc_id, card_pos])
 		var world_pos: Vector3 = m.board.grid_to_world(card_pos.x, card_pos.y)
 
 		if _dest_hint_nodes.has(loc_id):
