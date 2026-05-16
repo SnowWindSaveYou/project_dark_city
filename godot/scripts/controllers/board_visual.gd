@@ -54,6 +54,8 @@ const GLOW_LM_RING_COUNT: int = 4    # 多一层
 ## 侦察/揭示图标常量
 const ICON_QUAD: float = 0.18        # 图标边长 (米)
 const ICON_Y: float = 0.15           # 图标浮在卡面上方的高度
+## 暗面类型图标尺寸 (中等，比侦察图标大)
+const DARK_ICON_SIZE: float = 0.27
 ## 预加载图标纹理
 var _tex_scouted: Texture2D = null
 var _tex_revealed: Texture2D = null
@@ -154,6 +156,18 @@ func rebuild_card_nodes() -> void:
 			overlay_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 			overlay_sprite.no_depth_test = false
 			card_node.add_child(overlay_sprite)
+
+			# 暗面类型图标 Sprite3D (中等大小，居中偏上，初始隐藏)
+			var dark_icon_sprite: Sprite3D = Sprite3D.new()
+			dark_icon_sprite.name = "DarkIconSprite"
+			dark_icon_sprite.position = Vector3(0, SPRITE_Y + 0.004, 0.05)
+			dark_icon_sprite.rotation_degrees = Vector3(-90, 180, 0)
+			dark_icon_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+			dark_icon_sprite.transparent = true
+			dark_icon_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+			dark_icon_sprite.no_depth_test = false
+			dark_icon_sprite.visible = false
+			card_node.add_child(dark_icon_sprite)
 
 			# 地标卡初始就正面朝上: 设置正面纹理
 			if card.is_flipped:
@@ -419,32 +433,41 @@ func update_dark_card_visual(row: int, col: int) -> void:
 
 	var png_sprite_d: Sprite3D = card_node.get_node_or_null("PngSprite") as Sprite3D
 	var overlay_sprite_d: Sprite3D = card_node.get_node_or_null("OverlaySprite") as Sprite3D
+	var dark_icon_sprite: Sprite3D = card_node.get_node_or_null("DarkIconSprite") as Sprite3D
 
 	if card.is_flipped:
-		# 暗面正面: evt_icon PNG（按事件类型）+ 标签，fallback 程序化纹理
+		# 暗面正面: 程序化彩色背景 + 中等图标 (居中偏上) + dark_name 文字 (底部)
 		mat.albedo_color = Color.WHITE
+		# 背景: 程序化暗面纹理 (带类型色条)
 		if png_sprite_d:
-			var icon_tex: Texture2D = CardImageMap.get_dark_icon_texture(card.dark_type)
-			if icon_tex:
-				_set_png_texture(png_sprite_d, icon_tex)
-			else:
-				_set_png_texture(png_sprite_d, _card_textures.get_dark_face_texture(card.dark_type))
+			_set_png_texture(png_sprite_d, _card_textures.get_dark_face_texture(card.dark_type))
 		if overlay_sprite_d:
 			overlay_sprite_d.texture = null
+		# 中等图标: 按 dark_type 显示对应 evt_icon
+		if dark_icon_sprite:
+			var icon_tex: Texture2D = CardImageMap.get_dark_icon_texture(card.dark_type)
+			if icon_tex:
+				dark_icon_sprite.pixel_size = DARK_ICON_SIZE / float(icon_tex.get_width())
+				dark_icon_sprite.texture = icon_tex
+				dark_icon_sprite.visible = true
+			else:
+				dark_icon_sprite.visible = false
+		# 文字: 优先用 dark_name, fallback 到类型通用 label
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
 		if label:
 			var dark_info: Dictionary = GameTheme.dark_card_type_info(card.dark_type)
-			# 优先使用 dark_name (具体地点名), fallback 到类型通用 label
 			var display_name: String = card.dark_name if card.dark_name != "" else dark_info.get("label", "")
 			label.text = display_name
 			label.modulate = Color(0.78, 0.74, 0.88, 0.90)  # 暗面用浅紫色文字
 	else:
-		# 暗面背面: 程序化暗面背面纹理
+		# 暗面背面: 程序化暗面背面纹理，隐藏图标和文字
 		mat.albedo_color = Color.WHITE
 		if png_sprite_d:
 			_set_png_texture(png_sprite_d, _card_textures.get_back_dark_texture())
 		if overlay_sprite_d:
 			overlay_sprite_d.texture = null
+		if dark_icon_sprite:
+			dark_icon_sprite.visible = false
 		var label: Label3D = card_node.get_node_or_null("TypeLabel") as Label3D
 		if label:
 			label.modulate = Color(1, 1, 1, 0)
@@ -1381,6 +1404,11 @@ var _mg_trail_nodes: Array = []      # 踪迹箭头 chibi Sprite3D
 var _rift_card_nodes: Array = []     # 裂隙入口卡牌上的 chibi Sprite3D
 var _passage_card_nodes: Array = [] # 暗面层通道卡牌上的 chibi Sprite3D
 
+# ---------------------------------------------------------------------------
+# 目的地提示节点缓存：location_id(String) → DestinationHint
+# ---------------------------------------------------------------------------
+var _dest_hint_nodes: Dictionary = {}  # location_id → DestinationHint
+
 ## 环绕布局 (精确匹配 Lua SURROUND_LAYOUT, size ×2 half-extent 修正)
 const MG_SURROUND_LAYOUT: Array = [
 	{ "dx":  0.00, "dz":  0.20, "baseY": 0.55, "size": 0.32 * 2.0, "is_main": true },
@@ -1990,4 +2018,96 @@ func _hit_test_screen_fallback(click_pos: Vector2) -> Vector2i:
 					and abs(world_z - grid_pos.z) <= half_h:
 				return Vector2i(r, c)
 
+	return Vector2i.ZERO
+
+
+# ===========================================================================
+# 目的地提示 (DestinationHint)
+# 物语系列风格竖排扭曲文字，显示在未完成日程的地点卡牌上
+# ===========================================================================
+
+## 根据当前日程刷新所有目的地提示
+## 应在新一天开始棋盘生成完毕后调用，以及每次日程状态变化后调用
+func refresh_destination_hints() -> void:
+	if m == null or m.card_manager == null or m.board == null:
+		return
+
+	# 收集当前所有 pending 日程的 location_id
+	var pending_locs: Dictionary = {}
+	for sched: Dictionary in m.card_manager.schedules:
+		if sched.get("status", "") == "pending":
+			var loc_id: String = sched.get("location", "")
+			if not loc_id.is_empty():
+				pending_locs[loc_id] = true
+
+	# 隐藏已不在 pending 中的提示
+	for loc_id in _dest_hint_nodes.keys():
+		if not pending_locs.has(loc_id):
+			var hint: Node = _dest_hint_nodes[loc_id]
+			if is_instance_valid(hint):
+				hint.hide_hint()
+
+	# 为每个 pending 地点显示/刷新提示
+	for loc_id in pending_locs.keys():
+		# 找到该地点在棋盘上的卡牌位置
+		var card_pos: Vector2i = _find_card_by_location(loc_id)
+		if card_pos == Vector2i.ZERO:
+			continue  # 该地点当前不在棋盘上
+
+		var world_pos: Vector3 = m.board.grid_to_world(card_pos.x, card_pos.y)
+
+		if _dest_hint_nodes.has(loc_id):
+			# 已存在：确保可见（可能之前被隐藏）
+			var hint: Node = _dest_hint_nodes[loc_id]
+			if is_instance_valid(hint):
+				hint.position = Vector3(world_pos.x, 0.0, world_pos.z)
+				if not hint.visible:
+					hint.show_hint(loc_id)
+		else:
+			# 新建提示节点
+			var hint: Node = _create_dest_hint(loc_id, world_pos)
+			if hint != null:
+				_dest_hint_nodes[loc_id] = hint
+
+
+## 隐藏指定地点的提示（日程完成时调用）
+func hide_destination_hint(location_id: String) -> void:
+	if _dest_hint_nodes.has(location_id):
+		var hint: Node = _dest_hint_nodes[location_id]
+		if is_instance_valid(hint):
+			hint.hide_hint()
+
+
+## 清除所有目的地提示（新一天开始时先清空，再重建）
+func clear_destination_hints() -> void:
+	for loc_id in _dest_hint_nodes.keys():
+		var hint: Node = _dest_hint_nodes[loc_id]
+		if is_instance_valid(hint):
+			hint.force_hide()
+			hint.queue_free()
+	_dest_hint_nodes.clear()
+
+
+## 创建单个 DestinationHint 节点并弹出
+func _create_dest_hint(location_id: String, world_pos: Vector3) -> Node:
+	var hint: Node = load("res://scripts/visual/destination_hint.gd").new()
+	hint.position = Vector3(world_pos.x, 0.0, world_pos.z)
+	add_child(hint)
+	# 随机延迟弹出（错开多个 hint 同时出现的时机）
+	var delay: float = randf_range(0.0, 0.35)
+	var tw: Tween = m.create_tween()
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(hint):
+			hint.show_hint(location_id)
+	).set_delay(delay)
+	return hint
+
+
+## 查找指定 location_id 在棋盘上的格子坐标
+func _find_card_by_location(location_id: String) -> Vector2i:
+	for r in range(1, Board.ROWS + 1):
+		for c in range(1, Board.COLS + 1):
+			var card: Card = m.board.get_card(r, c)
+			if card != null and card.location == location_id:
+				return Vector2i(r, c)
 	return Vector2i.ZERO

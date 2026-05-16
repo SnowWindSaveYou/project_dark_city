@@ -166,16 +166,20 @@ static func get_event_texture(loc_key: String, event_type: String) -> Texture2D:
 	return load(path) as Texture2D
 
 # ---------------------------------------------------------------------------
-# 暗面事件图标 (dark side card face icons) - 按事件类型显示
+# 暗面事件图标 (dark side card face icons) - 按 dark_type 显示中等图标
 # key: dark_type → 图片文件名
+# dark_type 可选值: "normal"(无图标), "clue", "item", "shop",
+#                   "intel", "checkpoint", "passage", "abyss_core"
 # ---------------------------------------------------------------------------
 const DARK_EVENT_ICONS: Dictionary = {
-	"safe":    "evt_icon_safe_20260514140832.png",
-	"monster": "evt_icon_monster_v11_20260514144442.png",
-	"trap":    "evt_icon_trap_v2_20260514142002.png",
-	"reward":  "evt_icon_reward_v2_20260514142006.png",
-	"plot":    "evt_icon_plot_v8_20260514144720.png",
-	"clue":    "evt_icon_clue_v11_20260514144709.png",
+	"clue":       "evt_icon_clue_v11_20260514144709.png",
+	"item":       "evt_icon_reward_v2_20260514142006.png",
+	"shop":       "evt_icon_safe_20260514140832.png",
+	"intel":      "evt_icon_plot_v8_20260514144720.png",
+	"checkpoint": "evt_icon_trap_v2_20260514142002.png",
+	"passage":    "evt_icon_safe_20260514140832.png",
+	"abyss_core": "evt_icon_monster_v11_20260514144442.png",
+	# "normal" 无额外图标 (普通空白格)
 }
 
 ## 获取暗面卡图标路径（无图返回空字符串）

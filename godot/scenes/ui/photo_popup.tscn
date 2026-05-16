@@ -46,7 +46,8 @@ theme_override_constants/separation = 0
 layout_mode = 2
 custom_minimum_size = Vector2(0, 476)
 size_flags_horizontal = 3
-size_flags_vertical = 3
+size_flags_vertical = 1
+clip_contents = true
 mouse_filter = 2
 
 [node name="BgFill" type="ColorRect" parent="PhotoAnchor/PhotoFrame/VBox/ImageArea"]
@@ -118,6 +119,7 @@ visible = false
 [node name="WhiteBottomMargin" type="MarginContainer" parent="PhotoAnchor/PhotoFrame/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 mouse_filter = 2
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_bottom = 10
@@ -179,8 +181,15 @@ vertical_alignment = 1
 text = ""
 
 [node name="TapeDecor" type="ColorRect" parent="PhotoAnchor"]
-layout_mode = 2
-custom_minimum_size = Vector2(108, 30)
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -54.0
+offset_top = -375.0
+offset_right = 54.0
+offset_bottom = -345.0
 mouse_filter = 2
 color = Color(0.863, 0.824, 0.706, 0.63)
 

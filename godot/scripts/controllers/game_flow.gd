@@ -110,6 +110,10 @@ func _on_deal_complete() -> void:
 	m.card_manager.generate_daily(m.board)
 	m.card_manager.generate_rumor_from_board(m.board)
 
+	# 目的地提示：清除上一天残留，根据新日程重建
+	m.board_visual.clear_destination_hints()
+	m.board_visual.refresh_destination_hints()
+
 	# 生成棋盘道具
 	m.board_items.spawn_daily(m.board, home_row, home_col)
 	m.board_visual.create_item_nodes(m.board_items.items)

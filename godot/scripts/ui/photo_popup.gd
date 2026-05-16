@@ -125,6 +125,9 @@ func show_photo(card: Card, chibi_tex_path: String = "") -> void:
 	_photo_frame.custom_minimum_size = Vector2(fw, fh)
 	# 图片区高度按相同比例缩放（原始 476 来自 .tscn）
 	_image_area.custom_minimum_size.y = 476.0 * fit
+	# 胶带装饰：layout_mode=1 锚定到 PhotoAnchor 中心，offset 跟随相框顶部
+	_tape_decor.offset_top    = -(fh * 0.5) - 15.0
+	_tape_decor.offset_bottom = -(fh * 0.5) + 15.0
 
 	var darkside: Dictionary = card.get_darkside_info()
 	var type_color: Color = GameTheme.card_type_color(card.type)

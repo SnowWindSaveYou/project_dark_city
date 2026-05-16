@@ -158,6 +158,7 @@ func _move_token(_card: Card, row: int, col: int) -> void:
 				var completed: Dictionary = m.card_manager.complete_schedule_at(arrived_card.location)
 				if not completed.is_empty():
 					mid_loc = arrived_card.location
+					m.board_visual.hide_destination_hint(mid_loc)
 					var reward: Array = completed.get("reward", [])
 					if reward.size() >= 2:
 						GameData.modify_resource(reward[0], reward[1])
@@ -200,6 +201,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 		var completed: Dictionary = m.card_manager.complete_schedule_at(card.location)
 		if not completed.is_empty():
 			arrived_location_for_mid = card.location
+			m.board_visual.hide_destination_hint(arrived_location_for_mid)
 			var reward: Array = completed.get("reward", [])
 			if reward.size() >= 2:
 				GameData.modify_resource(reward[0], reward[1])
@@ -960,6 +962,7 @@ func _walk_step(path: Array, step_idx: int) -> void:
 					var completed: Dictionary = m.card_manager.complete_schedule_at(arrived_card.location)
 					if not completed.is_empty():
 						walk_mid_loc = arrived_card.location
+						m.board_visual.hide_destination_hint(walk_mid_loc)
 						var reward: Array = completed.get("reward", [])
 						if reward.size() >= 2:
 							GameData.modify_resource(reward[0], reward[1])
@@ -979,6 +982,7 @@ func _walk_step(path: Array, step_idx: int) -> void:
 			if mid_card and mid_card.is_flipped and mid_card.location != "":
 				var completed: Dictionary = m.card_manager.complete_schedule_at(mid_card.location)
 				if not completed.is_empty():
+					m.board_visual.hide_destination_hint(mid_card.location)
 					var reward: Array = completed.get("reward", [])
 					if reward.size() >= 2:
 						GameData.modify_resource(reward[0], reward[1])

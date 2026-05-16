@@ -43,21 +43,21 @@
 
 ### B类过渡切换帧进度
 
-| 编号 | 文件名 | 状态 | 备注 |
+| 编号 | 文件名 | 状态 | 最终文件 |
 |------|--------|------|------|
-| CUT-01 | `cut_window_daytime` | ⬜ 待生成 | 窗外三联·基础构图，先生成此张 |
-| CUT-02 | `cut_window_dusk` | ⬜ 待生成 | **基于 CUT-01 edit_image 改色调** |
-| CUT-03 | `cut_window_rain_night` | ⬜ 待生成 | **基于 CUT-01 edit_image 改色调** |
-| CUT-04 | `cut_ramen_two_bowls` | ⬜ 待生成 | |
-| CUT-05 | `cut_fridge_blue_glow` | ⬜ 待生成 | |
-| CUT-06 | `cut_shoes_entrance_one` | ⬜ 待生成 | 鞋子对比组·先生成此张 |
-| CUT-07 | `cut_shoes_entrance_plus` | ⬜ 待生成 | **基于 CUT-06 edit_image 添加痕迹** |
-| CUT-08 | `cut_phone_black_screen` | ⬜ 待生成 | |
-| CUT-11 | `cut_room_distorting` | ⬜ 待生成 | |
-| CUT-12 | `cut_dark_floor_crack` | ⬜ 待生成 | |
-| CUT-13 | `cut_fragment_floating` | ⬜ 待生成 | |
-| CUT-14 | `cut_windowsill_plant` | ⬜ 待生成 | 柚子苗对比组·先生成此张 |
-| CUT-15 | `cut_windowsill_plant_dead` | ⬜ 待生成 | **基于 CUT-14 edit_image 改枯萎状态** |
+| CUT-01 | `cut_window_daytime` | ✅ 已验证 | `cut_window_daytime_v4_20260516083956.png` |
+| CUT-02 | `cut_window_dusk` | ✅ 已验证 | `edited_cut_window_dusk_20260516084636.png` |
+| CUT-03 | `cut_window_rain_night` | ✅ 已验证 | `edited_cut_window_rain_night_20260516084659.png` |
+| CUT-04 | `cut_ramen_two_bowls` | ✅ 已验证 | `cut_ramen_two_bowls_v2_20260516082554.png` |
+| CUT-05 | `cut_fridge_blue_glow` | ✅ 已验证 | `cut_fridge_blue_glow_v5_20260516083237.png` |
+| CUT-06 | `cut_shoes_entrance_one` | ✅ 已验证 | `edited_cut_shoes_entrance_one_clean_20260516082102.png` |
+| CUT-07 | `cut_shoes_entrance_plus` | ✅ 已验证 | `edited_cut_shoes_entrance_plus_20260516084720.png` |
+| CUT-08 | `cut_phone_black_screen` | ✅ 已验证 | `cut_phone_black_screen_v2_20260516082558.png` |
+| CUT-11 | `cut_room_distorting` | ✅ 已验证 | `cut_room_distorting_20260516081410.png` |
+| CUT-12 | `cut_dark_floor_crack` | ✅ 已验证 | `cut_dark_floor_crack_20260516081435.png` |
+| CUT-13 | `cut_fragment_floating` | ✅ 已验证 | `cut_fragment_floating_v2_20260516082552.png` |
+| CUT-14 | `cut_windowsill_plant` | ✅ 已验证 | `cut_windowsill_plant_20260516081408.png` |
+| CUT-15 | `cut_windowsill_plant_dead` | ✅ 已验证 | `edited_cut_windowsill_plant_dead_20260516084742.png` |
 
 > CUT-09（门把手）合并入 KEY-D5-01，CUT-10（枕头压痕）合并入 KEY-D1-02 / KEY-D6-03
 
@@ -112,9 +112,9 @@
 
 ### 当前阶段
 
-**已完成**：演出方案确认、A类背景底图全部完成（8/8）✅、C类关键情绪帧全部完成（28/28）✅  
-**当前**：B类过渡帧（13张⬜）待生成  
-**下一步**：B类过渡帧批量生成（CUT-01/04/05/06/08/11/12/13/14 独立帧并行）→ 链式编辑（CUT-02/03/07/15）→ DialogueSystem 背景图代码接入
+**已完成**：演出方案确认、A类背景底图全部完成（8/8）✅、B类过渡帧全部完成（13/13）✅、C类关键情绪帧全部完成（28/28）✅  
+**全部图片生成完毕，共 49 张 ✅**  
+**下一步**：DialogueSystem 背景图代码接入
 
 ### 风格基准
 
