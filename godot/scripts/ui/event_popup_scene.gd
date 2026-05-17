@@ -400,28 +400,34 @@ func _populate_choices_row(choices: Array, on_choice: Callable) -> void:
 		var choice: Dictionary = choices[i]
 		var btn: PanelContainer = PanelContainer.new()
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(0, 64)
+		btn.custom_minimum_size = Vector2(0, 56)
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 
 		var btn_color: Color = palette[i % palette.size()]
 		var bs: StyleBoxFlat = StyleBoxFlat.new()
 		bs.bg_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.85)
-		bs.set_corner_radius_all(14)
-		bs.content_margin_left = 16
-		bs.content_margin_right = 16
-		bs.content_margin_top = 8
-		bs.content_margin_bottom = 8
+		bs.set_corner_radius_all(12)
+		bs.content_margin_left = 12
+		bs.content_margin_right = 12
+		bs.content_margin_top = 6
+		bs.content_margin_bottom = 6
 		btn.add_theme_stylebox_override("panel", bs)
+
+		# 始终用 VBox 包裹（主文字 + 可选费用行）
+		var inner_vbox: VBoxContainer = VBoxContainer.new()
+		inner_vbox.add_theme_constant_override("separation", 1)
+		inner_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		btn.add_child(inner_vbox)
 
 		var lbl: Label = Label.new()
 		lbl.text = choice.get("label", "?")
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 36)
+		lbl.add_theme_font_size_override("font_size", 30)
 		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.92))
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.add_child(lbl)
+		inner_vbox.add_child(lbl)
 
 		# 费用提示（灰色小字，如"步数 -2"）
 		var cost: Dictionary = choice.get("cost", {})
@@ -437,15 +443,9 @@ func _populate_choices_row(choices: Array, on_choice: Callable) -> void:
 			var cost_lbl: Label = Label.new()
 			cost_lbl.text = " / ".join(cost_parts)
 			cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			cost_lbl.add_theme_font_size_override("font_size", 26)
-			cost_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.55))
+			cost_lbl.add_theme_font_size_override("font_size", 22)
+			cost_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.50))
 			cost_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			# 将费用追加到按钮内部（纵向，创建内部 VBox）
-			var inner_vbox: VBoxContainer = VBoxContainer.new()
-			inner_vbox.add_theme_constant_override("separation", 2)
-			btn.remove_child(lbl)
-			btn.add_child(inner_vbox)
-			inner_vbox.add_child(lbl)
 			inner_vbox.add_child(cost_lbl)
 
 		var captured_choice: Dictionary = choice
@@ -454,8 +454,8 @@ func _populate_choices_row(choices: Array, on_choice: Callable) -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT \
 						and _active and _phase != "enter":
-					_clear_choices_row()
-					dismiss()
+					# 先触发回调（内部调 transition_to_result 展示结果），
+					# 弹窗由结果视图的"知道了"按钮统一关闭，这里不再 dismiss()
 					if on_choice.is_valid():
 						on_choice.call(captured_choice)
 		)
