@@ -378,15 +378,16 @@ func transition_to_result(
 			tw_in.tween_property(_baiiye_label, "modulate:a", 0.72, 0.22)
 	)
 
-## 创建并填充决策按钮行，插入到 ConfirmButton 同级（OuterVBox 末尾）
+## 创建并填充决策按钮行，插入到右侧 RightVBox 末尾（不遮挡左侧图片）
 func _populate_choices_row(choices: Array, on_choice: Callable) -> void:
 	_clear_choices_row()
 
-	var outer_vbox: VBoxContainer = $PanelAnchor/Notebook/OuterVBox
+	# 插入到右侧内容列（不影响左侧拍立得图片区域）
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer_vbox.add_child(row)
+	row.size_flags_vertical = Control.SIZE_SHRINK_END
+	_right_vbox.add_child(row)
 	_choices_row = row
 
 	# 调色板：与 show_choice 风格统一
