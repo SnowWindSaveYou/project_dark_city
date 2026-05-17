@@ -7,7 +7,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 # 依赖
 # ---------------------------------------------------------------------------
-const TutorialBubble = preload("res://scripts/ui/tutorial_bubble.gd")
+const SideBubble = preload("res://scripts/ui/side_bubble.gd")
 
 # ---------------------------------------------------------------------------
 # 引用 (由 main.gd 注入)
@@ -346,7 +346,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 			GameData.tutorial_flags["safe_zone_seen"] = true
 			m.show_tutorial(
 				"发光的格子待着——妖魔进不来。\n教堂和警察局周围四格都是。\n被追了，往那里跑。",
-				"白夜", TutorialBubble.IDLE_TIME_LONG
+				"白夜", SideBubble.IDLE_TIME_LONG
 			)
 
 		# 裂隙检查
@@ -487,14 +487,13 @@ func on_rift_cancelled() -> void:
 # =========================================================================
 
 func on_popup_dismissed(card: Card) -> void:
-	# TODO: _event_popup.popup_closed 信号在 main.gd 无条件连接到此回调，
-	# 暗面也复用同一 _event_popup，导致暗面弹窗关闭时 demo_state 被错误地
-	# 从 "dark_world" 覆写为 "ready"。需要从架构上拆分两套弹窗信号或加路由层。
+	# P1 路由守卫: 暗面世界复用同一 _event_popup，但暗面弹窗关闭由
+	# dark_world_flow 内部的 await popup_closed 直接处理，不应走到这里。
+	# 若处于暗面状态则静默忽略，避免 demo_state 被错误覆写为 "ready"。
+	if GameData.demo_state == "dark_world":
+		return
 
-	if card:
-		var effects: Dictionary = card.get_effects()
-		for key in effects:
-			GameData.modify_resource(key, effects[key])
+	# 注意: 效果已在 _on_card_flipped 翻牌时结算（非阻断分支），此处不再重复应用。
 
 	# 表情
 	if card:
@@ -536,7 +535,7 @@ func _handle_camera_mode_click(card: Card, row: int, col: int) -> void:
 			GameData.tutorial_flags["camera_exorcise_seen"] = true
 			m.show_tutorial(
 				"现身的可以直接拍。\n比正面硬挡……安全一点。\n会消耗胶卷，省着用。",
-				"白夜", TutorialBubble.IDLE_TIME_LONG
+				"白夜", SideBubble.IDLE_TIME_LONG
 			)
 		_do_exorcise(card, row, col)
 		return
@@ -921,12 +920,13 @@ func _find_path(sr: int, sc: int, er: int, ec: int) -> Array:
 	var board: Board = m.board
 	var dirs: Array = [[-1, 0], [1, 0], [0, -1], [0, 1]]
 
-	# key 函数: 5x5 棋盘, r*10+c 保证唯一
+	# key 函数: 使用 (Board.COLS + 1) 作乘数，支持任意棋盘宽度扩展
+	const KEY_STRIDE: int = Board.COLS + 1
 	var visited: Dictionary = {}
 	var parent: Dictionary = {}
 	var queue: Array = []
 
-	var start_key: int = sr * 10 + sc
+	var start_key: int = sr * KEY_STRIDE + sc
 	visited[start_key] = true
 	queue.append([sr, sc])
 	var head: int = 0
@@ -941,7 +941,7 @@ func _find_path(sr: int, sc: int, er: int, ec: int) -> Array:
 			var nc: int = cc + d[1]
 			if nr < 1 or nr > Board.ROWS or nc < 1 or nc > Board.COLS:
 				continue
-			var nk: int = nr * 10 + nc
+			var nk: int = nr * KEY_STRIDE + nc
 			if visited.has(nk):
 				continue
 
@@ -962,7 +962,7 @@ func _find_path(sr: int, sc: int, er: int, ec: int) -> Array:
 					var pc: int = nc
 					while pr != sr or pc != sc:
 						path.insert(0, {"row": pr, "col": pc})
-						var prev: Array = parent[pr * 10 + pc]
+						var prev: Array = parent[pr * KEY_STRIDE + pc]
 						pr = prev[0]
 						pc = prev[1]
 					return path

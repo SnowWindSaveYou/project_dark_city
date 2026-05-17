@@ -55,7 +55,7 @@ const ATMO_STORMY_OFFSET: Dictionary = {
 	"light_energy":   -0.35,
 }
 
-const TutorialBubble = preload("res://scripts/ui/tutorial_bubble.gd")
+const SideBubble = preload("res://scripts/ui/side_bubble.gd")
 
 # ---------------------------------------------------------------------------
 # 核心数据 (控制器通过 m.xxx 访问)
@@ -116,7 +116,7 @@ var _game_over: Control = null
 var _date_transition: Control = null
 var _dialogue_overlay: Control = null
 var _bubble_overlay: Control = null
-var _tutorial_bubble: TutorialBubble = null
+var _side_bubble: SideBubble = null
 var _debug_panel: DebugPanel = null
 var _settings_overlay: Control = null
 
@@ -375,11 +375,11 @@ func _setup_scene_tree() -> void:
 	_dialogue_overlay.m = self
 	ui_layer.add_child(_dialogue_overlay)
 
-	# TutorialBubble — 屏幕教程气泡（z_index=8，覆盖游戏 UI 但低于 title/settings）
-	_tutorial_bubble = TutorialBubble.new()
-	_tutorial_bubble.name = "TutorialBubble"
-	_tutorial_bubble.z_index = 8
-	ui_layer.add_child(_tutorial_bubble)
+	# SideBubble — 屏幕侧边气泡（z_index=8，覆盖游戏 UI 但低于 title/settings）
+	_side_bubble = SideBubble.new()
+	_side_bubble.name = "SideBubble"
+	_side_bubble.z_index = 8
+	ui_layer.add_child(_side_bubble)
 
 	# DebugPanel (开发调试面板, 按 1 切换; 打包 release 时不创建)
 	if OS.is_debug_build():
@@ -617,13 +617,13 @@ func get_baiye_bubble() -> BubbleDialogue:
 ## 显示屏幕教程气泡（全新独立系统，便签条风格）
 ## speaker: "白夜"（默认）或 "苏柚"
 func show_tutorial(text: String, speaker: String = "白夜",
-		duration: float = TutorialBubble.IDLE_TIME) -> void:
-	if _tutorial_bubble:
-		_tutorial_bubble.show_tutorial(text, speaker, duration)
+		duration: float = SideBubble.IDLE_TIME) -> void:
+	if _side_bubble:
+		_side_bubble.show_tutorial(text, speaker, duration)
 
-func show_sequence(lines: Array, duration_last: float = TutorialBubble.IDLE_TIME) -> void:
-	if _tutorial_bubble:
-		_tutorial_bubble.show_sequence(lines, duration_last)
+func show_sequence(lines: Array, duration_last: float = SideBubble.IDLE_TIME) -> void:
+	if _side_bubble:
+		_side_bubble.show_sequence(lines, duration_last)
 
 func _on_hand_panel_first_expanded() -> void:
 	if GameData.tutorial_flags.get("schedule_seen", false):
@@ -1182,6 +1182,24 @@ func _tween_dialogue_bg_switch(new_path: String) -> void:
 # 气泡对话 tween 管理
 # ---------------------------------------------------------------------------
 
+## 通用气泡 show tween: 淡入 + 弹出 + 上移
+func _tween_bubble_show(bd: BubbleDialogue) -> void:
+	var tw: Tween = create_tween().set_parallel(true)
+	tw.tween_property(bd, "bubble_alpha", 1.0, 0.2)
+	tw.tween_property(bd, "bubble_scale", 1.0, 0.25) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(bd, "offset_y", 0.0, 0.2)
+	var tw_cb: Tween = create_tween()
+	tw_cb.tween_callback(bd.on_show_complete).set_delay(0.3)
+
+## 通用气泡 hide tween: 淡出 + 缩小
+func _tween_bubble_hide(bd: BubbleDialogue) -> void:
+	var tw: Tween = create_tween().set_parallel(true)
+	tw.tween_property(bd, "bubble_alpha", 0.0, 0.15)
+	tw.tween_property(bd, "bubble_scale", 0.5, 0.15)
+	var tw_cb: Tween = create_tween()
+	tw_cb.tween_callback(bd.on_hide_complete).set_delay(0.2)
+
 func _update_bubble_tweens(dt: float) -> void:
 	if _bubble_dialogue == null:
 		return
@@ -1202,21 +1220,11 @@ func _update_bubble_tweens(dt: float) -> void:
 			if not _bubble_show_tweened:
 				_bubble_show_tweened = true
 				_bubble_hide_tweened = false
-				var tw: Tween = create_tween().set_parallel(true)
-				tw.tween_property(_bubble_dialogue, "bubble_alpha", 1.0, 0.2)
-				tw.tween_property(_bubble_dialogue, "bubble_scale", 1.0, 0.25) \
-					.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-				tw.tween_property(_bubble_dialogue, "offset_y", 0.0, 0.2)
-				var tw_cb: Tween = create_tween()
-				tw_cb.tween_callback(_bubble_dialogue.on_show_complete).set_delay(0.3)
+				_tween_bubble_show(_bubble_dialogue)
 		"hiding":
 			if not _bubble_hide_tweened:
 				_bubble_hide_tweened = true
-				var tw: Tween = create_tween().set_parallel(true)
-				tw.tween_property(_bubble_dialogue, "bubble_alpha", 0.0, 0.15)
-				tw.tween_property(_bubble_dialogue, "bubble_scale", 0.5, 0.15)
-				var tw_cb: Tween = create_tween()
-				tw_cb.tween_callback(_bubble_dialogue.on_hide_complete).set_delay(0.2)
+				_tween_bubble_hide(_bubble_dialogue)
 		"hidden":
 			_bubble_show_tweened = false
 			_bubble_hide_tweened = false
@@ -1248,21 +1256,11 @@ func _update_bubble_tweens(dt: float) -> void:
 				if not _npc_bubble_show_tweened.get(npc_id, false):
 					_npc_bubble_show_tweened[npc_id] = true
 					_npc_bubble_hide_tweened[npc_id] = false
-					var tw: Tween = create_tween().set_parallel(true)
-					tw.tween_property(bd, "bubble_alpha", 1.0, 0.2)
-					tw.tween_property(bd, "bubble_scale", 1.0, 0.25) \
-						.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-					tw.tween_property(bd, "offset_y", 0.0, 0.2)
-					var tw_cb: Tween = create_tween()
-					tw_cb.tween_callback(bd.on_show_complete).set_delay(0.3)
+					_tween_bubble_show(bd)
 			"hiding":
 				if not _npc_bubble_hide_tweened.get(npc_id, false):
 					_npc_bubble_hide_tweened[npc_id] = true
-					var tw: Tween = create_tween().set_parallel(true)
-					tw.tween_property(bd, "bubble_alpha", 0.0, 0.15)
-					tw.tween_property(bd, "bubble_scale", 0.5, 0.15)
-					var tw_cb: Tween = create_tween()
-					tw_cb.tween_callback(bd.on_hide_complete).set_delay(0.2)
+					_tween_bubble_hide(bd)
 			"hidden":
 				_npc_bubble_show_tweened[npc_id] = false
 				_npc_bubble_hide_tweened[npc_id] = false
@@ -1275,21 +1273,11 @@ func _update_bubble_tweens(dt: float) -> void:
 				if not _baiye_bubble_show_tweened:
 					_baiye_bubble_show_tweened = true
 					_baiye_bubble_hide_tweened = false
-					var tw: Tween = create_tween().set_parallel(true)
-					tw.tween_property(_baiye_bubble, "bubble_alpha", 1.0, 0.2)
-					tw.tween_property(_baiye_bubble, "bubble_scale", 1.0, 0.25) \
-						.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-					tw.tween_property(_baiye_bubble, "offset_y", 0.0, 0.2)
-					var tw_cb: Tween = create_tween()
-					tw_cb.tween_callback(_baiye_bubble.on_show_complete).set_delay(0.3)
+					_tween_bubble_show(_baiye_bubble)
 			"hiding":
 				if not _baiye_bubble_hide_tweened:
 					_baiye_bubble_hide_tweened = true
-					var tw: Tween = create_tween().set_parallel(true)
-					tw.tween_property(_baiye_bubble, "bubble_alpha", 0.0, 0.15)
-					tw.tween_property(_baiye_bubble, "bubble_scale", 0.5, 0.15)
-					var tw_cb: Tween = create_tween()
-					tw_cb.tween_callback(_baiye_bubble.on_hide_complete).set_delay(0.2)
+					_tween_bubble_hide(_baiye_bubble)
 			"hidden":
 				_baiye_bubble_show_tweened = false
 				_baiye_bubble_hide_tweened = false

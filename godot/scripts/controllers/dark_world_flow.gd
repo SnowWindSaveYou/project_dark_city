@@ -287,7 +287,7 @@ func handle_dark_card_click(row: int, col: int) -> void:
 		# 暗面卡牌效果 (暗面卡牌全明牌, 不需要翻牌检查)
 		var arrived_card: Card = m.board.get_card(row, col)
 		if arrived_card:
-			_handle_dark_card_effect(arrived_card, row, col)
+			await _handle_dark_card_effect(arrived_card, row, col)
 		else:
 			m.token.set_emotion("default")
 			m.dark_world.set_ready()

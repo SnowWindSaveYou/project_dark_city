@@ -124,7 +124,7 @@ func _on_deal_complete() -> void:
 		m._hand_panel.setup(m.card_manager, m.consumable_controller)
 		m._hand_panel.show_panel()
 		m._hand_panel.refresh()   # show_panel 若已显示则跳过内部 refresh，需显式调用
-		# 第一天且从未打开过手账本：启动 Tab1 脉冲高亮
+		# 第一天且从未打开过手账本：启动 Tab1 脉冲高亮引导玩家
 		if m.day_count == 1 and not GameData.tutorial_flags.get("schedule_seen", false):
 			m._hand_panel.start_tab1_pulse()
 
@@ -143,19 +143,7 @@ func _on_deal_complete() -> void:
 				{"speaker": "白夜", "text": "今天的体力有多少，能走的步数就是一半。\n体力掉了，当天能走的路也会变少。"},
 			])
 		)
-
-	# 日程教程：独立气泡，不嵌入剧情对话
-	# 延迟 14s：开场4条气泡约在5s内全部出现，再等最后一条停留（8s）后自然接上
-	if m.day_count == 1 and not GameData.tutorial_flags.get("schedule_seen", false):
-		GameData.tutorial_flags["schedule_seen"] = true
-		m.get_tree().create_timer(14.0).timeout.connect(func() -> void:
-			m.show_sequence([
-				{"speaker": "苏柚", "text": "这本手账……是任务清单？"},
-				{"speaker": "白夜", "text": "每天三件事。能做就做，做不完会掉理智、体力或者灵感。"},
-				{"speaker": "苏柚", "text": "走完步数就可以回去了吗？"},
-				{"speaker": "白夜", "text": "步数用完后右下角会出现「结束今天」。\n准备好了再按——明天的棋盘会重新生成。"},
-			])
-		)
+	# 日程教程由 _on_hand_panel_first_expanded 在玩家点击 Tab 时触发
 
 
 ## Day 1 专用晨间链: 故事 Tick + 晨间事件，完成后调用 on_done
