@@ -168,4 +168,158 @@ M.FRAGMENTS = {
     },
 }
 
+-- ---------------------------------------------------------------------------
+-- 实物线索定义 (clue_id → { name, desc, category, icon })
+-- category: "现场" | "人物" | "文献" | "遗物"
+-- ---------------------------------------------------------------------------
+M.CLUES = {
+    clue_old_photo = {
+        name     = "泛黄照片",
+        desc     = "一张模糊的合影，背面写着一个日期。照片中的人面容模糊，似乎都穿着某种制服。",
+        category = "人物",
+        icon     = "📷",
+    },
+    clue_blood_stain = {
+        name     = "干涸血迹",
+        desc     = "地下室墙角的深色痕迹，已氧化成暗褐色，但形状异常规整，像某种仪式的一部分。",
+        category = "现场",
+        icon     = "🩸",
+    },
+    clue_diary_page = {
+        name     = "日记残页",
+        desc     = "被撕下的日记页，字迹潦草：「第七天……它们从墙里出来了……不要回头看……」",
+        category = "文献",
+        icon     = "📄",
+    },
+    clue_strange_symbol = {
+        name     = "奇异符文",
+        desc     = "刻在墙壁上的古老符号，像是封印的一部分。用相机拍下后符号消失了。",
+        category = "遗物",
+        icon     = "🔮",
+    },
+    clue_missing_poster = {
+        name     = "寻人启事",
+        desc     = "褪色的寻人启事，照片已模糊。日期是三个月前——和裂隙首次出现的时间吻合。",
+        category = "人物",
+        icon     = "📋",
+    },
+    clue_broken_talisman = {
+        name     = "碎裂护符",
+        desc     = "断成两半的护身符，内侧刻着细小文字。曾经有很强的驱邪之力。",
+        category = "遗物",
+        icon     = "🧿",
+    },
+    clue_audio_tape = {
+        name     = "录音磁带",
+        desc     = "老式磁带，标签写「第三次调查记录」。播放后只有静电噪声和微弱低语。",
+        category = "文献",
+        icon     = "📼",
+    },
+    clue_dark_map = {
+        name     = "暗面地图残片",
+        desc     = "在暗世界深处发现的地图碎片，标注了几个关键位置，其中一处写着「核心」。",
+        category = "遗物",
+        icon     = "��️",
+    },
+}
+
+-- ---------------------------------------------------------------------------
+-- 翻线索牌时的事件池 (明面世界)
+-- condition 使用 StoryManager.checkCondition 格式
+-- clue_id: 触发时收集的线索 id (nil = 无实物线索, 只触发文本)
+-- ---------------------------------------------------------------------------
+M.CLUE_EVENTS = {
+    {
+        id        = "clue_footprints",
+        condition = nil,
+        weight    = 10,
+        text      = "地上有一串奇怪的脚印，不像是人类留下的。它们消失在一面完整的墙壁前。",
+        clue_id   = nil,
+    },
+    {
+        id        = "clue_blood_trail",
+        condition = { not_flag = "found_blood" },
+        weight    = 12,
+        text      = "你在角落发现了干涸的血迹，痕迹异常规整，像是某种仪式的一部分……",
+        clue_id   = "clue_blood_stain",
+        set_flags = { "found_blood" },
+    },
+    {
+        id        = "clue_diary",
+        condition = { not_flag = "found_diary" },
+        weight    = 11,
+        text      = "掀开地毯，一页撕碎的日记躺在下面，字迹已经因潮湿而模糊了大半。",
+        clue_id   = "clue_diary_page",
+        set_flags = { "found_diary" },
+    },
+    {
+        id        = "clue_talisman",
+        condition = { not_flag = "found_talisman" },
+        weight    = 10,
+        text      = "角落里散落着护符的碎片，上面雕刻的文字依然清晰，透着一股残余的灵力。",
+        clue_id   = "clue_broken_talisman",
+        set_flags = { "found_talisman" },
+    },
+    {
+        id        = "clue_generic",
+        condition = nil,
+        weight    = 8,
+        text      = "这里留下了一些异常的痕迹，但你一时说不清具体意味着什么。",
+        clue_id   = nil,
+    },
+    {
+        id        = "clue_poster",
+        condition = { not_flag = "found_poster" },
+        weight    = 10,
+        text      = "走廊尽头贴着一张褪色的寻人启事，日期和某个关键节点奇怪地重叠了。",
+        clue_id   = "clue_missing_poster",
+        set_flags = { "found_poster" },
+    },
+    {
+        id        = "clue_symbol",
+        condition = { not_flag = "found_symbol" },
+        weight    = 11,
+        text      = "你注意到墙上刻着奇异的符文，手指触碰的瞬间，符文发出了微弱的光……",
+        clue_id   = "clue_strange_symbol",
+        set_flags = { "found_symbol" },
+    },
+}
+
+-- ---------------------------------------------------------------------------
+-- 翻线索牌时的事件池 (暗面世界)
+-- ---------------------------------------------------------------------------
+M.DARK_CLUE_EVENTS = {
+    {
+        id        = "dark_clue_tape",
+        condition = { not_flag = "found_tape" },
+        weight    = 12,
+        text      = "你在暗世界的角落发现了一卷老式磁带，上面标注着「第三次调查记录」……",
+        clue_id   = "clue_audio_tape",
+        set_flags = { "found_tape" },
+    },
+    {
+        id        = "dark_clue_map",
+        condition = { all = { { min_clues = 3 }, { not_flag = "found_dark_map" } } },
+        weight    = 14,
+        text      = "一张残破的地图碎片浮现在虚空中，上面标注了暗世界的几个关键位置……",
+        clue_id   = "clue_dark_map",
+        set_flags = { "found_dark_map" },
+    },
+    {
+        id        = "dark_clue_photo",
+        condition = { not_flag = "found_photo" },
+        weight    = 10,
+        text      = "一张照片从虚空中缓缓落下，照片里的人影面目全非，但背景似乎是这栋楼。",
+        clue_id   = "clue_old_photo",
+        set_flags = { "found_photo" },
+    },
+    {
+        id        = "dark_clue_echo",
+        condition = nil,
+        weight    = 8,
+        text      = "暗面中传来低沉的回响，像是有人在重复念诵着某个名字……你没能听清。",
+        clue_id   = nil,
+    },
+}
+
 return M

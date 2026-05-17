@@ -427,7 +427,83 @@ function M.tryMidEvent(location, sm, ctx, onComplete)
     return true
 end
 
---- 重置状态 (游戏重启时调用)
+-- ---------------------------------------------------------------------------
+-- 线索翻牌事件池 (明面/暗面)
+-- ---------------------------------------------------------------------------
+
+--- 从指定事件池中按权重随机选取满足条件的事件
+---@param pool table[] 事件池 (含 condition/weight 字段)
+---@param sm table StoryManager 实例
+---@param ctx table 上下文 { dayCount, weather }
+---@return table|nil event 选中的事件, nil=无满足条件的事件
+local function pickWeightedEvent(pool, sm, ctx)
+    local candidates = {}
+    local totalWeight = 0
+    for _, evt in ipairs(pool) do
+        if StoryManager.checkCondition(sm, evt.condition, ctx) then
+            candidates[#candidates + 1] = evt
+            totalWeight = totalWeight + (evt.weight or 10)
+        end
+    end
+    if #candidates == 0 then return nil end
+
+    local roll = math.random() * totalWeight
+    local acc = 0
+    for _, evt in ipairs(candidates) do
+        acc = acc + (evt.weight or 10)
+        if roll <= acc then return evt end
+    end
+    return candidates[#candidates]
+end
+
+local StoryConfig = require "StoryConfig"
+
+--- 从明面线索事件池随机选一个满足条件的事件
+---@param sm table StoryManager 实例
+---@param ctx table 上下文 { dayCount, weather }
+---@return table|nil
+function M.pickClueEvent(sm, ctx)
+    return pickWeightedEvent(StoryConfig.CLUE_EVENTS, sm, ctx or {})
+end
+
+--- 从暗面线索事件池随机选一个满足条件的事件
+---@param sm table StoryManager 实例
+---@param ctx table 上下文 { dayCount, weather }
+---@return table|nil
+function M.pickDarkClueEvent(sm, ctx)
+    return pickWeightedEvent(StoryConfig.DARK_CLUE_EVENTS, sm, ctx or {})
+end
+
+--- 应用线索事件效果: 设置 flags、收集线索
+--- 返回 { clue_name, is_new_clue, text }
+---@param event table 线索事件 (来自 CLUE_EVENTS / DARK_CLUE_EVENTS)
+---@param sm table StoryManager 实例
+---@return table result
+function M.applyClueEvent(event, sm)
+    local result = { clue_name = "", is_new_clue = false, text = event.text or "" }
+
+    -- 设置 flags
+    if event.set_flags then
+        for _, flag in ipairs(event.set_flags) do
+            StoryManager.setFlag(sm, flag)
+        end
+    end
+
+    -- 收集线索
+    local clueId = event.clue_id
+    if clueId and clueId ~= "" then
+        local isNew = StoryManager.collectClue(sm, clueId)
+        local info = StoryConfig.CLUES[clueId]
+        result.clue_name  = info and info.name or clueId
+        result.is_new_clue = isNew
+    end
+
+    return result
+end
+
+-- ---------------------------------------------------------------------------
+-- 重置状态 (游戏重启时调用)
+-- ---------------------------------------------------------------------------
 function M.reset()
     -- morningEvents_ 从 require 加载, 无需清空
     -- 重置中段事件索引，使下一局重新计算条件

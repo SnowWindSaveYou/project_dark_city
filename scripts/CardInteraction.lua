@@ -18,6 +18,7 @@ local DialogueSystem = require "DialogueSystem"
 local BoardItems    = require "BoardItems"
 local AudioManager  = require "AudioManager"
 local BubbleDialogue = require "BubbleDialogue"
+local SideBubble     = require "SideBubble"
 local EventPool         = require "EventPool"
 local StoryEventManager = require "StoryEventManager"
 local DarkWorld         = require "DarkWorld"
@@ -166,13 +167,12 @@ local function onCardFlipped(card, screenX, screenY)
             Card.updateTexture(card, CardTextures)
         end
         -- 首次踏入安全区光晕 → 解释安全区机制
-        if not G.tutorialFlags.safeZoneSeen and G.playerBubble then
+        if not G.tutorialFlags.safeZoneSeen then
             G.tutorialFlags.safeZoneSeen = true
-            BubbleDialogue.showTutorial(
-                G.playerBubble,
-                "白夜：发光的格子有结界——妖魔近不了身。\n教堂和警察局周围四格，都是这样。",
-                8
-            )
+            SideBubble.showSequence({
+                { speaker = "白夜", text = "发光的格子有结界——妖魔近不了身。" },
+                { speaker = "白夜", text = "教堂和警察局周围四格，都是这样。" },
+            })
         end
     end
 
@@ -314,18 +314,17 @@ local function onCardFlipped(card, screenX, screenY)
             G.gameStats.monstersSlain = G.gameStats.monstersSlain + 1
             -- 怪物 Chibi 弹出环绕玩家
             MonsterGhost.spawnAroundPlayer(G.token.worldX, G.token.worldZ, card.location)
-            -- 首次遭遇怪物 → 气泡提示灵感影响伤害
-            if not G.tutorialFlags.monsterSeen and G.playerBubble then
+            -- 首次遭遇怪物 → 提示灵感影响伤害
+            if not G.tutorialFlags.monsterSeen then
                 G.tutorialFlags.monsterSeen = true
-                BubbleDialogue.showTutorial(
-                    G.playerBubble,
-                    "白夜：灵感强了，它们感知得到你。\n感知得到……就咬得重。",
-                    7
-                )
+                SideBubble.showSequence({
+                    { speaker = "白夜", text = "灵感强了，它们感知得到你。" },
+                    { speaker = "白夜", text = "感知得到……就咬得重。" },
+                })
             end
         end
 
-        -- 传闻
+        -- 传闻 + 线索收集
         local gotRumor = false
         if card.type == "clue" then
             local added = CardManager.addRumor(G.board)
@@ -333,6 +332,26 @@ local function onCardFlipped(card, screenX, screenY)
                 gotRumor = true
                 local tc2 = Theme.current
                 VFX.spawnBanner("📰 获得了新传闻!", tc2.rumor.r, tc2.rumor.g, tc2.rumor.b, 18, 0.8)
+            end
+
+            -- 线索事件: 从明面事件池随机选一条
+            if G.storyMgr then
+                local clueCtx = { dayCount = G.dayCount or 1 }
+                local clueEvt = StoryEventManager.pickClueEvent(G.storyMgr, clueCtx)
+                if clueEvt then
+                    local result = StoryEventManager.applyClueEvent(clueEvt, G.storyMgr)
+                    if result.is_new_clue then
+                        -- 新线索: 显示高亮 banner
+                        local tc3 = Theme.current
+                        VFX.spawnBanner(
+                            "🔍 获得线索: " .. result.clue_name,
+                            tc3.clue and tc3.clue.r or 180,
+                            tc3.clue and tc3.clue.g or 140,
+                            tc3.clue and tc3.clue.b or 80,
+                            17, 1.2)
+                        print(string.format("[CardInteraction] New clue: %s", result.clue_name))
+                    end
+                end
             end
         end
 
@@ -629,14 +648,13 @@ local function onPhotographFlipped(card, screenX, screenY)
                                 Token.setEmotion(G.token, "happy")
                                 G.demoState = "ready"
                                 CameraButton.show()
-                                -- 首次拍照驱除 → 气泡确认
-                                if not G.tutorialFlags.cameraExorciseSeen and G.playerBubble then
+                                -- 首次拍照驱除 → 确认教程
+                                if not G.tutorialFlags.cameraExorciseSeen then
                                     G.tutorialFlags.cameraExorciseSeen = true
-                                    BubbleDialogue.showTutorial(
-                                        G.playerBubble,
-                                        "白夜：已经现身的，照样能拍走。\n比正面撞上安全一点。要胶卷。",
-                                        7
-                                    )
+                                    SideBubble.showSequence({
+                                        { speaker = "白夜", text = "已经现身的，照样能拍走。" },
+                                        { speaker = "白夜", text = "比正面撞上安全一点。要胶卷。" },
+                                    })
                                 end
                             end, CardTextures)
                         end
@@ -910,14 +928,13 @@ function M.handleNormalModeClick(card, row, col)
             G.demoState = "popup"
             CameraButton.hide()
             MonsterGhost.showRiftOnCard(card)
-            -- 首次发现裂隙 → 气泡说明灵感机制
-            if not G.tutorialFlags.riftSeen and G.playerBubble then
+            -- 首次发现裂隙 → 说明灵感机制
+            if not G.tutorialFlags.riftSeen then
                 G.tutorialFlags.riftSeen = true
-                BubbleDialogue.showTutorial(
-                    G.playerBubble,
-                    "白夜：灵感不够的时候……这里什么都没有。\n不是看不见。是感觉不到。",
-                    7
-                )
+                SideBubble.showSequence({
+                    { speaker = "白夜", text = "灵感不够的时候……这里什么都没有。" },
+                    { speaker = "白夜", text = "不是看不见。是感觉不到。" },
+                })
             end
             local popCX = G.logicalW / 2
             local popCY = G.logicalH * 0.42

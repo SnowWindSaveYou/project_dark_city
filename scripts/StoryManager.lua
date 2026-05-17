@@ -27,6 +27,9 @@ function M.new()
         -- 碎片收集 (fragId → true)
         fragments = {},
 
+        -- 实物线索收集 (clueId → true)
+        clues = {},
+
         -- 当前章节 ID
         currentChapter = "awakening",
     }
@@ -42,6 +45,7 @@ function M.reset(sm)
     sm.sleep_days_left = 0
     sm.flags           = {}
     sm.fragments       = {}
+    sm.clues           = {}
     sm.currentChapter  = "awakening"
     print("[StoryManager] Reset")
 end
@@ -160,6 +164,100 @@ function M.hasFragment(sm, fragId)
 end
 
 -- ---------------------------------------------------------------------------
+-- 实物线索系统
+-- ---------------------------------------------------------------------------
+
+--- 收集实物线索
+---@param sm table
+---@param clueId string
+---@return boolean isNew 是否为新收集的线索
+function M.collectClue(sm, clueId)
+    if sm.clues[clueId] then
+        return false
+    end
+    sm.clues[clueId] = true
+    local count = M.getClueCount(sm)
+    print(string.format("[StoryManager] Clue collected: %s (total: %d)", clueId, count))
+    return true
+end
+
+--- 是否已收集某线索
+---@param sm table
+---@param clueId string
+---@return boolean
+function M.hasClue(sm, clueId)
+    return sm.clues[clueId] == true
+end
+
+--- 已收集线索总数
+---@param sm table
+---@return integer
+function M.getClueCount(sm)
+    local count = 0
+    for _ in pairs(sm.clues) do count = count + 1 end
+    return count
+end
+
+--- 获取某分类下已收集的线索列表
+--- 返回 [{ id, info }] 格式 (与 Godot get_clues_by_category 对齐)
+---@param sm table
+---@param category string
+---@return table[]
+function M.getCluesByCategory(sm, category)
+    local result = {}
+    for clueId in pairs(sm.clues) do
+        local info = StoryConfig.CLUES[clueId]
+        if info and info.category == category then
+            result[#result + 1] = { id = clueId, info = info }
+        end
+    end
+    -- 按 name 排序保证稳定显示
+    table.sort(result, function(a, b) return a.info.name < b.info.name end)
+    return result
+end
+
+--- 获取已收集线索中存在的分类列表 (去重, 稳定排序)
+---@param sm table
+---@return string[]
+function M.getClueCategories(sm)
+    local seen = {}
+    local cats = {}
+    for clueId in pairs(sm.clues) do
+        local info = StoryConfig.CLUES[clueId]
+        if info then
+            local cat = info.category
+            if not seen[cat] then
+                seen[cat] = true
+                cats[#cats + 1] = cat
+            end
+        end
+    end
+    table.sort(cats)
+    return cats
+end
+
+--- 获取所有已收集线索列表 (按分类再按名称排序)
+--- 返回 [{ id, info }] 格式
+---@param sm table
+---@return table[]
+function M.getAllClues(sm)
+    local result = {}
+    for clueId in pairs(sm.clues) do
+        local info = StoryConfig.CLUES[clueId]
+        if info then
+            result[#result + 1] = { id = clueId, info = info }
+        end
+    end
+    table.sort(result, function(a, b)
+        if a.info.category ~= b.info.category then
+            return a.info.category < b.info.category
+        end
+        return a.info.name < b.info.name
+    end)
+    return result
+end
+
+-- ---------------------------------------------------------------------------
 -- 章节管理
 -- ---------------------------------------------------------------------------
 
@@ -262,6 +360,16 @@ function M.checkCondition(sm, cond, ctx)
     -- 原子: min_fragments
     if cond.min_fragments then
         return M.getFragmentCount(sm) >= cond.min_fragments
+    end
+
+    -- 原子: has_clue
+    if cond.has_clue then
+        return M.hasClue(sm, cond.has_clue)
+    end
+
+    -- 原子: min_clues
+    if cond.min_clues then
+        return M.getClueCount(sm) >= cond.min_clues
     end
 
     -- 原子: baiye_available

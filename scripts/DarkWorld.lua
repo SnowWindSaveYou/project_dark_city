@@ -1158,6 +1158,22 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
         -- 收集过渡动效: 淡出 → 切 normal → 淡入 → 弹窗
         local clueNameSnapshot = card.darkName  -- 保存名称供弹窗使用
         collectCard(nil, function()
+            -- 暗面线索事件: 从暗面事件池选取并应用
+            local StoryEventManager = require "StoryEventManager"
+            local darkSm = G_ and G_.storyMgr
+            if darkSm then
+                local clueCtx = { dayCount = G_ and G_.dayCount or 1 }
+                local clueEvt = StoryEventManager.pickDarkClueEvent(darkSm, clueCtx)
+                if clueEvt then
+                    local result = StoryEventManager.applyClueEvent(clueEvt, darkSm)
+                    if result.is_new_clue then
+                        VFX.spawnBanner(
+                            "🔍 获得线索: " .. result.clue_name,
+                            180, 140, 80, 16, 1.2)
+                        print(string.format("[DarkWorld] New clue: %s", result.clue_name))
+                    end
+                end
+            end
             -- 尝试碎片掉落
             local fragDropped = tryDarkFragmentDrop()
             -- 弹窗 (效果无资源变化, 仅展示线索发现)

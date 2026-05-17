@@ -251,30 +251,6 @@
       "clue_id": null
     },
     {
-      "id": "plot_find_photo",
-      "condition": {
-        "not_flag": "found_photo"
-      },
-      "weight": 15,
-      "text": "一张泛黄的照片从缝隙中滑落。照片背面有人匆匆写下了一行字——'他们知道了'。",
-      "set_flags": {
-        "found_photo": true
-      },
-      "clue_id": "clue_old_photo"
-    },
-    {
-      "id": "plot_symbol_wall",
-      "condition": {
-        "not_flag": "found_symbol"
-      },
-      "weight": 12,
-      "text": "你注意到墙上刻着奇异的符文，手指触碰的瞬间，符文发出了微弱的光……",
-      "set_flags": {
-        "found_symbol": true
-      },
-      "clue_id": "clue_strange_symbol"
-    },
-    {
       "id": "plot_whisper",
       "condition": {
         "flag": "found_symbol"
@@ -286,18 +262,7 @@
       },
       "clue_id": null
     },
-    {
-      "id": "plot_missing_person",
-      "condition": {
-        "min_day": 2
-      },
-      "weight": 12,
-      "text": "你在废弃的告示栏上发现了一张寻人启事。日期正好是裂隙出现的那天……",
-      "set_flags": {
-        "found_missing_poster": true
-      },
-      "clue_id": "clue_missing_poster"
-    },
+
     {
       "id": "plot_deep_rumble",
       "condition": {

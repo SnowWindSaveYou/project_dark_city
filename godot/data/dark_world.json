@@ -25,11 +25,14 @@
 	],
 
 	"fragment_drops": [
-		{ "min_frags": 0, "layer_min": 1, "frag_id": "frag_02", "flag": "dark_frag_02" },
-		{ "min_frags": 2, "layer_min": 2, "frag_id": "frag_06", "flag": "dark_frag_06" },
+		{ "min_frags": 0, "layer_min": 1, "frag_id": "frag_01", "flag": "dark_frag_01" },
+		{ "min_frags": 1, "layer_min": 1, "frag_id": "frag_02", "flag": "dark_frag_02" },
+		{ "min_frags": 2, "layer_min": 1, "frag_id": "frag_03", "flag": "dark_frag_03" },
+		{ "min_frags": 3, "layer_min": 2, "frag_id": "frag_04", "flag": "dark_frag_04" },
+		{ "min_frags": 4, "layer_min": 2, "frag_id": "frag_06", "flag": "dark_frag_06" },
 		{ "min_frags": 5, "layer_min": 2, "frag_id": "frag_07", "flag": "dark_frag_07" },
-		{ "min_frags": 7, "layer_min": 3, "frag_id": "frag_08", "flag": "dark_frag_08" },
-		{ "min_frags": 8, "layer_min": 3, "frag_id": "frag_09", "flag": "dark_frag_09" }
+		{ "min_frags": 6, "layer_min": 3, "frag_id": "frag_08", "flag": "dark_frag_08" },
+		{ "min_frags": 7, "layer_min": 3, "frag_id": "frag_09", "flag": "dark_frag_09" }
 	],
 
 	"elite_encounter": {

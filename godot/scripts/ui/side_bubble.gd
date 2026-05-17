@@ -39,11 +39,6 @@ const IDLE_TIME: float      = 8.0    # 对话型停留时长
 const IDLE_TIME_LONG: float = 14.0   # 操作指引型停留时长
 
 # ---------------------------------------------------------------------------
-# 常量 — 打字机
-# ---------------------------------------------------------------------------
-const TYPE_SPEED: int = 16   # 字/秒（慢一些，更易阅读）
-
-# ---------------------------------------------------------------------------
 # 说话人配置
 # ---------------------------------------------------------------------------
 const SPEAKER_BAIYE: String = "白夜"
@@ -107,18 +102,8 @@ func _update_item(item: Dictionary, dt: float) -> void:
 	if item["phase"] == "exiting" or item["phase"] == "done":
 		return
 
-	# 打字机
-	var full: String = item["text"]
-	var pos: int = item["typewriter_pos"]
-	if pos < full.length():
-		item["typewriter_accum"] += dt * TYPE_SPEED
-		var new_pos: int = mini(int(item["typewriter_accum"]), full.length())
-		if new_pos != pos:
-			item["typewriter_pos"] = new_pos
-			(item["text_label"] as RichTextLabel).text = full.substr(0, new_pos)
-
-	# 自动消失计时（打字机完成后才开始）
-	if item["phase"] == "visible" and pos >= full.length():
+	# 自动消失计时
+	if item["phase"] == "visible":
 		item["idle_timer"] += dt
 		if item["idle_timer"] >= item["duration"]:
 			_start_item_exit(item)
@@ -180,7 +165,7 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	text_label.add_theme_color_override("default_color",
 		Color(GameTheme.text_primary.r, GameTheme.text_primary.g,
 			GameTheme.text_primary.b, 0.90))
-	text_label.text = ""
+	text_label.text = text
 	var text_x: float = ITEM_SPINE_W + ITEM_PAD_X
 	var text_y: float = ITEM_PAD_Y + 32.0
 	var text_w: float = ITEM_W - ITEM_SPINE_W - ITEM_PAD_X * 2 - av_diam - 8.0
@@ -190,19 +175,16 @@ func _create_item(text: String, speaker: String, duration: float) -> void:
 	panel.add_child(text_label)
 
 	var item: Dictionary = {
-		"panel":            panel,
-		"text_label":       text_label,
-		"text":             text,
-		"speaker":          speaker,
-		"duration":         duration,
-		"typewriter_pos":   0,
-		"typewriter_accum": 0.0,
-		"idle_timer":       0.0,
-		"phase":            "entering",
-		"tween":            null,
-		"base_x":           base_x,
-		"base_y":           base_y,
-		"height":           item_h,
+		"panel":      panel,
+		"text_label": text_label,
+		"speaker":    speaker,
+		"duration":   duration,
+		"idle_timer": 0.0,
+		"phase":      "entering",
+		"tween":      null,
+		"base_x":     base_x,
+		"base_y":     base_y,
+		"height":     item_h,
 	}
 
 	panel.draw.connect(_draw_item.bind(item))

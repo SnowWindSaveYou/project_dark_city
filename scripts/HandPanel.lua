@@ -11,8 +11,19 @@ local ShopPopup    = require "ShopPopup"
 local ItemIcons    = require "ItemIcons"
 local AudioManager = require "AudioManager"
 local ResourceBar  = require "ResourceBar"
+local StoryManager = require "StoryManager"
+local StoryConfig  = require "StoryConfig"
 
 local M = {}
+
+---@type table|nil  共享游戏状态 G（由 main.lua 注入）
+local G_ = nil
+
+--- 注入全局游戏状态引用（用于 Tab3 线索日志读取 storyMgr）
+---@param g table
+function M.setGameStateRef(g)
+    G_ = g
+end
 
 -- ---------------------------------------------------------------------------
 -- 常量
@@ -85,6 +96,8 @@ local state = {
     hoverEndDayBtn  = false,   -- hover 结束今天按钮
     rumorPage       = 1,
     wasAllDone      = false,   -- 上帧是否全部完成（用于过渡检测）
+    clueTab         = 0,       -- Tab3 选中的分类序号（0=全部，1-4=具体分类）
+    clueScrollY     = 0,       -- Tab3 滚动偏移（预留，暂未用）
 }
 
 local currentGameTime = 0     -- M.draw 每帧写入，供子函数读取动效时间
@@ -93,8 +106,14 @@ local currentGameTime = 0     -- M.draw 每帧写入，供子函数读取动效�
 local storedLogicalH = 800
 
 -- 外部回调
-local onUseExorcismCallback = nil
-local onAdvanceDayCallback  = nil
+local onUseExorcismCallback  = nil
+local onAdvanceDayCallback   = nil
+local onFirstExpandCallback  = nil  -- Day1 首次展开时触发（一次性）
+local firstExpandFired_      = false
+
+-- 高亮脉冲状态（提前声明，toggle() 中需要访问）
+---@type { active: boolean, persistent: boolean, timer: number, pulseCount: number, alpha: number }
+local highlightState_
 
 -- ---------------------------------------------------------------------------
 -- 布局计算
@@ -238,6 +257,16 @@ function M.toggle(logicalH)
     Tween.to(state, { panelX = tx, panelAngle = ta }, 0.35, {
         easing = ease, tag = TAG
     })
+
+    -- 首次展开：触发一次性回调（日程教程）
+    if state.expanded and not firstExpandFired_ and onFirstExpandCallback then
+        firstExpandFired_ = true
+        -- 停止持续脉冲
+        highlightState_.persistent = false
+        highlightState_.active     = false
+        highlightState_.alpha      = 0
+        onFirstExpandCallback()
+    end
 end
 
 function M.isActive()   return state.visible end
@@ -251,6 +280,12 @@ end
 --- 注入"结束今天"回调（由 main.lua 调用）
 function M.setAdvanceDayCallback(fn)
     onAdvanceDayCallback = fn
+end
+
+--- 注入"首次展开"回调（由 main.lua 调用，仅触发一次）
+function M.setOnFirstExpandCallback(fn)
+    onFirstExpandCallback = fn
+    firstExpandFired_     = false
 end
 
 --- 每帧更新：检测"全部完成"过渡，自动展开日程页
@@ -299,6 +334,7 @@ function M.reset()
     state.hoverTab   = 0
     state.hoverItem  = nil
     state.wasAllDone = false
+    firstExpandFired_ = false
 end
 
 -- ---------------------------------------------------------------------------
@@ -818,31 +854,218 @@ local function drawTab2(vg, px, py, pw, ph, t)
 end
 
 -- ---------------------------------------------------------------------------
--- 渲染：Tab3 线索（占位）
+-- 渲染：Tab3 线索日志
 -- ---------------------------------------------------------------------------
 
+-- 所有分类（固定顺序，与 Godot 对齐）
+local CLUE_CATEGORIES_ALL = { "全部", "人物", "现场", "文献", "遗物" }
+-- 分类对应的装饰色（RGBA 表）
+local CLUE_CAT_COLORS = {
+    ["全部"] = { 155, 185, 200 },
+    ["人物"] = { 200, 155, 180 },
+    ["现场"] = { 180, 200, 155 },
+    ["文献"] = { 200, 185, 130 },
+    ["遗物"] = { 155, 165, 210 },
+}
+
 local function drawTab3(vg, px, py, pw, ph, t)
-    local cx = px + SPINE_W + (pw - SPINE_W) / 2
-    local cy = py + ph / 2
+    local sm = G_ and G_.storyMgr
+    local contentX = px + SPINE_W + PAGE_PAD
+    local contentW = pw - SPINE_W - PAGE_PAD * 2
 
-    -- 占位图标
     nvgFontFace(vg, "sans")
-    nvgFontSize(vg, 28)
-    nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 70))
-    nvgText(vg, cx, cy - 16, "🔍", nil)
 
-    nvgFontSize(vg, 11)
-    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 90))
-    nvgText(vg, cx, cy + 14, "线索系统开发中…", nil)
+    -- ── 标题行 ────────────────────────────────────────────
+    local titleY = py + 14
+    nvgFontSize(vg, 10)
+    nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 160))
+    nvgText(vg, contentX, titleY, "线索档案", nil)
 
-    -- 装饰线
+    -- 总数统计
+    local totalDef = 0
+    for _ in pairs(StoryConfig.CLUES) do totalDef = totalDef + 1 end
+    local collected = sm and StoryManager.getClueCount(sm) or 0
+    local countStr = string.format("%d/%d", collected, totalDef)
+    nvgFontSize(vg, 9)
+    nvgTextAlign(vg, NVG_ALIGN_RIGHT + NVG_ALIGN_MIDDLE)
+    nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 130))
+    nvgText(vg, contentX + contentW, titleY, countStr, nil)
+
+    -- 分隔线
     nvgBeginPath(vg)
-    nvgMoveTo(vg, cx - 40, cy + 28)
-    nvgLineTo(vg, cx + 40, cy + 28)
-    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 50))
+    nvgMoveTo(vg, contentX, titleY + 8)
+    nvgLineTo(vg, contentX + contentW, titleY + 8)
+    nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 60))
     nvgStrokeWidth(vg, 0.5)
     nvgStroke(vg)
+
+    -- ── 分类小 Tab ────────────────────────────────────────
+    local tabY    = titleY + 14
+    local tabH    = 14
+    local numCats = #CLUE_CATEGORIES_ALL
+    local tabW    = math.floor(contentW / numCats)
+    for ci = 1, numCats do
+        local catName = CLUE_CATEGORIES_ALL[ci]
+        local tx = contentX + (ci - 1) * tabW
+        local isActive = (state.clueTab == ci - 1)  -- 0=全部,1-4=具体分类
+        local cc = CLUE_CAT_COLORS[catName] or { 160, 160, 160 }
+
+        -- 激活 Tab 底色
+        if isActive then
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, tx, tabY, tabW - 1, tabH, 2)
+            nvgFillColor(vg, nvgRGBA(cc[1], cc[2], cc[3], 80))
+            nvgFill(vg)
+        end
+
+        nvgFontSize(vg, 8)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        local alpha = isActive and 220 or 130
+        nvgFillColor(vg, nvgRGBA(cc[1] - 20, cc[2] - 20, cc[3] - 20, alpha))
+        nvgText(vg, tx + tabW / 2, tabY + tabH / 2, catName, nil)
+
+        -- 底部下划线（激活）
+        if isActive then
+            nvgBeginPath(vg)
+            nvgMoveTo(vg, tx + 2, tabY + tabH)
+            nvgLineTo(vg, tx + tabW - 3, tabY + tabH)
+            nvgStrokeColor(vg, nvgRGBA(cc[1], cc[2], cc[3], 200))
+            nvgStrokeWidth(vg, 1.0)
+            nvgStroke(vg)
+        end
+    end
+
+    -- ── 线索列表 ──────────────────────────────────────────
+    local listY  = tabY + tabH + 6
+    local listH  = ph - (listY - py) - 8
+    local itemH  = 36   -- 每条线索行高
+    local iconSz = 20   -- 图标区域大小
+
+    -- 确定要显示的线索
+    local clueList = {}
+    if sm then
+        if state.clueTab == 0 then
+            clueList = StoryManager.getAllClues(sm)
+        else
+            local catName = CLUE_CATEGORIES_ALL[state.clueTab + 1]
+            clueList = StoryManager.getCluesByCategory(sm, catName)
+        end
+    end
+
+    -- scissor 到列表区域
+    nvgSave(vg)
+    nvgIntersectScissor(vg, contentX - 2, listY, contentW + 4, listH)
+
+    if #clueList == 0 then
+        -- 空状态
+        local emptyY = listY + listH / 2
+        nvgFontSize(vg, 11)
+        nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 55))
+        nvgText(vg, contentX + contentW / 2, emptyY - 8, "🔍", nil)
+        nvgFontSize(vg, 9)
+        nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 70))
+        nvgText(vg, contentX + contentW / 2, emptyY + 8,
+            sm and "尚未发现线索" or "加载中…", nil)
+    else
+        for idx, entry in ipairs(clueList) do
+            local iy = listY + (idx - 1) * (itemH + 2)
+            if iy > listY + listH then break end
+
+            local info = entry.info
+            local cc = CLUE_CAT_COLORS[info.category] or { 160, 160, 160 }
+
+            -- 行底色（偶数行）
+            if idx % 2 == 0 then
+                nvgBeginPath(vg)
+                nvgRoundedRect(vg, contentX - 2, iy, contentW + 4, itemH, 2)
+                nvgFillColor(vg, Theme.rgbaA(t.notebookBorder, 18))
+                nvgFill(vg)
+            end
+
+            -- 图标圆底
+            nvgBeginPath(vg)
+            nvgCircle(vg, contentX + iconSz / 2, iy + itemH / 2, iconSz / 2)
+            nvgFillColor(vg, nvgRGBA(cc[1], cc[2], cc[3], 55))
+            nvgFill(vg)
+
+            -- 图标 emoji
+            nvgFontSize(vg, 13)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(60, 50, 40, 220))
+            nvgText(vg, contentX + iconSz / 2, iy + itemH / 2, info.icon or "📌", nil)
+
+            -- 线索名称
+            local textX = contentX + iconSz + 5
+            nvgFontSize(vg, 9.5)
+            nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+            nvgFillColor(vg, Theme.rgbaA(t.textPrimary, 220))
+            nvgText(vg, textX, iy + 6, info.name or entry.id, nil)
+
+            -- 分类标签
+            local tagW = 20
+            local tagX = contentX + contentW - tagW
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, tagX, iy + 5, tagW, 10, 2)
+            nvgFillColor(vg, nvgRGBA(cc[1], cc[2], cc[3], 60))
+            nvgFill(vg)
+            nvgFontSize(vg, 7)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER + NVG_ALIGN_MIDDLE)
+            nvgFillColor(vg, nvgRGBA(cc[1] - 30, cc[2] - 30, cc[3] - 30, 200))
+            nvgText(vg, tagX + tagW / 2, iy + 10, info.category, nil)
+
+            -- 描述（截断）
+            if info.desc and info.desc ~= "" then
+                local maxDescW = tagX - textX - 2
+                nvgFontSize(vg, 7.5)
+                nvgTextAlign(vg, NVG_ALIGN_LEFT + NVG_ALIGN_TOP)
+                nvgFillColor(vg, Theme.rgbaA(t.textSecondary, 140))
+                -- 截断超长描述
+                local desc = info.desc
+                local dw = nvgTextBounds(vg, 0, 0, desc, nil)
+                if dw > maxDescW then
+                    -- 粗略截断：约每字 7px
+                    local maxChars = math.floor(maxDescW / 7)
+                    desc = string.sub(desc, 1, maxChars) .. "…"
+                end
+                nvgText(vg, textX, iy + 20, desc, nil)
+            end
+
+            -- 底部分隔线
+            if idx < #clueList then
+                nvgBeginPath(vg)
+                nvgMoveTo(vg, contentX, iy + itemH + 1)
+                nvgLineTo(vg, contentX + contentW, iy + itemH + 1)
+                nvgStrokeColor(vg, Theme.rgbaA(t.notebookBorder, 30))
+                nvgStrokeWidth(vg, 0.4)
+                nvgStroke(vg)
+            end
+        end
+    end
+
+    nvgRestore(vg)  -- scissor
+end
+
+-- Tab3 分类 tab 点击检测（由 handleClick 调用）
+local function handleTab3Click(lx, ly, px, py, pw, ph)
+    local contentX = px + SPINE_W + PAGE_PAD
+    local contentW = pw - SPINE_W - PAGE_PAD * 2
+    local tabY     = py + 14 + 14  -- titleY + 14
+    local tabH     = 14
+    local numCats  = #CLUE_CATEGORIES_ALL
+    local tabW     = math.floor(contentW / numCats)
+
+    if ly >= tabY and ly <= tabY + tabH then
+        for ci = 1, numCats do
+            local tx = contentX + (ci - 1) * tabW
+            if lx >= tx and lx <= tx + tabW then
+                state.clueTab = ci - 1  -- 0=全部
+                return true
+            end
+        end
+    end
+    return false
 end
 
 -- ---------------------------------------------------------------------------
@@ -1171,6 +1394,14 @@ function M.handleClick(lx, ly, logicalW, logicalH)
         end
     end
 
+    -- Tab3：线索分类 tab 点击
+    if state.activeTab == 3 then
+        local px2, py2, pw2, ph2 = getPanelRect(logicalH)
+        if handleTab3Click(lx, ly, px2, py2, pw2, ph2) then
+            return true
+        end
+    end
+
     return true  -- 面板内其余区域消费事件
 end
 
@@ -1262,27 +1493,34 @@ end
 
 -- ============================================================================
 -- Day 1 教程: 笔记本高亮提示
--- 在第一个便签贴（"日程"）上播放三次脉冲光晕，提醒玩家注意
+-- 持续呼吸金色脉冲，直到玩家第一次展开笔记本（由 toggle 内部停止）
 -- ============================================================================
 
-local highlightState_ = {
-    active    = false,
-    timer     = 0,       -- 当前脉冲计时
-    pulseCount = 0,      -- 已播放次数
-    alpha     = 0,       -- 当前光晕 alpha (0~1)
+highlightState_ = {
+    active     = false,
+    persistent = false,  -- true=持续呼吸（直到首次展开）, false=一次性
+    timer      = 0,       -- 当前脉冲计时
+    pulseCount = 0,       -- 已播放次数（一次性模式用）
+    alpha      = 0,       -- 当前光晕 alpha (0~1)
 }
 
-local HIGHLIGHT_PULSE_DURATION = 0.55   -- 单次脉冲时长 (s)
-local HIGHLIGHT_PULSE_TIMES    = 3      -- 共脉冲3次
+local HIGHLIGHT_PULSE_DURATION = 1.4    -- 呼吸一次时长（慢一点更优雅）
+local HIGHLIGHT_PULSE_TIMES    = 3      -- 一次性模式：共脉冲3次
 local HIGHLIGHT_COLOR          = { 255, 210, 80 }  -- 暖黄色光晕
 
---- 触发一次性笔记本高亮提示（Day 1 教程结束后调用）
-function M.highlightOnce()
-    if highlightState_.active then return end
-    highlightState_.active    = true
-    highlightState_.timer     = 0
+--- 启动持续呼吸脉冲（Day 1 教程结束后调用，取代旧的 highlightOnce）
+--- 持续到玩家首次展开笔记本为止
+function M.startPersistentPulse()
+    highlightState_.active     = true
+    highlightState_.persistent = true
+    highlightState_.timer      = 0
     highlightState_.pulseCount = 0
-    highlightState_.alpha     = 0
+    highlightState_.alpha      = 0
+end
+
+--- 保留兼容性（旧名称，实际调用持续版本）
+function M.highlightOnce()
+    M.startPersistentPulse()
 end
 
 --- 在 M.update 中每帧推进高亮动画
@@ -1297,11 +1535,17 @@ function M.update(dt, logicalH)
     highlightState_.alpha = math.max(0, math.sin(progress * math.pi))
 
     if progress >= 1.0 then
-        highlightState_.pulseCount = highlightState_.pulseCount + 1
         highlightState_.timer = 0
-        if highlightState_.pulseCount >= HIGHLIGHT_PULSE_TIMES then
-            highlightState_.active = false
-            highlightState_.alpha  = 0
+        if highlightState_.persistent then
+            -- 持续模式：循环播放
+            highlightState_.pulseCount = highlightState_.pulseCount + 1
+        else
+            -- 一次性模式：3次后停止
+            highlightState_.pulseCount = highlightState_.pulseCount + 1
+            if highlightState_.pulseCount >= HIGHLIGHT_PULSE_TIMES then
+                highlightState_.active = false
+                highlightState_.alpha  = 0
+            end
         end
     end
 end

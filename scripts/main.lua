@@ -32,6 +32,7 @@ local DarkWorld        = require "DarkWorld"
 local AudioManager     = require "AudioManager"
 local CardInteraction  = require "CardInteraction"
 local GameFlow         = require "GameFlow"
+local SideBubble       = require "SideBubble"
 local DarkWorldFlow    = require "DarkWorldFlow"
 local StoryManager     = require "StoryManager"
 local StoryEventManager = require "StoryEventManager"
@@ -111,7 +112,9 @@ local G = {
         riftSeen           = false,  -- 裂隙/灵感机制
         darkWorldEntered   = false,  -- 理智=暗面步数
         safeZoneSeen       = false,  -- 安全区光晕机制
+        scheduleSeen       = false,  -- 日程面板首次展开
     },
+    sideBubble     = nil,   -- → Start() 中赋值 (SideBubble 模块引用)
 }
 
 -- 入场过渡遮罩 (替代 TitleScreen, 全黑→游戏)
@@ -475,6 +478,10 @@ function Start()
     -- 气泡对话
     playerBubble = BubbleDialogue.newBubble()
 
+    -- 右侧教程气泡
+    SideBubble.init(vg)
+    G.sideBubble = SideBubble
+
     -- 故事管理器
     G.storyMgr = StoryManager.new()
 
@@ -555,12 +562,25 @@ function Start()
         return CardManager.getRumorFor(location)
     end)
 
+    HandPanel.setGameStateRef(G)
+
     HandPanel.setAdvanceDayCallback(function()
         GameFlow.advanceDay()
     end)
 
     HandPanel.setUseExorcismCallback(function()
         CardInteraction.handleInventoryExorcism()
+    end)
+
+    HandPanel.setOnFirstExpandCallback(function()
+        if not G.tutorialFlags.scheduleSeen then
+            G.tutorialFlags.scheduleSeen = true
+            SideBubble.showSequence({
+                { speaker = "苏柚", text = "这是今天的日程，完成了有奖励。" },
+                { speaker = "白夜", text = "……按顺序去就好了吗？" },
+                { speaker = "苏柚", text = "差不多。尽量别拖到最后一天。" },
+            })
+        end
     end)
 
     ShopPopup.setMapRevealCallback(function()
@@ -590,14 +610,14 @@ function Start()
     -- 相机模式回调
     CameraButton.setOnEnterCallback(function()
         AudioManager.playSFX("camera_enter")
-        -- 第一次进入相机模式 → 白夜气泡教程
-        if not G.tutorialFlags.cameraModeSeen and playerBubble then
+        -- 第一次进入相机模式 → 右侧教程气泡
+        if not G.tutorialFlags.cameraModeSeen then
             G.tutorialFlags.cameraModeSeen = true
-            BubbleDialogue.showTutorial(
-                playerBubble,
-                "白夜：翻开之前，先拍一下。\n镜头里有时会浮现方向——妖魔在哪边。\n胶卷不多。",
-                8
-            )
+            SideBubble.showSequence({
+                { speaker = "白夜", text = "翻开之前，先拍一下。" },
+                { speaker = "白夜", text = "镜头里有时会浮现方向——妖魔在哪边。" },
+                { speaker = "白夜", text = "胶卷不多。" },
+            })
         end
         if not board or not board.cards then return end
         for r = 1, Board.ROWS do
@@ -1057,6 +1077,9 @@ function HandleUpdate(eventType, eventData)
         BubbleDialogue.update(playerBubble, dt, isIdle, canTrigger)
     end
 
+    -- 右侧教程气泡更新
+    SideBubble.update(dt)
+
     updateHover(dt)
 
     -- 裂隙确认轮询 (事件结束后自动弹窗)
@@ -1228,6 +1251,9 @@ function HandleNanoVGRender(eventType, eventData)
     -- === 手牌面板 ===
     HandPanel.draw(vg, logicalW, logicalH, gameTime)
     HandPanel.drawHighlight(vg, logicalH)   -- Day 1 教程: 便签高亮脉冲
+
+    -- === 右侧教程气泡 ===
+    SideBubble.draw(vg, logicalW, logicalH)
 
     -- === HUD (天数已整合到 ResourceBar) ===
 

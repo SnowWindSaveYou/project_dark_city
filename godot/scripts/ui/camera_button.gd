@@ -230,7 +230,7 @@ func _draw() -> void:
 		var pulse: float = 0.5 + 0.5 * absf(sin(_time * 2.5))
 		glow_intensity = 0.55 + pulse * 0.25
 	else:
-		glow_intensity = 0.20 + _hover_t * 0.30
+		glow_intensity = 0.45 + _hover_t * 0.20
 	# 图标机身宽 100px，半径 50；glow 从外缘 52 开始向外扩散
 	_draw_soft_glow(Vector2(cx, cy), 52.0 * total_scale, 44.0, glow_color, glow_intensity)
 
@@ -382,6 +382,7 @@ func _draw_soft_glow(center: Vector2, inner_r: float, expand: float,
 ## body_color: 机身/镜头内芯颜色；lens_ring: 镜头外环颜色
 func _draw_camera_icon(body_color: Color, lens_ring: Color) -> void:
 	# 所有尺寸为原始设计值 × 2，坐标以 (0,0) = 图标中心
+
 	# ---- 机身（圆角矩形）----
 	var bw: float = 100.0
 	var bh: float =  68.0
