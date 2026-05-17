@@ -76,7 +76,7 @@ func _load_data() -> void:
 # ---------------------------------------------------------------------------
 
 ## 查询当前可触发的翻牌故事事件
-## card_type: "plot" | "clue"
+## card_type: "plot"
 ## 返回 Dictionary (事件数据) 或 null (无匹配)
 func query_event(card_type: String):
 	var candidates: Array = []

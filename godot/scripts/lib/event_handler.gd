@@ -13,8 +13,7 @@ enum EventType {
 	MONSTER = 2,        # 怪物遭遇
 	TRAP = 3,           # 陷阱触发
 	SHOP = 4,           # 商店入口
-	CLUE = 5,           # 线索发现
-	PLOT = 6,           # 剧情事件
+	PLOT = 6,           # 叙事推进格
 	ITEM = 7,           # 道具拾取
 	INTEL = 8,          # 情报购买
 	CHECKPOINT = 9,     # 检查点
@@ -22,7 +21,7 @@ enum EventType {
 	ABYSS_CORE = 11,    # 深渊核心
 	NPC_DIALOGUE = 12,  # NPC对话
 	PHOTO = 13,         # 拍照结果
-	DARK_CLUE = 14,     # 暗世界线索
+	DARK_CLUE = 14,     # 暗世界线索（专属）
 	DARK_ITEM = 15,     # 暗世界道具
 }
 
@@ -38,9 +37,10 @@ class EventResult:
 	var message: String = ""               # 显示消息
 	var popup_data: Dictionary = {}        # 弹窗数据
 	var on_complete: Callable = Callable() # 完成回调
+	var choices: Array = []                # 决策选项列表 [{label, cost, result, effects, condition}]
 	
 	func _to_string() -> String:
-		return "EventResult(type=%s, blocking=%s, effects=%s)" % [event_type, is_blocking, effects]
+		return "EventResult(type=%s, blocking=%s, effects=%s, choices=%d)" % [event_type, is_blocking, effects, choices.size()]
 
 # ============================================================================
 # 引用 (由 main.gd 注入)
@@ -62,7 +62,6 @@ static func get_emotion_for_event(event_type: EventType) -> String:
 		EventType.MONSTER: return "scared"
 		EventType.TRAP: return "nervous"
 		EventType.SHOP: return "confused"
-		EventType.CLUE: return "surprised"
 		EventType.PLOT: return "surprised"
 		EventType.ITEM: return "happy"
 		EventType.INTEL: return "confused"
@@ -140,21 +139,6 @@ func parse_real_world_card(card: Card) -> EventResult:
 				var apply_result: Dictionary = StoryManager.apply_event_effects(story_evt)
 				if apply_result.get("is_new_clue"):
 					result.message = "获得线索: %s" % apply_result["clue_name"]
-		
-		"clue":
-			# 灵感阈值检查 (changelog #3): 灵感不足时线索降级为安全事件
-			var insp_threshold: int = CardConfig.get_event_config().get("inspiration_clue_threshold", 15)
-			var cur_insp: int = GameData.get_resource("inspiration")
-			if cur_insp < insp_threshold:
-				result.event_type = EventType.SAFE
-				result.message = "灵感不足，未能发现线索..."
-			else:
-				result.event_type = EventType.CLUE
-				var clue_evt: Dictionary = StoryManager.pick_clue_event()
-				if not clue_evt.is_empty():
-					var apply_result: Dictionary = StoryManager.apply_event_effects(clue_evt)
-					if apply_result.get("is_new_clue"):
-						result.message = "获得线索: %s" % apply_result["clue_name"]
 	
 	return result
 
@@ -328,7 +312,6 @@ static func _card_type_to_event_type(card_type: String) -> EventType:
 		"monster": return EventType.MONSTER
 		"trap": return EventType.TRAP
 		"shop": return EventType.SHOP
-		"clue": return EventType.CLUE
 		"plot": return EventType.PLOT
 		"photo": return EventType.PHOTO
 	return EventType.NONE
@@ -407,11 +390,13 @@ func _build_result_from_event(evt: Dictionary, card: Card = null) -> EventResult
 	if result.is_blocking and card:
 		result.popup_data = { "card": card }
 
-	# 护盾检查（怪物/陷阱）
+	# 护盾检查（怪物/陷阱）- 护盾存在时跳过决策，直接消耗护盾
 	if evt_type == "monster" or evt_type == "trap":
 		if GameData.has_item("shield"):
 			result.effects = {}
 			result.message = "护身符抵消了伤害!"
+			# 护盾已处理，不显示决策面板
+			return result
 
 	# 剧情事件: set_flags + clue_id
 	if evt.has("set_flags") and not evt["set_flags"].is_empty():
@@ -419,7 +404,30 @@ func _build_result_from_event(evt: Dictionary, card: Card = null) -> EventResult
 	if evt.has("clue_id") and evt["clue_id"] != null and evt["clue_id"] != "":
 		result.popup_data["clue_id"] = evt["clue_id"]
 
+	# 决策选项：从事件定义读取，过滤掉当前不满足条件的选项
+	var raw_choices: Array = evt.get("choices", [])
+	if not raw_choices.is_empty():
+		result.choices = _filter_choices(raw_choices)
+
 	return result
+
+## 过滤决策选项，去掉条件不满足的（如 has_item:shield、has_film）
+func _filter_choices(raw: Array) -> Array:
+	var out: Array = []
+	for choice: Dictionary in raw:
+		var cond = choice.get("condition")
+		if cond == null or _eval_choice_condition(str(cond)):
+			out.append(choice)
+	return out
+
+## 评估单条选项的显示条件
+func _eval_choice_condition(cond: String) -> bool:
+	if cond.begins_with("has_item:"):
+		var item_key: String = cond.substr(9)
+		return GameData.has_item(item_key)
+	if cond == "has_film":
+		return GameData.get_resource("film") > 0
+	return true
 
 ## 检查事件条件，不满足时返回降级后的事件类型字符串
 ## 返回 "" 表示条件满足（不需要降级）
@@ -442,7 +450,6 @@ static func _string_to_event_type(type_str: String) -> EventType:
 		"monster": return EventType.MONSTER
 		"trap": return EventType.TRAP
 		"shop": return EventType.SHOP
-		"clue": return EventType.CLUE
 		"plot": return EventType.PLOT
 		"photo": return EventType.PHOTO
 		"item": return EventType.ITEM
@@ -465,8 +472,7 @@ static func get_event_type_name(event_type: EventType) -> String:
 		EventType.MONSTER: return "怪物"
 		EventType.TRAP: return "陷阱"
 		EventType.SHOP: return "商店"
-		EventType.CLUE: return "线索"
-		EventType.PLOT: return "剧情"
+		EventType.PLOT: return "叙事"
 		EventType.ITEM: return "道具"
 		EventType.INTEL: return "情报"
 		EventType.CHECKPOINT: return "检查点"

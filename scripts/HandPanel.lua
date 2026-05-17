@@ -1560,25 +1560,28 @@ function M.drawHighlight(vg, logicalH)
     local lx, ly, lw, lh = getTabLabelRect(logicalH, 1)
     local cx = lx + lw / 2
     local cy = ly + lh / 2
-    local r  = math.max(lw, lh) * 0.85
 
-    local a   = math.floor(highlightState_.alpha * 180)
     local cr, cg, cb = HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2], HIGHLIGHT_COLOR[3]
+    local a = highlightState_.alpha  -- 0~1
 
-    -- 放射状渐变光晕
-    local paint = nvgRadialGradient(vg, cx, cy, r * 0.3, r,
-        nvgRGBA(cr, cg, cb, a),
-        nvgRGBA(cr, cg, cb, 0))
-    nvgBeginPath(vg)
-    nvgCircle(vg, cx, cy, r)
-    nvgFillPaint(vg, paint)
-    nvgFill(vg)
+    -- 呼吸圈：两个同心圆描边，外圈半透明、内圈较实
+    local baseR  = math.max(lw, lh) * 0.62
+    -- 外圈随呼吸轻微扩缩（±4px）
+    local outerR = baseR + 4 * a
+    local innerR = baseR - 2 * (1 - a)
 
-    -- 边框描边脉冲
+    -- 外圈：较细、半透明
     nvgBeginPath(vg)
-    nvgRoundedRect(vg, lx - 2, ly - 2, lw + 4, lh + 4, TAB_LABEL_RADIUS + 2)
-    nvgStrokeColor(vg, nvgRGBA(cr, cg, cb, math.floor(highlightState_.alpha * 220)))
-    nvgStrokeWidth(vg, 2)
+    nvgCircle(vg, cx, cy, outerR)
+    nvgStrokeColor(vg, nvgRGBA(cr, cg, cb, math.floor(a * 110)))
+    nvgStrokeWidth(vg, 1.5)
+    nvgStroke(vg)
+
+    -- 内圈：较粗、更实
+    nvgBeginPath(vg)
+    nvgCircle(vg, cx, cy, innerR)
+    nvgStrokeColor(vg, nvgRGBA(cr, cg, cb, math.floor(a * 210)))
+    nvgStrokeWidth(vg, 2.5)
     nvgStroke(vg)
 end
 

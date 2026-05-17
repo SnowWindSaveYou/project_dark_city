@@ -178,7 +178,7 @@ func generate_rumor_from_board(board: Board) -> void:
 	candidates.shuffle()
 
 	for card in candidates:
-		var is_safe: bool = card.type in ["safe", "reward", "plot", "clue", "landmark"]
+		var is_safe: bool = card.type in ["safe", "reward", "plot", "landmark"]
 		var loc_info: Dictionary = card.get_location_info()
 		var label: String = loc_info.get("label", "未知")
 		var text: String
@@ -215,7 +215,7 @@ func add_rumor_from_board(board: Board) -> bool:
 		return false
 
 	var pick: Card = candidates[randi() % candidates.size()]
-	var is_safe: bool = pick.type in ["safe", "reward", "plot", "clue", "landmark"]
+	var is_safe: bool = pick.type in ["safe", "reward", "plot", "landmark"]
 	var loc_info: Dictionary = pick.get_location_info()
 	var label: String = loc_info.get("label", "未知")
 	var text: String

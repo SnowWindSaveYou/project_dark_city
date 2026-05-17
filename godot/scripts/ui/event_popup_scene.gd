@@ -82,7 +82,7 @@ func _ready() -> void:
 	# 父节点 _gui_input 收不到，需直接连接子节点 gui_input 信号。
 	_confirm_button.gui_input.connect(func(ev: InputEvent) -> void:
 		if ev is InputEventMouseButton:
-			var mb := ev as InputEventMouseButton
+			var mb: InputEventMouseButton = ev as InputEventMouseButton
 			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT \
 					and _active and _phase != "enter":
 				_style_confirm_button(true)
@@ -130,12 +130,15 @@ func show_photo_with_chibi(card: Card, monster_tex_path: String) -> void:
 # ===========================================================================
 
 ## 非阻断事件弹窗（新路径）：笔记本+拍立得布局
+## choices 非空时底部显示决策按钮行，回调签名: func(choice: Dictionary)
 func show_event_data(
 		card_type: String,
 		effects: Dictionary,
 		shield_used: bool,
 		location: String = "",
-		trap_subtype: String = "") -> void:
+		trap_subtype: String = "",
+		choices: Array = [],
+		on_choice: Callable = Callable()) -> void:
 	_active = true
 	_phase = "enter"
 	visible = true
@@ -191,15 +194,21 @@ func show_event_data(
 	else:
 		_baiiye_label.visible = false
 
-	_confirm_label.text = "知道了"
-	_style_confirm_button(false)
+	# 底部按钮区：有决策时显示选项行，否则显示"知道了"
+	if choices.is_empty():
+		_confirm_label.text = "知道了"
+		_confirm_button.visible = true
+		_style_confirm_button(false)
+		_clear_choices_row()
+	else:
+		_confirm_button.visible = false
+		_populate_choices_row(choices, on_choice)
 
 	# 按事件类型播放对应音效（对齐 Lua 版 CardInteraction 的 sfxMap 分发逻辑）
 	var evt_sfx_map: Dictionary = {
 		"safe":    "evt_safe",
 		"trap":    "evt_trap",
 		"reward":  "evt_reward",
-		"clue":    "evt_clue",
 		"plot":    "evt_plot",
 		"monster": "evt_monster",
 	}
@@ -304,6 +313,155 @@ func _load_event_image(location: String, event_type: String) -> void:
 		_event_texture.visible = false
 
 # ---------------------------------------------------------------------------
+# 内部：决策按钮行（替换"知道了"区域）
+# ---------------------------------------------------------------------------
+
+## 当前决策按钮行节点（null 表示未创建）
+var _choices_row: HBoxContainer = null
+
+## 清除决策按钮行
+func _clear_choices_row() -> void:
+	if _choices_row:
+		_choices_row.queue_free()
+		_choices_row = null
+
+## 选择后过渡到"结果视图"：更新标题/正文/白夜台词/效果行，淡入"知道了"按钮
+## result_effects: 实际产生变化的资源字典（用于 _populate_effects 展示）
+func transition_to_result(
+		result_title: String,
+		result_desc: String,
+		result_baiiye: String,
+		result_effects: Dictionary) -> void:
+	# 收集需要淡出的节点
+	var fade_out_nodes: Array = [_title_label, _desc_label, _effects_row]
+	if _baiiye_label.visible:
+		fade_out_nodes.append(_baiiye_label)
+	if _choices_row:
+		fade_out_nodes.append(_choices_row)
+
+	var tw_out: Tween = create_tween()
+	tw_out.set_parallel(true)
+	for node: Control in fade_out_nodes:
+		tw_out.tween_property(node, "modulate:a", 0.0, 0.18)
+
+	tw_out.chain().tween_callback(func() -> void:
+		# 更新内容
+		_title_label.text = result_title
+		_desc_label.text = result_desc
+		_desc_scroll.call_deferred("set", "scroll_vertical", 0)
+
+		_populate_effects(result_effects, false)
+
+		if result_baiiye != "":
+			_baiiye_label.text = "— " + result_baiiye
+			_baiiye_label.visible = true
+			_baiiye_label.modulate.a = 0.0
+		else:
+			_baiiye_label.visible = false
+
+		_clear_choices_row()
+		_confirm_label.text = "知道了"
+		_confirm_button.modulate.a = 0.0
+		_confirm_button.visible = true
+		_style_confirm_button(false)
+
+		# 淡入更新后的内容
+		var fade_in_nodes: Array = [_title_label, _desc_label, _effects_row, _confirm_button]
+		if result_baiiye != "":
+			fade_in_nodes.append(_baiiye_label)
+		var tw_in: Tween = create_tween()
+		tw_in.set_parallel(true)
+		for node: Control in fade_in_nodes:
+			tw_in.tween_property(node, "modulate:a", 1.0, 0.22) \
+				.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		if result_baiiye != "":
+			tw_in.tween_property(_baiiye_label, "modulate:a", 0.72, 0.22)
+	)
+
+## 创建并填充决策按钮行，插入到 ConfirmButton 同级（OuterVBox 末尾）
+func _populate_choices_row(choices: Array, on_choice: Callable) -> void:
+	_clear_choices_row()
+
+	var outer_vbox: VBoxContainer = $PanelAnchor/Notebook/OuterVBox
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer_vbox.add_child(row)
+	_choices_row = row
+
+	# 调色板：与 show_choice 风格统一
+	var palette: Array = [
+		Color(0.286, 0.416, 0.518, 1.0),  # 深蓝灰
+		Color(0.235, 0.431, 0.376, 1.0),  # 暗绿
+		Color(0.518, 0.345, 0.235, 1.0),  # 暖棕（第三个选项）
+	]
+
+	for i: int in choices.size():
+		var choice: Dictionary = choices[i]
+		var btn: PanelContainer = PanelContainer.new()
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0, 64)
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+
+		var btn_color: Color = palette[i % palette.size()]
+		var bs: StyleBoxFlat = StyleBoxFlat.new()
+		bs.bg_color = Color(btn_color.r, btn_color.g, btn_color.b, 0.85)
+		bs.set_corner_radius_all(14)
+		bs.content_margin_left = 16
+		bs.content_margin_right = 16
+		bs.content_margin_top = 8
+		bs.content_margin_bottom = 8
+		btn.add_theme_stylebox_override("panel", bs)
+
+		var lbl: Label = Label.new()
+		lbl.text = choice.get("label", "?")
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 36)
+		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.92))
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.add_child(lbl)
+
+		# 费用提示（灰色小字，如"步数 -2"）
+		var cost: Dictionary = choice.get("cost", {})
+		if not cost.is_empty():
+			var cost_parts: Array = []
+			for k: String in cost:
+				var v = cost[k]
+				if k == "item":
+					cost_parts.append("消耗%s" % str(v))
+				else:
+					var icon: String = GameData.RESOURCE_ICONS.get(k, k)
+					cost_parts.append("%s %s" % [icon, str(v)])
+			var cost_lbl: Label = Label.new()
+			cost_lbl.text = " / ".join(cost_parts)
+			cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cost_lbl.add_theme_font_size_override("font_size", 26)
+			cost_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.55))
+			cost_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			# 将费用追加到按钮内部（纵向，创建内部 VBox）
+			var inner_vbox: VBoxContainer = VBoxContainer.new()
+			inner_vbox.add_theme_constant_override("separation", 2)
+			btn.remove_child(lbl)
+			btn.add_child(inner_vbox)
+			inner_vbox.add_child(lbl)
+			inner_vbox.add_child(cost_lbl)
+
+		var captured_choice: Dictionary = choice
+		btn.gui_input.connect(func(ev: InputEvent) -> void:
+			if ev is InputEventMouseButton:
+				var mb: InputEventMouseButton = ev as InputEventMouseButton
+				if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT \
+						and _active and _phase != "enter":
+					_clear_choices_row()
+					dismiss()
+					if on_choice.is_valid():
+						on_choice.call(captured_choice)
+		)
+		row.add_child(btn)
+
+# ---------------------------------------------------------------------------
 # 内部：确认按钮样式
 # ---------------------------------------------------------------------------
 func _style_confirm_button(hovered: bool) -> void:
@@ -350,8 +508,13 @@ func _run_enter_animation(has_baiiye: bool) -> void:
 	if has_baiiye:
 		tw.tween_property(_baiiye_label, "modulate:a", 0.72, 0.28).set_delay(base + 0.30) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_confirm_button, "modulate:a", 1.0, 0.26).set_delay(base + 0.28) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	if _confirm_button.visible:
+		tw.tween_property(_confirm_button, "modulate:a", 1.0, 0.26).set_delay(base + 0.28) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	if _choices_row:
+		_choices_row.modulate.a = 0.0
+		tw.tween_property(_choices_row, "modulate:a", 1.0, 0.26).set_delay(base + 0.28) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.chain().tween_callback(func(): _phase = "idle")
 
 ## 关闭弹窗
@@ -370,7 +533,10 @@ func dismiss() -> void:
 	tw.tween_property(_title_label, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_effects_row, "modulate:a", 0.0, 0.15)
 	tw.tween_property(_desc_label, "modulate:a", 0.0, 0.15)
-	tw.tween_property(_confirm_button, "modulate:a", 0.0, 0.15)
+	if _confirm_button.visible:
+		tw.tween_property(_confirm_button, "modulate:a", 0.0, 0.15)
+	if _choices_row:
+		tw.tween_property(_choices_row, "modulate:a", 0.0, 0.15)
 	if _baiiye_label.visible:
 		tw.tween_property(_baiiye_label, "modulate:a", 0.0, 0.12)
 	tw.chain().tween_callback(_on_dismiss_complete)
@@ -381,6 +547,7 @@ func _on_dismiss_complete() -> void:
 	_overlay.visible = false
 	$PanelAnchor.visible = false
 	visible = false
+	_clear_choices_row()
 	popup_closed.emit(_card)
 	_card = null
 
@@ -625,7 +792,7 @@ func _draw_polaroid_shadow_decor() -> void:
 	var s: float = pol_w / 122.0
 
 	# StyleBoxFlat 主体透明，只取引擎内置阴影（与 ResourceBar 完全相同的做法）
-	var sb := StyleBoxFlat.new()
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
 	sb.bg_color                   = Color(0, 0, 0, 0)
 	sb.corner_radius_top_left     = 6
 	sb.corner_radius_top_right    = 6
@@ -680,7 +847,7 @@ func _update_polaroid_layout() -> void:
 	var bottom_h: float = maxf(pol_h * 0.171, 32.0)
 
 	# 更新拍立得卡样式（奶白色相纸，比例缩放边距）
-	var pol_style := StyleBoxFlat.new()
+	var pol_style: StyleBoxFlat = StyleBoxFlat.new()
 	pol_style.bg_color          = Color(0.992, 0.988, 0.965, 1.0)
 	pol_style.border_color      = Color(0.824, 0.784, 0.725, 0.55)
 	pol_style.set_border_width_all(2)

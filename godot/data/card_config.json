@@ -1,361 +1,812 @@
 {
-	"location_info": {
-		"home": {
-			"icon": "🏠",
-			"label": "家"
-		},
-		"convenience": {
-			"icon": "🏪",
-			"label": "便利店"
-		},
-		"church": {
-			"icon": "⛪",
-			"label": "教堂"
-		},
-		"police": {
-			"icon": "🚔",
-			"label": "警察局"
-		},
-		"company": {
-			"icon": "🏢",
-			"label": "公司"
-		},
-		"school": {
-			"icon": "🏫",
-			"label": "学校"
-		},
-		"park": {
-			"icon": "🌳",
-			"label": "公园"
-		},
-		"alley": {
-			"icon": "🌙",
-			"label": "小巷"
-		},
-		"station": {
-			"icon": "🚉",
-			"label": "车站"
-		},
-		"hospital": {
-			"icon": "🏥",
-			"label": "医院"
-		},
-		"library": {
-			"icon": "📚",
-			"label": "图书馆"
-		},
-		"bank": {
-			"icon": "🏦",
-			"label": "银行"
-		},
-		"cemetery": {
-			"icon": "🪦",
-			"label": "墓地"
-		},
-		"gym": {
-			"icon": "💪",
-			"label": "健身房"
-		}
-	},
-	"event_weights": {
-		"safe": 30,
-		"monster": 20,
-		"trap": 15,
-		"reward": 15,
-		"plot": 10,
-		"clue": 10
-	},
-	"trap_subtype_info": {
-		"sanity": {
-			"icon": "😱",
-			"label": "阴气侵蚀",
-			"effect": {
-				"san": -1
-			}
-		},
-		"money": {
-			"icon": "💸",
-			"label": "财物散失",
-			"effect": {
-				"money": -10
-			}
-		},
-		"film": {
-			"icon": "📷",
-			"label": "灵雾曝光",
-			"effect": {
-				"film": -1
-			}
-		},
-		"teleport": {
-			"icon": "🌀",
-			"label": "空间错位",
-			"effect": {}
-		}
-	},
-	"darkside_info": {
-		"company": {
-			"safe": { "icon": "🏢", "label": "空荡办公室" },
-			"monster": { "icon": "🕴️", "label": "影子上司" },
-			"trap": { "icon": "📋", "label": "无尽加班令" },
-			"reward": { "icon": "💼", "label": "遗落的公文包" },
-			"plot": { "icon": "🖥️", "label": "异常邮件" },
-			"clue": { "icon": "📂", "label": "机密档案" }
-		},
-		"school": {
-			"safe": { "icon": "🏫", "label": "安静教室" },
-			"monster": { "icon": "👤", "label": "无面教师" },
-			"trap": { "icon": "🔔", "label": "永不下课" },
-			"reward": { "icon": "📒", "label": "旧笔记本" },
-			"plot": { "icon": "🎒", "label": "无主书包" },
-			"clue": { "icon": "📝", "label": "黑板留言" }
-		},
-		"park": {
-			"safe": { "icon": "🌳", "label": "寂静长椅" },
-			"monster": { "icon": "🌑", "label": "树影低语" },
-			"trap": { "icon": "🕸️", "label": "缠绕藤蔓" },
-			"reward": { "icon": "🍃", "label": "净化之风" },
-			"plot": { "icon": "🗿", "label": "奇怪雕像" },
-			"clue": { "icon": "🪶", "label": "地上羽毛" }
-		},
-		"alley": {
-			"safe": { "icon": "🌙", "label": "寂静小巷" },
-			"monster": { "icon": "👁️", "label": "墙缝窥视" },
-			"trap": { "icon": "🕳️", "label": "地面塌陷" },
-			"reward": { "icon": "📦", "label": "角落包裹" },
-			"plot": { "icon": "🚪", "label": "不存在的门" },
-			"clue": { "icon": "✍️", "label": "涂鸦暗号" }
-		},
-		"station": {
-			"safe": { "icon": "🚉", "label": "末班列车" },
-			"monster": { "icon": "🚇", "label": "不停靠的车" },
-			"trap": { "icon": "🌀", "label": "循环站台" },
-			"reward": { "icon": "🎫", "label": "神秘车票" },
-			"plot": { "icon": "📻", "label": "广播异响" },
-			"clue": { "icon": "🗺️", "label": "失落线路图" }
-		},
-		"hospital": {
-			"safe": { "icon": "🏥", "label": "空病房" },
-			"monster": { "icon": "💉", "label": "游走护士" },
-			"trap": { "icon": "🩺", "label": "错误诊断" },
-			"reward": { "icon": "💊", "label": "遗留药品" },
-			"plot": { "icon": "📋", "label": "诡异病历" },
-			"clue": { "icon": "🔬", "label": "实验记录" }
-		},
-		"library": {
-			"safe": { "icon": "📚", "label": "安静角落" },
-			"monster": { "icon": "📖", "label": "自翻的书" },
-			"trap": { "icon": "🔇", "label": "沉默诅咒" },
-			"reward": { "icon": "📜", "label": "古老卷轴" },
-			"plot": { "icon": "📕", "label": "禁书" },
-			"clue": { "icon": "🔖", "label": "夹页纸条" }
-		},
-		"bank": {
-			"safe": { "icon": "🏦", "label": "空金库" },
-			"monster": { "icon": "🎭", "label": "面具柜员" },
-			"trap": { "icon": "🔒", "label": "锁死的门" },
-			"reward": { "icon": "💰", "label": "无主存款" },
-			"plot": { "icon": "🏧", "label": "异常终端" },
-			"clue": { "icon": "🧾", "label": "可疑账单" }
-		},
-		"cemetery": {
-			"safe": { "icon": "🪦", "label": "静谧墓碑" },
-			"monster": { "icon": "💀", "label": "游荡亡灵" },
-			"trap": { "icon": "🕳️", "label": "塌陷墓穴" },
-			"reward": { "icon": "⚱️", "label": "古老遗物" },
-			"plot": { "icon": "🪦", "label": "无名墓志铭" },
-			"clue": { "icon": "🦴", "label": "枯骨低语" }
-		},
-		"gym": {
-			"safe": { "icon": "💪", "label": "空旷训练场" },
-			"monster": { "icon": "🏋️", "label": "失控器械" },
-			"trap": { "icon": "🪤", "label": "封锁更衣室" },
-			"reward": { "icon": "🥤", "label": "能量补给" },
-			"plot": { "icon": "🪞", "label": "镜中异影" },
-			"clue": { "icon": "📋", "label": "训练日志" }
-		}
-	},
-	"card_effects": {
-		"safe": {},
-		"monster": { "san": -2 },
-		"trap": {},
-		"reward": { "money": 15, "film": 1 },
-		"plot": { "inspiration": 1 },
-		"clue": { "inspiration": 1 },
-		"photo": { "money": 5 },
-		"landmark": { "san": 1 },
-		"home": { "san": 1 },
-		"shop": {},
-		"rift": {}
-	},
-	"event_texts": {
-		"safe": [
-			"周围一片宁静，什么也没有发生。",
-			"微风拂过，带来一丝安心的感觉。",
-			"这里很安全，可以稍作休息。"
-		],
-		"monster": [
-			"阴影从角落窜出，一股寒意直冲脑门...",
-			"黑暗中传来沉重的呼吸声，越来越近...",
-			"地板上浮现诡异的符文，空气凝固了..."
-		],
-		"trap": [
-			"脚下突然传来咔嚓声，是陷阱！",
-			"一股无形的力量困住了你的脚步...",
-			"周围的墙壁开始缓缓合拢..."
-		],
-		"reward": [
-			"角落里发现了一个被遗忘的保险箱！",
-			"在废壟中找到了一袋未开封的补给品。",
-			"一道神秘的光芒指引你找到了宝物。"
-		],
-		"plot": [
-			"你发现了一段被掩盖的真相...",
-			"墙上的涂鸦似乎在诉说着什么...",
-			"一张泛黄的照片掉落在你面前..."
-		],
-		"clue": [
-			"地上有一串奇怪的脚印，值得追踪。",
-			"角落里有人留下了一条隐秘的信息。",
-			"你注意到了一个不寻常的细节..."
-		],
-		"photo": [
-			"快门声响起，画面被永远定格。",
-			"镜头捕捉到了肉眼看不见的东西...",
-			"照片慢慢显影，真相浮出水面。"
-		],
-		"rift": [
-			"空间仿佛被撕裂开一道口子...",
-			"脚下的阴影开始漩涡般旋转...",
-			"一股来自深处的力量在召唤你..."
-		]
-	},
-	"trap_subtype_texts": {
-		"sanity": [
-			"阴气侵蚀，寒意刺骨...",
-			"一阵恶寒掠过全身，精神恍惚...",
-			"黑暗低语萦绕耳边，心智动摇..."
-		],
-		"money": [
-			"口袋里的东西莫名消失了...",
-			"财物不翼而飞，像是被什么拿走了...",
-			"一阵诡异的风过后，钱包空了..."
-		],
-		"film": [
-			"相机镜头突然起雾，胶卷曝光了！",
-			"灵雾渗入相机，一卷胶卷报废了...",
-			"闪光灯自行触发，浪费了珍贵的胶卷..."
-		],
-		"teleport": [
-			"脚下空间扭曲，瞬间转移到了别处！",
-			"眼前一花，人已经不在原地了...",
-			"一股力量将你拽向了未知的方向..."
-		]
-	},
-	"card_types": {
-		"safe": { "icon": "✨", "label": "安全", "color_key": "safe" },
-		"home": { "icon": "🏠", "label": "家", "color_key": "safe" },
-		"landmark": { "icon": "🏛️", "label": "地标", "color_key": "highlight" },
-		"shop": { "icon": "🛒", "label": "商店", "color_key": "info" },
-		"monster": { "icon": "👻", "label": "怪物", "color_key": "danger" },
-		"trap": { "icon": "⚡", "label": "陷阱", "color_key": "warning" },
-		"reward": { "icon": "💎", "label": "奖励", "color_key": "highlight" },
-		"plot": { "icon": "📖", "label": "剧情", "color_key": "plot" },
-		"clue": { "icon": "🔍", "label": "线索", "color_key": "info" },
-		"photo": { "icon": "📸", "label": "相片", "color_key": "safe" },
-		"rift": { "icon": "🌀", "label": "裂隙", "color_key": "dark_accent" }
-	},
-	"dark_card_types": {
-		"normal": { "icon": "🌑", "label": "暗巷", "color_key": "dark_accent" },
-		"shop": { "icon": "🏪", "label": "暗市", "color_key": "info" },
-		"intel": { "icon": "👁️", "label": "情报点", "color_key": "plot" },
-		"checkpoint": { "icon": "🚧", "label": "关卡", "color_key": "warning" },
-		"clue": { "icon": "🔮", "label": "线索", "color_key": "dark_glow" },
-		"item": { "icon": "📦", "label": "道具", "color_key": "highlight" },
-		"passage": { "icon": "🕳️", "label": "通道", "color_key": "dark_passage" },
-		"abyss_core": { "icon": "💀", "label": "深渊核心", "color_key": "dark_abyss" },
-		"rift": { "icon": "🌀", "label": "裂隙", "color_key": "dark_accent" }
-	},
-	"schedule_templates": {
-		"company":    { "verb": "去公司上班",   "reward": ["money", 10] },
-		"school":     { "verb": "去学校上课",   "reward": ["money", 8] },
-		"park":       { "verb": "去公园散步",   "reward": ["san", 1] },
-		"alley":      { "verb": "穿过小巷",     "reward": ["money", 8] },
-		"station":    { "verb": "去车站接人",   "reward": ["money", 6] },
-		"hospital":   { "verb": "去医院看病",   "reward": ["san", 1] },
-		"library":    { "verb": "去图书馆学习", "reward": ["inspiration", 1] },
-		"bank":       { "verb": "去银行办事",   "reward": ["money", 12] },
-		"convenience":{ "verb": "去便利店购物", "reward": ["money", 5] },
-		"church":     { "verb": "去教堂祈祷",   "reward": ["san", 1] },
-		"police":     { "verb": "去警察局报案", "reward": ["san", 1] },
-		"cemetery":   { "verb": "去墓地调查",   "reward": ["inspiration", 1] },
-		"gym":        { "verb": "去健身房锻炼", "reward": ["health", 1] }
-	},
-	"rumor_safe_texts": [
-		"今天%s很平静",
-		"%s附近没有异常",
-		"听说%s今天很安全"
-	],
-	"rumor_danger_texts": [
-		"%s有脏东西",
-		"别去%s，有危险",
-		"听说%s闹鬼了"
-	],
-	"shop_items": {
-		"coffee": {
-			"name": "咖啡",
-			"icon": "☕",
-			"price": 8,
-			"type": "consumable",
-			"effect": { "san": 2 },
-			"desc": "热腾腾的咖啡，恢复些许理智"
-		},
-		"film": {
-			"name": "胶卷补充",
-			"icon": "🎞️",
-			"price": 10,
-			"type": "consumable",
-			"effect": { "film": 1 },
-			"desc": "额外的胶卷，多一次拍摄机会"
-		},
-		"shield": {
-			"name": "护身符",
-			"icon": "🛡️",
-			"price": 15,
-			"type": "persistent",
-			"effect": {},
-			"desc": "神秘的护身符，或许能保护你"
-		},
-		"exorcism": {
-			"name": "退魔香",
-			"icon": "🔮",
-			"price": 12,
-			"type": "consumable",
-			"effect": {},
-			"desc": "燃烧时能驱散附近的邪气"
-		},
-		"map": {
-			"name": "都市地图",
-			"icon": "🗺️",
-			"price": 10,
-			"type": "consumable",
-			"effect": {},
-			"desc": "标注了一些安全路线的地图"
-		},
-		"sedative": {
-			"name": "镇定剂",
-			"icon": "💊",
-			"price": 12,
-			"type": "consumable",
-			"effect": { "san": 3 },
-			"desc": "强效镇定剂，大幅恢复理智"
-		}
-	},
-	"consumable_order": ["shield", "exorcism", "coffee", "sedative"],
-	"shop_variants": [
-		{ "name": "午夜便利店", "greeting": "深夜好，有什么需要的吗？" },
-		{ "name": "黄昏杂货铺", "greeting": "嘿，看看有什么中意的？" },
-		{ "name": "巷口自贩机", "greeting": "请投币选择商品。" }
-	],
-	"shop_refresh_cost": 5
+  "location_info": {
+    "home": {
+      "icon": "🏠",
+      "label": "家"
+    },
+    "convenience": {
+      "icon": "🏪",
+      "label": "便利店"
+    },
+    "church": {
+      "icon": "⛪",
+      "label": "教堂"
+    },
+    "police": {
+      "icon": "🚔",
+      "label": "警察局"
+    },
+    "company": {
+      "icon": "🏢",
+      "label": "公司"
+    },
+    "school": {
+      "icon": "🏫",
+      "label": "学校"
+    },
+    "park": {
+      "icon": "🌳",
+      "label": "公园"
+    },
+    "alley": {
+      "icon": "🌙",
+      "label": "小巷"
+    },
+    "station": {
+      "icon": "🚉",
+      "label": "车站"
+    },
+    "hospital": {
+      "icon": "🏥",
+      "label": "医院"
+    },
+    "library": {
+      "icon": "📚",
+      "label": "图书馆"
+    },
+    "bank": {
+      "icon": "🏦",
+      "label": "银行"
+    },
+    "cemetery": {
+      "icon": "🪦",
+      "label": "墓地"
+    },
+    "gym": {
+      "icon": "💪",
+      "label": "健身房"
+    }
+  },
+  "event_weights": {
+    "safe": 30,
+    "monster": 20,
+    "trap": 15,
+    "reward": 15,
+    "plot": 20
+  },
+  "trap_subtype_info": {
+    "sanity": {
+      "icon": "😱",
+      "label": "阴气侵蚀",
+      "effect": {
+        "san": -1
+      }
+    },
+    "money": {
+      "icon": "💸",
+      "label": "财物散失",
+      "effect": {
+        "money": -10
+      }
+    },
+    "film": {
+      "icon": "📷",
+      "label": "灵雾曝光",
+      "effect": {
+        "film": -1
+      }
+    },
+    "teleport": {
+      "icon": "🌀",
+      "label": "空间错位",
+      "effect": {}
+    }
+  },
+  "darkside_info": {
+    "company": {
+      "safe": {
+        "icon": "🏢",
+        "label": "空荡办公室"
+      },
+      "monster": {
+        "icon": "🕴️",
+        "label": "影子上司"
+      },
+      "trap": {
+        "icon": "📋",
+        "label": "无尽加班令"
+      },
+      "reward": {
+        "icon": "💼",
+        "label": "遗落的公文包"
+      },
+      "plot": {
+        "icon": "🖥️",
+        "label": "异常邮件"
+      }
+    },
+    "school": {
+      "safe": {
+        "icon": "🏫",
+        "label": "安静教室"
+      },
+      "monster": {
+        "icon": "👤",
+        "label": "无面教师"
+      },
+      "trap": {
+        "icon": "🔔",
+        "label": "永不下课"
+      },
+      "reward": {
+        "icon": "📒",
+        "label": "旧笔记本"
+      },
+      "plot": {
+        "icon": "🎒",
+        "label": "无主书包"
+      }
+    },
+    "park": {
+      "safe": {
+        "icon": "🌳",
+        "label": "寂静长椅"
+      },
+      "monster": {
+        "icon": "🌑",
+        "label": "树影低语"
+      },
+      "trap": {
+        "icon": "🕸️",
+        "label": "缠绕藤蔓"
+      },
+      "reward": {
+        "icon": "🍃",
+        "label": "净化之风"
+      },
+      "plot": {
+        "icon": "🗿",
+        "label": "奇怪雕像"
+      }
+    },
+    "alley": {
+      "safe": {
+        "icon": "🌙",
+        "label": "寂静小巷"
+      },
+      "monster": {
+        "icon": "👁️",
+        "label": "墙缝窥视"
+      },
+      "trap": {
+        "icon": "🕳️",
+        "label": "地面塌陷"
+      },
+      "reward": {
+        "icon": "📦",
+        "label": "角落包裹"
+      },
+      "plot": {
+        "icon": "🚪",
+        "label": "不存在的门"
+      }
+    },
+    "station": {
+      "safe": {
+        "icon": "🚉",
+        "label": "末班列车"
+      },
+      "monster": {
+        "icon": "🚇",
+        "label": "不停靠的车"
+      },
+      "trap": {
+        "icon": "🌀",
+        "label": "循环站台"
+      },
+      "reward": {
+        "icon": "🎫",
+        "label": "神秘车票"
+      },
+      "plot": {
+        "icon": "📻",
+        "label": "广播异响"
+      }
+    },
+    "hospital": {
+      "safe": {
+        "icon": "🏥",
+        "label": "空病房"
+      },
+      "monster": {
+        "icon": "💉",
+        "label": "游走护士"
+      },
+      "trap": {
+        "icon": "🩺",
+        "label": "错误诊断"
+      },
+      "reward": {
+        "icon": "💊",
+        "label": "遗留药品"
+      },
+      "plot": {
+        "icon": "📋",
+        "label": "诡异病历"
+      }
+    },
+    "library": {
+      "safe": {
+        "icon": "📚",
+        "label": "安静角落"
+      },
+      "monster": {
+        "icon": "📖",
+        "label": "自翻的书"
+      },
+      "trap": {
+        "icon": "🔇",
+        "label": "沉默诅咒"
+      },
+      "reward": {
+        "icon": "📜",
+        "label": "古老卷轴"
+      },
+      "plot": {
+        "icon": "📕",
+        "label": "禁书"
+      }
+    },
+    "bank": {
+      "safe": {
+        "icon": "🏦",
+        "label": "空金库"
+      },
+      "monster": {
+        "icon": "🎭",
+        "label": "面具柜员"
+      },
+      "trap": {
+        "icon": "🔒",
+        "label": "锁死的门"
+      },
+      "reward": {
+        "icon": "💰",
+        "label": "无主存款"
+      },
+      "plot": {
+        "icon": "🏧",
+        "label": "异常终端"
+      }
+    },
+    "cemetery": {
+      "safe": {
+        "icon": "🪦",
+        "label": "静谧墓碑"
+      },
+      "monster": {
+        "icon": "💀",
+        "label": "游荡亡灵"
+      },
+      "trap": {
+        "icon": "🕳️",
+        "label": "塌陷墓穴"
+      },
+      "reward": {
+        "icon": "⚱️",
+        "label": "古老遗物"
+      },
+      "plot": {
+        "icon": "🪦",
+        "label": "无名墓志铭"
+      }
+    },
+    "gym": {
+      "safe": {
+        "icon": "💪",
+        "label": "空旷训练场"
+      },
+      "monster": {
+        "icon": "🏋️",
+        "label": "失控器械"
+      },
+      "trap": {
+        "icon": "🪤",
+        "label": "封锁更衣室"
+      },
+      "reward": {
+        "icon": "🥤",
+        "label": "能量补给"
+      },
+      "plot": {
+        "icon": "🪞",
+        "label": "镜中异影"
+      }
+    }
+  },
+  "card_effects": {
+    "safe": {},
+    "monster": {
+      "san": -2
+    },
+    "trap": {},
+    "reward": {
+      "money": 15,
+      "film": 1
+    },
+    "plot": {
+      "inspiration": 1
+    },
+    "photo": {
+      "money": 5
+    },
+    "landmark": {
+      "san": 1
+    },
+    "home": {
+      "san": 1
+    },
+    "shop": {},
+    "rift": {}
+  },
+  "event_texts": {
+    "monster": [
+      {
+        "title": "不速之客",
+        "desc": "阴影从衣柜后滑出，空气骤然冷却。\n它还没有发现你……或者已经发现了，只是在等待。",
+        "baiiye": "别慌。先想清楚你有什么再动。"
+      },
+      {
+        "title": "夜里的呼吸声",
+        "desc": "走廊尽头传来沉重的喘息，越来越近。\n脚步声停在你门口——什么都没有，但寒意还在。",
+        "baiiye": "它在等你先动。"
+      },
+      {
+        "title": "诡异的符文",
+        "desc": "地板上浮现出发光的符文，以你为圆心向外扩散。\n空气凝固了，时间好像也慢下来。",
+        "baiiye": "这是束缚，不是攻击。先别乱动。"
+      }
+    ],
+    "trap": [
+      {
+        "title": "踏空",
+        "desc": "脚下传来咔嚓一声，你反射性地停住了步伐。\n什么东西被触发了，还没有完全释放。",
+        "baiiye": "这里有机关。你还有一点时间。"
+      },
+      {
+        "title": "无形的牵绊",
+        "desc": "一股无形的力量缠上了你的脚踝，像是沼泽，越挣越紧。\n周围的空气开始发烫。",
+        "baiiye": "蛮力只会更深陷。冷静想。"
+      },
+      {
+        "title": "收缩的空间",
+        "desc": "四周墙壁极缓慢地向中央靠拢，几乎感知不到——\n直到你盯着门缝，发现它变窄了。",
+        "baiiye": "时间比你想象的要少。"
+      }
+    ],
+    "safe": [
+      {
+        "title": "短暂的宁静",
+        "desc": "这里没有任何异常的气息，沉默得有些反常。\n光线也比别处明亮一点点，像是某种无声的庇护。",
+        "baiiye": "难得的喘息机会——怎么用，你说了算。"
+      },
+      {
+        "title": "微风穿过",
+        "desc": "一阵细微的风从缝隙里钻进来，带着外面的气息。\n不冷，不热，就是……存在着。",
+        "baiiye": "没什么威胁。好好感受一下周围。"
+      },
+      {
+        "title": "光的角落",
+        "desc": "窗缝里漏进一条细细的光，落在地板上一动不动。\n此刻这里很安全，但走廊那头还不确定。",
+        "baiiye": "休息或者搜查，都是你的选择。"
+      }
+    ],
+    "reward": [
+      {
+        "title": "遗忘的角落",
+        "desc": "壁橱深处压着一只布满灰尘的旧盒子。\n盖子没有上锁，只是被时间压住了。",
+        "baiiye": "快拿走，还是仔细翻一翻？"
+      },
+      {
+        "title": "废墟里的物资",
+        "desc": "废壁龛里散落着几样物品，看起来是之前的住户留下的。\n有些东西表面上不值钱，里面说不定还有。",
+        "baiiye": "稳一点拿走，还是再深挖一下？"
+      },
+      {
+        "title": "光的指引",
+        "desc": "一道微弱的荧光从地板缝隙透出，像是在示意。\n走近了，是一个夹在地砖下的小包裹。",
+        "baiiye": "就这些，还是顺着线索往下找？"
+      }
+    ],
+    "plot": [
+      {
+        "title": "模糊的回声",
+        "desc": "白夜的声音从某处传来，语调很轻，像是怕打扰什么。\n话说到一半，又消散在空气里。",
+        "baiiye": "……你想把它听完吗？"
+      },
+      {
+        "title": "想被记起的东西",
+        "desc": "那一瞬间，有什么东西浮到记忆的边缘，还没来得及抓住。\n是气味，还是光线——或者是一张脸？",
+        "baiiye": "留下来，还是假装没看见？"
+      },
+      {
+        "title": "压在这里的故事",
+        "desc": "周围的空气微微颤动，像是空间本身在难以察觉地呼吸。\n有故事发生在这里，留下了不肯散去的痕迹。",
+        "baiiye": "你想知道是什么故事吗？"
+      }
+    ],
+    "photo": [
+      {
+        "title": "定格的残影",
+        "desc": "快门声响过，现场还留着刚才的气息。\n镜头里的东西已经不在了，但痕迹还没散。",
+        "baiiye": "这里刚刚发生过什么。"
+      },
+      {
+        "title": "肉眼看不见的",
+        "desc": "镜头捕捉到了某些东西——显影出来的画面和眼睛看到的不一样。\n你盯着照片，感觉有什么正在对视。",
+        "baiiye": "别急着走。这张照片还没说完它的话。"
+      },
+      {
+        "title": "浮出来的真相",
+        "desc": "照片在手心里慢慢显影，轮廓一点点清晰。\n你不确定自己是否想看清楚最后那个细节。",
+        "baiiye": "有些真相，看见了就没法假装没看见。"
+      }
+    ],
+    "rift": [
+      {
+        "title": "撕裂的缝隙",
+        "desc": "空间在你脚下无声地裂开，边缘隐隐发光。\n从里面透出的气息很陌生——但不完全是恶意的。",
+        "baiiye": "进去，还是绕开？"
+      },
+      {
+        "title": "漩涡般旋转的阴影",
+        "desc": "脚下的阴影逆着光源方向旋转，越来越快。\n中心是一个比想象中更深的黑点。",
+        "baiiye": "那里有什么在等你。"
+      },
+      {
+        "title": "来自深处的召唤",
+        "desc": "一股力量悄悄缠上你的意识，不强迫，就是拉着。\n你知道它通向哪里——你只是还没决定去不去。",
+        "baiiye": "暗面在另一头。"
+      }
+    ]
+  },
+  "trap_subtype_texts": {
+    "sanity": [
+      {
+        "title": "侵蚀的寒意",
+        "desc": "阴气从地面渗上来，像是有什么东西正在悄悄侵入意识边缘。\n脑子里开始出现一些不属于你的画面。",
+        "baiiye": "顶住。或者想个别的办法过去。"
+      },
+      {
+        "title": "精神的裂缝",
+        "desc": "一阵恶寒掠过全身，眼前闪过白光。\n等视线恢复，周围的轮廓变得有点不一样了。",
+        "baiiye": "这里对意志力有消耗。做好准备。"
+      },
+      {
+        "title": "低语",
+        "desc": "有什么在很近的地方轻声说话，听不清说什么，但停不下来。\n越听越难以集中注意力。",
+        "baiiye": "别去分辨那些声音在说什么。"
+      }
+    ],
+    "money": [
+      {
+        "title": "消失的物件",
+        "desc": "口袋里的重量莫名变轻了，掏出来一看——少了。\n不是掉了，没有声音，就是……不见了。",
+        "baiiye": "这地方会拿走东西。当心口袋。"
+      },
+      {
+        "title": "不翼而飞",
+        "desc": "刚才还在手边的东西，现在找不到了。\n像是被什么悄悄拿走，留下一片空白。",
+        "baiiye": "用护身符挡，或者认了直接过。"
+      },
+      {
+        "title": "索取的空间",
+        "desc": "脚下涌出一层薄薄的雾，触碰到皮肤时带走了一点什么。\n等雾散了，腰包里少了些东西。",
+        "baiiye": "这里要收过路费。"
+      }
+    ],
+    "film": [
+      {
+        "title": "镜头起雾",
+        "desc": "相机突然变沉，镜头内壁凝出一层水汽，瞬间扩散到整卷胶卷。\n快门按下去没有响声。",
+        "baiiye": "胶卷被侵蚀了。护身符能挡，或者认了过去。"
+      },
+      {
+        "title": "灵雾渗入",
+        "desc": "一缕白雾从相机缝隙钻进去，胶卷盖轻轻弹开了。\n里面的东西已经曝光，什么都没了。",
+        "baiiye": "拍下来的记忆，这里不让留。"
+      },
+      {
+        "title": "曝光",
+        "desc": "强光从地板缝射出，刚好穿过相机背盖。\n一卷胶卷在光里无声地废掉了。",
+        "baiiye": "损失已经发生——怎么应对？"
+      }
+    ],
+    "teleport": [
+      {
+        "title": "空间扭曲",
+        "desc": "脚下的地板在一瞬间变得透明，然后你已经不在原来的位置了。\n四周的景物换了，方向也对不上了。",
+        "baiiye": "被传送了。确认一下现在在哪。"
+      },
+      {
+        "title": "眼前一花",
+        "desc": "视野在毫无预兆的情况下空白了一秒，等恢复时，脚下换了地砖。\n周围是陌生的走廊。",
+        "baiiye": "不知道被送去哪了，先看清楚周围。"
+      },
+      {
+        "title": "无声的移位",
+        "desc": "没有声音，没有震动，你就在原地消失然后出现在另一处。\n像是整个过程只对你发生过。",
+        "baiiye": "这里的空间不可靠。留意脚下。"
+      }
+    ]
+  },
+  "card_types": {
+    "safe": {
+      "icon": "✨",
+      "label": "安全",
+      "color_key": "safe"
+    },
+    "home": {
+      "icon": "🏠",
+      "label": "家",
+      "color_key": "safe"
+    },
+    "landmark": {
+      "icon": "🏛️",
+      "label": "地标",
+      "color_key": "highlight"
+    },
+    "shop": {
+      "icon": "🛒",
+      "label": "商店",
+      "color_key": "info"
+    },
+    "monster": {
+      "icon": "👻",
+      "label": "怪物",
+      "color_key": "danger"
+    },
+    "trap": {
+      "icon": "⚡",
+      "label": "陷阱",
+      "color_key": "warning"
+    },
+    "reward": {
+      "icon": "💎",
+      "label": "奖励",
+      "color_key": "highlight"
+    },
+    "plot": {
+      "icon": "📖",
+      "label": "叙事",
+      "color_key": "plot"
+    },
+    "photo": {
+      "icon": "📸",
+      "label": "相片",
+      "color_key": "safe"
+    },
+    "rift": {
+      "icon": "🌀",
+      "label": "裂隙",
+      "color_key": "dark_accent"
+    }
+  },
+  "dark_card_types": {
+    "normal": {
+      "icon": "🌑",
+      "label": "暗巷",
+      "color_key": "dark_accent"
+    },
+    "shop": {
+      "icon": "🏪",
+      "label": "暗市",
+      "color_key": "info"
+    },
+    "intel": {
+      "icon": "👁️",
+      "label": "情报点",
+      "color_key": "plot"
+    },
+    "checkpoint": {
+      "icon": "🚧",
+      "label": "关卡",
+      "color_key": "warning"
+    },
+    "clue": {
+      "icon": "🔮",
+      "label": "线索",
+      "color_key": "dark_glow"
+    },
+    "item": {
+      "icon": "📦",
+      "label": "道具",
+      "color_key": "highlight"
+    },
+    "passage": {
+      "icon": "🕳️",
+      "label": "通道",
+      "color_key": "dark_passage"
+    },
+    "abyss_core": {
+      "icon": "💀",
+      "label": "深渊核心",
+      "color_key": "dark_abyss"
+    },
+    "rift": {
+      "icon": "🌀",
+      "label": "裂隙",
+      "color_key": "dark_accent"
+    }
+  },
+  "schedule_templates": {
+    "company": {
+      "verb": "去公司上班",
+      "reward": [
+        "money",
+        10
+      ]
+    },
+    "school": {
+      "verb": "去学校上课",
+      "reward": [
+        "money",
+        8
+      ]
+    },
+    "park": {
+      "verb": "去公园散步",
+      "reward": [
+        "san",
+        1
+      ]
+    },
+    "alley": {
+      "verb": "穿过小巷",
+      "reward": [
+        "money",
+        8
+      ]
+    },
+    "station": {
+      "verb": "去车站接人",
+      "reward": [
+        "money",
+        6
+      ]
+    },
+    "hospital": {
+      "verb": "去医院看病",
+      "reward": [
+        "san",
+        1
+      ]
+    },
+    "library": {
+      "verb": "去图书馆学习",
+      "reward": [
+        "inspiration",
+        1
+      ]
+    },
+    "bank": {
+      "verb": "去银行办事",
+      "reward": [
+        "money",
+        12
+      ]
+    },
+    "convenience": {
+      "verb": "去便利店购物",
+      "reward": [
+        "money",
+        5
+      ]
+    },
+    "church": {
+      "verb": "去教堂祈祷",
+      "reward": [
+        "san",
+        1
+      ]
+    },
+    "police": {
+      "verb": "去警察局报案",
+      "reward": [
+        "san",
+        1
+      ]
+    },
+    "cemetery": {
+      "verb": "去墓地调查",
+      "reward": [
+        "inspiration",
+        1
+      ]
+    },
+    "gym": {
+      "verb": "去健身房锻炼",
+      "reward": [
+        "health",
+        1
+      ]
+    }
+  },
+  "rumor_safe_texts": [
+    "今天%s很平静",
+    "%s附近没有异常",
+    "听说%s今天很安全"
+  ],
+  "rumor_danger_texts": [
+    "%s有脏东西",
+    "别去%s，有危险",
+    "听说%s闹鬼了"
+  ],
+  "shop_items": {
+    "coffee": {
+      "name": "咖啡",
+      "icon": "☕",
+      "price": 8,
+      "type": "consumable",
+      "effect": {
+        "san": 2
+      },
+      "desc": "热腾腾的咖啡，恢复些许理智"
+    },
+    "film": {
+      "name": "胶卷补充",
+      "icon": "🎞️",
+      "price": 10,
+      "type": "consumable",
+      "effect": {
+        "film": 1
+      },
+      "desc": "额外的胶卷，多一次拍摄机会"
+    },
+    "shield": {
+      "name": "护身符",
+      "icon": "🛡️",
+      "price": 15,
+      "type": "persistent",
+      "effect": {},
+      "desc": "神秘的护身符，或许能保护你"
+    },
+    "exorcism": {
+      "name": "退魔香",
+      "icon": "🔮",
+      "price": 12,
+      "type": "consumable",
+      "effect": {},
+      "desc": "燃烧时能驱散附近的邪气"
+    },
+    "map": {
+      "name": "都市地图",
+      "icon": "🗺️",
+      "price": 10,
+      "type": "consumable",
+      "effect": {},
+      "desc": "标注了一些安全路线的地图"
+    },
+    "sedative": {
+      "name": "镇定剂",
+      "icon": "💊",
+      "price": 12,
+      "type": "consumable",
+      "effect": {
+        "san": 3
+      },
+      "desc": "强效镇定剂，大幅恢复理智"
+    }
+  },
+  "consumable_order": [
+    "shield",
+    "exorcism",
+    "coffee",
+    "sedative"
+  ],
+  "shop_variants": [
+    {
+      "name": "午夜便利店",
+      "greeting": "深夜好，有什么需要的吗？"
+    },
+    {
+      "name": "黄昏杂货铺",
+      "greeting": "嘿，看看有什么中意的？"
+    },
+    {
+      "name": "巷口自贩机",
+      "greeting": "请投币选择商品。"
+    }
+  ],
+  "shop_refresh_cost": 5
 }

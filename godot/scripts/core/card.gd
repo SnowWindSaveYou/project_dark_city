@@ -51,6 +51,10 @@ var dark_dot: bool = false        # 是否含有暗币点 (踩到时 +1 darkcoin
 var trap_subtype: String = ""     # 陷阱子类型 (sanity/money/film/teleport)
 var has_rift: bool = false        # 是否伪装了裂隙入口
 
+# --- Photo 遗址 ---
+var pre_photo_type: String = ""      # 拍照消灭前的原始类型 (monster/trap)，供遗址调查查图用
+var photo_investigated: bool = false # 遗址调查是否已触发（一次性，防重复）
+
 # --- MonsterGhost 踪迹 ---
 var trail_dir_x: float = 0.0     # 踪迹方向 (列偏移)
 var trail_dir_y: float = 0.0     # 踪迹方向 (行偏移)

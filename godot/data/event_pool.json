@@ -1,1277 +1,1981 @@
 {
-	"event_types": {
-		"safe":       { "icon": "✨", "label": "安全",     "color_key": "safe",        "is_blocking": false },
-		"home":       { "icon": "🏠", "label": "家",       "color_key": "safe",        "is_blocking": false },
-		"landmark":   { "icon": "🏛️", "label": "地标",     "color_key": "highlight",   "is_blocking": false },
-		"shop":       { "icon": "🛒", "label": "商店",     "color_key": "info",        "is_blocking": true  },
-		"monster":    { "icon": "👻", "label": "怪物",     "color_key": "danger",      "is_blocking": false },
-		"trap":       { "icon": "⚡", "label": "陷阱",     "color_key": "warning",     "is_blocking": false },
-		"reward":     { "icon": "💎", "label": "奖励",     "color_key": "highlight",   "is_blocking": false },
-		"plot":       { "icon": "📖", "label": "剧情",     "color_key": "plot",        "is_blocking": false },
-		"clue":       { "icon": "🔍", "label": "线索",     "color_key": "info",        "is_blocking": false },
-		"photo":      { "icon": "📸", "label": "相片",     "color_key": "safe",        "is_blocking": false },
-		"rift":       { "icon": "🌀", "label": "裂隙",     "color_key": "dark_accent", "is_blocking": false },
-		"intel":      { "icon": "👁️", "label": "情报点",   "color_key": "plot",        "is_blocking": false },
-		"checkpoint": { "icon": "🚧", "label": "关卡",     "color_key": "warning",     "is_blocking": false },
-		"item":       { "icon": "📦", "label": "道具",     "color_key": "highlight",   "is_blocking": false },
-		"passage":    { "icon": "🕳️", "label": "通道",     "color_key": "dark_passage","is_blocking": false },
-		"abyss_core": { "icon": "💀", "label": "深渊核心", "color_key": "dark_abyss",  "is_blocking": false }
-	},
-
-	"trap_subtypes": {
-		"sanity": {
-			"icon": "😱",
-			"label": "阴气侵蚀",
-			"effect": { "san": -1 },
-			"texts": [
-				"阴气侵蚀，寒意刺骨...",
-				"一阵恶寒掠过全身，精神恍惚...",
-				"黑暗低语萦绕耳边，心智动摇..."
-			],
-			"image_path": ""
-		},
-		"money": {
-			"icon": "💸",
-			"label": "财物散失",
-			"effect": { "money": -10 },
-			"texts": [
-				"口袋里的东西莫名消失了...",
-				"财物不翼而飞，像是被什么拿走了...",
-				"一阵诡异的风过后，钱包空了..."
-			],
-			"image_path": ""
-		},
-		"film": {
-			"icon": "📷",
-			"label": "灵雾曝光",
-			"effect": { "film": -1 },
-			"texts": [
-				"相机镜头突然起雾，胶卷曝光了！",
-				"灵雾渗入相机，一卷胶卷报废了...",
-				"闪光灯自行触发，浪费了珍贵的胶卷..."
-			],
-			"image_path": ""
-		},
-		"health": {
-			"icon": "💢",
-			"label": "体力透支",
-			"effect": { "health": -1 },
-			"texts": [
-				"过度的奔跑让身体发出了抗议，一阵眩晕袭来...",
-				"脚下一滑，膝盖狠狠磕在地上，疼痛蔓延开来...",
-				"空气变得稀薄，胸口发闷，体力急剧下降..."
-			],
-			"image_path": ""
-		},
-		"teleport": {
-			"icon": "🌀",
-			"label": "空间错位",
-			"effect": {},
-			"texts": [
-				"脚下空间扭曲，瞬间转移到了别处！",
-				"眼前一花，人已经不在原地了...",
-				"一股力量将你拽向了未知的方向..."
-			],
-			"image_path": ""
-		}
-	},
-
-	"base_weights": {
-		"safe": 30,
-		"monster": 20,
-		"trap": 15,
-		"reward": 15,
-		"plot": 10,
-		"clue": 10
-	},
-
-	"dynamic_monster_damage": {
-		"_comment": "怪物伤害公式: san -(base + min(cap, floor((inspiration - threshold) / step))), health -1",
-		"base_san_damage": 2,
-		"inspiration_threshold": 10,
-		"inspiration_step": 15,
-		"bonus_cap": 3,
-		"health_damage": 1
-	},
-
-	"conversion_config": {
-		"_comment": "资源转换事件 — 进入特定安全地点时 30% 概率弹出",
-		"trigger_chance": 0.3,
-		"locations": {
-			"hospital": { "cost_res": "health", "cost_amt": 2, "gain_res": "san",    "gain_amt": 2, "prompt": "医生建议你做一次心理疏导，消耗2点健康恢复2点理智？" },
-			"park":     { "cost_res": "san",    "cost_amt": 2, "gain_res": "health",  "gain_amt": 2, "prompt": "公园的清新空气让你想锻炼一下，消耗2点理智恢复2点健康？" },
-			"gym":      { "cost_res": "san",    "cost_amt": 2, "gain_res": "health",  "gain_amt": 2, "prompt": "高强度训练可以增强体质，消耗2点理智恢复2点健康？" }
-		}
-	},
-
-	"events": {
-		"evt_safe_rest": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 30,
-			"effects": {},
-			"texts": [
-				"周围一片宁静，什么也没有发生。",
-				"微风拂过，带来一丝安心的感觉。",
-				"这里很安全，可以稍作休息。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-
-		"evt_monster_shadow": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 20,
-			"effects": { "san": -2, "health": -1 },
-			"texts": [
-				"阴影从角落窜出，一股寒意直冲脑门...",
-				"黑暗中传来沉重的呼吸声，越来越近...",
-				"地板上浮现诡异的符文，空气凝固了..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_monster_whisper": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "san": -3, "money": -5 },
-			"texts": [
-				"耳边传来低语，理智在流失...",
-				"有什么东西在窥视你，钱包莫名变轻了..."
-			],
-			"condition": { "min_day": 2 },
-			"fallback_type": "safe"
-		},
-
-		"evt_trap_generic": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 15,
-			"effects": {},
-			"trap_subtype": "random",
-			"texts": [
-				"脚下突然传来咔嚓声，是陷阱！",
-				"一股无形的力量困住了你的脚步...",
-				"周围的墙壁开始缓缓合拢..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_reward_supply": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 15,
-			"effects": { "money": 15, "film": 1 },
-			"texts": [
-				"角落里发现了一个被遗忘的保险箱！",
-				"在废墟中找到了一袋未开封的补给品。",
-				"一道神秘的光芒指引你找到了宝物。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_plot_inscription": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "san": -1 },
-			"texts": [
-				"墙壁上隐约浮现出奇异的纹路，仿佛在诉说着什么古老的秘密……"
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_plot_find_photo": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 15,
-			"effects": { "san": -1 },
-			"texts": [
-				"一张泛黄的照片从缝隙中滑落。照片背面有人匆匆写下了一行字——'他们知道了'。"
-			],
-			"condition": { "not_flag": "found_photo" },
-			"set_flags": { "found_photo": true },
-			"clue_id": "clue_old_photo",
-			"fallback_type": "safe"
-		},
-
-		"evt_plot_symbol_wall": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "san": -1 },
-			"texts": [
-				"你注意到墙上刻着奇异的符文，手指触碰的瞬间，符文发出了微弱的光……"
-			],
-			"condition": { "not_flag": "found_symbol" },
-			"set_flags": { "found_symbol": true },
-			"clue_id": "clue_strange_symbol",
-			"fallback_type": "safe"
-		},
-
-		"evt_plot_whisper": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "san": -1 },
-			"texts": [
-				"那些符文……你又看到了相似的痕迹。这次它们排列成一个箭头，指向某个方向。"
-			],
-			"condition": { "flag": "found_symbol" },
-			"set_flags": { "symbol_trail": true },
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_plot_missing_person": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "san": -1 },
-			"texts": [
-				"你在废弃的告示栏上发现了一张寻人启事。日期正好是裂隙出现的那天……"
-			],
-			"condition": { "min_day": 2 },
-			"set_flags": { "found_missing_poster": true },
-			"clue_id": "clue_missing_poster",
-			"fallback_type": "safe"
-		},
-
-		"evt_plot_deep_rumble": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "san": -1 },
-			"texts": [
-				"脚下传来低沉的震动，仿佛地底有什么巨大的东西正在苏醒……收集到的线索似乎在你脑中拼凑出了某种图案。"
-			],
-			"condition": { "min_clues": 3 },
-			"set_flags": { "felt_rumble": true },
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_clue_footprints": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"地上有一串奇怪的脚印，不像是人类留下的。它们消失在一面完整的墙壁前。"
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_clue_blood_trail": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"你在角落发现了干涸的血迹，痕迹异常规整，像是某种仪式的一部分……"
-			],
-			"condition": { "not_flag": "found_blood" },
-			"set_flags": { "found_blood": true },
-			"clue_id": "clue_blood_stain",
-			"fallback_type": "safe"
-		},
-
-		"evt_clue_diary": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"一页日记从旧书里飘落，字迹越到后面越潦草，最后一行写着：'不要回头看……'"
-			],
-			"condition": { "min_day": 2, "not_flag": "found_diary" },
-			"set_flags": { "found_diary": true },
-			"clue_id": "clue_diary_page",
-			"fallback_type": "safe"
-		},
-
-		"evt_clue_talisman": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"在符文附近的地面上，你发现了一枚碎裂的护身符。它上面的刻文和墙上的符号一模一样。"
-			],
-			"condition": { "flag": "found_symbol", "not_flag": "found_talisman" },
-			"set_flags": { "found_talisman": true },
-			"clue_id": "clue_broken_talisman",
-			"fallback_type": "safe"
-		},
-
-		"evt_clue_generic": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 8,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"你注意到一个不寻常的细节，也许之后会派上用场……"
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_photo_generic": {
-			"type": "photo",
-			"world": ["real"],
-			"base_weight": 0,
-			"effects": { "money": 5 },
-			"texts": [
-				"快门声响起，画面被永远定格。",
-				"镜头捕捉到了肉眼看不见的东西...",
-				"照片慢慢显影，真相浮出水面。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-
-		"evt_rift_generic": {
-			"type": "rift",
-			"world": ["real"],
-			"base_weight": 0,
-			"effects": {},
-			"texts": [
-				"空间仿佛被撕裂开一道口子...",
-				"脚下的阴影开始漩涡般旋转...",
-				"一股来自深处的力量在召唤你..."
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-
-		"evt_home_rest": {
-			"type": "home",
-			"world": ["real"],
-			"base_weight": 0,
-			"effects": { "san": 1 },
-			"texts": [
-				"回到家中，终于可以安心休息了。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-
-		"evt_landmark_visit": {
-			"type": "landmark",
-			"world": ["real"],
-			"base_weight": 0,
-			"effects": { "san": 1, "inspiration": 1 },
-			"texts": [
-				"这里是一个令人安心的地标建筑。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-
-		"evt_shop_visit": {
-			"type": "shop",
-			"world": ["real"],
-			"base_weight": 0,
-			"effects": {},
-			"texts": [
-				"一间便利店映入眼帘，可以补给一下。"
-			],
-			"condition": null,
-			"is_blocking": true,
-			"fallback_type": null
-		},
-
-		"evt_dark_normal": {
-			"type": "safe",
-			"world": ["dark"],
-			"base_weight": 40,
-			"effects": {},
-			"texts": [
-				"空荡荡的走廊，什么也没有。",
-				"暗影笼罩，但没有危险。",
-				"一片寂静，只有自己的脚步声回荡。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-
-		"_comment_dark_layer_events": "========== 暗面分层事件 ==========",
-
-		"evt_dark_L0_safe": {
-			"type": "safe",
-			"world": ["dark"],
-			"base_weight": 35,
-			"effects": {},
-			"texts": [
-				"锈蚀的铁管滴着水，节奏平稳，令人稍安。",
-				"墙角堆着废旧纸箱，看起来已经很久没人碰过了。",
-				"路灯闪烁了几下，最终稳定了，照亮了一小片地面。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_dark_L0_whisper": {
-			"type": "monster",
-			"world": ["dark"],
-			"base_weight": 14,
-			"effects": { "san": -1 },
-			"texts": [
-				"风穿过裂缝时发出了类似低语的声音，回头看去却什么也没有...",
-				"脚步声突然多了一拍——但身后空无一人。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L0_loose_brick": {
-			"type": "trap",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": { "san": -1 },
-			"texts": [
-				"踩到了一块松动的砖，差点摔倒，心跳加速了好一会儿。",
-				"头顶有碎石掉落，擦着肩膀砸在地上，吓了一跳。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L0_scrap_find": {
-			"type": "reward",
-			"world": ["dark"],
-			"base_weight": 8,
-			"effects": { "money": 8 },
-			"texts": [
-				"墙缝里卡着几枚沾满灰尘的硬币。",
-				"垃圾堆里翻到了一个还能用的小工具，也许能换点钱。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_L1_safe": {
-			"type": "safe",
-			"world": ["dark"],
-			"base_weight": 28,
-			"effects": {},
-			"texts": [
-				"暗市的喧嚣远远传来，但这条路上没有什么异常。",
-				"纸灯笼发出昏黄的光，勉强照亮了前路。",
-				"空气中弥漫着奇异的香料味，令人微微恍惚，但并无危险。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_dark_L1_mask_stalker": {
-			"type": "monster",
-			"world": ["dark"],
-			"base_weight": 18,
-			"effects": { "san": -2, "money": -5 },
-			"texts": [
-				"一个戴着白色面具的身影从人群中分离出来，直直地向你走来...",
-				"有人拍了拍你的肩膀，回头看到一张扭曲的笑脸面具——然后它消失了，口袋也轻了。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L1_fog_trap": {
-			"type": "trap",
-			"world": ["dark"],
-			"base_weight": 14,
-			"effects": { "san": -2 },
-			"texts": [
-				"浓雾突然涌来，方向感完全丧失，在原地打转了很久才找到出路...",
-				"脚下的水渠盖板突然打开，差点掉进污浊的暗流中..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L1_black_market_find": {
-			"type": "reward",
-			"world": ["dark"],
-			"base_weight": 12,
-			"effects": { "money": 15 },
-			"texts": [
-				"在暗市的角落发现了一个无人看管的摊位，上面有些值钱的物件。",
-				"一个匆忙离去的商人落下了一袋货物，里面有可用的补给。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L1_echo_clue": {
-			"type": "clue",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"回声茶馆的老板用暗语告诉了你一条重要线索...",
-				"地下水渠的墙壁上刻着一段密文，与现实世界的某处对应..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_L2_safe": {
-			"type": "safe",
-			"world": ["dark"],
-			"base_weight": 20,
-			"effects": {},
-			"texts": [
-				"深渊的气息在此处稍有减弱，可以喘口气。",
-				"一根已经熄灭的火把在你靠近时重新燃起，照出了一片安全的空间。",
-				"巨大的石柱形成了天然的庇护，暂时阻隔了深渊的侵蚀。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_dark_L2_void_gaze": {
-			"type": "monster",
-			"world": ["dark"],
-			"base_weight": 24,
-			"effects": { "san": -4, "money": -10 },
-			"texts": [
-				"虚空中睁开了一只巨大的眼睛，与它对视的瞬间，意识几乎被吞噬...",
-				"骨架走廊的尽头，有什么不可名状的东西正在'进食'——而它注意到了你。",
-				"地面裂开，深渊的呢喃化作实体，像触手一样缠住了你的脚踝..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L2_reality_crack": {
-			"type": "trap",
-			"world": ["dark"],
-			"base_weight": 18,
-			"effects": { "san": -3 },
-			"texts": [
-				"现实在这里像玻璃一样碎裂，你看到了无数个自己——每一个都在尖叫...",
-				"时间在这里失去了意义，你感觉过了几秒钟，但身体的疲惫说明已经过去了很久..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L2_abyssal_treasure": {
-			"type": "reward",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": { "money": 30, "san": -1 },
-			"texts": [
-				"在崩塌的石室中发现了一堆散发着微光的结晶，价值不菲，但触碰时头脑有些眩晕。",
-				"祭坛上摆放着古老的祭品，拿走它们让你获得了可观的收获——但似乎触怒了什么..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_dark_L2_ancient_vision": {
-			"type": "clue",
-			"world": ["dark"],
-			"base_weight": 14,
-			"effects": { "inspiration": 2, "san": -1 },
-			"texts": [
-				"触碰碑文的瞬间，你的脑海中闪过一段远古的记忆——不是你的记忆...",
-				"深渊的壁画在你注视时开始移动，演示着某种仪式的完整过程..."
-			],
-			"condition": { "min_day": 4 },
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_shop": {
-			"type": "shop",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": {},
-			"texts": [
-				"这里有神秘的商人...",
-				"角落里闪烁着可疑的光芒...",
-				"似乎可以交换些什么..."
-			],
-			"condition": null,
-			"is_blocking": true,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_intel": {
-			"type": "intel",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": {},
-			"texts": [
-				"这里有人愿意分享情报...",
-				"墙壁上刻着奇怪的符号...",
-				"似乎有人在这里留下了信息..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_clue_tape": {
-			"type": "clue",
-			"world": ["dark"],
-			"base_weight": 12,
-			"effects": { "san": 1 },
-			"texts": [
-				"你在暗世界的角落发现了一卷老式磁带，上面标注着'第三次调查记录'……"
-			],
-			"condition": { "not_flag": "found_tape" },
-			"set_flags": { "found_tape": true },
-			"clue_id": "clue_audio_tape",
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_clue_map": {
-			"type": "clue",
-			"world": ["dark"],
-			"base_weight": 14,
-			"effects": { "san": 1 },
-			"texts": [
-				"一张残破的地图碎片浮现在虚空中，上面标注了暗世界的几个关键位置……"
-			],
-			"condition": { "min_clues": 3, "not_flag": "found_dark_map" },
-			"set_flags": { "found_dark_map": true },
-			"clue_id": "clue_dark_map",
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_clue_generic": {
-			"type": "clue",
-			"world": ["dark"],
-			"base_weight": 8,
-			"effects": {},
-			"texts": [
-				"暗世界的气息中隐藏着某种信息，你将其记在脑海中。",
-				"发现了一个隐藏的线索...",
-				"黑暗中闪烁着微光..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_item_random": {
-			"type": "item",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": {},
-			"item_rewards": [["san", 10], ["money", 20], ["film", 1]],
-			"texts": [
-				"发现了散落的物品...",
-				"地上有什么在发光...",
-				"似乎可以拾取..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_checkpoint": {
-			"type": "checkpoint",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": {},
-			"texts": [
-				"一扇古老的大门矗立在此...",
-				"门上刻着面具的图案...",
-				"似乎是一个安全的休息点..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_passage": {
-			"type": "passage",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": {},
-			"texts": [
-				"空间在这里扭曲变形...",
-				"似乎可以通向别处...",
-				"阶梯向下延伸，消失在黑暗中..."
-			],
-			"condition": null,
-			"is_blocking": true,
-			"fallback_type": "safe"
-		},
-
-		"evt_dark_abyss": {
-			"type": "abyss_core",
-			"world": ["dark"],
-			"base_weight": 10,
-			"effects": {},
-			"texts": [
-				"这里是暗面世界的最深处...",
-				"一股强大的力量在涌动...",
-				"让人感到既恐惧又着迷..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"_comment_location_specific": "========== 地点专属事件 ==========",
-
-		"evt_company_overtime": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": { "san": -2 },
-			"texts": [
-				"电脑屏幕突然弹出无数弹窗，每一个都写着'加班申请已批准'...",
-				"打卡机显示你已连续上班72小时，但你明明刚到...",
-				"办公室的灯一盏接一盏亮起，却看不到任何同事的身影..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_company_shadow_boss": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 18,
-			"effects": { "san": -2, "money": -8 },
-			"texts": [
-				"办公室尽头传来沉重的脚步声，影子上司的轮廓在毛玻璃后若隐若现...",
-				"会议室的白板上自动写出了绩效评估——全是不及格...",
-				"复印机自行启动，吐出的纸上印满了一双双眼睛..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_company_safe_bonus": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "money": 20 },
-			"texts": [
-				"抽屉里发现了一封未拆的信封，里面是上个月忘记领取的奖金。",
-				"茶水间角落的保险柜竟然没锁，里面有一笔意外之财。",
-				"同事的桌上放着一张写有'送给好心人'的现金红包。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_company_email_clue": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"电脑收件箱里出现了一封未读邮件，发件人是'已不存在的部门'，内容是一串坐标...",
-				"打印机自动输出了一份文件，上面的数据与近期的异常事件高度吻合..."
-			],
-			"condition": { "min_day": 2 },
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_school_quiet_study": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 28,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"空教室里异常安静，适合整理思绪。秩序感微微恢复。",
-				"阳光从窗户洒进教室，书桌上的灰尘在光束中飞舞，内心一阵平静。",
-				"翻开一本被遗忘的课本，里面的知识让你头脑清醒了些。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_school_faceless_teacher": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 15,
-			"effects": { "san": -2 },
-			"texts": [
-				"教室门突然关上，讲台上站着一个没有面孔的教师，黑板上开始自动书写...",
-				"走廊尽头传来粉笔刮黑板的声音，越来越近..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_school_old_notebook": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"书桌抽屉里发现一本旧笔记本，最后几页画满了奇怪的几何图形和符号...",
-				"黑板角落残留着上一堂课的板书，但内容不像是任何正常科目..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-		"evt_school_supply_find": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "money": 10, "film": 1 },
-			"texts": [
-				"在失物招领箱里发现了一些有用的物品。",
-				"旧储物柜里居然还藏着没被领走的学生用品，其中有些值点钱。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_park_healing_breeze": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 35,
-			"effects": { "san": 1 },
-			"texts": [
-				"微风穿过树梢，带来花草的清香。心情平静了许多。",
-				"在长椅上坐了一会儿，听着鸟鸣，精神恢复了一些。",
-				"湖面倒映着天空，这一刻世界仿佛回归了正常。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_park_tree_shadow": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "san": -1 },
-			"texts": [
-				"树影在无风的情况下开始晃动，低沉的呢喃从树干深处传来...",
-				"草地上出现了不属于任何人的巨大影子，正在缓慢移动..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_park_nature_clue": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"枯萎的花坛中央，植物以异常的图案生长，形成了某种符号...",
-				"湖边的石头上刻着看不懂的文字，但与之前发现的符文风格一致..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-		"evt_park_herb_find": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "san": 2 },
-			"texts": [
-				"在灌木丛中发现了一种散发着安神气息的草药。",
-				"一棵古树下长着发光的蘑菇，摘下后感觉精神好了许多。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_alley_ambush": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 22,
-			"effects": { "san": -3, "money": -10 },
-			"texts": [
-				"巷子深处突然窜出扭曲的黑影，猛地扑了过来！",
-				"墙缝里伸出无数只苍白的手，紧紧抓住了你的衣角...",
-				"垃圾堆中传来咀嚼声，有什么东西正在享用它的'晚餐'..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_alley_thugs_trap": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 18,
-			"effects": { "money": -15 },
-			"texts": [
-				"几个鬼鬼祟祟的影子堵住了退路，钱包瞬间被掏走了...",
-				"地上的涂鸦突然发光，脚下一软，钱袋已经空了..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_alley_graffiti_clue": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"墙上的涂鸦藏着某种暗号，仔细辨认后发现是一组日期和地点...",
-				"角落里的涂鸦用荧光颜料画成，在黑暗中显现出一张地图的轮廓..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-		"evt_alley_stash": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 8,
-			"effects": { "money": 25 },
-			"texts": [
-				"在废弃垃圾桶的夹层里发现了一个密封的包裹，里面是一笔现金。",
-				"砖墙的裂缝里塞着一个防水袋，打开后发现了别人藏起来的财物。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_station_warp_trap": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": {},
-			"trap_subtype": "teleport",
-			"texts": [
-				"站台上的时刻表突然旋转，脚下的地面变成了传送门...",
-				"列车进站的瞬间，空间扭曲了，你出现在了完全不同的地方..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_station_ghost_train": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 16,
-			"effects": { "san": -2 },
-			"texts": [
-				"一辆从未见过的黑色列车缓缓驶入站台，车窗后全是苍白的面孔...",
-				"广播传来不存在的站名，空气中弥漫着铁锈和旧布的气味..."
-			],
-			"condition": { "min_day": 2 },
-			"fallback_type": "safe"
-		},
-		"evt_station_lost_luggage": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": { "money": 18, "film": 1 },
-			"texts": [
-				"储物柜里发现了一件无人认领的行李箱，里面有些值钱的东西。",
-				"候车椅下面有人遗落了一个背包，里面有补给品和一卷胶卷。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_station_schedule_clue": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"过期的列车时刻表背面有人用红笔画了复杂的路线图，标注了几个'消失点'...",
-				"售票窗口的玻璃上用手指写着一行反字——只有从外面才能正常阅读..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_hospital_treatment": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 25,
-			"effects": { "san": 2 },
-			"texts": [
-				"找到了还能使用的医疗设备，简单的检查让精神状态好了许多。",
-				"药房的柜台上还留着一些镇定剂，服用后感觉安定了不少。",
-				"在值班室的沙发上休息了一会儿，精神恢复了一些。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_hospital_wandering_nurse": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 18,
-			"effects": { "san": -3 },
-			"texts": [
-				"走廊深处传来轮椅的吱呀声，一个穿着旧式护士服的身影缓缓转过角落...",
-				"手术室的灯突然亮起，门缝中可以看到有人在'操作'，但手术台上什么都没有..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_hospital_medicine_reward": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "san": 3 },
-			"texts": [
-				"在药品储藏室找到了一盒完好的精神稳定剂。",
-				"急救箱里还有未使用的镇定贴片，感觉精神恢复了不少。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_hospital_medical_record": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"翻阅散落的病历，发现多名患者在同一天出现了相同的症状——'看到了不存在的门'...",
-				"心理科的诊疗记录中反复出现同一个符号，与你之前发现的完全一致..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_library_deep_read": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 28,
-			"effects": { "inspiration": 2 },
-			"texts": [
-				"沉浸在古籍的世界里，头脑变得前所未有的清晰。",
-				"一本关于城市历史的书籍让你对这座城市有了全新的认识。",
-				"在宁静的阅览室中整理思绪，秩序感大幅恢复。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_library_self_turning_book": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "san": -2 },
-			"texts": [
-				"书架上的书开始自己翻页，内容逐渐变成了你的日记——包括未来的日期...",
-				"一本合上的书突然弹开，里面的文字扭曲成了一张咧嘴笑的脸..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_library_forbidden_book": {
-			"type": "plot",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": { "san": -1, "inspiration": 2 },
-			"texts": [
-				"在被封存的书架深处，找到了一本用锁链绑住的古书。打开后，文字在你眼前重新排列，揭示了这座城市不为人知的过去..."
-			],
-			"condition": { "min_day": 3, "not_flag": "found_forbidden_book" },
-			"set_flags": { "found_forbidden_book": true },
-			"clue_id": "clue_forbidden_book",
-			"fallback_type": "safe"
-		},
-		"evt_library_ancient_scroll": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 14,
-			"effects": { "inspiration": 2 },
-			"texts": [
-				"旧报纸合订本中夹着一张羊皮纸，上面用古文字记录着某种仪式的步骤...",
-				"图书馆的地下室入口旁，有人用书签标注了一系列看似无关的书页，连起来阅读后..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"evt_bank_vault_find": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 18,
-			"effects": { "money": 30 },
-			"texts": [
-				"被遗弃的金库门微微敞开，里面散落着不少值钱的东西。",
-				"ATM机异常吐出了一叠钞票，也许是某种系统错误？",
-				"在VIP室的暗格中发现了一袋被遗忘的贵重物品。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_bank_vault_trap": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 16,
-			"effects": { "money": -20 },
-			"texts": [
-				"防盗系统突然启动，逃跑的过程中丢失了大量财物...",
-				"金库的门在身后轰然关闭，等你找到出路时，口袋已经空了..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_bank_mask_teller": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 16,
-			"effects": { "san": -2, "money": -12 },
-			"texts": [
-				"柜台后面坐着一个戴面具的柜员，它微笑着把你的存款清零了...",
-				"保安的脸突然扭曲变形，用不属于人类的声音说：'本行已永久关闭'..."
-			],
-			"condition": { "min_day": 2 },
-			"fallback_type": "safe"
-		},
-		"evt_bank_suspicious_record": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"交易记录中有一笔巨额转账，收款方的名字由不可名状的符号组成...",
-				"安保录像中出现了一个不该存在的身影，它直接穿墙而过..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"_comment_cemetery_events": "========== 墓地专属事件 ==========",
-
-		"evt_cemetery_quiet": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 25,
-			"effects": { "san": 1 },
-			"texts": [
-				"墓园一片寂静，反而让人感到一种超脱的宁静。",
-				"坐在石凳上望着远处的墓碑，思绪渐渐平复下来。",
-				"微风拂过青苔覆盖的石碑，带来一丝凉意和安心。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_cemetery_wandering_spirit": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 20,
-			"effects": { "san": -3 },
-			"texts": [
-				"一团苍白的光从墓碑后升起，缓缓向你飘来...",
-				"地面上的阴影突然聚拢成人形，发出无声的哀号...",
-				"墓碑上的名字一个接一个地发光，最后一个——是你的名字。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_cemetery_sinkhole": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 15,
-			"effects": { "san": -2, "health": -1 },
-			"texts": [
-				"脚下的泥土突然塌陷，差点跌入一个未封的旧墓穴...",
-				"墓碑间的小径突然断裂，露出下方幽暗的地道入口..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_cemetery_ancient_amulet": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "san": 3, "inspiration": 1 },
-			"texts": [
-				"在一座古老的墓碑旁，发现了一枚散发微光的护符，握在手中感到一阵温暖。",
-				"枯萎花束下藏着一件精致的银饰，似乎蕴含某种庇护之力。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_cemetery_epitaph_clue": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "inspiration": 2 },
-			"texts": [
-				"一块倒塌的墓碑背面刻着一段密文，与裂隙出现的时间完美吻合...",
-				"最深处的无名墓上，有人用红漆写下了一串坐标和日期..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		},
-
-		"_comment_gym_events": "========== 健身房专属事件 ==========",
-
-		"evt_gym_training": {
-			"type": "safe",
-			"world": ["real"],
-			"base_weight": 30,
-			"effects": { "health": 2 },
-			"texts": [
-				"进行了一组扎实的训练，身体状态明显好转。",
-				"跑步机上跑了半小时，出了一身汗，感觉精力充沛。",
-				"拉伸和有氧运动让紧绷的肌肉放松了下来。"
-			],
-			"condition": null,
-			"fallback_type": null
-		},
-		"evt_gym_berserk_machine": {
-			"type": "monster",
-			"world": ["real"],
-			"base_weight": 15,
-			"effects": { "san": -1, "health": -2 },
-			"texts": [
-				"器械突然失控般加速运转，差点被甩飞出去！",
-				"杠铃片自行滑动，发出刺耳的金属碰撞声，影子在镜子里扭曲变形..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_gym_locked_equipment": {
-			"type": "trap",
-			"world": ["real"],
-			"base_weight": 12,
-			"effects": { "health": -1 },
-			"texts": [
-				"储物柜的锁突然卡死，用力掰开时扭伤了手腕...",
-				"跑步机皮带突然停转，惯性让你踉跄了好几步，膝盖一阵刺痛..."
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_gym_power_crystal": {
-			"type": "reward",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "health": 3 },
-			"texts": [
-				"在更衣室角落发现了一瓶散发微光的能量饮料，喝下后感觉浑身充满力量。",
-				"器材室深处有一块奇异的水晶，触碰后疲劳一扫而空。"
-			],
-			"condition": null,
-			"fallback_type": "safe"
-		},
-		"evt_gym_bandage_clue": {
-			"type": "clue",
-			"world": ["real"],
-			"base_weight": 10,
-			"effects": { "inspiration": 1 },
-			"texts": [
-				"拳击沙袋上缠绕的绷带里，藏着一张写满密码的纸条...",
-				"教练办公室的白板上画着看似训练计划，实则是一张标注了异常区域的地图..."
-			],
-			"condition": null,
-			"set_flags": {},
-			"clue_id": null,
-			"fallback_type": "safe"
-		}
-	}
+  "event_types": {
+    "safe": {
+      "icon": "✨",
+      "label": "安全",
+      "color_key": "safe",
+      "is_blocking": false
+    },
+    "home": {
+      "icon": "🏠",
+      "label": "家",
+      "color_key": "safe",
+      "is_blocking": false
+    },
+    "landmark": {
+      "icon": "🏛️",
+      "label": "地标",
+      "color_key": "highlight",
+      "is_blocking": false
+    },
+    "shop": {
+      "icon": "🛒",
+      "label": "商店",
+      "color_key": "info",
+      "is_blocking": true
+    },
+    "monster": {
+      "icon": "👻",
+      "label": "怪物",
+      "color_key": "danger",
+      "is_blocking": false
+    },
+    "trap": {
+      "icon": "⚡",
+      "label": "陷阱",
+      "color_key": "warning",
+      "is_blocking": false
+    },
+    "reward": {
+      "icon": "💎",
+      "label": "奖励",
+      "color_key": "highlight",
+      "is_blocking": false
+    },
+    "plot": {
+      "icon": "📖",
+      "label": "剧情",
+      "color_key": "plot",
+      "is_blocking": false
+    },
+    "clue": {
+      "icon": "🔍",
+      "label": "线索",
+      "color_key": "info",
+      "is_blocking": false
+    },
+    "photo": {
+      "icon": "📸",
+      "label": "相片",
+      "color_key": "safe",
+      "is_blocking": false
+    },
+    "rift": {
+      "icon": "🌀",
+      "label": "裂隙",
+      "color_key": "dark_accent",
+      "is_blocking": false
+    },
+    "intel": {
+      "icon": "👁️",
+      "label": "情报点",
+      "color_key": "plot",
+      "is_blocking": false
+    },
+    "checkpoint": {
+      "icon": "🚧",
+      "label": "关卡",
+      "color_key": "warning",
+      "is_blocking": false
+    },
+    "item": {
+      "icon": "📦",
+      "label": "道具",
+      "color_key": "highlight",
+      "is_blocking": false
+    },
+    "passage": {
+      "icon": "🕳️",
+      "label": "通道",
+      "color_key": "dark_passage",
+      "is_blocking": false
+    },
+    "abyss_core": {
+      "icon": "💀",
+      "label": "深渊核心",
+      "color_key": "dark_abyss",
+      "is_blocking": false
+    }
+  },
+  "trap_subtypes": {
+    "sanity": {
+      "icon": "😱",
+      "label": "阴气侵蚀",
+      "effect": {
+        "san": -1
+      },
+      "texts": [
+        "阴气侵蚀，寒意刺骨...",
+        "一阵恶寒掠过全身，精神恍惚...",
+        "黑暗低语萦绕耳边，心智动摇..."
+      ],
+      "image_path": ""
+    },
+    "money": {
+      "icon": "💸",
+      "label": "财物散失",
+      "effect": {
+        "money": -10
+      },
+      "texts": [
+        "口袋里的东西莫名消失了...",
+        "财物不翼而飞，像是被什么拿走了...",
+        "一阵诡异的风过后，钱包空了..."
+      ],
+      "image_path": ""
+    },
+    "film": {
+      "icon": "📷",
+      "label": "灵雾曝光",
+      "effect": {
+        "film": -1
+      },
+      "texts": [
+        "相机镜头突然起雾，胶卷曝光了！",
+        "灵雾渗入相机，一卷胶卷报废了...",
+        "闪光灯自行触发，浪费了珍贵的胶卷..."
+      ],
+      "image_path": ""
+    },
+    "health": {
+      "icon": "💢",
+      "label": "体力透支",
+      "effect": {
+        "health": -1
+      },
+      "texts": [
+        "过度的奔跑让身体发出了抗议，一阵眩晕袭来...",
+        "脚下一滑，膝盖狠狠磕在地上，疼痛蔓延开来...",
+        "空气变得稀薄，胸口发闷，体力急剧下降..."
+      ],
+      "image_path": ""
+    },
+    "teleport": {
+      "icon": "🌀",
+      "label": "空间错位",
+      "effect": {},
+      "texts": [
+        "脚下空间扭曲，瞬间转移到了别处！",
+        "眼前一花，人已经不在原地了...",
+        "一股力量将你拽向了未知的方向..."
+      ],
+      "image_path": ""
+    }
+  },
+  "base_weights": {
+    "safe": 30,
+    "monster": 20,
+    "trap": 15,
+    "reward": 15,
+    "plot": 10,
+    "clue": 10
+  },
+  "dynamic_monster_damage": {
+    "_comment": "怪物伤害公式: san -(base + min(cap, floor((inspiration - threshold) / step))), health -1",
+    "base_san_damage": 2,
+    "inspiration_threshold": 10,
+    "inspiration_step": 15,
+    "bonus_cap": 3,
+    "health_damage": 1
+  },
+  "conversion_config": {
+    "_comment": "资源转换事件 — 进入特定安全地点时 30% 概率弹出",
+    "trigger_chance": 0.3,
+    "locations": {
+      "hospital": {
+        "cost_res": "health",
+        "cost_amt": 2,
+        "gain_res": "san",
+        "gain_amt": 2,
+        "prompt": "医生建议你做一次心理疏导，消耗2点健康恢复2点理智？"
+      },
+      "park": {
+        "cost_res": "san",
+        "cost_amt": 2,
+        "gain_res": "health",
+        "gain_amt": 2,
+        "prompt": "公园的清新空气让你想锻炼一下，消耗2点理智恢复2点健康？"
+      },
+      "gym": {
+        "cost_res": "san",
+        "cost_amt": 2,
+        "gain_res": "health",
+        "gain_amt": 2,
+        "prompt": "高强度训练可以增强体质，消耗2点理智恢复2点健康？"
+      }
+    }
+  },
+  "events": {
+    "evt_safe_rest": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 30,
+      "effects": {},
+      "texts": [
+        "周围一片宁静，什么也没有发生。",
+        "微风拂过，带来一丝安心的感觉。",
+        "这里很安全，可以稍作休息。"
+      ],
+      "condition": null,
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "稍作休息",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "精神好多了",
+          "result_desc": "静下来之后，压在心上的那块石头轻了一点。\n不多，但够用。",
+          "result_baiiye": "总比什么都不做强。"
+        },
+        {
+          "label": "搜查周围",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "有点收获",
+          "result_desc": "犄角旮旯里翻出了几样东西，不算多，\n但这一趟没白走。",
+          "result_baiiye": "勤快点总是有好处的。"
+        },
+        {
+          "label": "拍照留念",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "留下了画面",
+          "result_desc": "快门按下去的一瞬间有点仪式感。\n这张照片或许以后用得上。",
+          "result_baiiye": "不是所有东西都值得拍，但这个……还好。"
+        }
+      ]
+    },
+    "evt_monster_shadow": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 20,
+      "effects": {
+        "san": -2,
+        "health": -1
+      },
+      "texts": [
+        "阴影从角落窜出，一股寒意直冲脑门...",
+        "黑暗中传来沉重的呼吸声，越来越近...",
+        "地板上浮现诡异的符文，空气凝固了..."
+      ],
+      "condition": null,
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "转身逃跑",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "脱身了",
+          "result_desc": "你绕了一大圈，多走了不少路，但总算没有碰上它正面。\n背后的那种被盯着的感觉，拐了好几个弯才散。",
+          "result_baiiye": "活下来才有下一步。跑路不丢人。"
+        },
+        {
+          "label": "正面对抗",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "勉强击退",
+          "result_desc": "对峙了一会儿，它最终退开了。\n理智消耗不小，但换来了喘息的空间，还捡到了点东西。",
+          "result_baiiye": "打赢了。但别指望每次都这么顺。",
+          "result_title_fail": "落了下风",
+          "result_desc_fail": "你没能压制住它，对峙变成了溃败，被迫撤退。\n精神受到了双倍的冲击。",
+          "result_baiiye_fail": "有时候正面刚不是最好的选择。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "符咒显灵",
+          "result_desc": "护身符在接触的瞬间发出一阵白光，把它推开了。\n符纸化为灰烬飘散，但危险解除了。",
+          "result_baiiye": "护身符的钱没有白花。"
+        }
+      ]
+    },
+    "evt_monster_whisper": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": -3,
+        "money": -5
+      },
+      "texts": [
+        "耳边传来低语，理智在流失...",
+        "有什么东西在窥视你，钱包莫名变轻了..."
+      ],
+      "condition": {
+        "min_day": 2
+      },
+      "fallback_type": "safe"
+    },
+    "evt_trap_generic": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 15,
+      "effects": {},
+      "trap_subtype": "random",
+      "texts": [
+        "脚下突然传来咔嚓声，是陷阱！",
+        "一股无形的力量困住了你的脚步...",
+        "周围的墙壁开始缓缓合拢..."
+      ],
+      "condition": null,
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "硬闯过去",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "强行通过",
+          "result_desc": "咬牙冲过去，代价清晰地落在身上。\n但至少到了另一边。",
+          "result_baiiye": "有时候直接撞过去也是一种策略。"
+        },
+        {
+          "label": "绕路避开",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "绕开了",
+          "result_desc": "多走了一段冤枉路，脚有点酸，\n但身上没有任何损伤。",
+          "result_baiiye": "绕路费步数，但不费理智。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "化险为夷",
+          "result_desc": "符纸贴上去之后，陷阱悄然失效，\n像是被什么无声地解除了。",
+          "result_baiiye": "刚好派上用场。"
+        }
+      ]
+    },
+    "evt_reward_supply": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 15,
+      "effects": {
+        "money": 15,
+        "film": 1
+      },
+      "texts": [
+        "角落里发现了一个被遗忘的保险箱！",
+        "在废墟中找到了一袋未开封的补给品。",
+        "一道神秘的光芒指引你找到了宝物。"
+      ],
+      "condition": null,
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接拿走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "money": 15,
+            "film": 1
+          },
+          "condition": null,
+          "result_title": "收进口袋了",
+          "result_desc": "没有多想，直接拿走。\n东西不多，但这一格没有白翻。",
+          "result_baiiye": "稳。不是最好，但也不会出错。"
+        },
+        {
+          "label": "深挖搜查",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "money": 30,
+            "film": 2
+          },
+          "condition": null,
+          "result_title": "挖到了更多",
+          "result_desc": "多花了点力气，翻到了最底下。\n果然还有东西——比表面上看到的多得多。",
+          "result_baiiye": "冒险是值得的。这次。",
+          "result_title_fail": "触动了暗机关",
+          "result_desc_fail": "挖得太深，碰到了不该碰的东西。\n表面那点拿到了，但也付出了额外代价。",
+          "result_baiiye_fail": "下次适可而止。"
+        }
+      ]
+    },
+    "evt_plot_inscription": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "墙壁上隐约浮现出奇异的纹路，仿佛在诉说着什么古老的秘密……"
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "旁观离开",
+          "cost": {},
+          "result": "pass",
+          "effects": {},
+          "condition": null,
+          "result_title": "转身走了",
+          "result_desc": "你没有停下来，继续往前走。\n但那些东西还是在脑子里留了一点印记。",
+          "result_baiiye": "有些事不介入也没关系。"
+        },
+        {
+          "label": "记录下来",
+          "cost": {
+            "san": 1
+          },
+          "result": "record",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "记下来了",
+          "result_desc": "把看到的东西仔细记了下来，哪怕不确定用处。\n理智消耗了一些，但感觉多了解了什么。",
+          "result_baiiye": "写下来的东西，以后或许能对上。"
+        },
+        {
+          "label": "深入介入",
+          "cost": {
+            "san": 2
+          },
+          "result": "intervene",
+          "effects": {
+            "money": 12
+          },
+          "condition": null,
+          "result_title": "陷得更深了",
+          "result_desc": "你没有只是观察，而是真正介入了那件事。\n代价不小，但你知道的比任何人都多了。",
+          "result_baiiye": "知道得越多，压力越大。但你选择了这条路。"
+        }
+      ]
+    },
+    "evt_plot_find_photo": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 15,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "一张泛黄的照片从缝隙中滑落。照片背面有人匆匆写下了一行字——'他们知道了'。"
+      ],
+      "condition": {
+        "not_flag": "found_photo"
+      },
+      "set_flags": {
+        "found_photo": true
+      },
+      "clue_id": "clue_old_photo",
+      "fallback_type": "safe"
+    },
+    "evt_plot_symbol_wall": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "你注意到墙上刻着奇异的符文，手指触碰的瞬间，符文发出了微弱的光……"
+      ],
+      "condition": {
+        "not_flag": "found_symbol"
+      },
+      "set_flags": {
+        "found_symbol": true
+      },
+      "clue_id": "clue_strange_symbol",
+      "fallback_type": "safe"
+    },
+    "evt_plot_whisper": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "那些符文……你又看到了相似的痕迹。这次它们排列成一个箭头，指向某个方向。"
+      ],
+      "condition": {
+        "flag": "found_symbol"
+      },
+      "set_flags": {
+        "symbol_trail": true
+      },
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_plot_missing_person": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "你在废弃的告示栏上发现了一张寻人启事。日期正好是裂隙出现的那天……"
+      ],
+      "condition": {
+        "min_day": 2
+      },
+      "set_flags": {
+        "found_missing_poster": true
+      },
+      "clue_id": "clue_missing_poster",
+      "fallback_type": "safe"
+    },
+    "evt_plot_deep_rumble": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "脚下传来低沉的震动，仿佛地底有什么巨大的东西正在苏醒……收集到的线索似乎在你脑中拼凑出了某种图案。"
+      ],
+      "condition": {
+        "min_clues": 3
+      },
+      "set_flags": {
+        "felt_rumble": true
+      },
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_clue_footprints": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "地上有一串奇怪的脚印，不像是人类留下的。它们消失在一面完整的墙壁前。"
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_clue_blood_trail": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "你在角落发现了干涸的血迹，痕迹异常规整，像是某种仪式的一部分……"
+      ],
+      "condition": {
+        "not_flag": "found_blood"
+      },
+      "set_flags": {
+        "found_blood": true
+      },
+      "clue_id": "clue_blood_stain",
+      "fallback_type": "safe"
+    },
+    "evt_clue_diary": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "一页日记从旧书里飘落，字迹越到后面越潦草，最后一行写着：'不要回头看……'"
+      ],
+      "condition": {
+        "min_day": 2,
+        "not_flag": "found_diary"
+      },
+      "set_flags": {
+        "found_diary": true
+      },
+      "clue_id": "clue_diary_page",
+      "fallback_type": "safe"
+    },
+    "evt_clue_talisman": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "在符文附近的地面上，你发现了一枚碎裂的护身符。它上面的刻文和墙上的符号一模一样。"
+      ],
+      "condition": {
+        "flag": "found_symbol",
+        "not_flag": "found_talisman"
+      },
+      "set_flags": {
+        "found_talisman": true
+      },
+      "clue_id": "clue_broken_talisman",
+      "fallback_type": "safe"
+    },
+    "evt_clue_generic": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 8,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "你注意到一个不寻常的细节，也许之后会派上用场……"
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_photo_generic": {
+      "type": "photo",
+      "world": [
+        "real"
+      ],
+      "base_weight": 0,
+      "effects": {
+        "money": 5
+      },
+      "texts": [
+        "快门声响起，画面被永远定格。",
+        "镜头捕捉到了肉眼看不见的东西...",
+        "照片慢慢显影，真相浮出水面。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_rift_generic": {
+      "type": "rift",
+      "world": [
+        "real"
+      ],
+      "base_weight": 0,
+      "effects": {},
+      "texts": [
+        "空间仿佛被撕裂开一道口子...",
+        "脚下的阴影开始漩涡般旋转...",
+        "一股来自深处的力量在召唤你..."
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_home_rest": {
+      "type": "home",
+      "world": [
+        "real"
+      ],
+      "base_weight": 0,
+      "effects": {
+        "san": 1
+      },
+      "texts": [
+        "回到家中，终于可以安心休息了。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_landmark_visit": {
+      "type": "landmark",
+      "world": [
+        "real"
+      ],
+      "base_weight": 0,
+      "effects": {
+        "san": 1,
+        "inspiration": 1
+      },
+      "texts": [
+        "这里是一个令人安心的地标建筑。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_shop_visit": {
+      "type": "shop",
+      "world": [
+        "real"
+      ],
+      "base_weight": 0,
+      "effects": {},
+      "texts": [
+        "一间便利店映入眼帘，可以补给一下。"
+      ],
+      "condition": null,
+      "is_blocking": true,
+      "fallback_type": null
+    },
+    "evt_dark_normal": {
+      "type": "safe",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 40,
+      "effects": {},
+      "texts": [
+        "空荡荡的走廊，什么也没有。",
+        "暗影笼罩，但没有危险。",
+        "一片寂静，只有自己的脚步声回荡。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "_comment_dark_layer_events": "========== 暗面分层事件 ==========",
+    "evt_dark_L0_safe": {
+      "type": "safe",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 35,
+      "effects": {},
+      "texts": [
+        "锈蚀的铁管滴着水，节奏平稳，令人稍安。",
+        "墙角堆着废旧纸箱，看起来已经很久没人碰过了。",
+        "路灯闪烁了几下，最终稳定了，照亮了一小片地面。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_dark_L0_whisper": {
+      "type": "monster",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "风穿过裂缝时发出了类似低语的声音，回头看去却什么也没有...",
+        "脚步声突然多了一拍——但身后空无一人。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L0_loose_brick": {
+      "type": "trap",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "踩到了一块松动的砖，差点摔倒，心跳加速了好一会儿。",
+        "头顶有碎石掉落，擦着肩膀砸在地上，吓了一跳。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L0_scrap_find": {
+      "type": "reward",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 8,
+      "effects": {
+        "money": 8
+      },
+      "texts": [
+        "墙缝里卡着几枚沾满灰尘的硬币。",
+        "垃圾堆里翻到了一个还能用的小工具，也许能换点钱。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L1_safe": {
+      "type": "safe",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 28,
+      "effects": {},
+      "texts": [
+        "暗市的喧嚣远远传来，但这条路上没有什么异常。",
+        "纸灯笼发出昏黄的光，勉强照亮了前路。",
+        "空气中弥漫着奇异的香料味，令人微微恍惚，但并无危险。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_dark_L1_mask_stalker": {
+      "type": "monster",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 18,
+      "effects": {
+        "san": -2,
+        "money": -5
+      },
+      "texts": [
+        "一个戴着白色面具的身影从人群中分离出来，直直地向你走来...",
+        "有人拍了拍你的肩膀，回头看到一张扭曲的笑脸面具——然后它消失了，口袋也轻了。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L1_fog_trap": {
+      "type": "trap",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "san": -2
+      },
+      "texts": [
+        "浓雾突然涌来，方向感完全丧失，在原地打转了很久才找到出路...",
+        "脚下的水渠盖板突然打开，差点掉进污浊的暗流中..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L1_black_market_find": {
+      "type": "reward",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "money": 15
+      },
+      "texts": [
+        "在暗市的角落发现了一个无人看管的摊位，上面有些值钱的物件。",
+        "一个匆忙离去的商人落下了一袋货物，里面有可用的补给。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L1_echo_clue": {
+      "type": "clue",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "回声茶馆的老板用暗语告诉了你一条重要线索...",
+        "地下水渠的墙壁上刻着一段密文，与现实世界的某处对应..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L2_safe": {
+      "type": "safe",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 20,
+      "effects": {},
+      "texts": [
+        "深渊的气息在此处稍有减弱，可以喘口气。",
+        "一根已经熄灭的火把在你靠近时重新燃起，照出了一片安全的空间。",
+        "巨大的石柱形成了天然的庇护，暂时阻隔了深渊的侵蚀。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_dark_L2_void_gaze": {
+      "type": "monster",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 24,
+      "effects": {
+        "san": -4,
+        "money": -10
+      },
+      "texts": [
+        "虚空中睁开了一只巨大的眼睛，与它对视的瞬间，意识几乎被吞噬...",
+        "骨架走廊的尽头，有什么不可名状的东西正在'进食'——而它注意到了你。",
+        "地面裂开，深渊的呢喃化作实体，像触手一样缠住了你的脚踝..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L2_reality_crack": {
+      "type": "trap",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 18,
+      "effects": {
+        "san": -3
+      },
+      "texts": [
+        "现实在这里像玻璃一样碎裂，你看到了无数个自己——每一个都在尖叫...",
+        "时间在这里失去了意义，你感觉过了几秒钟，但身体的疲惫说明已经过去了很久..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L2_abyssal_treasure": {
+      "type": "reward",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "money": 30,
+        "san": -1
+      },
+      "texts": [
+        "在崩塌的石室中发现了一堆散发着微光的结晶，价值不菲，但触碰时头脑有些眩晕。",
+        "祭坛上摆放着古老的祭品，拿走它们让你获得了可观的收获——但似乎触怒了什么..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_L2_ancient_vision": {
+      "type": "clue",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "inspiration": 2,
+        "san": -1
+      },
+      "texts": [
+        "触碰碑文的瞬间，你的脑海中闪过一段远古的记忆——不是你的记忆...",
+        "深渊的壁画在你注视时开始移动，演示着某种仪式的完整过程..."
+      ],
+      "condition": {
+        "min_day": 4
+      },
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_shop": {
+      "type": "shop",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {},
+      "texts": [
+        "这里有神秘的商人...",
+        "角落里闪烁着可疑的光芒...",
+        "似乎可以交换些什么..."
+      ],
+      "condition": null,
+      "is_blocking": true,
+      "fallback_type": "safe"
+    },
+    "evt_dark_intel": {
+      "type": "intel",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {},
+      "texts": [
+        "这里有人愿意分享情报...",
+        "墙壁上刻着奇怪的符号...",
+        "似乎有人在这里留下了信息..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_clue_tape": {
+      "type": "clue",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": 1
+      },
+      "texts": [
+        "你在暗世界的角落发现了一卷老式磁带，上面标注着'第三次调查记录'……"
+      ],
+      "condition": {
+        "not_flag": "found_tape"
+      },
+      "set_flags": {
+        "found_tape": true
+      },
+      "clue_id": "clue_audio_tape",
+      "fallback_type": "safe"
+    },
+    "evt_dark_clue_map": {
+      "type": "clue",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "san": 1
+      },
+      "texts": [
+        "一张残破的地图碎片浮现在虚空中，上面标注了暗世界的几个关键位置……"
+      ],
+      "condition": {
+        "min_clues": 3,
+        "not_flag": "found_dark_map"
+      },
+      "set_flags": {
+        "found_dark_map": true
+      },
+      "clue_id": "clue_dark_map",
+      "fallback_type": "safe"
+    },
+    "evt_dark_clue_generic": {
+      "type": "clue",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 8,
+      "effects": {},
+      "texts": [
+        "暗世界的气息中隐藏着某种信息，你将其记在脑海中。",
+        "发现了一个隐藏的线索...",
+        "黑暗中闪烁着微光..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_item_random": {
+      "type": "item",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {},
+      "item_rewards": [
+        [
+          "san",
+          10
+        ],
+        [
+          "money",
+          20
+        ],
+        [
+          "film",
+          1
+        ]
+      ],
+      "texts": [
+        "发现了散落的物品...",
+        "地上有什么在发光...",
+        "似乎可以拾取..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_checkpoint": {
+      "type": "checkpoint",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {},
+      "texts": [
+        "一扇古老的大门矗立在此...",
+        "门上刻着面具的图案...",
+        "似乎是一个安全的休息点..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_dark_passage": {
+      "type": "passage",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {},
+      "texts": [
+        "空间在这里扭曲变形...",
+        "似乎可以通向别处...",
+        "阶梯向下延伸，消失在黑暗中..."
+      ],
+      "condition": null,
+      "is_blocking": true,
+      "fallback_type": "safe"
+    },
+    "evt_dark_abyss": {
+      "type": "abyss_core",
+      "world": [
+        "dark"
+      ],
+      "base_weight": 10,
+      "effects": {},
+      "texts": [
+        "这里是暗面世界的最深处...",
+        "一股强大的力量在涌动...",
+        "让人感到既恐惧又着迷..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "_comment_location_specific": "========== 地点专属事件 ==========",
+    "evt_company_overtime": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "san": -2
+      },
+      "texts": [
+        "电脑屏幕突然弹出无数弹窗，每一个都写着'加班申请已批准'...",
+        "打卡机显示你已连续上班72小时，但你明明刚到...",
+        "办公室的灯一盏接一盏亮起，却看不到任何同事的身影..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_company_shadow_boss": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 18,
+      "effects": {
+        "san": -2,
+        "money": -8
+      },
+      "texts": [
+        "办公室尽头传来沉重的脚步声，影子上司的轮廓在毛玻璃后若隐若现...",
+        "会议室的白板上自动写出了绩效评估——全是不及格...",
+        "复印机自行启动，吐出的纸上印满了一双双眼睛..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_company_safe_bonus": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "money": 20
+      },
+      "texts": [
+        "抽屉里发现了一封未拆的信封，里面是上个月忘记领取的奖金。",
+        "茶水间角落的保险柜竟然没锁，里面有一笔意外之财。",
+        "同事的桌上放着一张写有'送给好心人'的现金红包。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_company_email_clue": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "电脑收件箱里出现了一封未读邮件，发件人是'已不存在的部门'，内容是一串坐标...",
+        "打印机自动输出了一份文件，上面的数据与近期的异常事件高度吻合..."
+      ],
+      "condition": {
+        "min_day": 2
+      },
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_school_quiet_study": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 28,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "空教室里异常安静，适合整理思绪。秩序感微微恢复。",
+        "阳光从窗户洒进教室，书桌上的灰尘在光束中飞舞，内心一阵平静。",
+        "翻开一本被遗忘的课本，里面的知识让你头脑清醒了些。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_school_faceless_teacher": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 15,
+      "effects": {
+        "san": -2
+      },
+      "texts": [
+        "教室门突然关上，讲台上站着一个没有面孔的教师，黑板上开始自动书写...",
+        "走廊尽头传来粉笔刮黑板的声音，越来越近..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_school_old_notebook": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "书桌抽屉里发现一本旧笔记本，最后几页画满了奇怪的几何图形和符号...",
+        "黑板角落残留着上一堂课的板书，但内容不像是任何正常科目..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_school_supply_find": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "money": 10,
+        "film": 1
+      },
+      "texts": [
+        "在失物招领箱里发现了一些有用的物品。",
+        "旧储物柜里居然还藏着没被领走的学生用品，其中有些值点钱。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_park_healing_breeze": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 35,
+      "effects": {
+        "san": 1
+      },
+      "texts": [
+        "微风穿过树梢，带来花草的清香。心情平静了许多。",
+        "在长椅上坐了一会儿，听着鸟鸣，精神恢复了一些。",
+        "湖面倒映着天空，这一刻世界仿佛回归了正常。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_park_tree_shadow": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": -1
+      },
+      "texts": [
+        "树影在无风的情况下开始晃动，低沉的呢喃从树干深处传来...",
+        "草地上出现了不属于任何人的巨大影子，正在缓慢移动..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_park_nature_clue": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "枯萎的花坛中央，植物以异常的图案生长，形成了某种符号...",
+        "湖边的石头上刻着看不懂的文字，但与之前发现的符文风格一致..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_park_herb_find": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "san": 2
+      },
+      "texts": [
+        "在灌木丛中发现了一种散发着安神气息的草药。",
+        "一棵古树下长着发光的蘑菇，摘下后感觉精神好了许多。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_alley_ambush": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 22,
+      "effects": {
+        "san": -3,
+        "money": -10
+      },
+      "texts": [
+        "巷子深处突然窜出扭曲的黑影，猛地扑了过来！",
+        "墙缝里伸出无数只苍白的手，紧紧抓住了你的衣角...",
+        "垃圾堆中传来咀嚼声，有什么东西正在享用它的'晚餐'..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_alley_thugs_trap": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 18,
+      "effects": {
+        "money": -15
+      },
+      "texts": [
+        "几个鬼鬼祟祟的影子堵住了退路，钱包瞬间被掏走了...",
+        "地上的涂鸦突然发光，脚下一软，钱袋已经空了..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_alley_graffiti_clue": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "墙上的涂鸦藏着某种暗号，仔细辨认后发现是一组日期和地点...",
+        "角落里的涂鸦用荧光颜料画成，在黑暗中显现出一张地图的轮廓..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_alley_stash": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 8,
+      "effects": {
+        "money": 25
+      },
+      "texts": [
+        "在废弃垃圾桶的夹层里发现了一个密封的包裹，里面是一笔现金。",
+        "砖墙的裂缝里塞着一个防水袋，打开后发现了别人藏起来的财物。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_station_warp_trap": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {},
+      "trap_subtype": "teleport",
+      "texts": [
+        "站台上的时刻表突然旋转，脚下的地面变成了传送门...",
+        "列车进站的瞬间，空间扭曲了，你出现在了完全不同的地方..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_station_ghost_train": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 16,
+      "effects": {
+        "san": -2
+      },
+      "texts": [
+        "一辆从未见过的黑色列车缓缓驶入站台，车窗后全是苍白的面孔...",
+        "广播传来不存在的站名，空气中弥漫着铁锈和旧布的气味..."
+      ],
+      "condition": {
+        "min_day": 2
+      },
+      "fallback_type": "safe"
+    },
+    "evt_station_lost_luggage": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "money": 18,
+        "film": 1
+      },
+      "texts": [
+        "储物柜里发现了一件无人认领的行李箱，里面有些值钱的东西。",
+        "候车椅下面有人遗落了一个背包，里面有补给品和一卷胶卷。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_station_schedule_clue": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "过期的列车时刻表背面有人用红笔画了复杂的路线图，标注了几个'消失点'...",
+        "售票窗口的玻璃上用手指写着一行反字——只有从外面才能正常阅读..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_hospital_treatment": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 25,
+      "effects": {
+        "san": 2
+      },
+      "texts": [
+        "找到了还能使用的医疗设备，简单的检查让精神状态好了许多。",
+        "药房的柜台上还留着一些镇定剂，服用后感觉安定了不少。",
+        "在值班室的沙发上休息了一会儿，精神恢复了一些。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_hospital_wandering_nurse": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 18,
+      "effects": {
+        "san": -3
+      },
+      "texts": [
+        "走廊深处传来轮椅的吱呀声，一个穿着旧式护士服的身影缓缓转过角落...",
+        "手术室的灯突然亮起，门缝中可以看到有人在'操作'，但手术台上什么都没有..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_hospital_medicine_reward": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": 3
+      },
+      "texts": [
+        "在药品储藏室找到了一盒完好的精神稳定剂。",
+        "急救箱里还有未使用的镇定贴片，感觉精神恢复了不少。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_hospital_medical_record": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "翻阅散落的病历，发现多名患者在同一天出现了相同的症状——'看到了不存在的门'...",
+        "心理科的诊疗记录中反复出现同一个符号，与你之前发现的完全一致..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_library_deep_read": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 28,
+      "effects": {
+        "inspiration": 2
+      },
+      "texts": [
+        "沉浸在古籍的世界里，头脑变得前所未有的清晰。",
+        "一本关于城市历史的书籍让你对这座城市有了全新的认识。",
+        "在宁静的阅览室中整理思绪，秩序感大幅恢复。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_library_self_turning_book": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "san": -2
+      },
+      "texts": [
+        "书架上的书开始自己翻页，内容逐渐变成了你的日记——包括未来的日期...",
+        "一本合上的书突然弹开，里面的文字扭曲成了一张咧嘴笑的脸..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_library_forbidden_book": {
+      "type": "plot",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "san": -1,
+        "inspiration": 2
+      },
+      "texts": [
+        "在被封存的书架深处，找到了一本用锁链绑住的古书。打开后，文字在你眼前重新排列，揭示了这座城市不为人知的过去..."
+      ],
+      "condition": {
+        "min_day": 3,
+        "not_flag": "found_forbidden_book"
+      },
+      "set_flags": {
+        "found_forbidden_book": true
+      },
+      "clue_id": "clue_forbidden_book",
+      "fallback_type": "safe"
+    },
+    "evt_library_ancient_scroll": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 14,
+      "effects": {
+        "inspiration": 2
+      },
+      "texts": [
+        "旧报纸合订本中夹着一张羊皮纸，上面用古文字记录着某种仪式的步骤...",
+        "图书馆的地下室入口旁，有人用书签标注了一系列看似无关的书页，连起来阅读后..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "evt_bank_vault_find": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 18,
+      "effects": {
+        "money": 30
+      },
+      "texts": [
+        "被遗弃的金库门微微敞开，里面散落着不少值钱的东西。",
+        "ATM机异常吐出了一叠钞票，也许是某种系统错误？",
+        "在VIP室的暗格中发现了一袋被遗忘的贵重物品。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_bank_vault_trap": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 16,
+      "effects": {
+        "money": -20
+      },
+      "texts": [
+        "防盗系统突然启动，逃跑的过程中丢失了大量财物...",
+        "金库的门在身后轰然关闭，等你找到出路时，口袋已经空了..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_bank_mask_teller": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 16,
+      "effects": {
+        "san": -2,
+        "money": -12
+      },
+      "texts": [
+        "柜台后面坐着一个戴面具的柜员，它微笑着把你的存款清零了...",
+        "保安的脸突然扭曲变形，用不属于人类的声音说：'本行已永久关闭'..."
+      ],
+      "condition": {
+        "min_day": 2
+      },
+      "fallback_type": "safe"
+    },
+    "evt_bank_suspicious_record": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "交易记录中有一笔巨额转账，收款方的名字由不可名状的符号组成...",
+        "安保录像中出现了一个不该存在的身影，它直接穿墙而过..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "_comment_cemetery_events": "========== 墓地专属事件 ==========",
+    "evt_cemetery_quiet": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 25,
+      "effects": {
+        "san": 1
+      },
+      "texts": [
+        "墓园一片寂静，反而让人感到一种超脱的宁静。",
+        "坐在石凳上望着远处的墓碑，思绪渐渐平复下来。",
+        "微风拂过青苔覆盖的石碑，带来一丝凉意和安心。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_cemetery_wandering_spirit": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 20,
+      "effects": {
+        "san": -3
+      },
+      "texts": [
+        "一团苍白的光从墓碑后升起，缓缓向你飘来...",
+        "地面上的阴影突然聚拢成人形，发出无声的哀号...",
+        "墓碑上的名字一个接一个地发光，最后一个——是你的名字。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_cemetery_sinkhole": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 15,
+      "effects": {
+        "san": -2,
+        "health": -1
+      },
+      "texts": [
+        "脚下的泥土突然塌陷，差点跌入一个未封的旧墓穴...",
+        "墓碑间的小径突然断裂，露出下方幽暗的地道入口..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_cemetery_ancient_amulet": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "san": 3,
+        "inspiration": 1
+      },
+      "texts": [
+        "在一座古老的墓碑旁，发现了一枚散发微光的护符，握在手中感到一阵温暖。",
+        "枯萎花束下藏着一件精致的银饰，似乎蕴含某种庇护之力。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_cemetery_epitaph_clue": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "inspiration": 2
+      },
+      "texts": [
+        "一块倒塌的墓碑背面刻着一段密文，与裂隙出现的时间完美吻合...",
+        "最深处的无名墓上，有人用红漆写下了一串坐标和日期..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "_comment_gym_events": "========== 健身房专属事件 ==========",
+    "evt_gym_training": {
+      "type": "safe",
+      "world": [
+        "real"
+      ],
+      "base_weight": 30,
+      "effects": {
+        "health": 2
+      },
+      "texts": [
+        "进行了一组扎实的训练，身体状态明显好转。",
+        "跑步机上跑了半小时，出了一身汗，感觉精力充沛。",
+        "拉伸和有氧运动让紧绷的肌肉放松了下来。"
+      ],
+      "condition": null,
+      "fallback_type": null
+    },
+    "evt_gym_berserk_machine": {
+      "type": "monster",
+      "world": [
+        "real"
+      ],
+      "base_weight": 15,
+      "effects": {
+        "san": -1,
+        "health": -2
+      },
+      "texts": [
+        "器械突然失控般加速运转，差点被甩飞出去！",
+        "杠铃片自行滑动，发出刺耳的金属碰撞声，影子在镜子里扭曲变形..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_gym_locked_equipment": {
+      "type": "trap",
+      "world": [
+        "real"
+      ],
+      "base_weight": 12,
+      "effects": {
+        "health": -1
+      },
+      "texts": [
+        "储物柜的锁突然卡死，用力掰开时扭伤了手腕...",
+        "跑步机皮带突然停转，惯性让你踉跄了好几步，膝盖一阵刺痛..."
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_gym_power_crystal": {
+      "type": "reward",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "health": 3
+      },
+      "texts": [
+        "在更衣室角落发现了一瓶散发微光的能量饮料，喝下后感觉浑身充满力量。",
+        "器材室深处有一块奇异的水晶，触碰后疲劳一扫而空。"
+      ],
+      "condition": null,
+      "fallback_type": "safe"
+    },
+    "evt_gym_bandage_clue": {
+      "type": "clue",
+      "world": [
+        "real"
+      ],
+      "base_weight": 10,
+      "effects": {
+        "inspiration": 1
+      },
+      "texts": [
+        "拳击沙袋上缠绕的绷带里，藏着一张写满密码的纸条...",
+        "教练办公室的白板上画着看似训练计划，实则是一张标注了异常区域的地图..."
+      ],
+      "condition": null,
+      "set_flags": {},
+      "clue_id": null,
+      "fallback_type": "safe"
+    },
+    "_comment_photo_ruin": "========== Photo 遗址调查事件（被相机消灭后的格子） ==========",
+    "evt_photo_ruin": {
+      "type": "photo",
+      "world": [
+        "real"
+      ],
+      "base_weight": 0,
+      "effects": {},
+      "texts": [
+        "这里曾经有什么……现在只剩下一片沉寂的残影。",
+        "相机的闪光留下了烙印，空气中隐隐还有那种气息。",
+        "遗址就在脚下，说不定还藏着什么线索。"
+      ],
+      "condition": null,
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "离开",
+          "cost": {},
+          "result": "leave",
+          "effects": {},
+          "condition": null,
+          "result_title": "离开了这里",
+          "result_desc": "你没有多看一眼，转身走了。\n残影留在原地，慢慢淡去。",
+          "result_baiiye": "不是每个遗址都值得停留。"
+        },
+        {
+          "label": "继续调查",
+          "cost": {
+            "san": 1
+          },
+          "result": "investigate",
+          "effects": {
+            "money": 10
+          },
+          "condition": null,
+          "result_title": "找到了线索",
+          "result_desc": "深入调查了残留的痕迹，翻出了一些有用的东西。\n理智承受了压力，但没有白费。",
+          "result_baiiye": "遗址里留的东西，往往比当时更清晰。"
+        },
+        {
+          "label": "拍照留档",
+          "cost": {
+            "film": 1
+          },
+          "result": "archive",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "留下了记录",
+          "result_desc": "按下快门，把这里的样子固定在了胶片上。\n不知道以后能不能用上，但至少记下来了。",
+          "result_baiiye": "照片是记忆的备份。"
+        }
+      ]
+    }
+  }
 }

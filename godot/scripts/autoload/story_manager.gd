@@ -338,7 +338,8 @@ func pick_event(event_list: Array) -> Dictionary:
 func pick_plot_event() -> Dictionary:
 	return pick_event(_plot_events)
 
-## 选择线索事件 (翻牌 clue 类型时调用)
+## 选择线索事件（明面 clue 牌已移除，此函数暂无调用方）
+## 明面线索触发路径待重新设计（预留：事件内决策系统 / 怪物或陷阱选项后续接入）
 func pick_clue_event() -> Dictionary:
 	return pick_event(_clue_events)
 

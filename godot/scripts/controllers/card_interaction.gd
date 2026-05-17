@@ -27,6 +27,10 @@ var _steps_today: int = 0
 ## 天开始时的 health 快照 (用于计算当日最大步数, 避免天中 health 变化影响步数上限)
 var _day_start_health: int = 0
 
+## 陷阱卡翻开时计算出的效果，暂存供 _apply_choice_effects charge 分支使用
+## （有 choices 时不在翻牌时立即结算，而是等玩家选择"硬闯"后才执行）
+var _pending_trap_effects: Dictionary = {}
+
 # ---------------------------------------------------------------------------
 # 初始化
 # ---------------------------------------------------------------------------
@@ -188,17 +192,40 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	print("[Flip] (%d,%d) 翻面触发, 类型: %s, trap_subtype: %s" % [row, col, card_type, card.trap_subtype if card_type == "trap" else "N/A"])
 	GameData.cards_revealed += 1
 
+	# ── Photo 遗址调查（一次性，仅在未调查过时触发）──
+	if card_type == "photo" and not card.photo_investigated:
+		card.photo_investigated = true
+		GameData.set_demo_state("popup")
+		m._camera_button.hide_button()
+		var ruin_evt: Dictionary = EventPool.get_event("evt_photo_ruin")
+		var ruin_text: String = ""
+		var ruin_choices: Array = []
+		if not ruin_evt.is_empty():
+			var texts: Array = ruin_evt.get("texts", [])
+			if not texts.is_empty():
+				ruin_text = texts[randi() % texts.size()]
+			ruin_choices = _event_handler._filter_choices(ruin_evt.get("choices", []))
+
+		m._event_popup.show_event_data(
+			"photo",
+			{},
+			false,
+			card.location,
+			"",
+			ruin_choices,
+			func(choice: Dictionary) -> void:
+				_apply_choice_effects(choice)
+				# 翻完后走完正常流程
+				m.token.set_emotion("default")
+				GameData.set_demo_state("ready")
+				m._camera_button.show_button()
+				m.game_flow.check_defeat()
+		)
+		await m._event_popup.popup_closed
+		return
+
 	# 地标光环净化已在 board.generate_cards() 阶段完成 (_apply_landmark_aura)
 	# 地标邻近的 monster/trap 在生成时已转为 safe，翻牌时无需重复净化
-
-	# Phase 5: 灵感阈值退化 — inspiration < 20 时线索牌退化为 safe
-	if card_type == "clue" and GameData.get_resource("inspiration") < 20:
-		print("[Flip] inspiration=%d < 20, 线索牌(%d,%d)退化为 safe" % [
-			GameData.get_resource("inspiration"), row, col])
-		card.type = "safe"
-		card_type = "safe"
-		m.board_visual.update_card_visual(row, col)
-		m._vfx.action_banner("灵感不足, 线索消散...", Color(0.6, 0.6, 0.6), 0.8)
 
 	# 日程完成检查 (翻牌到达时)
 	var arrived_location_for_mid: String = ""
@@ -221,7 +248,7 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 	# 表情映射
 	var emotion_map: Dictionary = {
 		"monster": "scared", "trap": "nervous", "shop": "confused",
-		"clue": "surprised", "home": "relieved", "landmark": "relieved",
+		"plot": "surprised", "home": "relieved", "landmark": "relieved",
 		"safe": "relieved",
 	}
 	m.token.set_emotion(emotion_map.get(card_type, "default"))
@@ -274,56 +301,60 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 			m._event_popup.show_event(card)
 	else:
 		# 非阻断事件: monster, safe, reward, plot, clue 等
-		# 立即结算资源
+
+		# 从 EventPool 读取决策选项（决定是否推迟效果结算）
+		var popup_choices: Array = []
+		if card.event_id != "":
+			var evt_def: Dictionary = EventPool.get_event(card.event_id)
+			if not evt_def.is_empty():
+				popup_choices = _event_handler._filter_choices(evt_def.get("choices", []))
+
+		var has_choices: bool = not popup_choices.is_empty()
+
+		# 资源结算：有 choices 时由玩家决策驱动（_apply_choice_effects），无 choices 时立即结算
 		var shield_used: bool = false
 		var effects: Dictionary = card.get_effects()
 
-		# 怪物: 护盾检查
-		if card_type == "monster":
-			if effects.size() > 0 and GameData.has_item("shield"):
-				GameData.remove_item("shield")
-				shield_used = true
-				m._vfx.action_banner("🧿 护身符抵消了伤害!", GameTheme.safe, 0.8)
-				effects = {}  # 清空伤害
+		if not has_choices:
+			# 无决策选项 → 旧逻辑：翻牌即结算（safe/clue 等被动格）
+			if card_type == "monster":
+				if effects.size() > 0 and GameData.has_item("shield"):
+					GameData.remove_item("shield")
+					shield_used = true
+					effects = {}
+			if not shield_used:
+				for key: String in effects:
+					GameData.modify_resource(key, effects[key])
+		# else: 有决策时，资源变化延迟到玩家点选选项后由 _apply_choice_effects 处理
 
-		# 应用资源变化
-		if not shield_used:
-			for key in effects:
-				GameData.modify_resource(key, effects[key])
-
-		# Phase 5: 剧情/线索事件 — 优先走 StoryEventManager (条件匹配), 然后 event_id, 最后 fallback
-		if card_type == "plot" or card_type == "clue":
+		# 叙事推进格事件 — 优先走 StoryEventManager (条件匹配), 然后 event_id, 最后 fallback
+		if card_type == "plot":
 			var story_event_handled: bool = _try_story_event(card, card_type, row, col)
 			if not story_event_handled:
-				# 次优先: event_id (EventPool 驱动)
 				if card.event_id != "":
 					var evt_result: EventHandler.EventResult = _event_handler.resolve_event_by_id(card.event_id, card)
 					_event_handler.execute_event(evt_result, card)
 				else:
-					# fallback: 旧路径 (StoryManager.pick_xxx_event)
-					if card_type == "plot":
-						var story_evt: Dictionary = StoryManager.pick_plot_event()
-						if not story_evt.is_empty():
-							var result: Dictionary = StoryManager.apply_event_effects(story_evt)
-							if result["is_new_clue"]:
-								m._vfx.action_banner("获得线索: %s" % result["clue_name"],
-									Color(0.5, 0.8, 0.6), 1.0)
-					else:  # clue
-						var clue_evt: Dictionary = StoryManager.pick_clue_event()
-						if not clue_evt.is_empty():
-							var result: Dictionary = StoryManager.apply_event_effects(clue_evt)
-							if result["is_new_clue"]:
-								m._vfx.action_banner("获得线索: %s" % result["clue_name"],
-									Color(0.5, 0.8, 0.6), 1.0)
-							else:
-								m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
-						else:
-							m._vfx.action_banner("发现了新线索!", GameTheme.info, 0.8)
+					var story_evt: Dictionary = StoryManager.pick_plot_event()
+					if not story_evt.is_empty():
+						var result: Dictionary = StoryManager.apply_event_effects(story_evt)
+						if result["is_new_clue"]:
+							m._vfx.action_banner("获得线索: %s" % result["clue_name"],
+								Color(0.5, 0.8, 0.6), 1.0)
 
-		# 非阻断事件: 弹窗展示（等待玩家点击"知道了"再继续）
+		# 非阻断事件: 弹窗展示
 		GameData.set_demo_state("popup")
 		m._camera_button.hide_button()
-		m._event_popup.show_event_data(card_type, effects, shield_used, card.location, card.trap_subtype)
+
+		# 有 choices 时弹窗不在 effects_row 显示翻牌时的效果（由结果视图展示）
+		var display_effects: Dictionary = effects if not has_choices else {}
+
+		m._event_popup.show_event_data(
+			card_type, display_effects, shield_used, card.location, card.trap_subtype,
+			popup_choices,
+			func(choice: Dictionary) -> void:
+				_apply_choice_effects(choice)
+		)
 		await m._event_popup.popup_closed
 
 		# 弹窗关闭后恢复状态
@@ -367,34 +398,59 @@ func _on_card_flipped(card: Card, row: int, col: int) -> void:
 # ---------------------------------------------------------------------------
 
 func _handle_trap(card: Card, row: int, col: int) -> void:
+	# ── 读取决策选项（同非阻断分支的逻辑） ───────────────────────────────
+	var popup_choices: Array = []
+	if card.event_id != "":
+		var evt_def: Dictionary = EventPool.get_event(card.event_id)
+		if not evt_def.is_empty():
+			popup_choices = _event_handler._filter_choices(evt_def.get("choices", []))
+
+	var has_choices: bool = not popup_choices.is_empty()
+
+	# ── 计算陷阱效果（有 choices 时暂存，让玩家决策后再结算）─────────────
+	var trap_effects: Dictionary = card.get_effects()
+	_pending_trap_effects = trap_effects.duplicate()
+
+	# ── 传送陷阱：无 choices，立即结算并传送 ─────────────────────────────
+	if card.trap_subtype == "teleport":
+		for key: String in trap_effects:
+			GameData.modify_resource(key, trap_effects[key])
+		GameData.set_demo_state("popup")
+		m._camera_button.hide_button()
+		m._event_popup.show_event_data(card.type, trap_effects, false, card.location, card.trap_subtype)
+		await m._event_popup.popup_closed
+		await _teleport_to_random()
+		return
+
 	var shield_used: bool = false
 
-	# 护身符检查
-	if GameData.has_item("shield"):
-		GameData.remove_item("shield")
-		shield_used = true
-		m._vfx.action_banner("🧿 护身符抵消了陷阱!", GameTheme.safe, 0.8)
+	if not has_choices:
+		# ── 无决策路径（旧逻辑）：护身符检查 + 立即结算 ──────────────────
+		if GameData.has_item("shield"):
+			GameData.remove_item("shield")
+			shield_used = true
+			m._vfx.action_banner("🧿 护身符抵消了陷阱!", GameTheme.safe, 0.8)
+		else:
+			for key: String in trap_effects:
+				GameData.modify_resource(key, trap_effects[key])
+
+		GameData.set_demo_state("popup")
+		m._camera_button.hide_button()
+		m._event_popup.show_event_data(card.type, trap_effects, shield_used, card.location, card.trap_subtype)
+		await m._event_popup.popup_closed
 	else:
-		# 应用陷阱效果
-		var effects: Dictionary = card.get_effects()
-		for key in effects:
-			GameData.modify_resource(key, effects[key])
-
-		# 特殊: 传送陷阱 — 先弹窗告知再传送
-		if card.trap_subtype == "teleport":
-			GameData.set_demo_state("popup")
-			m._camera_button.hide_button()
-			m._event_popup.show_event_data(card.type, card.get_effects(), shield_used, card.location, card.trap_subtype)
-			await m._event_popup.popup_closed
-			# 传送流程（内部会设置 ready 状态）
-			await _teleport_to_random()
-			return
-
-	# 陷阱弹窗（等待玩家点击"知道了"）
-	GameData.set_demo_state("popup")
-	m._camera_button.hide_button()
-	m._event_popup.show_event_data(card.type, card.get_effects(), shield_used, card.location, card.trap_subtype)
-	await m._event_popup.popup_closed
+		# ── 有决策路径：不立即结算，弹窗展示选项，结算推迟到玩家选择 ──────
+		# charge → _pending_trap_effects 会在 _apply_choice_effects 中结算
+		# detour / shield → 由 choice 的 cost / condition 处理，不触及 trap_effects
+		GameData.set_demo_state("popup")
+		m._camera_button.hide_button()
+		m._event_popup.show_event_data(
+			card.type, {}, false, card.location, card.trap_subtype,
+			popup_choices,
+			func(choice: Dictionary) -> void:
+				_apply_choice_effects(choice)
+		)
+		await m._event_popup.popup_closed
 
 	GameData.set_demo_state("ready")
 	m._camera_button.show_button()
@@ -497,7 +553,7 @@ func on_popup_dismissed(card: Card) -> void:
 
 	# 表情
 	if card:
-		var positive: Array = ["clue", "safe", "home", "landmark"]
+		var positive: Array = ["plot", "safe", "home", "landmark"]
 		if card.type in positive:
 			m.token.set_emotion("happy")
 		else:
@@ -649,7 +705,8 @@ func do_photograph(card: Card, row: int, col: int) -> void:
 				# chibi 死亡动画 (抖动→膨胀→淡出)
 				m.board_visual.mg_exorcise_card_ghosts()
 
-				# 变形: 当前类型 → photo (安全格)
+				# 变形: 当前类型 → photo (安全格)；先保存原始类型供遗址调查用
+				card.pre_photo_type = card.type
 				card.type = "photo"
 				m.board_visual.update_card_visual(row, col)
 
@@ -756,6 +813,8 @@ func _do_exorcise(card: Card, row: int, col: int, free_exorcise: bool = false) -
 	# chibi 死亡动画
 	m.board_visual.mg_exorcise_card_ghosts()
 
+	# 保存原始类型供遗址调查用（_do_exorcise 只处理已翻开的 monster）
+	card.pre_photo_type = card.type
 	card.type = "photo"
 	m.board_visual.update_card_visual(row, col)
 
@@ -1043,5 +1102,85 @@ func _walk_step(path: Array, step_idx: int) -> void:
 							Color(0.4, 0.8, 0.5), 0.8)
 			_walk_step(path, step_idx + 1)
 	)
+
+# =========================================================================
+# 决策选项效果应用
+# =========================================================================
+
+## 应用玩家选择的决策选项效果，并触发弹窗过渡到结果视图
+## choice: event_pool.json 中的 choices 元素 {label, cost, result, effects, condition,
+##         result_title, result_desc, result_baiiye, [result_title_fail, ...]}
+func _apply_choice_effects(choice: Dictionary) -> void:
+	if choice.is_empty():
+		return
+
+	var result_key: String = choice.get("result", "")
+	var effects: Dictionary = choice.get("effects", {})
+	var cost: Dictionary = choice.get("cost", {})
+
+	# ── 扣除代价 ──────────────────────────────────────────────────────────
+	for k: String in cost:
+		var v = cost[k]
+		if k == "steps":
+			_steps_today += int(v)
+			_sync_steps_to_gamedata()
+		elif k == "item":
+			GameData.remove_item(str(v))
+		else:
+			GameData.modify_resource(k, -int(v))
+
+	# ── 确定结果文本 + 实际效果（随机分支在此处理）────────────────────────
+	var r_title: String   = choice.get("result_title", "")
+	var r_desc: String    = choice.get("result_desc", "")
+	var r_baiiye: String  = choice.get("result_baiiye", "")
+	var r_effects: Dictionary = {}  # 本次实际发生的资源变化（供结果视图展示）
+
+	match result_key:
+		"fight":
+			# 对抗：60% 成功 → san-1 + money+10 / 40% 失败 → san-2
+			if randf() < 0.60:
+				GameData.modify_resource("san", -1)
+				GameData.modify_resource("money", 10)
+				r_effects = { "san": -1, "money": 10 }
+			else:
+				GameData.modify_resource("san", -2)
+				r_effects = { "san": -2 }
+				r_title  = choice.get("result_title_fail",  r_title)
+				r_desc   = choice.get("result_desc_fail",   r_desc)
+				r_baiiye = choice.get("result_baiiye_fail", r_baiiye)
+
+		"dig":
+			# 深挖：50% 成功获得全额奖励 / 50% 只得到基础奖励并额外扣 san-1
+			if randf() < 0.50:
+				for k: String in effects:
+					GameData.modify_resource(k, int(effects[k]))
+				r_effects = effects.duplicate()
+			else:
+				# 失败：给基础奖励（money+15, film+1），额外扣 san-1
+				var fallback: Dictionary = { "money": 15, "film": 1 }
+				for k: String in fallback:
+					GameData.modify_resource(k, fallback[k])
+				GameData.modify_resource("san", -1)
+				r_effects = { "money": 15, "film": 1, "san": -1 }
+				r_title  = choice.get("result_title_fail",  r_title)
+				r_desc   = choice.get("result_desc_fail",   r_desc)
+				r_baiiye = choice.get("result_baiiye_fail", r_baiiye)
+
+		"charge":
+			# 硬闯：触发陷阱的默认惩罚（翻牌时已暂存到 _pending_trap_effects，在此结算）
+			for k: String in _pending_trap_effects:
+				GameData.modify_resource(k, int(_pending_trap_effects[k]))
+			r_effects = _pending_trap_effects.duplicate()
+			_pending_trap_effects = {}
+
+		_:
+			# 其余确定性结果：直接应用 effects
+			for k: String in effects:
+				GameData.modify_resource(k, int(effects[k]))
+			r_effects = effects.duplicate()
+
+	# ── 弹窗过渡到结果视图 ────────────────────────────────────────────────
+	if m._event_popup.is_active():
+		m._event_popup.transition_to_result(r_title, r_desc, r_baiiye, r_effects)
 
 # =========================================================================

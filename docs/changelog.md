@@ -2,6 +2,49 @@
 
 ---
 
+## v1.2 实施记录 (2026-05-17)
+
+### 明面卡牌系统重构：移除 clue 类型，plot 重定义为叙事推进格
+
+#### 背景
+
+原设计中明面存在 6 种卡牌类型（safe / monster / trap / reward / plot / clue）。clue（线索格）在明面可被直接触发，导致前世记忆碎片的获取过于容易，削弱了玩家探索暗面世界的动机。本次将明面 clue 类型完全移除，暗面专属 clue 保留不变，并将 plot 重定位为叙事推进格以填补空缺。
+
+#### 变更详情
+
+| 改动文件 | 变更内容 |
+|---------|---------|
+| `godot/data/card_config.json` | 移除 `event_weights.clue`，`plot` 权重 10→20；删除所有地点 `darkside_info.clue` 条目（10 个地点）；删除 `card_effects.clue`；删除 `event_texts.clue`，更新 `plot` 文本为叙事风格 3 条；`card_types` 删除 `"clue"` 条目，`plot` 标签改为"叙事" |
+| `godot/scripts/controllers/card_interaction.gd` | 删除 clue 灵感阈值降级逻辑；表情映射 `"clue": "surprised"` → `"plot": "surprised"`；删除 clue 事件处理分支，叙事推进格统一走 plot 路径；positive 数组 `"clue"` → `"plot"` |
+| `godot/scripts/lib/event_handler.gd` | 删除 `EventType.CLUE = 5`（`DARK_CLUE = 14` 保留）；删除 `parse_real_world_card` 的 clue 分支；删除类型映射函数中的 clue 条目；`get_event_type_name` 中 "剧情" → "叙事" |
+| `godot/scripts/core/card_manager.gd` | 两处安全类型判断移除 `"clue"`（lines 181、218） |
+| `godot/scripts/ui/bubble_dialogue.gd` | 删除 `"clue"` 对话数组（6 条），叙事推进格复用 `"plot"` 对话 |
+| `godot/scripts/ui/event_popup_scene.gd` | 删除音效映射 `"clue": "evt_clue"` |
+| `godot/scripts/autoload/card_image_map.gd` | `GENERIC` 图池：删除 `"clue"` 数组，5 张图片合并进 `"plot"`（共 10 张）；`LOCATION_EVENT_IMAGES` 各地点 `"clue"` 条目改为 `"plot"`（school 合并为数组）；`DARK_EVENT_ICONS["clue"]` 保留 |
+| `godot/scripts/core/story_event_manager.gd` | 注释 `card_type: "plot" \| "clue"` → `card_type: "plot"` |
+| `godot/scripts/autoload/story_manager.gd` | `pick_clue_event()` 注释更新，标明当前无调用方，预留为事件内决策系统接入点 |
+
+#### 保留不变（暗面专属）
+
+- `board.gd`：暗面地图生成中 `dark_type = "clue"` 格子分配逻辑
+- `event_handler.gd`：`parse_dark_world_card` 中 `dark_type == "clue"` 处理分支
+- `card_image_map.gd`：`DARK_EVENT_ICONS["clue"]` 暗面卡图标
+- `story_manager.gd`：`_clue_events` 数据池、`pick_clue_event()` 函数（预留接口）
+- `story_config.json`：`clue_events` 事件池（5 条明面线索事件，待事件内决策系统设计后接入）
+- `audio_manager.gd`：`evt_clue` 音效资源（可供暗面线索翻开复用）
+
+#### 明面卡牌类型（变更后）
+
+| 类型 | 权重 | 说明 |
+|------|------|------|
+| safe | 30 | 安全格 |
+| monster | 20 | 怪物格 |
+| trap | 15 | 陷阱格 |
+| reward | 15 | 奖励格 |
+| plot | 20 | 叙事推进格（原 10，吸收原 clue 份额） |
+
+---
+
 ## v1.1 实施记录 (2026-05-03)
 
 > 以下记录 v1.1 changelog 各条目的代码落地状态。
