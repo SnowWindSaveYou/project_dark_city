@@ -323,7 +323,7 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 	# 避免 squash_x 压缩到 0 时角色变成"小方块"
 	var emo: String = EventHandler.get_emotion_for_event(result.event_type)
 	match result.event_type:
-		EventHandler.EventType.CLUE, EventHandler.EventType.DARK_CLUE, \
+		EventHandler.EventType.DARK_CLUE, \
 		EventHandler.EventType.ABYSS_CORE:
 			# 弹窗类事件：直接切换，不触发 squash 翻面动画
 			m.token.emotion = emo
@@ -342,7 +342,7 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 				m.board_visual.update_dark_card_visual(row, col)
 			m.dark_world.set_ready()
 		
-		EventHandler.EventType.CLUE, EventHandler.EventType.DARK_CLUE:
+		EventHandler.EventType.DARK_CLUE:
 			m._vfx.spawn_burst(m.board_visual.get_card_center(row, col), 10, Color(0.6, 0.8, 0.5))
 			# 淡出 → 执行收集 → 淡入 (对齐 Lua collectCard 动画)
 			m.board_visual.animate_dark_card_collect(row, col, func() -> void:
