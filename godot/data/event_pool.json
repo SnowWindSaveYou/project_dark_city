@@ -337,7 +337,46 @@
       "condition": {
         "min_day": 2
       },
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "捂耳离开",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "低语消散了",
+          "result_desc": "你捂着耳朵绕了一大圈，声音慢慢淡出了范围。\n多走了不少路，但低语的触感从脑海里退了出去。",
+          "result_baiiye": "有时候听不见比听见要好。"
+        },
+        {
+          "label": "直面对抗",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "压制住了",
+          "result_desc": "你死盯着那道低语的方向，直到它最终沉默。\n理智消耗不小，但声音止住了，还留下了点东西。",
+          "result_baiiye": "盯着恐惧的眼睛，有时候它会先退缩。",
+          "result_title_fail": "被低语淹没",
+          "result_desc_fail": "低语越来越清晰，变成了话语，变成了命令。\n你没能抵抗住，被迫撤退，精神受到了双倍冲击。",
+          "result_baiiye_fail": "不是所有声音都值得去对抗。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "低语消散了",
+          "result_desc": "符纸发出一阵白光，那低语在其中扭曲、破碎，最终沉寂。\n符纸化为灰烬，但你的耳朵终于清静了。",
+          "result_baiiye": "这次护身符的钱没有白花。"
+        }
+      ]
     },
     "evt_trap_generic": {
       "type": "trap",
@@ -1210,7 +1249,43 @@
         "办公室的灯一盏接一盏亮起，却看不到任何同事的身影..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "硬撑过去",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "撑过来了",
+          "result_desc": "弹窗一个个点掉，申请一份份签完。\n总算走出了办公室，但精神已经消耗殆尽。",
+          "result_baiiye": "打工人的命运，怎么逃都逃不掉。"
+        },
+        {
+          "label": "借故绕开",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "绕开了",
+          "result_desc": "你找了个紧急出口，从消防通道绕了出去。\n多走了不少路，但身上分毫未损。",
+          "result_baiiye": "绕路费步数，但保住了精神。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "陷阱失效了",
+          "result_desc": "符纸贴上电脑屏幕，弹窗瞬间消失，申请系统崩溃了。\n符纸化灰，你顺利离开了办公室。",
+          "result_baiiye": "连鬼都不想加班，所以符咒管用。"
+        }
+      ]
     },
     "evt_company_shadow_boss": {
       "type": "monster",
@@ -1228,7 +1303,46 @@
         "复印机自行启动，吐出的纸上印满了一双双眼睛..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "溜出大楼",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "逃出去了",
+          "result_desc": "你绕了好几层楼梯，避开那道沉重的影子。\n冷汗湿透了衣背，但总算出了大门。",
+          "result_baiiye": "识时务者为俊杰。"
+        },
+        {
+          "label": "正面对抗",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "震慑住了",
+          "result_desc": "你没有逃跑，而是直视着那道阴影。\n它迟疑了，慢慢退回了走廊深处——还掉落了些东西。",
+          "result_baiiye": "管理层的气势压不过不怕死的人。",
+          "result_title_fail": "被压制了",
+          "result_desc_fail": "那道影子向你扑来，你没能撑住，被迫狼狈退出。\n精神受到了更深的损伤。",
+          "result_baiiye_fail": "有些上司，还是别惹为妙。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "阴影退散了",
+          "result_desc": "符纸一贴上去，那道影子发出一声低鸣，从毛玻璃后消失了。\n符纸化灰，但办公室恢复了安静。",
+          "result_baiiye": "护身符在这种地方特别管用。"
+        }
+      ]
     },
     "evt_company_safe_bonus": {
       "type": "reward",
@@ -1245,7 +1359,38 @@
         "同事的桌上放着一张写有'送给好心人'的现金红包。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "money": 20
+          },
+          "condition": null,
+          "result_title": "拿走了",
+          "result_desc": "那封信封里是上个月的奖金，数额刚好。\n直接揣进了口袋，这一格没有白翻。",
+          "result_baiiye": "稳。不冒险，但也不会出错。"
+        },
+        {
+          "label": "深入搜查",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "money": 40
+          },
+          "condition": null,
+          "result_title": "找到了更多",
+          "result_desc": "抽屉翻到最里面，发现了更多被压在底下的信封。\n比表面看到的多了很多，花了点精力，值得。",
+          "result_baiiye": "多翻一层，总有意外收获。",
+          "result_title_fail": "触动了警报",
+          "result_desc_fail": "翻得太深，触发了隐藏的防盗机关，表面那点拿到了，但付出了额外代价。",
+          "result_baiiye_fail": "公司的东西不能乱翻，这次记住了。"
+        }
+      ]
     },
     "evt_company_email_clue": {
       "type": "clue",
@@ -1282,7 +1427,49 @@
         "翻开一本被遗忘的课本，里面的知识让你头脑清醒了些。"
       ],
       "condition": null,
-      "fallback_type": null
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "静坐休息",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "头脑清醒了些",
+          "result_desc": "教室里的安静把心头那点浮躁慢慢磨掉了。\n离开时，思路清晰了不少。",
+          "result_baiiye": "有时候什么都不做，本身就是一种恢复。"
+        },
+        {
+          "label": "翻找课桌",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "找到点东西",
+          "result_desc": "书桌抽屉里翻出了一些零散的东西，\n不算多，但没有空手而归。",
+          "result_baiiye": "废弃的地方有时候藏着意想不到的东西。"
+        },
+        {
+          "label": "拍下此刻",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "留下了画面",
+          "result_desc": "光线透过百叶窗洒在课桌上，这一刻出奇地好看。\n快门按下去，多了一张值得的照片。",
+          "result_baiiye": "废墟里的光，有时候才是最打动人的。"
+        }
+      ]
     },
     "evt_school_faceless_teacher": {
       "type": "monster",
@@ -1298,7 +1485,46 @@
         "走廊尽头传来粉笔刮黑板的声音，越来越近..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "夺门而出",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "跑出去了",
+          "result_desc": "你猛地推开侧门冲了出去，没有回头。\n走廊里还能听到粉笔在黑板上划写的声音，越来越远。",
+          "result_baiiye": "在教室里待着是更糟的选择。"
+        },
+        {
+          "label": "正面直视",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "它停下来了",
+          "result_desc": "你盯着那张空白的脸直到它停止书写。\n沉默了一段时间后，它慢慢消散，留下了些东西在讲台上。",
+          "result_baiiye": "无脸的东西，最怕被看见。",
+          "result_title_fail": "被知识淹没",
+          "result_desc_fail": "黑板上的文字越写越快，你撑不住了，被迫逃出教室。\n精神损伤了更多。",
+          "result_baiiye_fail": "强行受教，有时候是一种惩罚。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "课堂结束了",
+          "result_desc": "符纸贴向黑板，文字瞬间消失，无脸教师随之崩解。\n符纸化灰，教室回归了安静。",
+          "result_baiiye": "护身符比任何学历都管用。"
+        }
+      ]
     },
     "evt_school_old_notebook": {
       "type": "clue",
@@ -1333,7 +1559,40 @@
         "旧储物柜里居然还藏着没被领走的学生用品，其中有些值点钱。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接拿走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "money": 10,
+            "film": 1
+          },
+          "condition": null,
+          "result_title": "收进去了",
+          "result_desc": "失物招领箱里的东西，该取的取了。\n东西不多，但这一趟没白来。",
+          "result_baiiye": "有就拿，别挑剔。"
+        },
+        {
+          "label": "仔细翻找",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "money": 20,
+            "film": 2
+          },
+          "condition": null,
+          "result_title": "翻出了更多",
+          "result_desc": "失物箱底部还藏着几件被压住的东西，\n花了点工夫，收获翻了倍。",
+          "result_baiiye": "底层的东西，往往比表面多。",
+          "result_title_fail": "翻了个寂寞",
+          "result_desc_fail": "仔细翻了一遍，反而只找到了原来的量，白费了精力。",
+          "result_baiiye_fail": "失物箱看脸，这次运气差了点。"
+        }
+      ]
     },
     "evt_park_healing_breeze": {
       "type": "safe",
@@ -1350,7 +1609,49 @@
         "湖面倒映着天空，这一刻世界仿佛回归了正常。"
       ],
       "condition": null,
-      "fallback_type": null
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "坐下休息",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "心情平静了",
+          "result_desc": "风把一切都吹淡了一点。\n等起身的时候，沉甸甸的感觉轻了不少。",
+          "result_baiiye": "自然有种治愈的力量，哪怕只是风。"
+        },
+        {
+          "label": "四处查看",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "有点收获",
+          "result_desc": "草丛里翻找了一圈，翻出了些散落的东西。\n没白走这一趟。",
+          "result_baiiye": "勤快点总是有好处的。"
+        },
+        {
+          "label": "拍下风景",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "记录了宁静",
+          "result_desc": "微风、树影、光线——这一帧凑在一起，\n恰好出了一张好照片。",
+          "result_baiiye": "这种画面以后也许能派上用场。"
+        }
+      ]
     },
     "evt_park_tree_shadow": {
       "type": "monster",
@@ -1366,7 +1667,46 @@
         "草地上出现了不属于任何人的巨大影子，正在缓慢移动..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "离开树林",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "走出去了",
+          "result_desc": "你加快脚步，绕过那片树，一直走到开阔地才停下来。\n回头看，树影已经静止了。",
+          "result_baiiye": "树木的地盘，能不待就不待。"
+        },
+        {
+          "label": "正面对抗",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "树影静止了",
+          "result_desc": "你转身直视那片移动的阴影，大声质问。\n呢喃停止了，树影凝固下来，地上掉落了点东西。",
+          "result_baiiye": "自然界的东西，有时候怕人的气势。",
+          "result_title_fail": "被缠住了",
+          "result_desc_fail": "树影没有退，反而靠近了，直到你落荒而逃。\n精神损伤了更多。",
+          "result_baiiye_fail": "无风的树影，千万别靠近。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "树影不动了",
+          "result_desc": "符纸点燃，白光照向那片树，呢喃声戛然而止。\n符纸化灰，树影恢复了正常。",
+          "result_baiiye": "这东西的克制方式还算直接。"
+        }
+      ]
     },
     "evt_park_nature_clue": {
       "type": "clue",
@@ -1400,7 +1740,38 @@
         "一棵古树下长着发光的蘑菇，摘下后感觉精神好了许多。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接采走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "san": 2
+          },
+          "condition": null,
+          "result_title": "采到了",
+          "result_desc": "把那丛草药整个带走，握在手里就有一种安定的气息。\n精神好了不少。",
+          "result_baiiye": "稳妥的收获，不出意外。"
+        },
+        {
+          "label": "深入搜寻",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "san": 4
+          },
+          "condition": null,
+          "result_title": "找到了更多",
+          "result_desc": "灌木深处还有一片更密集的草药，\n值得多花了那点精力。",
+          "result_baiiye": "往深处找，往往有更好的。",
+          "result_title_fail": "找了半天没多",
+          "result_desc_fail": "多翻了一圈，草药量和直接采差不多，精力白费了。",
+          "result_baiiye_fail": "公园的草药分布不均匀，这次运气不佳。"
+        }
+      ]
     },
     "evt_alley_ambush": {
       "type": "monster",
@@ -1418,7 +1789,46 @@
         "垃圾堆中传来咀嚼声，有什么东西正在享用它的'晚餐'..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "转身就跑",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "跑掉了",
+          "result_desc": "你一个急转冲出巷口，绕了好几条街才甩掉它。\n气喘吁吁，但没有受伤。",
+          "result_baiiye": "跑路不丢人，能跑的时候就跑。"
+        },
+        {
+          "label": "正面搏斗",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "击退了",
+          "result_desc": "你没有退缩，跟那团黑影正面交手。\n它最终退了，还抛下了点东西——代价是不轻松的消耗。",
+          "result_baiiye": "打赢了。但别指望每次都能这样。",
+          "result_title_fail": "没打过",
+          "result_desc_fail": "那团黑影比你快，把你撞了个趔趄。\n精神受到了双倍打击，狼狈撤退。",
+          "result_baiiye_fail": "巷子里遇到的，十有八九打不过。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "黑影消散了",
+          "result_desc": "符纸接触到黑影，白光瞬间将它击碎。\n符纸化灰，巷子恢复了空旷。",
+          "result_baiiye": "这次护身符发挥了应有的价值。"
+        }
+      ]
     },
     "evt_alley_thugs_trap": {
       "type": "trap",
@@ -1434,7 +1844,43 @@
         "地上的涂鸦突然发光，脚下一软，钱袋已经空了..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "硬冲过去",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "强行突破了",
+          "result_desc": "你低头冲过那片阴影，付出了代价，但到了另一边。\n至少没有更多损失了。",
+          "result_baiiye": "有时候硬撞是唯一的路。"
+        },
+        {
+          "label": "原路折返",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "绕开了",
+          "result_desc": "你后退，绕了条长路，从另一头进了目的地。\n多走了很久，但钱包还在。",
+          "result_baiiye": "钱比时间重要。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "阴影退散了",
+          "result_desc": "符纸展开，白光一照，那几个鬼鬼祟祟的影子消散无踪。\n符纸化灰，巷子恢复了通畅。",
+          "result_baiiye": "这东西在巷子里的威慑力不小。"
+        }
+      ]
     },
     "evt_alley_graffiti_clue": {
       "type": "clue",
@@ -1468,7 +1914,38 @@
         "砖墙的裂缝里塞着一个防水袋，打开后发现了别人藏起来的财物。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "money": 25
+          },
+          "condition": null,
+          "result_title": "拿到了",
+          "result_desc": "密封包裹里的现金，数了数，数额不小。\n不多问，揣进口袋就走。",
+          "result_baiiye": "不问来历，不多留。"
+        },
+        {
+          "label": "深翻藏匿点",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "money": 50
+          },
+          "condition": null,
+          "result_title": "找到了更多",
+          "result_desc": "垃圾桶底部还有一层夹层，里面藏着更多。\n这个藏点比看起来深多了。",
+          "result_baiiye": "藏东西的人通常不只藏一层。",
+          "result_title_fail": "触动了保护机关",
+          "result_desc_fail": "翻得太深，触动了某种警告机制，表面那包拿到了，但付出了额外代价。",
+          "result_baiiye_fail": "别人的藏匿点，不是每个都能放心翻底。"
+        }
+      ]
     },
     "evt_station_warp_trap": {
       "type": "trap",
@@ -1483,7 +1960,43 @@
         "列车进站的瞬间，空间扭曲了，你出现在了完全不同的地方..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "强行跨过",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "穿过去了",
+          "result_desc": "你闭眼冲过那个旋转的区域，付出了应有的代价。\n睁眼时，站台还在，传送门消失了。",
+          "result_baiiye": "有些陷阱，眼睛闭起来反而好过。"
+        },
+        {
+          "label": "等候下一班",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "绕开了",
+          "result_desc": "你退到候车区等了很久，直到传送门消失再通过。\n多花了不少时间，但平安到了对面。",
+          "result_baiiye": "站台上的异常，等一等通常会消失。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "传送门关闭了",
+          "result_desc": "符纸扔进那个漩涡，白光一闪，传送门悄然闭合。\n符纸化灰，地面恢复了正常。",
+          "result_baiiye": "封门的方法，符纸是最快的。"
+        }
+      ]
     },
     "evt_station_ghost_train": {
       "type": "monster",
@@ -1501,7 +2014,46 @@
       "condition": {
         "min_day": 2
       },
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "离开站台",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "站台安全了",
+          "result_desc": "你快步走上天桥，绕到了另一个出口。\n回头看，那列黑色列车已经消失在隧道里。",
+          "result_baiiye": "不上的车，就别盯着看。"
+        },
+        {
+          "label": "直面幽灵",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "列车离开了",
+          "result_desc": "你站在站台上盯着那列车，没有退开。\n苍白的面孔一个个消失，列车最终驶离，留下了些东西在站台上。",
+          "result_baiiye": "直视幽灵，有时候它们就走了。",
+          "result_title_fail": "被拉进去了",
+          "result_desc_fail": "列车的门慢慢打开，你没能抵抗那种吸力，精神受到了双倍冲击。",
+          "result_baiiye_fail": "鬼列车的门，永远不要靠近。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "列车消失了",
+          "result_desc": "符纸对着列车展开，白光照射之处，苍白的面孔一一崩解。\n列车在光中消失，符纸化灰。",
+          "result_baiiye": "护身符对鬼魂系的威慑力一流。"
+        }
+      ]
     },
     "evt_station_lost_luggage": {
       "type": "reward",
@@ -1518,7 +2070,40 @@
         "候车椅下面有人遗落了一个背包，里面有补给品和一卷胶卷。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "money": 18,
+            "film": 1
+          },
+          "condition": null,
+          "result_title": "拿走了",
+          "result_desc": "行李箱里的东西，够用就好。\n这一格没有空手而归。",
+          "result_baiiye": "车站无人认领的东西，不拿白不拿。"
+        },
+        {
+          "label": "彻底清点",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "money": 36,
+            "film": 2
+          },
+          "condition": null,
+          "result_title": "内层藏着更多",
+          "result_desc": "行李箱夹层里还藏着不少，把每个口袋都翻了一遍，\n收获翻了倍。",
+          "result_baiiye": "彻底搜查，总比随手一翻好。",
+          "result_title_fail": "空跑了一趟",
+          "result_desc_fail": "仔细翻了一遍，和直接拿差不多，费了力气没多少收获。",
+          "result_baiiye_fail": "有时候收益和付出不成正比。"
+        }
+      ]
     },
     "evt_station_schedule_clue": {
       "type": "clue",
@@ -1553,7 +2138,49 @@
         "在值班室的沙发上休息了一会儿，精神恢复了一些。"
       ],
       "condition": null,
-      "fallback_type": null
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "躺下休息",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "缓过来了",
+          "result_desc": "值班室的沙发有点硬，但已经够了。\n闭眼休息了一会儿，精神好了一些。",
+          "result_baiiye": "能睡的时候就睡。"
+        },
+        {
+          "label": "搜查药柜",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "找到了有用的东西",
+          "result_desc": "药柜角落里还存着几样没有过期的东西，\n顺手带走了。",
+          "result_baiiye": "医院的储备总比别的地方丰富一点。"
+        },
+        {
+          "label": "拍下设备",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "拍了下来",
+          "result_desc": "废弃的医疗器械在昏暗灯光下有一种奇异的美感。\n这张照片应该有人会感兴趣。",
+          "result_baiiye": "废墟摄影从来不缺买家。"
+        }
+      ]
     },
     "evt_hospital_wandering_nurse": {
       "type": "monster",
@@ -1569,7 +2196,46 @@
         "手术室的灯突然亮起，门缝中可以看到有人在'操作'，但手术台上什么都没有..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "躲进病房",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "躲过去了",
+          "result_desc": "你闪进最近的病房，等轮椅声消失后才悄悄离开。\n绕了几条走廊，终于甩开了那个身影。",
+          "result_baiiye": "老式走廊最适合捉迷藏。"
+        },
+        {
+          "label": "正面对峙",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "护士停步了",
+          "result_desc": "你转过身，直视着那个缓缓逼近的身影，没有退缩。\n它在距你几步处停下，然后慢慢消散，留下了些东西。",
+          "result_baiiye": "走廊里的，怕被正眼看见。",
+          "result_title_fail": "没能撑住",
+          "result_desc_fail": "护士的步伐越来越近，你最终支撑不住，精神受到了双倍冲击。",
+          "result_baiiye_fail": "医院走廊，是最不该独自站立的地方。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "走廊清静了",
+          "result_desc": "符纸在白光中展开，那个旧式护士服的身影在光中模糊、消散。\n轮椅声彻底停了，符纸化灰。",
+          "result_baiiye": "医院里备一个护身符，有必要。"
+        }
+      ]
     },
     "evt_hospital_medicine_reward": {
       "type": "reward",
@@ -1585,7 +2251,38 @@
         "急救箱里还有未使用的镇定贴片，感觉精神恢复了不少。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "san": 3
+          },
+          "condition": null,
+          "result_title": "拿到了",
+          "result_desc": "那盒精神稳定剂还在保质期内。\n服用后，整个人平静了许多。",
+          "result_baiiye": "正规药物，药效实在。"
+        },
+        {
+          "label": "深挖药柜",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "san": 6
+          },
+          "condition": null,
+          "result_title": "找到了更多好药",
+          "result_desc": "柜子最里面还有几瓶更高效的药物，\n比表面那盒效果好多了。",
+          "result_baiiye": "好药都藏在最里面。",
+          "result_title_fail": "翻完没多大区别",
+          "result_desc_fail": "翻了半天，效果和直接拿差不多，精力白费了。",
+          "result_baiiye_fail": "药柜深处不总是宝藏。"
+        }
+      ]
     },
     "evt_hospital_medical_record": {
       "type": "clue",
@@ -1620,7 +2317,49 @@
         "在宁静的阅览室中整理思绪，秩序感大幅恢复。"
       ],
       "condition": null,
-      "fallback_type": null
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "安静阅读",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "思路清晰了",
+          "result_desc": "文字把注意力拉走了一段时间，\n等回过神来，心里的纷乱少了一些。",
+          "result_baiiye": "读书是一种很有效的逃离方式。"
+        },
+        {
+          "label": "翻找书架",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "找到了些东西",
+          "result_desc": "书架背后、阅览桌底下翻了个遍，\n捡到了几件遗落的东西。",
+          "result_baiiye": "废弃图书馆的人流量不小，遗落物也多。"
+        },
+        {
+          "label": "记录下来",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "记录了知识",
+          "result_desc": "把翻到的那几页重要内容拍了下来。\n文字，总比记忆可靠。",
+          "result_baiiye": "不确定什么时候用得上，但留着没坏处。"
+        }
+      ]
     },
     "evt_library_self_turning_book": {
       "type": "monster",
@@ -1636,7 +2375,46 @@
         "一本合上的书突然弹开，里面的文字扭曲成了一张咧嘴笑的脸..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "合上书跑开",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "书页停了",
+          "result_desc": "你猛地把那本书合上，转身快步离开书架区。\n等出了阅览室，翻页的声音才彻底消失。",
+          "result_baiiye": "未来的日记，不是应该看的东西。"
+        },
+        {
+          "label": "直视书中内容",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "书页凝固了",
+          "result_desc": "你强迫自己读完了那些内容，最终书页停止了翻动。\n书本闭合，旁边掉下了点东西，但你的精神消耗不小。",
+          "result_baiiye": "知道了不该知道的事，代价总是有的。",
+          "result_title_fail": "被未来淹没",
+          "result_desc_fail": "那些文字越来越密，越来越快，你承受不住，精神受到了双倍冲击。",
+          "result_baiiye_fail": "自己的未来，有时候是最恐怖的东西。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "书回归平静",
+          "result_desc": "符纸贴上书脊，翻页声骤停，文字在光中消失。\n那本书成了一本普通的空白书，符纸化灰。",
+          "result_baiiye": "比较直接的处理方式。"
+        }
+      ]
     },
     "evt_library_forbidden_book": {
       "type": "plot",
@@ -1694,7 +2472,38 @@
         "在VIP室的暗格中发现了一袋被遗忘的贵重物品。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "money": 30
+          },
+          "condition": null,
+          "result_title": "拿到了",
+          "result_desc": "金库里散落的那些，拾了个大概。\n这一趟没有空手而归。",
+          "result_baiiye": "金库里的东西，稳稳当当拿。"
+        },
+        {
+          "label": "彻底清查",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "money": 60
+          },
+          "condition": null,
+          "result_title": "找到了更多",
+          "result_desc": "隔板背后、地板缝隙、保险箱夹层——\n翻遍了，比表面多了很多。",
+          "result_baiiye": "金库里藏东西的地方，比你以为的多。",
+          "result_title_fail": "触动了暗机关",
+          "result_desc_fail": "翻得太彻底，触动了隐藏的保护机制，表面那些拿到了，但付出了额外代价。",
+          "result_baiiye_fail": "金库里的东西，不是每个角落都能随便翻。"
+        }
+      ]
     },
     "evt_bank_vault_trap": {
       "type": "trap",
@@ -1710,7 +2519,43 @@
         "金库的门在身后轰然关闭，等你找到出路时，口袋已经空了..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "冲出去",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "跑出来了",
+          "result_desc": "警报大作，你拼命往出口冲，摔倒爬起，最终冲出了大门。\n代价清晰地落在了口袋里。",
+          "result_baiiye": "金库逃跑，越快越好。"
+        },
+        {
+          "label": "找备用通道",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "安全撤离了",
+          "result_desc": "你找到了维修通道，悄悄绕出了警报区域。\n多走了一段，但没有正面触碰防盗系统。",
+          "result_baiiye": "银行里总有别的出口。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "系统失效了",
+          "result_desc": "符纸贴上警报面板，电流短路，系统无声关闭。\n符纸化灰，你从容离开了金库。",
+          "result_baiiye": "符咒对电子系统也管用，这很合理。"
+        }
+      ]
     },
     "evt_bank_mask_teller": {
       "type": "monster",
@@ -1729,7 +2574,46 @@
       "condition": {
         "min_day": 2
       },
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "离开柜台",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "脱身了",
+          "result_desc": "你不动声色地后退，绕过大厅，从侧门溜了出去。\n走到街上才松了口气——只是多走了段路。",
+          "result_baiiye": "面具的东西，接触越少越好。"
+        },
+        {
+          "label": "与它对峙",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "柜员消失了",
+          "result_desc": "你一把掀开玻璃隔断，直视那张面具。\n它微笑停了，从椅子上消散，留下了点东西在柜台上。",
+          "result_baiiye": "银行的怪，就该用暴力解决。",
+          "result_title_fail": "被清算了",
+          "result_desc_fail": "那张面具越来越近，精神被压垮，你仓皇撤退，损失了更多。",
+          "result_baiiye_fail": "柜台后面的东西，别试图和它讲理。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "柜员消散了",
+          "result_desc": "符纸对着柜台展开，白光一照，那张微笑的面具瞬间碎裂。\n符纸化灰，银行大厅恢复了空旷的寂静。",
+          "result_baiiye": "比讲道理省事多了。"
+        }
+      ]
     },
     "evt_bank_suspicious_record": {
       "type": "clue",
@@ -1765,7 +2649,49 @@
         "微风拂过青苔覆盖的石碑，带来一丝凉意和安心。"
       ],
       "condition": null,
-      "fallback_type": null
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "独处片刻",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "心静了",
+          "result_desc": "四周的寂静有一种奇特的治愈感。\n在墓碑间坐了一会儿，反而轻松了。",
+          "result_baiiye": "活着的嘈杂有时候比死亡更令人疲惫。"
+        },
+        {
+          "label": "四处查探",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "找到了点东西",
+          "result_desc": "墓碑旁、祭台附近找了一圈，\n翻出了一些散落的祭品和零碎。",
+          "result_baiiye": "多走了几步，没有白费。"
+        },
+        {
+          "label": "拍下墓园",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "留下了画面",
+          "result_desc": "薄雾与石碑、青苔与斜阳——\n这一帧构成了一张很好的照片。",
+          "result_baiiye": "异常的美感，总有人愿意花钱买。"
+        }
+      ]
     },
     "evt_cemetery_wandering_spirit": {
       "type": "monster",
@@ -1782,7 +2708,46 @@
         "墓碑上的名字一个接一个地发光，最后一个——是你的名字。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "快步离开",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "光消失了",
+          "result_desc": "你加快脚步，绕过了那块区域，从另一条路离开墓园。\n回头时，那团苍白的光已经不见了。",
+          "result_baiiye": "在墓园，跑比站着强。"
+        },
+        {
+          "label": "直视光团",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "游魂退散了",
+          "result_desc": "你站定，盯着那团光直到它停止移动。\n沉默之后，它消散了，留下了些东西在地上。",
+          "result_baiiye": "游荡的魂，需要的是被正视。",
+          "result_title_fail": "被缠上了",
+          "result_desc_fail": "那团光越飘越近，你没能撑住，精神受到了双倍冲击。",
+          "result_baiiye_fail": "夜里的墓园，一个人不该停留太久。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "游魂消散了",
+          "result_desc": "符纸展开，白光将那团苍白笼罩，慢慢将其净化。\n符纸化灰，墓园恢复了平静。",
+          "result_baiiye": "护身符在墓园的使用率一直很高。"
+        }
+      ]
     },
     "evt_cemetery_sinkhole": {
       "type": "trap",
@@ -1799,7 +2764,43 @@
         "墓碑间的小径突然断裂，露出下方幽暗的地道入口..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "挣扎出来",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "爬上来了",
+          "result_desc": "你死命抓住周围的草根，挣扎着爬了上来。\n衣服脏了，精神也受了不小的冲击。",
+          "result_baiiye": "墓地的土，没有人踩得放心。"
+        },
+        {
+          "label": "绕过那片地",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "绕开了",
+          "result_desc": "你看出那片土地的异样，绕了一大圈。\n多走了很多路，但没有掉下去。",
+          "result_baiiye": "松动的土，一眼就能看出来。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "地面稳固了",
+          "result_desc": "符纸插入土中，白光向四周扩散，那片松动的地面慢慢固化。\n符纸化灰，你安全走了过去。",
+          "result_baiiye": "连地基都能封，这张符很能干。"
+        }
+      ]
     },
     "evt_cemetery_ancient_amulet": {
       "type": "reward",
@@ -1816,7 +2817,40 @@
         "枯萎花束下藏着一件精致的银饰，似乎蕴含某种庇护之力。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "san": 3,
+            "inspiration": 1
+          },
+          "condition": null,
+          "result_title": "拿到了",
+          "result_desc": "护符握在手里，传来一阵温暖。\n精神和某种说不清的东西都好了一些。",
+          "result_baiiye": "来历不明的东西，感觉好就拿。"
+        },
+        {
+          "label": "仔细勘探",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "san": 6,
+            "inspiration": 2
+          },
+          "condition": null,
+          "result_title": "找到了更多",
+          "result_desc": "墓碑底座后面还藏着另一件东西，\n比表面的护符更有分量。",
+          "result_baiiye": "古老的地方，往往藏着不止一件宝贝。",
+          "result_title_fail": "惊动了什么",
+          "result_desc_fail": "往深处翻的时候惊动了墓地里的某种东西，护符拿到了，但精神付出了额外代价。",
+          "result_baiiye_fail": "墓碑旁的东西，不是每个都能随便深挖。"
+        }
+      ]
     },
     "evt_cemetery_epitaph_clue": {
       "type": "clue",
@@ -1852,7 +2886,49 @@
         "拉伸和有氧运动让紧绷的肌肉放松了下来。"
       ],
       "condition": null,
-      "fallback_type": null
+      "fallback_type": null,
+      "choices": [
+        {
+          "label": "认真训练",
+          "cost": {},
+          "result": "rest",
+          "effects": {
+            "san": 1
+          },
+          "condition": null,
+          "result_title": "身心都好多了",
+          "result_desc": "出了一身汗之后，压在身上的负担轻了一截。\n不只是身体，脑子也清醒了些。",
+          "result_baiiye": "运动是最便宜的解压方式。"
+        },
+        {
+          "label": "搜查更衣室",
+          "cost": {
+            "steps": 1
+          },
+          "result": "search",
+          "effects": {
+            "money": 5
+          },
+          "condition": null,
+          "result_title": "翻出了点东西",
+          "result_desc": "储物柜和长椅缝隙里翻了一圈，\n找到了些被遗忘的零散物品。",
+          "result_baiiye": "别人的遗忘，有时候是你的收获。"
+        },
+        {
+          "label": "拍下场地",
+          "cost": {
+            "film": 1
+          },
+          "result": "photo_safe",
+          "effects": {
+            "money": 8
+          },
+          "condition": "has_film",
+          "result_title": "记录了此刻",
+          "result_desc": "锈迹斑斑的器械、空旷的镜子——\n拍出来竟然有种末日风的美感。",
+          "result_baiiye": "废弃的地方，往往有惊人的画面感。"
+        }
+      ]
     },
     "evt_gym_berserk_machine": {
       "type": "monster",
@@ -1869,7 +2945,46 @@
         "杠铃片自行滑动，发出刺耳的金属碰撞声，影子在镜子里扭曲变形..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "跳下器械",
+          "cost": {
+            "steps": 2
+          },
+          "result": "escape",
+          "effects": {},
+          "condition": null,
+          "result_title": "脱开了",
+          "result_desc": "你紧急制动，跳离器械，绕过了那片失控的区域。\n多绕了一圈，但没有受更重的伤。",
+          "result_baiiye": "失控的机器，先离开再说。"
+        },
+        {
+          "label": "强行制停",
+          "cost": {},
+          "result": "fight",
+          "effects": {},
+          "condition": null,
+          "result_title": "机器停了",
+          "result_desc": "你死死扳住控制台，强行切断了电源。\n器械停转，地上散落了点东西，但你消耗了不少。",
+          "result_baiiye": "有时候暴力解决才是最快的方法。",
+          "result_title_fail": "被甩出去了",
+          "result_desc_fail": "器械加速失控，把你甩了出去，精神和身体都受到了双倍冲击。",
+          "result_baiiye_fail": "不是所有机器都能徒手制停。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "器械平静了",
+          "result_desc": "符纸贴上器械，白光扫过，电机的嗡嗡声戛然而止。\n符纸化灰，器械恢复了正常。",
+          "result_baiiye": "鬼附的机器，和普通怪物处理方式一样。"
+        }
+      ]
     },
     "evt_gym_locked_equipment": {
       "type": "trap",
@@ -1885,7 +3000,43 @@
         "跑步机皮带突然停转，惯性让你踉跄了好几步，膝盖一阵刺痛..."
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "强行掰开",
+          "cost": {},
+          "result": "charge",
+          "effects": {},
+          "condition": null,
+          "result_title": "弄开了",
+          "result_desc": "你用力扳开了那把卡死的锁，东西拿到了，\n但手腕付出了应有的代价。",
+          "result_baiiye": "能开的锁，方法总比困难多。"
+        },
+        {
+          "label": "找别的出路",
+          "cost": {
+            "steps": 2
+          },
+          "result": "detour",
+          "effects": {},
+          "condition": null,
+          "result_title": "绕开了",
+          "result_desc": "你找到了另一个没有锁死的储物柜，绕了过去。\n多花了点时间，手腕完好无损。",
+          "result_baiiye": "不必每扇门都强行开。"
+        },
+        {
+          "label": "使用护身符",
+          "cost": {
+            "item": "shield"
+          },
+          "result": "shield",
+          "effects": {},
+          "condition": "has_item:shield",
+          "result_title": "锁自己开了",
+          "result_desc": "符纸贴上锁面，白光一闪，锁舌无声缩回。\n符纸化灰，储物柜应声而开。",
+          "result_baiiye": "这东西连锁都会开，很全能。"
+        }
+      ]
     },
     "evt_gym_power_crystal": {
       "type": "reward",
@@ -1901,7 +3052,38 @@
         "器材室深处有一块奇异的水晶，触碰后疲劳一扫而空。"
       ],
       "condition": null,
-      "fallback_type": "safe"
+      "fallback_type": "safe",
+      "choices": [
+        {
+          "label": "直接取走",
+          "cost": {},
+          "result": "take",
+          "effects": {
+            "health": 3
+          },
+          "condition": null,
+          "result_title": "喝掉了",
+          "result_desc": "那瓶散发微光的东西一口下肚，\n浑身充满了力量，整个人精神了起来。",
+          "result_baiiye": "发光的东西，喝了没坏处。"
+        },
+        {
+          "label": "搜查整个更衣室",
+          "cost": {
+            "san": 1
+          },
+          "result": "dig",
+          "effects": {
+            "health": 6
+          },
+          "condition": null,
+          "result_title": "找到了更多",
+          "result_desc": "柜子深处还藏着好几瓶，\n把整个更衣室翻了个遍，收获翻了倍。",
+          "result_baiiye": "一个有一瓶的地方，通常还藏着更多。",
+          "result_title_fail": "翻完没多少",
+          "result_desc_fail": "仔细搜了一圈，只多找到了一点，和直接拿差不多，精力有点白费。",
+          "result_baiiye_fail": "更衣室不总是宝藏库。"
+        }
+      ]
     },
     "evt_gym_bandage_clue": {
       "type": "clue",

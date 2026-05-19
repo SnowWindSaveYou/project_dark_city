@@ -12,6 +12,7 @@ local Board       = require "Board"
 local Token       = require "Token"
 local ResourceBar = require "ResourceBar"
 local StoryManager = require "StoryManager"
+local DarkCoins   = require "DarkCoins"
 
 local M = {}
 
@@ -1048,18 +1049,11 @@ function M.handleCardEffect(card, row, col, board, resourceBar, dialogueSystem, 
     end
 
     if darkType == "normal" then
-        -- 吃豆人暗币: 踩到有暗币的格子就收集
+        -- 暗币由 DarkCoins 3D Billboard 处理，踩格时同步持久化状态
         if card.darkDot then
             card.darkDot = false
-            layer.dots[key] = true                       -- 持久化: 本层已收集
-            resourceBar.change("darkcoin", 1)
-            -- 微型 VFX: 小爆散 + 短暂闪屏
-            VFX.spawnBurst(physW_ / 2, physH_ / 2, 4, 200, 130, 255)
-            VFX.flashScreen(180, 100, 255, 0.08, 60)
-            -- 刷新卡面纹理 (去掉圆点)
-            if CardTextures_ then
-                Card.updateTexture(card, CardTextures_)
-            end
+            layer.dots[key] = true   -- 持久化: 本层已收集
+            DarkCoins.tryCollect(row, col, physW_, physH_, resourceBar)
         end
         return
 

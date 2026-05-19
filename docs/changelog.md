@@ -2,6 +2,49 @@
 
 ---
 
+## v1.3 实施记录 (2026-05-18)
+
+### 陷阱卡决策系统 + 事件弹窗修复
+
+#### 背景
+
+陷阱卡原本只有"立即扣除资源 → 显示结果"这一条路径，无法承载带选项的事件（例如"冒险拆解/放弃离开"类陷阱）。本次为陷阱卡接入与普通事件相同的决策弹窗，并同步修复了弹窗的两个关键 UI bug。
+
+#### 变更详情
+
+| 改动文件 | 变更内容 |
+|---------|---------|
+| `godot/scripts/controllers/card_interaction.gd` | `_handle_trap()` 重构：新增 `has_choices` 判断，有决策路径时效果延迟结算，通过 `_pending_trap_effects` 暂存；传送陷阱保持立即结算；新增成员变量 `_pending_trap_effects: Dictionary` |
+| `godot/scripts/controllers/card_interaction.gd` | `_apply_choice_effects()` 的 `charge` 分支改为从 `_pending_trap_effects` 取值，应用后清空，防止重复结算 |
+| `godot/scripts/controllers/dark_world_flow.gd` | 移除两处残留的 `EventHandler.EventType.CLUE` 引用（v1.2 已删除该枚举成员，这里漏改）；两处 `match` 分支改为仅保留 `DARK_CLUE` |
+| `godot/scripts/ui/event_popup_scene.gd` | **修复**：选项点击回调不再调用 `dismiss()`/`_clear_choices_row()`，改由 `on_choice` 链式触发 `transition_to_result`，弹窗统一由结果视图的"知道了"按钮关闭 |
+| `godot/scripts/ui/event_popup_scene.gd` | **修复**：`_populate_choices_row` 将选项行挂载到 `_right_vbox`（右栏）而非 `OuterVBox`（全宽），防止选项按钮覆盖左侧偏光图；新增 `SIZE_SHRINK_END` 垂直标志使选项行贴底对齐 |
+| `godot/scripts/ui/event_popup_scene.gd` | 选项按钮布局微调：按钮高度 64→56，圆角 14→12，内边距收紧；标签字号 36→30；费用字号 26→22；始终使用 VBox 包裹主标签与费用标签 |
+
+#### 数据文件说明
+
+`godot/data/events.json` 的 `locations.*.clue[]` 数组为 v1.2 清理遗漏的死数据（明面 clue 类型已移除，无任何代码调用路径），不影响运行，可在后续数据整理时清除。
+
+#### 明面陷阱卡处理流程（变更后）
+
+```
+翻开陷阱卡
+  ↓
+读取 event_id → 过滤有效 choices
+  ├─ 无 choices（普通陷阱）
+  │    ├─ 护身符 → 抵消 → 弹窗 → 关闭
+  │    └─ 无护身符 → 立即扣资源 → 弹窗 → 关闭
+  ├─ 有 choices（决策陷阱）
+  │    └─ 暂存 _pending_trap_effects → 弹窗显示选项
+  │         └─ 玩家选择 → _apply_choice_effects
+  │              ├─ charge → 取 _pending_trap_effects 扣资源
+  │              └─ 其他分支 → 各自处理
+  └─ trap_subtype == "teleport"（传送陷阱）
+       └─ 立即扣资源 → 弹窗 → 随机传送
+```
+
+---
+
 ## v1.2 实施记录 (2026-05-17)
 
 ### 明面卡牌系统重构：移除 clue 类型，plot 重定义为叙事推进格

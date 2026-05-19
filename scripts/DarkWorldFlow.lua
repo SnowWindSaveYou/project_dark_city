@@ -18,6 +18,7 @@ local BubbleDialogue = require "BubbleDialogue"
 local MonsterGhost  = require "MonsterGhost"
 local BoardItems    = require "BoardItems"
 local NPCManager    = require "NPCManager"
+local DarkCoins     = require "DarkCoins"
 local AudioManager      = require "AudioManager"
 local StoryManager      = require "StoryManager"
 local MilestoneManager  = require "MilestoneManager"
@@ -138,6 +139,7 @@ function M.enterDarkWorld(riftRow, riftCol)
     MonsterGhost.clearCardGhosts()
     MonsterGhost.clearTrailGhosts()
     BoardItems.clear()
+    DarkCoins.clear()
     NPCManager.clear()
 
     -- 3. 隐藏 Token (白夜根据条件决定)
@@ -204,6 +206,7 @@ function M.enterDarkWorld(riftRow, riftCol)
         CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
         Board.createAllNodes(board, scene_, CardTextures)
         DarkWorld.createOverlayNodes(board.boardNode)
+        DarkCoins.spawnFromBoard(board, Board)
         recalcLayout_()
 
         -- 8. 发牌动画完成后显示 Token
@@ -438,6 +441,7 @@ function M.changeDarkLayer(targetLayer, dc)
         CardTextures.preloadBoard(board, Board.ROWS, Board.COLS)
         Board.createAllNodes(board, scene_, CardTextures)
         DarkWorld.createOverlayNodes(board.boardNode)
+        DarkCoins.spawnFromBoard(board, Board)
         recalcLayout_()
 
         Board.dealAll(board, function()

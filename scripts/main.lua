@@ -26,6 +26,7 @@ local MonsterGhost     = require "MonsterGhost"
 local BubbleDialogue   = require "BubbleDialogue"
 local ItemIcons        = require "ItemIcons"
 local BoardItems       = require "BoardItems"
+local DarkCoins        = require "DarkCoins"
 local NPCManager       = require "NPCManager"
 local DialogueSystem   = require "DialogueSystem"
 local DarkWorld        = require "DarkWorld"
@@ -660,6 +661,7 @@ function Start()
     DialogueSystem.init(vg)
 
     -- 暗面世界
+    DarkCoins.init(scene_, vg)
     DarkWorld.init(vg)
     DarkWorld.setExitCallback(function()
         DarkWorldFlow.exitDarkWorld()
@@ -1057,6 +1059,7 @@ function HandleUpdate(eventType, eventData)
     EventPopup.updateToasts(dt)
     MonsterGhost.update(dt, gameTime)
     BoardItems.update(dt, gameTime)
+    DarkCoins.update(dt, gameTime)
     NPCManager.update(dt, gameTime)
     DialogueSystem.update(dt)
     DarkWorld.update(dt, gameTime)

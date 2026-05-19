@@ -343,31 +343,6 @@ local function renderDarkCard(tex, darkType, darkName, hasDot)
     nvgStrokeWidth(vg, 2.5)
     nvgStroke(vg)
 
-    -- 暗币小点 (右下角, 仅 normal 格有暗币时显示)
-    if hasDot then
-        local dotR = 10
-        local dotX = w - 26
-        local dotY = h - 28
-        -- 外发光
-        local glowPaint = nvgRadialGradient(vg,
-            dotX, dotY, dotR * 0.4, dotR * 1.8,
-            nvgRGBA(180, 100, 255, 120), nvgRGBA(100, 50, 200, 0))
-        nvgBeginPath(vg)
-        nvgCircle(vg, dotX, dotY, dotR * 1.8)
-        nvgFillPaint(vg, glowPaint)
-        nvgFill(vg)
-        -- 圆点主体
-        nvgBeginPath(vg)
-        nvgCircle(vg, dotX, dotY, dotR)
-        nvgFillColor(vg, nvgRGBA(200, 130, 255, 230))
-        nvgFill(vg)
-        -- 高光
-        nvgBeginPath(vg)
-        nvgCircle(vg, dotX - 3, dotY - 3, dotR * 0.35)
-        nvgFillColor(vg, nvgRGBA(255, 230, 255, 180))
-        nvgFill(vg)
-    end
-
     -- 外边框
     nvgBeginPath(vg)
     nvgRect(vg, 0, 0, w, h)
