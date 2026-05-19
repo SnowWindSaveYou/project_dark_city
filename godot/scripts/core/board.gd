@@ -663,7 +663,7 @@ func generate_dark_cards(layer_data: Dictionary, dark_locations: Dictionary, dar
 						card.dark_collected = true
 				# 暗币点: 仅对普通格随机放置 (约 30% 概率)，入口不放
 				if card.dark_type == "normal" and not (r == 3 and c == 3):
-					card.dark_dot = randf() < 0.30
+					card.dark_dot = randf() < 0.80
 				set_card(r, c, card)
 
 	print("[Board] Generated dark cards: layer=%d, walkable=%d, walls=%d" % [

@@ -3,8 +3,9 @@
 -- 在暗面卡牌 darkDot=true 的格子上放置紫色浮空硬币，玩家踩到自动拾取
 -- ============================================================================
 
-local Tween = require "lib.Tween"
-local VFX   = require "lib.VFX"
+local Tween        = require "lib.Tween"
+local VFX          = require "lib.VFX"
+local AudioManager = require "AudioManager"
 
 local M = {}
 
@@ -16,7 +17,7 @@ local COIN_BASE_Y     = 0.30        -- 浮空基础高度
 local FLOAT_SPEED     = 2.2         -- 上下浮动速度
 local FLOAT_AMP       = 0.04        -- 浮动幅度
 local CAMERA_OFFSET_Z = -0.18       -- 向相机方向偏移
-local TEX_SIZE        = 64          -- NanoVG 烘焙纹理尺寸
+local CRYSTAL_TEX     = "image/dark_coin_crystal_v3_20260519122446.png"
 
 -- ---------------------------------------------------------------------------
 -- 模块状态
@@ -25,87 +26,20 @@ local TEX_SIZE        = 64          -- NanoVG 烘焙纹理尺寸
 local parentNode_ = nil
 ---@type table[]
 local coins_ = {}
----@type userdata|nil  NanoVG context (由 init 注入)
-local vg_ = nil
----@type userdata|nil  Texture2D 硬币纹理 (只创建一次)
+---@type userdata|nil  Texture2D 硬币纹理 (只加载一次)
 local coinTex_ = nil
 
 -- ---------------------------------------------------------------------------
--- 创建暗币 NanoVG 纹理 (只调用一次)
+-- 加载水晶贴图 (只调用一次)
 -- ---------------------------------------------------------------------------
 local function buildCoinTexture()
     if coinTex_ then return coinTex_ end
-    if not vg_ then return nil end
-
-    local tex = Texture2D:new()
-    tex:SetNumLevels(1)
-    tex:SetSize(TEX_SIZE, TEX_SIZE, Graphics:GetRGBAFormat(), TEXTURE_RENDERTARGET)
-    tex:SetFilterMode(FILTER_BILINEAR)
-
-    local w, h = TEX_SIZE, TEX_SIZE
-
-    nvgSetRenderTarget(vg_, tex)
-    nvgBeginFrame(vg_, w, h, 1.0)
-    -- render-target Y轴翻转
-    nvgTranslate(vg_, 0, h)
-    nvgScale(vg_, 1, -1)
-
-    -- 清透明背景
-    nvgBeginPath(vg_)
-    nvgRect(vg_, 0, 0, w, h)
-    nvgFillColor(vg_, nvgRGBA(0, 0, 0, 0))
-    nvgFill(vg_)
-
-    local cx, cy, r = w * 0.5, h * 0.5, w * 0.38
-
-    -- 外发光晕
-    local glow = nvgRadialGradient(vg_, cx, cy, r * 0.5, r * 1.6,
-        nvgRGBA(180, 80, 255, 100), nvgRGBA(100, 40, 200, 0))
-    nvgBeginPath(vg_)
-    nvgCircle(vg_, cx, cy, r * 1.6)
-    nvgFillPaint(vg_, glow)
-    nvgFill(vg_)
-
-    -- 硬币主体 (深紫渐变)
-    local bodyGrad = nvgLinearGradient(vg_, cx - r, cy - r, cx + r, cy + r,
-        nvgRGBA(200, 100, 255, 240), nvgRGBA(100, 30, 180, 240))
-    nvgBeginPath(vg_)
-    nvgCircle(vg_, cx, cy, r)
-    nvgFillPaint(vg_, bodyGrad)
-    nvgFill(vg_)
-
-    -- 内圈暗边
-    nvgBeginPath(vg_)
-    nvgCircle(vg_, cx, cy, r)
-    nvgStrokeColor(vg_, nvgRGBA(60, 0, 120, 180))
-    nvgStrokeWidth(vg_, 2.5)
-    nvgStroke(vg_)
-
-    -- 币面符文 "⚫" 用 ¥ 替代为暗界符号 (简单十字)
-    local sr = r * 0.38
-    nvgBeginPath(vg_)
-    nvgMoveTo(vg_, cx, cy - sr)
-    nvgLineTo(vg_, cx, cy + sr)
-    nvgMoveTo(vg_, cx - sr, cy)
-    nvgLineTo(vg_, cx + sr, cy)
-    nvgStrokeColor(vg_, nvgRGBA(230, 180, 255, 200))
-    nvgStrokeWidth(vg_, 3.0)
-    nvgStroke(vg_)
-
-    -- 高光弧
-    local hlGrad = nvgLinearGradient(vg_, cx - r * 0.5, cy - r * 0.8,
-        cx + r * 0.2, cy - r * 0.1,
-        nvgRGBA(255, 220, 255, 160), nvgRGBA(255, 200, 255, 0))
-    nvgBeginPath(vg_)
-    nvgEllipse(vg_, cx - r * 0.12, cy - r * 0.3, r * 0.42, r * 0.22)
-    nvgFillPaint(vg_, hlGrad)
-    nvgFill(vg_)
-
-    nvgEndFrame(vg_)
-    nvgSetRenderTarget(vg_, nil)
-
-    coinTex_ = tex
-    print("[DarkCoins] Coin texture built (" .. TEX_SIZE .. "x" .. TEX_SIZE .. ")")
+    coinTex_ = cache:GetResource("Texture2D", CRYSTAL_TEX)
+    if coinTex_ then
+        print("[DarkCoins] Crystal texture loaded: " .. CRYSTAL_TEX)
+    else
+        print("[DarkCoins] WARNING: failed to load crystal texture: " .. CRYSTAL_TEX)
+    end
     return coinTex_
 end
 
@@ -153,13 +87,11 @@ end
 -- 公开 API
 -- ---------------------------------------------------------------------------
 
---- 初始化 (在 scene 创建后、NanoVG 就绪后调用)
+--- 初始化 (在 scene 创建后调用)
 ---@param scene userdata Scene
----@param vg userdata NanoVG context
-function M.init(scene, vg)
+function M.init(scene)
     parentNode_ = scene:CreateChild("DarkCoins")
-    vg_ = vg
-    coinTex_ = nil   -- 下次 spawn 时重建
+    coinTex_ = nil
     print("[DarkCoins] Initialized")
 end
 
@@ -255,6 +187,9 @@ function M.tryCollect(row, col, physW, physH, resourceBar)
                     end
                 end,
             })
+
+            -- 音效
+            AudioManager.playSFX("item_pickup")
 
             -- VFX
             VFX.spawnBurst(physW / 2, physH / 2, 5, 200, 130, 255)

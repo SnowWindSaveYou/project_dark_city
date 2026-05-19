@@ -197,6 +197,11 @@ func _on_dark_deal_complete() -> void:
 	m.board_visual.create_ghost_nodes(layer_data.ghosts)
 	m.board_visual.create_npc_nodes(m.game_flow.npc_manager.npcs)
 
+	# 创建暗币 3D 节点
+	m.dark_coins.spawn_from_board(m.board)
+	m.board_visual.create_dark_coin_nodes(m.dark_coins.coins)
+	_animate_dark_coin_spawn()
+
 	# 翻开玩家所在卡牌
 	var entry_card: Card = m.board.get_card(pr, pc)
 	if entry_card:
@@ -205,6 +210,15 @@ func _on_dark_deal_complete() -> void:
 
 	# 刷新通道 chibi: 扫描所有已翻开的通道牌，符合条件则显示
 	_refresh_passage_chibis()
+
+## 暗币弹出动画 (错开延迟, 与 board_items 弹出逻辑一致)
+func _animate_dark_coin_spawn() -> void:
+	for i in range(m.dark_coins.coins.size()):
+		var coin: DarkCoins.DarkCoin = m.dark_coins.coins[i]
+		if coin.collected:
+			continue
+		var delay: float = float(i) * 0.04
+		m.board_visual.animate_dark_coin_spawn(i, delay)
 
 # =========================================================================
 # 暗面卡牌交互
@@ -335,11 +349,12 @@ func _handle_dark_card_effect(card: Card, row: int, col: int) -> void:
 	match result.event_type:
 		EventHandler.EventType.NONE:
 			# 暗币点收集
-			if card.dark_dot:
-				card.dark_dot = false
+			var coin_idx: int = m.dark_coins.try_collect(row, col)
+			if coin_idx >= 0:
 				GameData.modify_resource("darkcoin", 1)
 				m._vfx.action_banner("暗币 +1", Color(0.75, 0.45, 0.95), 0.7)
-				m.board_visual.update_dark_card_visual(row, col)
+				AudioManager.play_sfx("item_pickup")
+				m.board_visual.animate_dark_coin_collect(coin_idx)
 			m.dark_world.set_ready()
 		
 		EventHandler.EventType.DARK_CLUE:
@@ -660,10 +675,11 @@ func _change_layer(target_layer: int) -> void:
 
 	# 收牌动画 → 清理 → 重建新层 → 发牌动画
 	m.board_visual.play_undeal_animation(func():
-		# 清理旧层幽灵 & NPC 节点 & 通道 chibi
+		# 清理旧层幽灵 & NPC 节点 & 通道 chibi & 暗币节点
 		m.board_visual.destroy_ghost_nodes()
 		m.board_visual.destroy_npc_nodes()
 		m.board_visual.passage_clear_all()
+		m.board_visual.destroy_dark_coin_nodes()
 
 		# 重新生成棋盘
 		_generate_dark_board()
@@ -716,10 +732,11 @@ func on_dark_exit_requested() -> void:
 
 	# 收牌动画 → 清理 → 重建现实棋盘 → 发牌动画
 	m.board_visual.play_undeal_animation(func():
-		# 清理幽灵 & NPC 节点 & 通道 chibi
+		# 清理幽灵 & NPC 节点 & 通道 chibi & 暗币节点
 		m.board_visual.destroy_ghost_nodes()
 		m.board_visual.destroy_npc_nodes()
 		m.board_visual.passage_clear_all()
+		m.board_visual.destroy_dark_coin_nodes()
 
 		# 恢复现实棋盘
 		m.board = _saved_board

@@ -64,6 +64,7 @@ var board: Board = null
 var token: Token = null
 var card_manager: CardManager = null
 var board_items: BoardItems = null
+var dark_coins: DarkCoins = null
 var dark_world: DarkWorld = null
 
 # ---------------------------------------------------------------------------
@@ -181,6 +182,7 @@ func _ready() -> void:
 	token = Token.new()
 	card_manager = CardManager.new()
 	board_items = BoardItems.new()
+	dark_coins = DarkCoins.new()
 	dark_world = DarkWorld.new()
 	token.load_textures()
 
@@ -915,6 +917,10 @@ func _process(dt: float) -> void:
 
 	# 地图道具浮动动画
 	board_visual.update_item_visuals(game_time)
+
+	# 暗币浮动动画 (仅暗面世界激活时)
+	if dark_world.active:
+		board_visual.update_dark_coin_visuals(game_time)
 
 	# 暗面幽灵浮动 & NPC 呼吸动画
 	if dark_world.active:

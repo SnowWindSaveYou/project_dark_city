@@ -661,7 +661,7 @@ function Start()
     DialogueSystem.init(vg)
 
     -- 暗面世界
-    DarkCoins.init(scene_, vg)
+    DarkCoins.init(scene_)
     DarkWorld.init(vg)
     DarkWorld.setExitCallback(function()
         DarkWorldFlow.exitDarkWorld()

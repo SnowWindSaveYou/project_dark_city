@@ -1453,6 +1453,111 @@ func animate_item_collect(item_index: int) -> void:
 	)
 
 # ---------------------------------------------------------------------------
+# 暗币 3D 节点 (DarkCoins Billboard, 与道具系统平行)
+# ---------------------------------------------------------------------------
+## 暗币渲染参数 (匹配 Lua DarkCoins: COIN_SIZE=0.16 half → ×2 = 0.32m)
+const DARK_COIN_SCALED_SIZE: float = DarkCoins.COIN_SIZE
+const DARK_COIN_BASE_Y: float = DarkCoins.COIN_BASE_Y
+
+## 暗币 Sprite3D 节点缓存: coin_index(int) → Dictionary
+var _dark_coin_nodes: Dictionary = {}
+
+func create_dark_coin_nodes(coins: Array) -> void:
+	destroy_dark_coin_nodes()
+	var tex: Texture2D = load(DarkCoins.CRYSTAL_TEX)
+	if not tex:
+		push_warning("[BoardVisual] DarkCoins texture not found: " + DarkCoins.CRYSTAL_TEX)
+		return
+	var tex_max: float = maxf(float(tex.get_width()), float(tex.get_height()))
+	var pixel_sz: float = DARK_COIN_SCALED_SIZE / tex_max if tex_max > 0.0 else 0.001
+
+	for i in range(coins.size()):
+		var coin: DarkCoins.DarkCoin = coins[i]
+		if coin.collected:
+			continue
+		var sprite: Sprite3D = Sprite3D.new()
+		sprite.name = "DarkCoin_%d" % i
+		sprite.texture = tex
+		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		sprite.transparent = true
+		sprite.no_depth_test = false
+		sprite.render_priority = 0
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+		sprite.alpha_scissor_threshold = 0.5
+		sprite.pixel_size = pixel_sz
+		var world_pos: Vector3 = m.board.grid_to_world(coin.row, coin.col)
+		world_pos.y = DARK_COIN_BASE_Y
+		world_pos.z += DarkCoins.CAMERA_OFFSET_Z
+		sprite.position = world_pos
+		# 初始不可见 (弹出动画驱动)
+		sprite.modulate = Color(1, 1, 1, 0)
+		sprite.scale = Vector3(0.01, 0.01, 0.01)
+		add_child(sprite)
+		_dark_coin_nodes[i] = {
+			"node": sprite,
+			"base_y": DARK_COIN_BASE_Y,
+			"phase": coin.phase,
+			"pos_x": world_pos.x,
+			"pos_z": world_pos.z,
+		}
+
+func destroy_dark_coin_nodes() -> void:
+	for key in _dark_coin_nodes:
+		var data: Dictionary = _dark_coin_nodes[key]
+		var node = data.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_dark_coin_nodes.clear()
+
+func update_dark_coin_visuals(game_time: float) -> void:
+	for key in _dark_coin_nodes:
+		var data: Dictionary = _dark_coin_nodes[key]
+		var node = data.get("node")
+		if not is_instance_valid(node):
+			continue
+		var float_y: float = sin(game_time * DarkCoins.FLOAT_SPEED + data["phase"]) * DarkCoins.FLOAT_AMP
+		node.position = Vector3(data["pos_x"], data["base_y"] + float_y, data["pos_z"])
+
+## 暗币弹出动画 (scale 0→1, alpha 0→1, easeOutBack)
+func animate_dark_coin_spawn(coin_index: int, delay: float) -> void:
+	if not _dark_coin_nodes.has(coin_index):
+		return
+	var data: Dictionary = _dark_coin_nodes[coin_index]
+	var node = data.get("node")
+	if not is_instance_valid(node):
+		return
+	var tw: Tween = m.create_tween()
+	tw.tween_property(node, "scale", Vector3.ONE, 0.3) \
+		.set_delay(delay) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	var tw2: Tween = m.create_tween()
+	tw2.tween_property(node, "modulate:a", 1.0, 0.2).set_delay(delay)
+
+## 暗币拾取动画 (上飘 + 淡出 + 移除节点)
+func animate_dark_coin_collect(coin_index: int) -> void:
+	if not _dark_coin_nodes.has(coin_index):
+		return
+	var data: Dictionary = _dark_coin_nodes[coin_index]
+	var node = data.get("node")
+	if not is_instance_valid(node):
+		_dark_coin_nodes.erase(coin_index)
+		return
+	var start_y: float = node.position.y
+	var tw: Tween = m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(node, "position:y", start_y + 0.3, 0.4) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(node, "modulate:a", 0.0, 0.35) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(node, "scale", Vector3(1.3, 1.3, 1.3), 0.4) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.chain().tween_callback(func() -> void:
+		if is_instance_valid(node):
+			node.queue_free()
+		_dark_coin_nodes.erase(coin_index)
+	)
+
+# ---------------------------------------------------------------------------
 # 怪物 Chibi 3D 节点 (MonsterGhost — 环绕/卡牌/踪迹)
 # ---------------------------------------------------------------------------
 

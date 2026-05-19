@@ -39,6 +39,9 @@ var shop_items: Dictionary = {}
 var consumable_order: Array = []
 var shop_variants: Array = []
 var shop_refresh_cost: int = 5
+var dark_items: Dictionary = {}
+var dark_variants: Array = []
+var dark_refresh_cost: int = 8
 
 # dark_world.json
 var dw_constants: Dictionary = {}
@@ -150,6 +153,9 @@ func _load_shop() -> void:
 	consumable_order  = data.get("consumable_order", [])
 	shop_variants     = data.get("variants", [])
 	shop_refresh_cost = int(data.get("refresh_cost", 5))
+	dark_items        = data.get("dark_items", {})
+	dark_variants     = data.get("dark_variants", [])
+	dark_refresh_cost = int(data.get("dark_refresh_cost", 8))
 	_convert_shop_to_int()
 
 # ---------------------------------------------------------------------------
@@ -221,6 +227,12 @@ func _convert_schedule_rewards() -> void:
 func _convert_shop_to_int() -> void:
 	for key in shop_items:
 		var item: Dictionary = shop_items[key]
+		if item.has("price"):
+			item["price"] = int(item["price"])
+		if item.has("effect"):
+			item["effect"] = _convert_to_int_dict(item["effect"])
+	for key in dark_items:
+		var item: Dictionary = dark_items[key]
 		if item.has("price"):
 			item["price"] = int(item["price"])
 		if item.has("effect"):

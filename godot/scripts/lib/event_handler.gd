@@ -290,7 +290,8 @@ func execute_event(result: EventResult, card: Card = null) -> void:
 		match result.event_type:
 			EventType.SHOP:
 				if _main:
-					_main._shop_popup.open_shop()
+					var _is_dark: bool = _main.dark_world != null and _main.dark_world.active
+					_main._shop_popup.open_shop(_is_dark)
 			EventType.NPC_DIALOGUE:
 				var dialogue: Array = result.popup_data.get("dialogue", [])
 				var tex: String = result.popup_data.get("tex", "")

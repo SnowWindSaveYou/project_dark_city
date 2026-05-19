@@ -71,48 +71,49 @@
 		"darkEssence": {
 			"name": "暗影精华",
 			"icon": "🌑",
-			"price": 25,
+			"price": 12,
 			"type": "consumable",
-			"effect": { "sanMax": 2 },
-			"desc": "饮下后感觉理智的容器扩大了",
-			"image_path": ""
+			"effect": { "san": 8 },
+			"desc": "饮下后理智如潮水般涌回，大幅恢复理智",
+			"image_path": "res://assets/image/dark_essence_v4_20260519133500.png"
 		},
 		"ironPill": {
 			"name": "铁骨丹",
 			"icon": "💀",
-			"price": 25,
+			"price": 12,
 			"type": "consumable",
-			"effect": { "healthMax": 2 },
-			"desc": "服用后骨骼变得更加坚韧",
-			"image_path": ""
+			"effect": { "health": 5, "san": 3 },
+			"desc": "身心双补，同时恢复健康与理智",
+			"image_path": "res://assets/image/iron_pill_v4_20260519133500.png"
 		},
 		"echoCrystal": {
 			"name": "回响水晶",
 			"icon": "🔮",
-			"price": 20,
+			"price": 6,
 			"type": "consumable",
-			"effect": { "inspiration": 5 },
-			"desc": "握住时能感受到灵感的涌动",
-			"image_path": ""
+			"effect": { "inspiration": 8 },
+			"desc": "握住时灵感如洪流般涌动，大幅提升灵感",
+			"image_path": "res://assets/image/echo_crystal_v4_20260519133459.png"
 		},
 		"darkCoffee": {
 			"name": "暗影咖啡",
 			"icon": "☕",
-			"price": 10,
+			"price": 3,
 			"type": "consumable",
-			"effect": { "san": 3 },
-			"desc": "暗面世界特调，效果更强",
-			"image_path": ""
+			"effect": { "san": 5 },
+			"desc": "暗面世界特调，效果远胜普通咖啡",
+			"image_path": "res://assets/image/dark_coffee_v4_20260519133502.png"
 		},
 		"darkFilm": {
 			"name": "暗影胶卷",
 			"icon": "🎞️",
-			"price": 12,
+			"price": 5,
 			"type": "consumable",
-			"effect": { "film": 2 },
-			"desc": "暗面特制胶卷，一次获得两卷",
-			"image_path": ""
+			"effect": { "film": 3 },
+			"desc": "暗面特制胶卷，一次获得三卷",
+			"image_path": "res://assets/image/dark_film_v4_20260519133501.png"
 		}
 	},
-	"refresh_cost": 5
+	"refresh_cost": 5,
+	"dark_refresh_cost": 3
 }

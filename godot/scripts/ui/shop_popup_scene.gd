@@ -227,12 +227,24 @@ func _refresh_goods() -> void:
 		_purchase_flash.append(0.0)
 		_hover_card_t.append(0.0)
 
+func _get_currency() -> String:
+	return "darkcoin" if _is_dark else "money"
+
+func _get_currency_icon() -> String:
+	return "🌑" if _is_dark else "💰"
+
+func _get_refresh_cost() -> int:
+	return CardConfig.dark_refresh_cost if _is_dark else CardConfig.shop_refresh_cost
+
 func _update_money_display() -> void:
-	_money_label.text = "💰 " + str(GameData.get_resource("money"))
+	var icon: String = _get_currency_icon()
+	_money_label.text = icon + " " + str(GameData.get_resource(_get_currency()))
 
 func _update_refresh_button_text() -> void:
-	_refresh_button.text = "🔄 刷新 💰" + str(CardConfig.shop_refresh_cost)
-	var can_afford: bool = GameData.get_resource("money") >= CardConfig.shop_refresh_cost
+	var icon: String = _get_currency_icon()
+	var cost: int = _get_refresh_cost()
+	_refresh_button.text = "🔄 刷新 " + icon + str(cost)
+	var can_afford: bool = GameData.get_resource(_get_currency()) >= cost
 	_refresh_button.disabled = not can_afford or _refresh_phase != "idle"
 
 func _tween_array(tw: Tween, arr: Array, idx: int, target: float,
@@ -265,12 +277,13 @@ func _btn_hover_tween(btn: Button, enter: bool) -> void:
 func _on_refresh_pressed() -> void:
 	if _phase != "idle" or _refresh_phase != "idle":
 		return
-	if GameData.get_resource("money") < CardConfig.shop_refresh_cost:
+	var cost: int = _get_refresh_cost()
+	if GameData.get_resource(_get_currency()) < cost:
 		AudioManager.play_sfx("shop_reject")
 		return
 
 	AudioManager.play_sfx("shop_refresh")
-	GameData.modify_resource("money", -CardConfig.shop_refresh_cost)
+	GameData.modify_resource(_get_currency(), -cost)
 	_update_money_display()
 	_refresh_phase = "exit"
 
@@ -352,13 +365,14 @@ func _try_purchase(index: int) -> void:
 	var item_key: String = _goods[index]
 	var info: Dictionary = ShopData.get_item_info(item_key)
 	var price: int = info.get("price", 999)
+	var currency: String = _get_currency()
 
-	if GameData.get_resource("money") < price:
+	if GameData.get_resource(currency) < price:
 		AudioManager.play_sfx("shop_reject")
 		_shake_card(index)
 		return
 
-	GameData.modify_resource("money", -price)
+	GameData.modify_resource(currency, -price)
 	var effect: Dictionary = info.get("effect", {})
 	# 特殊效果: sanMax / healthMax 上限提升 (从 effect 中移除后再 apply)
 	var filtered_effect: Dictionary = effect.duplicate()
@@ -424,7 +438,7 @@ func _draw_cards() -> void:
 		var item_key: String = _goods[i]
 		var info: Dictionary = ShopData.get_item_info(item_key)
 		var sold: bool = _sold[i]
-		var money: int = GameData.get_resource("money")
+		var money: int = GameData.get_resource(_get_currency())
 		var price: int = info.get("price", 999)
 		var can_afford: bool = money >= price
 
@@ -523,7 +537,7 @@ func _draw_cards() -> void:
 			var price_color: Color = t.highlight if can_afford else t.danger
 			var price_alpha: float = content_alpha if can_afford else draw_alpha * 0.67
 			_cards_area.draw_string(font, Vector2(-hw, hh - 24),
-				"💰 " + str(price), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 36,
+				_get_currency_icon() + " " + str(price), HORIZONTAL_ALIGNMENT_CENTER, CARD_W, 36,
 				Color(price_color.r, price_color.g, price_color.b, price_alpha))
 
 			# Hover 提示
