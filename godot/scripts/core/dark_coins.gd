@@ -49,7 +49,7 @@ func spawn_from_board(board: Board) -> void:
 	for r in range(1, Board.ROWS + 1):
 		for c in range(1, Board.COLS + 1):
 			var card = board.get_card(r, c)
-			if card and card.get("dark_dot", false):
+			if card and card.get("dark_dot"):
 				var coin: DarkCoin = DarkCoin.new()
 				coin.row = r
 				coin.col = c
