@@ -18,6 +18,7 @@ local DialogueSystem = require "DialogueSystem"
 local BoardItems    = require "BoardItems"
 local AudioManager  = require "AudioManager"
 local BubbleDialogue = require "BubbleDialogue"
+local TutorialTexts  = require "data.tutorial_texts"
 local SideBubble     = require "SideBubble"
 local EventPool         = require "EventPool"
 local StoryEventManager = require "StoryEventManager"
@@ -169,10 +170,7 @@ local function onCardFlipped(card, screenX, screenY)
         -- 首次踏入安全区光晕 → 解释安全区机制
         if not G.tutorialFlags.safeZoneSeen then
             G.tutorialFlags.safeZoneSeen = true
-            SideBubble.showSequence({
-                { speaker = "白夜", text = "发光的格子有结界——妖魔近不了身。" },
-                { speaker = "白夜", text = "教堂和警察局周围四格，都是这样。" },
-            })
+            SideBubble.showSequence(TutorialTexts.SAFE_ZONE)
         end
     end
 
@@ -317,10 +315,7 @@ local function onCardFlipped(card, screenX, screenY)
             -- 首次遭遇怪物 → 提示灵感影响伤害
             if not G.tutorialFlags.monsterSeen then
                 G.tutorialFlags.monsterSeen = true
-                SideBubble.showSequence({
-                    { speaker = "白夜", text = "灵感强了，它们感知得到你。" },
-                    { speaker = "白夜", text = "感知得到……就咬得重。" },
-                })
+                SideBubble.showSequence(TutorialTexts.MONSTER_FIRST)
             end
         end
 
@@ -651,10 +646,7 @@ local function onPhotographFlipped(card, screenX, screenY)
                                 -- 首次拍照驱除 → 确认教程
                                 if not G.tutorialFlags.cameraExorciseSeen then
                                     G.tutorialFlags.cameraExorciseSeen = true
-                                    SideBubble.showSequence({
-                                        { speaker = "白夜", text = "已经现身的，照样能拍走。" },
-                                        { speaker = "白夜", text = "比正面撞上安全一点。要胶卷。" },
-                                    })
+                                    SideBubble.showSequence(TutorialTexts.CAMERA_EXORCISE)
                                 end
                             end, CardTextures)
                         end
@@ -931,10 +923,7 @@ function M.handleNormalModeClick(card, row, col)
             -- 首次发现裂隙 → 说明灵感机制
             if not G.tutorialFlags.riftSeen then
                 G.tutorialFlags.riftSeen = true
-                SideBubble.showSequence({
-                    { speaker = "白夜", text = "灵感不够的时候……这里什么都没有。" },
-                    { speaker = "白夜", text = "不是看不见。是感觉不到。" },
-                })
+                SideBubble.showSequence(TutorialTexts.RIFT_FIRST)
             end
             local popCX = G.logicalW / 2
             local popCY = G.logicalH * 0.42

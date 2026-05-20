@@ -39,6 +39,7 @@ local StoryManager     = require "StoryManager"
 local StoryEventManager = require "StoryEventManager"
 local DebugPanel       = require "DebugPanel"
 local Weather          = require "Weather"
+local TutorialTexts    = require "data.tutorial_texts"
 
 -- ---------------------------------------------------------------------------
 -- 全局变量
@@ -165,19 +166,9 @@ local gameStats = {
 }
 
 -- ---------------------------------------------------------------------------
--- 琴馨 NPC 对话脚本 (Day 1 相机教程)
+-- 琴馨 NPC 对话脚本 (Day 1 相机教程，文本来自 TutorialTexts)
 -- ---------------------------------------------------------------------------
-local QINXIN_DIALOGUE = {
-    { speaker = "琴馨", text = "唔……你也能看到那些奇怪的东西啊……" },
-    { speaker = "琴馨", text = "……我还以为只有我一个人呢。" },
-    { speaker = "琴馨", text = "嗯，那个……你看到右下角的 📷 了吗？" },
-    { speaker = "琴馨", text = "点一下就能进入相机模式哦。" },
-    { speaker = "琴馨", text = "在相机模式里，你可以拍照侦测还没翻开的牌……" },
-    { speaker = "琴馨", text = "这样就能提前知道哪张牌下面藏着什么了。" },
-    { speaker = "琴馨", text = "而且啊……如果已经知道是怪物，还能直接驱除掉它。" },
-    { speaker = "琴馨", text = "不过每次拍照都要消耗胶卷哦，每天只有3卷……" },
-    { speaker = "琴馨", text = "省着点用吧。……我先眯一会儿了。" },
-}
+local QINXIN_DIALOGUE = TutorialTexts.QINXIN_CAMERA_TUTORIAL
 
 -- ============================================================================
 -- 分辨率计算
@@ -576,11 +567,7 @@ function Start()
     HandPanel.setOnFirstExpandCallback(function()
         if not G.tutorialFlags.scheduleSeen then
             G.tutorialFlags.scheduleSeen = true
-            SideBubble.showSequence({
-                { speaker = "苏柚", text = "这是今天的日程，完成了有奖励。" },
-                { speaker = "白夜", text = "……按顺序去就好了吗？" },
-                { speaker = "苏柚", text = "差不多。尽量别拖到最后一天。" },
-            })
+            SideBubble.showSequence(TutorialTexts.SCHEDULE_INTRO)
         end
     end)
 
@@ -614,11 +601,7 @@ function Start()
         -- 第一次进入相机模式 → 右侧教程气泡
         if not G.tutorialFlags.cameraModeSeen then
             G.tutorialFlags.cameraModeSeen = true
-            SideBubble.showSequence({
-                { speaker = "白夜", text = "翻开之前，先拍一下。" },
-                { speaker = "白夜", text = "镜头里有时会浮现方向——妖魔在哪边。" },
-                { speaker = "白夜", text = "胶卷不多。" },
-            })
+            SideBubble.showSequence(TutorialTexts.CAMERA_INTRO)
         end
         if not board or not board.cards then return end
         for r = 1, Board.ROWS do
